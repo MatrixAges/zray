@@ -1,29 +1,32 @@
 import host from "lowering_host"
-import memory from "memory"
 
 import { Operation } from "../model"
 
 import type { Literals } from "./model"
 
-export type Input = Literals & {
-    offset: u64
-}
+export type Input = Literals
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    const literals = loop(0, {
-        while: index => index < in.nodes.length,
-        next: index => {
-            const node = in.nodes[index]
+    const empty: u32[] = []
 
-            if (node.operation == Operation.Literal) {
-                const value = host.lowerExpression(in.frame, node.source, false, null)
-
-                memory.writeU32(in.literals, in.offset + index, value)
+    return loop({
+        index: 0,
+        values: empty
+    }, {
+        while: state => state.index < in.nodes.length,
+        next: state => {
+            const node = in.nodes[state.index]
+            const value: u32 = match {
+                node.operation == Operation.Literal =>
+                    host.lowerExpression(in.frame, node.source, false, null),
+                _ => 0
             }
 
-            index += 1
-        }
+            state.values = state.values.push(value)[0]
+            state.index += 1
+        },
+        return: state => state.values
     })
 }

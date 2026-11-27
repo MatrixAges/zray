@@ -2,8 +2,13 @@ import type { Stores } from "core/store_table/model"
 import type { Allocator, TextColumn, U8Buffer, WriteColumn } from "memory"
 import type { ColumnAllocator, RowBuffer, RowGrowth } from "memory/columns"
 import type { Bindings as Selected } from "../../../binding/model"
-import type { Members, RowsTarget } from "../../../binding/publication/model"
+import type { Members } from "../../../binding/publication/model"
 import type { Ports, Signature } from "../model"
+
+export type RowsTarget = {
+    storage: RowBuffer,
+    used: u64
+}
 
 export type Target = {
     name: WriteColumn,

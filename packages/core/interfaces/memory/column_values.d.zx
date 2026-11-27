@@ -120,42 +120,10 @@ export declare function copyScalar(
     index: u64
 ): void throws { IndexOutOfBounds }
 
-export declare function copyScalarAt(
-    source: ReadColumn,
-    index: u64,
-    target: WriteColumn,
-    destination: u64
-): void throws { IndexOutOfBounds }
-
 export declare function writeScalarText(
     target: WriteColumn,
     index: u64,
     value: string
-): void throws { IndexOutOfBounds }
-
-export declare function writeScalarInteger(
-    target: WriteColumn,
-    index: u64,
-    value: u64,
-    negative: bool
-): void throws { IndexOutOfBounds }
-
-export declare function writeScalarFloat(
-    target: WriteColumn,
-    index: u64,
-    value: f64
-): void throws { IndexOutOfBounds }
-
-export declare function writeScalarBoolean(
-    target: WriteColumn,
-    index: u64,
-    value: bool
-): void throws { IndexOutOfBounds }
-
-export declare function writeScalarEnumeration(
-    target: WriteColumn,
-    index: u64,
-    value: u32
 ): void throws { IndexOutOfBounds }
 
 export declare function readListOptionalU8(

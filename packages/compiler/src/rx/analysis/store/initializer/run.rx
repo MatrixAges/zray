@@ -45,13 +45,13 @@
             ]}
         />
 
-        <Call module="object/build" in={$in.object} />
+        <Call fn="../layout/field_positions" />
 
         <Call
             fn="host.finishStoreInitializer"
             in={[
                 $in.frame,
-                $ctx.build
+                $ctx.field_positions
             ]}
         />
     </If>

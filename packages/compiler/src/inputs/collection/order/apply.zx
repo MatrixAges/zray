@@ -1,63 +1,65 @@
-import memory from "memory"
-
-import type { ReadColumn, U64Buffer, WriteColumn } from "memory"
-
-export type Input = {
-    source: ReadColumn,
-    target: WriteColumn,
-    order: U64Buffer,
-    saved: ReadColumn,
-    temporary: WriteColumn,
-    count: u64,
-    width: u64
+export type CyclePlan = {
+    indices: u64[],
+    ends: u64[]
 }
 
-export type Output = void
+export type Input = {
+    order: u64[]
+}
+
+export type Output = CyclePlan
 
 export default function (in: Input): Output {
-    const applied = loop(0, {
-        while: start => start < in.count,
-        next: start => {
-            if (memory.readU64(in.order, start) != start) {
-                const first = memory.readFixedBytes(in.source, start, in.width)
+    const count = in.order.length
+    const empty: u64[] = []
 
-                memory.copyColumnValue(in.temporary, 0, first)
+    return loop({
+        start: 0,
+        order: in.order,
+        indices: empty,
+        ends: empty
+    }, {
+        while: state => state.start < count,
+        next: state => {
+            const start = state.start
 
+            if (state.order[start] != start) {
                 const cycle = loop({
                     row: start,
+                    order: state.order,
+                    indices: state.indices,
                     done: false
                 }, {
-                    while: state => !state.done,
-                    next: state => {
-                        const next = memory.readU64(in.order, state.row)
+                    while: inner => !inner.done,
+                    next: inner => {
+                        const row = inner.row
+                        const next = inner.order[row]
 
-                        memory.writeU64(in.order, state.row, state.row)
+                        inner.order[row] = row
+                        inner.indices = inner.indices.push(row)[0]
 
                         if (next == start) {
-                            const saved = memory.readFixedBytes(in.saved, 0, in.width)
-
-                            memory.copyColumnValue(
-                                in.target,
-                                state.row,
-                                saved
-                            )
-                            state.done = true
+                            inner.done = true
                         } else {
-                            const record =
-                                memory.readFixedBytes(in.source, next, in.width)
-
-                            memory.copyColumnValue(
-                                in.target,
-                                state.row,
-                                record
-                            )
-                            state.row = next
+                            inner.row = next
                         }
-                    }
+                    },
+                    return: inner => ({
+                        order: inner.order,
+                        indices: inner.indices
+                    })
                 })
+
+                state.order = cycle.order
+                state.indices = cycle.indices
+                state.ends = state.ends.push(cycle.indices.length)[0]
             }
 
-            start += 1
-        }
+            state.start += 1
+        },
+        return: state => ({
+            indices: state.indices,
+            ends: state.ends
+        })
     })
 }

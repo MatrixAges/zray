@@ -1,34 +1,33 @@
 import integers from "std:integer"
-import memory from "memory"
 
-import { reachable } from "./const"
+import type { State as Output } from "./model"
 
-import type { Input as Graph } from "./model"
-
-export type Input = Graph.Pick("needed") & {
+export type Input = Output & {
     ids: u32[]
 }
 
-export type Output = u64
-
 export default function (in: Input): Output {
-    const { ids, needed } = in
+    const { ids } = in
 
     return loop({
         row: 0,
-        count: 0
+        needed: in.needed,
+        count: in.count
     }, {
         while: state => state.row < ids.length,
         next: state => {
             const id = integers.widen(ids[state.row])
 
-            if (memory.readU8(needed, id) == 0) {
-                memory.writeU8(needed, id, reachable)
+            if (!state.needed[id]) {
+                state.needed[id] = true
                 state.count += 1
             }
 
             state.row += 1
         },
-        return: state => state.count
+        return: state => ({
+            needed: state.needed,
+            count: state.count
+        })
     })
 }

@@ -9,8 +9,6 @@ const Frame = struct {
     expression: []const u8,
     origin: Graph.Origin,
     width: u16,
-    buckets: []u64,
-    staged: ?[]u64 = null,
     fn borrow(handle: *anyopaque) *@This() {
         return @ptrCast(@alignCast(handle));
     }
@@ -22,10 +20,7 @@ pub fn bind(graph: *Graph, expression: []const u8, width: u16, origin: Graph.Ori
         .expression = expression,
         .width = width,
         .origin = origin,
-        .buckets = graph.index,
     };
-
-    defer if (frame.staged) |buckets| graph.allocator.free(buckets);
 
     const rows = graph.definitions.slice();
 
@@ -40,7 +35,6 @@ pub fn bind(graph: *Graph, expression: []const u8, width: u16, origin: Graph.Ori
             .buckets = @ptrCast(&graph.index),
             .capacity = graph.index.len,
         },
-        .buckets = @ptrCast(&frame.buckets),
         .origin = &.{
             .count = rows.len,
             .file = origin.file_name,
@@ -58,19 +52,10 @@ pub fn reserveSymbolicDefinition(handle: *anyopaque) std.mem.Allocator.Error!voi
     try graph.definitions.ensureUnusedCapacity(graph.allocator, 1);
 }
 
-pub fn allocateSymbolicIndex(handle: *anyopaque, capacity: u64) std.mem.Allocator.Error!void {
-    const frame = Frame.borrow(handle);
-    const buckets = try frame.graph.allocator.alloc(u64, @intCast(capacity));
-
-    @memset(buckets, 0);
-
-    frame.staged = buckets;
-    frame.buckets = buckets;
-}
-
-pub fn commitSymbolicDefinition(handle: *anyopaque, name: []const u8, file: []const u8, resized: bool) void {
+pub fn commitSymbolicDefinition(handle: *anyopaque, name: []const u8, file: []const u8, resized: bool, buckets: []const u64, slot: u64, value: u64) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
     const graph = frame.graph;
+    const owned_buckets = if (resized) try graph.allocator.dupe(u64, buckets) else null;
 
     graph.appendDefinition(.{
         .name = name,
@@ -79,11 +64,12 @@ pub fn commitSymbolicDefinition(handle: *anyopaque, name: []const u8, file: []co
         .origin = .{ .file_name = file, .span = frame.origin.span },
     });
 
-    if (resized) {
+    if (owned_buckets) |next| {
         graph.allocator.free(graph.index);
 
-        graph.index = frame.staged.?;
-        frame.staged = null;
+        graph.index = next;
+    } else {
+        graph.index[@intCast(slot)] = value;
     }
 }
 

@@ -2,7 +2,6 @@ import bytes from "std:bytes"
 import integers from "std:integer"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
-import memory from "memory"
 
 import emptyFields from "../../../ast/fields/empty"
 
@@ -16,7 +15,7 @@ export type Input = {
 export default function (in: Input): Output {
     const result = loop({
         source: in.source.types,
-        values: memory.u32Views(in.source.values),
+        values: in.types.values,
         valid: in.types.valid,
         type_index: 0,
         field_index: 0,

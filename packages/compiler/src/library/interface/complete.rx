@@ -1,19 +1,11 @@
 <Module>
     <Type from="model" as="Interface" />
 
-    <Args in={Interface.Input} out={Interface.Status} />
+    <Args in={Interface.Input} out={Interface.Outcome} />
 
-    <Call fn="ports" in={$in.omit(["target"])} />
+    <Call fn="ports" in={$in} />
 
     <If on={$ctx.ports.count != 0}>
-        <Call
-            fn="../../zx/modules/artifact/surface/allocate_exports"
-            in={{
-                target: $in.target,
-                count: $ctx.ports.count
-            }}
-        />
-
         <Call
             fn="publish"
             in={{
@@ -25,7 +17,19 @@
                 ports: $ctx.ports
             }}
         />
+
+        <Return
+            value={{
+                status: $ctx.ports.status,
+                exports: $ctx.publish
+            }}
+        />
     </If>
 
-    <Return value={$ctx.ports.status} />
+    <Return
+        value={{
+            status: $ctx.ports.status,
+            exports: []
+        }}
+    />
 </Module>

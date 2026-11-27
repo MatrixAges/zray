@@ -30,6 +30,8 @@ export default function (in: Input): Output {
             struct_type_len: in.struct_type_len
         },
         declarations: in.declarations,
+        values: in.values,
+        layouts: in.layouts,
         has_lists: in.has_lists,
         valid: in.valid
     }

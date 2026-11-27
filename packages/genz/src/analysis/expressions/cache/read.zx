@@ -7,14 +7,23 @@ import type { Input as Count } from "./count"
 
 export type Input = Key & Count
 
-export type Output = u32?
+export type Output = {
+    value?: u32,
+    reads?: u64
+}
 
 export default function (in: Input): Output {
     const value = read(in.omit(["reads"]))
 
     if (value != null) {
-        count(in.omit(["state"]))
+        return {
+            value,
+            reads: count(in.omit(["state"]))
+        }
     }
 
-    return value
+    return {
+        value: null,
+        reads: null
+    }
 }

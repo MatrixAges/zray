@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Graph" />
 
-    <Args in={Graph.Input} out={u64} />
+    <Args in={Graph.Input} out={Graph.State} />
 
     <Call fn="roots" in={$in} />
 
@@ -9,8 +9,8 @@
         fn="closure"
         in={{
             functions: $in.functions,
-            needed: $in.needed,
-            count: $ctx.roots
+            needed: $ctx.roots.needed,
+            count: $ctx.roots.count
         }}
     />
 

@@ -1,7 +1,6 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
 import get from "core/integer/index/get"
-import memory from "memory"
 
 import address from "../../../ast/context/address"
 import identifier from "../../../ast/context/identifier"
@@ -50,8 +49,6 @@ export default function (in: Input): Output {
         next: current => {
             const symbol = in.symbols[current.index]
             const index = integers.widen(symbol)
-
-            memory.writeU8(in.used, index, 1)
 
             const reference = identifier({
                 state: current.context,

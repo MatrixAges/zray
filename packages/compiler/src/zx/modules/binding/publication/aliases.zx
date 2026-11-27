@@ -1,36 +1,38 @@
-import bytes from "std:bytes"
 import memory from "memory"
 
-import type { Aliases, Selected } from "./model"
+import type { NamedRows } from "memory"
+import type { AliasRow as Row } from "./model"
 
-export type Input = Selected & Aliases.Pick("source", "target")
+export type { AliasRow as Row } from "./model"
 
-export type Output = u64
+export type Input = {
+    source: NamedRows,
+    names: string[],
+    indices: u64[]
+}
+
+export type Output = Row[]
 
 export default function (in: Input): Output {
-    const { names, indices, source, target, used: first, owner } = in
+    const { names, indices, source } = in
 
-    if (names.length == 0) {
-        return first
-    }
+    const empty: Row[] = []
 
-    const published = loop(0, {
-        while: row => row < names.length,
-        next: row => {
-            const name = memory.copyColumnText(owner, names[row])
+    return loop({
+        row: 0,
+        rows: empty
+    }, {
+        while: state => state.row < names.length,
+        next: state => {
+            const row = state.row
             const id = memory.readRowId(source, indices[row])
 
-            const destination = first + row
-
-            memory.writeColumnBytes(
-                target.name,
-                destination,
-                bytes.fromText(name)
-            )
-            memory.writeColumnU32(target.id, destination, id)
-            row += 1
-        }
+            state.rows = state.rows.push({
+                name: names[row],
+                type_id: id
+            })[0]
+            state.row += 1
+        },
+        return: state => state.rows
     })
-
-    return first + names.length
 }

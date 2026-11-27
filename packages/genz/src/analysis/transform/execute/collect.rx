@@ -86,8 +86,7 @@
                 "ast",
                 "callback",
                 "element_symbol",
-                "element_name",
-                "used"
+                "element_name"
             ]),
             map: $ctx.prepare_collection.map,
             result: $ctx.prepare.id

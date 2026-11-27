@@ -1,18 +1,16 @@
 import type { Table as Types } from "core/type_table/model"
 import type { Bindings as Origins } from "core/type_table/nominal"
-import type { NamedRowBuffer } from "memory"
 import type {
     Target as Publication
 } from "../../../analysis/semantic/merging/publication/model"
 import type { Export } from "../interface/exports"
 import type { Member } from "../interface/members"
-import type { Bindings, Table } from "../publication/finalize_model"
 import type { Owner, Staging } from "../publication/model"
 import type { Output as Diagnostic } from "../validation/model"
+import type { Output as ExportBindings } from "./exports"
 
-export type Exports = Bindings & {
-    source: Export[],
-    target: NamedRowBuffer
+export type Exports = {
+    source: Export[]
 }
 
 export type LoadInput = {
@@ -31,6 +29,10 @@ export type LoadOutput = {
     origins: Origins
 }
 
+export type Output = ExportBindings & {
+    namespace: string[]
+}
+
 export type Input = {
     delta: Types,
     origins: Origins,
@@ -38,8 +40,5 @@ export type Input = {
     members: Member[],
     owner: Owner,
     types: Publication,
-    export_target: NamedRowBuffer,
-    bindings: Bindings,
-    member_targets: Staging,
-    native: Table
+    member_targets: Staging
 }

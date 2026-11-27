@@ -103,8 +103,7 @@
                 "context_name",
                 "context_type",
                 "element_symbol",
-                "element_name",
-                "used"
+                "element_name"
             ]),
             source: $ctx.bind_source,
             callback: $ctx.lowerExpression

@@ -1,69 +1,86 @@
-import bytes from "std:bytes"
 import strings from "std:string"
-import { allocateRows } from "core/row_buffer"
-import memory from "memory"
-
-import writeValue from "./value"
+import { ExpressionKind } from "core/expression_table/kinds"
 
 import type { Values } from "core/constant/model"
-import type { RowBuffer } from "memory/columns"
-import type { Target } from "../../../modules/artifact/surface/constants"
+
+export type Row = {
+    name: string,
+    type_id: u32,
+    kind: ExpressionKind,
+    integer: u64,
+    negative: bool,
+    floating: f64,
+    text: string,
+    boolean: bool,
+    enumeration: u32
+}
 
 export type Input = {
     scope?: Values,
-    first: u64,
-    storage: RowBuffer,
-    target: Target
+    first: u64
 }
 
-export type Output = bool
+export type Output = {
+    valid: bool,
+    rows: Row[]
+}
 
 export default function (in: Input): Output {
-    const { scope, first, storage, target } = in
+    const { scope, first } = in
+
+    const empty: Row[] = []
 
     if (scope == null) {
-        return true
+        return {
+            valid: true,
+            rows: empty
+        }
     }
 
     const count = scope.names.length - first
 
-    if (count == 0) {
-        return true
-    }
-
-    allocateRows({
-        target: storage,
-        count
-    })
-
     return loop({
         row: 0,
-        valid: true
+        valid: true,
+        rows: empty
     }, {
         while: state => state.valid && state.row < count,
         next: state => {
             const index = first + state.row
             const value = scope.values[index]
+            const supported = match value.kind {
+                ExpressionKind.Integer => true,
+                ExpressionKind.Float => true,
+                ExpressionKind.String => true,
+                ExpressionKind.Boolean => true,
+                ExpressionKind.EnumValue => true,
+                _ => false
+            }
 
-            state.valid = writeValue({
-                target: target.values,
-                row: state.row,
-                value
-            })
-
-            if (state.valid) {
+            if (supported) {
                 const name = strings.copy(scope.names[index])
+                const text =
+                    value.kind == ExpressionKind.String ? strings.copy(value.text) : ""
 
-                memory.writeColumnBytes(
-                    target.names,
-                    state.row,
-                    bytes.fromText(name)
-                )
-                memory.writeColumnU32(target.types, state.row, value.type_id)
-
+                state.rows = state.rows.push({
+                    name,
+                    type_id: value.type_id,
+                    kind: value.kind,
+                    integer: value.integer,
+                    negative: value.negative,
+                    floating: value.floating,
+                    text,
+                    boolean: value.boolean,
+                    enumeration: value.enumeration
+                })[0]
                 state.row += 1
+            } else {
+                state.valid = false
             }
         },
-        return: state => state.valid
+        return: state => ({
+            valid: state.valid,
+            rows: state.rows
+        })
     })
 }

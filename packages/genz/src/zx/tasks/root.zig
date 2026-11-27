@@ -33,10 +33,6 @@ fn launch(self: *Lower, id: ir.ExprId, concurrent: bool, name: ?[]const u8) Lowe
     const Input = std.meta.Child(entry.Input);
     const captures = self.program.expression(id).value.task.captures;
     const stack = self.stack_symbols.view(std.meta.Child(@FieldType(Input, "stack")));
-    var used = std.mem.sliceAsBytes(self.used);
-
-    comptime std.debug.assert(@sizeOf(bool) == 1);
-
     var scratch: std.heap.ArenaAllocator = .init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory: std.heap.BufferFirstAllocator = .init(&buffer, scratch.allocator());
@@ -61,11 +57,12 @@ fn launch(self: *Lower, id: ir.ExprId, concurrent: bool, name: ?[]const u8) Lowe
         .symbols = view.slice(@FieldType(Input, "symbols"), captures),
         .names = self.names,
         .stack = &stack,
-        .used = @ptrCast(&used),
         .name = name,
     };
 
     const output = entry.executeIn(memory.allocator(), &input) catch |err| return rows.failure(err);
+
+    for (captures) |symbol| self.used[@backingInt(symbol)] = true;
 
     return .{ .value = @fromBackingInt(output.value), .block = .{ .start = output.first, .len = output.count } };
 }

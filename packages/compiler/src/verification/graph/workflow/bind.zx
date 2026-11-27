@@ -25,23 +25,25 @@ export default function (in: Input): Output {
     host.reserveSymbolicDefinition(graph)
 
     const resized = selected.capacity != lookup.capacity
-
-    if (resized) {
-        host.allocateSymbolicIndex(graph, selected.capacity)
-    }
-
     const created = identity(in.origin)
 
-    commit({
+    const committed = commit({
         keys: lookup.keys,
         key: lookup.key,
-        buckets: in.buckets,
         capacity: selected.capacity,
         position: selected.position,
         resized
     })
 
-    host.commitSymbolicDefinition(graph, created.name, created.file, resized)
+    host.commitSymbolicDefinition(
+        graph,
+        created.name,
+        created.file,
+        resized,
+        committed.buckets,
+        committed.slot,
+        committed.value
+    )
 
     return created.name
 }

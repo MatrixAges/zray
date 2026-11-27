@@ -4,42 +4,50 @@ import columns from "memory/columns"
 import { type_attribute } from "../../../schema/attribute/const"
 import attributeRow from "../../../schema/tree/attribute_row"
 
-import type { Input } from "./model"
+import type { FieldRef, Input as LayoutInput } from "./model"
 
-export type Output = string[]
+export type { FieldRef } from "./model"
+
+export type Input = LayoutInput.Omit("resource")
+
+export type Output = {
+    expressions: string[],
+    fields: FieldRef[]
+}
 
 export default function (in: Input): Output {
-    const { fragments, offsets, layout, resource, fields } = in
+    const { fragments, offsets, layout } = in
 
     const objects = offsets.length - 1
     const width = layout.node_width
+    const empty_expressions: string[] = []
+    const empty_fields: FieldRef[] = []
 
-    const expressions = memory.requireTextSlots(
-        memory.allocateTextSlots(
-            resource,
-            offsets[objects],
-            null
-        )
-    )
-
-    const written = loop(0, {
-        while: object => object < objects,
-        next: object => {
+    return loop({
+        object: 0,
+        expressions: empty_expressions,
+        fields: empty_fields
+    }, {
+        while: state => state.object < objects,
+        next: state => {
+            const object = state.object
             const fragment = memory.borrowU8Range(fragments, object * width, width)
             const members = columns.readBorrowedRowList(
                 fragment,
                 layout.node_children,
                 width
             )
+            const count = offsets[object + 1] - offsets[object]
 
-            const start = offsets[object]
-            const count = offsets[object + 1] - start
-
-            const consumed = loop(0, {
-                while: row => row < count,
-                next: row => {
+            const captured = loop({
+                row: 0,
+                expressions: state.expressions,
+                fields: state.fields
+            }, {
+                while: inner => inner.row < count,
+                next: inner => {
+                    const row = inner.row
                     const field = memory.borrowU8Range(members, row * width, width)
-
                     const selected = attributeRow({
                         layout,
                         node: field,
@@ -52,27 +60,30 @@ export default function (in: Input): Output {
                             layout.attribute_value
                         )
 
-                        const position = start + row
-
-                        memory.writeTextSlot(expressions, position, expression)
-                        columns.writeColumnRowReference(
-                            fields,
-                            position,
-                            members,
-                            width,
+                        inner.expressions = inner.expressions.push(expression)[0]
+                        inner.fields = inner.fields.push({
+                            object,
                             row
-                        )
+                        })[0]
                     } else {
                         columns.requireColumnBounds(false)
                     }
 
-                    row += 1
-                }
+                    inner.row += 1
+                },
+                return: inner => ({
+                    expressions: inner.expressions,
+                    fields: inner.fields
+                })
             })
 
-            object += 1
-        }
+            state.expressions = captured.expressions
+            state.fields = captured.fields
+            state.object += 1
+        },
+        return: state => ({
+            expressions: state.expressions,
+            fields: state.fields
+        })
     })
-
-    return memory.borrowTextSlots(expressions, offsets[objects])
 }

@@ -1,49 +1,49 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
-import memory from "memory"
-
-import type { U32Buffer } from "memory"
 
 export type Input = {
     source: string[],
-    canonical: string[],
-    positions: U32Buffer
+    canonical: string[]
 }
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
     if (in.source.length == 1 && in.canonical.length == 1) {
-        memory.writeU32(in.positions, 0, 0)
-
-        return
+        return [0]
     }
 
-    const result = loop(0, {
-        while: index => index < in.source.length,
-        next: index => {
-            const needle = bytes.fromText(in.source[index])
+    const empty: u32[] = []
+
+    return loop({
+        index: 0,
+        positions: empty
+    }, {
+        while: state => state.index < in.source.length,
+        next: state => {
+            const needle = bytes.fromText(in.source[state.index])
 
             const position = loop({
                 first: 0,
                 end: in.canonical.length
             }, {
-                while: state => state.first < state.end,
-                next: state => {
-                    const middle = state.first + (state.end - state.first) / 2
+                while: search => search.first < search.end,
+                next: search => {
+                    const middle = search.first + (search.end - search.first) / 2
                     const current = bytes.fromText(in.canonical[middle])
 
                     if (bytes.lessThan(current, needle)) {
-                        state.first = middle + 1
+                        search.first = middle + 1
                     } else {
-                        state.end = middle
+                        search.end = middle
                     }
                 },
-                return: state => integers.narrow(state.first)
+                return: search => integers.narrow(search.first)
             })
 
-            memory.writeU32(in.positions, index, position)
-            index += 1
-        }
+            state.positions = state.positions.push(position)[0]
+            state.index += 1
+        },
+        return: state => state.positions
     })
 }

@@ -3,13 +3,7 @@
 
     <Args in={Reuse.Job} out={Reuse.Output} />
 
-    <Call
-        module="scan"
-        in={$in.omit([
-            "names",
-            "saved"
-        ])}
-    />
+    <Call module="scan" in={$in.omit(["names"])} />
 
     <Call fn="has" />
 
@@ -38,23 +32,23 @@
         </If>
 
         <Call
-            fn="install"
+            fn="../names"
             in={{
-                ...$in.pick([
-                    "names",
-                    "saved"
-                ]),
-                ...$ctx.plan.pick([
-                    "alias_symbols",
-                    "alias_sources"
-                ])
+                names: $in.names,
+                saved: [],
+                symbols: $ctx.plan.alias_symbols,
+                sources: $ctx.plan.alias_sources,
+                replacements: [],
+                restore: false
             }}
         />
 
         <Return
             value={{
                 ...$ctx.plan,
-                candidates: $ctx.scan.candidates
+                candidates: $ctx.scan.candidates,
+                saved: $ctx.names.saved,
+                updates: $ctx.names.updates
             }}
         />
 

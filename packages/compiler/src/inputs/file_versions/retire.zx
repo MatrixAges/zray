@@ -1,16 +1,16 @@
-import bytes from "std:bytes"
 import memory from "memory"
 
 import type { Retire as Input, Retired as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { pending, kept, published } = in
+    const { pending, published } = in
 
     const marks = published ? pending.publish : pending.abort
+    const empty: u64[] = []
 
     return loop({
         row: 0,
-        count: 0,
+        rows: empty,
         bytes: 0
     }, {
         while: state => state.row < pending.count,
@@ -18,16 +18,14 @@ export default function (in: Input): Output {
             if (memory.readColumnBool(marks, state.row)) {
                 const text = memory.readTextColumn(pending.texts, state.row)
 
-                memory.writeU8List(kept, state.count, bytes.fromText(text))
-                memory.writeColumnBytes(pending.clear, state.row, [])
-                state.count += 1
+                state.rows = state.rows.push(state.row)[0]
                 state.bytes += text.length
             }
 
             state.row += 1
         },
         return: state => ({
-            count: state.count,
+            rows: state.rows,
             bytes: state.bytes
         })
     })

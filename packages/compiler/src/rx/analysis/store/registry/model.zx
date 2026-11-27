@@ -1,23 +1,13 @@
-import type { WriteColumn } from "memory"
 import type { StoreRegistryLoad, StoreRegistryPublication } from "rx_project_host"
 
 export type Load = {
     state: StoreRegistryLoad,
     count: u64,
-    row: u64,
-    types: WriteColumn
-}
-
-export type Tables = {
-    types: WriteColumn,
-    natives: WriteColumn,
-    type_view: u8[],
-    native_view: u8[]
+    row: u64
 }
 
 export type Publication = {
     state: StoreRegistryPublication,
     count: u64,
-    row: u64,
-    tables: Tables
+    row: u64
 }

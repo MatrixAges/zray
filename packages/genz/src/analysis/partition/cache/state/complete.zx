@@ -1,35 +1,36 @@
-import integers from "std:integer"
-import memory from "memory"
-
-import type { U8Buffer } from "memory"
-
 export type Input = {
     pending: u32[],
-    failures: string?[],
-    target: U8Buffer
+    failures: string?[]
 }
 
-export type Output = bool
+export type Output = {
+    failed: bool,
+    completed: u32[]
+}
 
 export default function (in: Input): Output {
+    const empty: u32[] = []
+
     return loop({
         position: 0,
-        failed: false
+        failed: false,
+        completed: empty
     }, {
         while: state => state.position < in.pending.length,
         next: state => {
             const position = state.position
 
             if (in.failures[position] == null) {
-                const partition = integers.widen(in.pending[position])
-
-                memory.writeU8(in.target, partition, 1)
+                state.completed = state.completed.push(in.pending[position])[0]
             } else {
                 state.failed = true
             }
 
             state.position += 1
         },
-        return: state => state.failed
+        return: state => ({
+            failed: state.failed,
+            completed: state.completed
+        })
     })
 }

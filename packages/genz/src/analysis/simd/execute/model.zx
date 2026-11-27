@@ -1,22 +1,16 @@
 import type { AstOriginBuffer, AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
-import type { Allocator, U32Buffer } from "memory"
 import type { Input as Analysis, Node } from "../model"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
     origin: AstOriginBuffer,
-    owner: Allocator,
-    literals: U32Buffer,
     analysis: Analysis
 }
 
 export type Output = u32?
 
-export type Literals = Input.Pick(
-    "frame",
-    "literals"
-) & {
+export type Literals = Input.Pick("frame") & {
     nodes: Node[]
 }

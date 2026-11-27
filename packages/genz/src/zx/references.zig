@@ -54,23 +54,20 @@ pub fn plan(allocator: std.mem.Allocator, workspace: std.mem.Allocator, function
         .contracts = zx.columns.slice(@FieldType(Functions, "contracts"), functions.contracts),
     };
 
-    comptime std.debug.assert(@sizeOf(bool) == 1);
-
-    var flags = std.mem.sliceAsBytes(needed);
-
     const input = Input{
-        .needed = @ptrCast(&flags),
         .functions = &table,
         .roots = try bodies.finish(temporary),
         .members = @as([*]const u32, @ptrCast(members.ptr))[0..members.len],
     };
 
-    const count = zx.columns.invoke(generated.executeValue, temporary, &input) catch |err| switch (err) {
+    const result = zx.columns.invoke(generated.executeValue, temporary, &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
 
-    return .{ .needed = needed, .count = @intCast(count) };
+    @memcpy(needed, result.needed);
+
+    return .{ .needed = needed, .count = @intCast(result.count) };
 }
 
 pub fn imports(allocator: std.mem.Allocator, workspace: std.mem.Allocator, expressions: ir.ExpressionTable, contracts: ir.ContractTable, names: []const []const u8, members: []const ir.FunctionId) std.mem.Allocator.Error![]const []const u8 {

@@ -1,31 +1,32 @@
 import integers from "std:integer"
 import strings from "std:string"
-import memory from "memory"
 
 import { index_marker } from "./const"
 
-import type { StringBuffer } from "memory"
 import type { Prepared } from "./model"
 
 export type Input = Prepared & {
-    index: u32,
-    target: StringBuffer
+    index: u32
 }
 
-export type Output = void
+export type Output = string[]
 
 export default function (in: Input): Output {
     const number = `${in.index}`
 
-    const rendered = loop(0, {
-        while: row => row < in.indexed.length,
-        next: row => {
-            const position = integers.widen(in.indexed[row])
+    return loop({
+        row: 0,
+        values: in.values
+    }, {
+        while: state => state.row < in.indexed.length,
+        next: state => {
+            const position = integers.widen(in.indexed[state.row])
             const argument =
                 strings.replaceAll(in.values[position], index_marker, number)
 
-            memory.writeString(in.target, position, argument)
-            row += 1
-        }
+            state.values[position] = argument
+            state.row += 1
+        },
+        return: state => state.values
     })
 }

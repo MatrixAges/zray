@@ -1,7 +1,5 @@
-import integers from "std:integer"
 import { appendAstIdentifierRows, astExpressionCount } from "ast_rows"
 import host from "lowering_host"
-import memory from "memory"
 
 import { ExpressionsKind } from "../../../printer/model/expressions"
 import bindOperand from "../../aggregate/execute/bind_operand"
@@ -17,8 +15,7 @@ export type Input =
         "ast",
         "callback",
         "element_symbol",
-        "element_name",
-        "used"
+        "element_name"
     ) & {
         result: u32,
         map: bool
@@ -71,8 +68,6 @@ export default function (in: Input): Output {
     })
 
     const value = host.storeMapTransformValue(frame, identifier)
-
-    memory.writeU8(in.used, integers.widen(in.element_symbol), 1)
 
     return {
         result: in.result,

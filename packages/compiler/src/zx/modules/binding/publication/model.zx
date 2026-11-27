@@ -1,28 +1,24 @@
-import type { Rows } from "core/constant/rows"
-import type { Allocator, NamedRows, WriteColumn } from "memory"
-import type { ColumnAllocator, RowBuffer } from "memory/columns"
-import type { Source, Target } from "../../artifact/surface/bindings"
-import type { Target as ConstantTarget } from "../../artifact/surface/constants"
-import type { Bindings, PortShape, Result } from "../model"
+import type { NamedRows } from "memory"
+import type { Source } from "../../artifact/surface/bindings"
+import type { PortShape, Result } from "../model"
 
-export type RowsTarget = {
-    storage: RowBuffer,
-    used: u64
+export type AliasRow = {
+    name: string,
+    type_id: u32
 }
 
-export type AliasColumns = {
-    name: WriteColumn,
-    id: WriteColumn
+export type ConstantRow = {
+    name: string,
+    index: u64
 }
 
-export type Aliases = RowsTarget & {
-    source: NamedRows,
-    target: AliasColumns
+export type FunctionRow = PortShape & {
+    name: string,
+    namespace?: string
 }
 
-export type Constants = RowsTarget & {
-    source: Rows.Pick("types", "values"),
-    target: ConstantTarget
+export type Aliases = {
+    source: NamedRows
 }
 
 export type Binding = PortShape
@@ -35,30 +31,18 @@ export type Members = {
     fallback?: Binding
 }
 
-export type Functions = RowsTarget & Members & {
-    target: Target
-}
-
 export type Destinations = {
     aliases: Aliases,
-    constants: Constants,
-    functions?: Functions
+    functions?: Members
 }
 
 export type Input = {
     selected: Result,
-    destinations: Destinations,
-    owner: Allocator,
-    owner_rows: ColumnAllocator
-}
-
-export type Selected = Bindings & {
-    used: u64,
-    owner: Allocator
+    destinations: Destinations
 }
 
 export type Outcome = {
-    aliases: u64,
-    constants: u64,
-    functions: u64
+    aliases: AliasRow[],
+    constants: ConstantRow[],
+    functions: FunctionRow[]
 }

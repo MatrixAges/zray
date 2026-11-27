@@ -37,12 +37,10 @@ pub fn publish(allocator: std.mem.Allocator, exports: []model.Export, index: usi
     const Mapping = std.meta.Child(@FieldType(Constants, "types"));
     const MemberInput = std.meta.Child(@FieldType(Input, "members"));
     const type_rows = memory.borrowNamedRows("type_id", program.exports);
-    var public_types: []memory.NamedId = &.{};
 
     const types: Types = .{
         .source = @ptrCast(&type_rows),
         .count = type_rows.len,
-        .target = @ptrCast(&public_types),
         .mapping = @ptrCast(nodes.types.mapped),
         .input_type = @backingInt(program.input_type),
         .output_type = @backingInt(program.output_type),
@@ -89,11 +87,17 @@ pub fn publish(allocator: std.mem.Allocator, exports: []model.Export, index: usi
 
     switch (result.status) {
         .Valid => {
+            const public_types = try allocator.alloc(ir.Export, result.exports.len);
+
+            for (result.exports, public_types) |item, *slot| {
+                slot.* = .{ .name = item.name, .type_id = @fromBackingInt(item.type_id) };
+            }
+
             exports[index] = .{
                 .name = result.name,
                 .path = result.path,
                 .function = entry,
-                .types = @ptrCast(public_types),
+                .types = public_types,
                 .constants = constant_output.rows(),
                 .members = member_output.output.rows(),
             };

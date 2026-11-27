@@ -75,11 +75,6 @@ export declare function copyU8s(
     source: u8[]
 ): void throws { IndexOutOfBounds }
 
-export declare function copyBools(
-    target: BoolBuffer,
-    source: bool[]
-): void throws { IndexOutOfBounds }
-
 export declare function copyU32s(
     target: U32Buffer,
     source: u32[]

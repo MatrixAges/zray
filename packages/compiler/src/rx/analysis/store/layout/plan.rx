@@ -3,15 +3,14 @@
 
     <Args in={Layout.Input} out={Layout.Output} />
 
-    <Call fn="capture" in={$in} />
-
-    <Call fn="names" />
+    <Call fn="capture" in={$in.omit(["resource"])} />
+    <Call fn="names" in={$ctx.capture.expressions} />
 
     <Call
         module="../../project/contracts/publish"
         in={{
             names: $ctx.names,
-            expressions: $ctx.capture,
+            expressions: $ctx.capture.expressions,
             resource: $in.resource
         }}
     />
@@ -19,7 +18,8 @@
     <Return
         value={{
             names: $ctx.names,
-            expressions: $ctx.capture,
+            expressions: $ctx.capture.expressions,
+            fields: $ctx.capture.fields,
             ...$ctx.publish
         }}
     />

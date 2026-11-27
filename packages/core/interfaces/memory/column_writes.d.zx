@@ -162,10 +162,3 @@ export declare function publishTransferColumn(
     column: u64,
     count: u64
 ): void
-
-export declare function bindRangeWriteColumn(
-    ranges: ColumnRanges,
-    slot: u64,
-    target: WriteColumn,
-    offset: u64
-): void

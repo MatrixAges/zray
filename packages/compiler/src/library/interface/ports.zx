@@ -9,7 +9,7 @@ import { Status } from "./model"
 
 import type { Input as Interface, Ports as Output } from "./model"
 
-export type Input = Interface.Omit("target")
+export type Input = Interface
 
 export default function (in: Input): Output {
     const { source, count, mapping, executable } = in

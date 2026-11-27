@@ -19,14 +19,6 @@
         ]}
     />
 
-    <Call
-        fn="commit"
-        in={{
-            types: $in.types,
-            view: $ctx.compileStoreRegistryEntry
-        }}
-    />
-
     <Return
         value={{
             ...$in,

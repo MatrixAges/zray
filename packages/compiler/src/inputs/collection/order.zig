@@ -26,55 +26,57 @@ pub fn sort(comptime Row: type, backing: std.mem.Allocator, rows: []Row) !void {
     const input: std.meta.Child(rule.Input) = .{ .paths = @ptrCast(&paths), .rows = indices };
     const order = try zx.columns.invoke(rule.executeValue, allocator, &input);
 
-    try apply(Row, rows, try allocator.dupe(u64, order));
+    try apply(Row, allocator, rows, try allocator.dupe(u64, order));
 }
 
-fn apply(comptime Row: type, rows: []Row, order_arg: []u64) !void {
-    var order = order_arg;
-    const memory = zx.memory;
+fn apply(comptime Row: type, allocator: std.mem.Allocator, rows: []Row, order: []const u64) !void {
     const rule = @import("generated_input_path_apply");
-    const source = memory.borrowNestedColumn(Row, &.{}, rows);
-    var target = memory.borrowNestedWriteColumn(Row, &.{}, rows);
-    var scratch: [1]Row = undefined;
-    const slot: []Row = &scratch;
-    const saved = memory.borrowNestedColumn(Row, &.{}, slot);
-    var temporary = memory.borrowNestedWriteColumn(Row, &.{}, slot);
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const input: std.meta.Child(rule.Input) = .{ .order = order };
+    const plan = try zx.columns.invoke(rule.executeValue, allocator, &input);
+    var start: usize = 0;
 
-    const input: std.meta.Child(rule.Input) = .{
-        .source = @ptrCast(&source),
-        .target = @ptrCast(&target),
-        .order = @ptrCast(&order),
-        .saved = @ptrCast(&saved),
-        .temporary = @ptrCast(&temporary),
-        .count = rows.len,
-        .width = @sizeOf(Row),
-    };
+    for (plan.ends) |end_u64| {
+        const end: usize = @intCast(end_u64);
+        const cycle = plan.indices[start..end];
+        const saved = rows[@intCast(cycle[0])];
+        var index: usize = 0;
 
-    try zx.columns.invoke(rule.executeValue, empty.allocator(), &input);
+        while (index + 1 < cycle.len) : (index += 1) {
+            rows[@intCast(cycle[index])] = rows[@intCast(cycle[index + 1])];
+        }
+
+        rows[@intCast(cycle[cycle.len - 1])] = saved;
+
+        start = end;
+    }
 }
 
-pub fn select(comptime Row: type, source: []const Row, indices: []const u64, target: []Row) !void {
+pub fn select(comptime Row: type, backing: std.mem.Allocator, source: []const Row, indices: []const u64, target: []Row) !void {
     if (comptime !generated) {
         for (target, indices) |*row, index| row.* = source[@intCast(index)];
 
         return;
     }
 
+    var scratch = std.heap.ArenaAllocator.init(backing);
+
+    defer scratch.deinit();
+
     const memory = zx.memory;
     const rule = @import("generated_input_row_selection");
     const from = memory.borrowNestedColumn(Row, &.{}, source);
-    var to = memory.borrowNestedWriteColumn(Row, &.{}, target);
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     const input: std.meta.Child(rule.Input) = .{
         .source = @ptrCast(&from),
-        .target = @ptrCast(&to),
         .indices = indices,
         .width = @sizeOf(Row),
     };
 
-    try zx.columns.invoke(rule.executeValue, empty.allocator(), &input);
+    const records = try zx.columns.invoke(rule.executeValue, scratch.allocator(), &input);
+
+    for (records, target) |record, *slot| {
+        @memcpy(std.mem.asBytes(slot), record);
+    }
 }
 
 fn sortSeed(comptime Row: type, rows: []Row) void {

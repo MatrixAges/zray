@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="State" />
 
-    <Args in={State.Build} out={u32[]} />
+    <Args in={State.Build} out={State.Checked} />
 
     <Call
         fn="lookup"
@@ -24,11 +24,22 @@
             fn="retain"
             in={{
                 pending: $ctx.pending,
-                length: $in.present.length,
-                target: $in.target
+                length: $in.present.length
+            }}
+        />
+
+        <Return
+            value={{
+                pending: $ctx.pending,
+                valid: $ctx.retain
             }}
         />
     </If>
 
-    <Return value={$ctx.pending} />
+    <Return
+        value={{
+            pending: $ctx.pending,
+            valid: null
+        }}
+    />
 </Module>

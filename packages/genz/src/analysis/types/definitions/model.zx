@@ -1,5 +1,4 @@
 import type { Table } from "core/type_table/model"
-import type { U32Buffer } from "memory"
 import type { Columns as DeclarationColumns } from "../../../ast/declarations/model"
 import type { Columns as FieldColumns } from "../../../ast/fields/model"
 import type {
@@ -13,9 +12,7 @@ export type Input = {
     names?: string[],
     base: u32,
     field_base: u32,
-    exported: bool,
-    values: U32Buffer,
-    layouts: U32Buffer
+    exported: bool
 }
 
 export type Plan = {
@@ -35,6 +32,8 @@ export type Types = {
     expressions: Expressions,
     definitions: Definitions,
     declarations: DeclarationColumns,
+    values: u32[],
+    layouts: u32[],
     has_lists: bool,
     valid: bool
 }
@@ -75,5 +74,6 @@ export type Build = {
     struct_type_start: u32[],
     struct_type_len: u32[],
     declarations: DeclarationColumns,
-    values: u32[]
+    values: u32[],
+    layouts: u32[]
 }

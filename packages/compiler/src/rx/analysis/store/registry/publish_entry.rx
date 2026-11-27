@@ -11,14 +11,6 @@
         ]}
     />
 
-    <Call
-        fn="publish_objects"
-        in={{
-            count: $ctx.openStoreRegistryPublication,
-            tables: $in.tables
-        }}
-    />
-
     <Return
         value={{
             ...$in,

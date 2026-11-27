@@ -26,7 +26,7 @@ pub fn deliver(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item:
     var reexports: Reexports = undefined;
 
     publisher.init(lists.types, lists.functions);
-    defer publisher.commit();
+
     if (lists.reexports) |list| reexports.init(list);
 
     defer if (lists.reexports != null) reexports.commit();
@@ -36,7 +36,6 @@ pub fn deliver(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item:
         .destinations = &publisher.destinations,
         .reexports = if (lists.reexports != null) &reexports.input else null,
         .owner = @ptrCast(&allocator),
-        .owner_rows = @ptrCast(&allocator),
     };
 
     const result = zx.columns.invoke(rule.executeValue, temporary, &input) catch |err|
@@ -48,11 +47,48 @@ pub fn deliver(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item:
         try allocator.dupe(u8, result.message),
     );
 
-    if (result.aliases) |count| publisher.aliases.length = count;
-    if (result.constants) |count| publisher.constants.length = count;
+    if (result.aliases.len != 0) {
+        try lists.types.aliases.ensureUnusedCapacity(allocator, result.aliases.len);
 
-    if (lists.functions != null) {
-        if (result.functions) |count| publisher.functions.length = count;
+        for (result.aliases) |row| {
+            lists.types.aliases.appendAssumeCapacity(.{
+                .name = try allocator.dupe(u8, row.name),
+                .type_id = @fromBackingInt(row.type_id),
+            });
+        }
+    }
+
+    if (result.constants.len != 0) {
+        try lists.types.constants.ensureUnusedCapacity(allocator, result.constants.len);
+
+        for (result.constants) |row| {
+            var constant = lists.types.values[@intCast(row.index)];
+
+            constant.name = try allocator.dupe(u8, row.name);
+
+            if (constant.value == .string) constant.value.string = try allocator.dupe(u8, constant.value.string);
+
+            lists.types.constants.appendAssumeCapacity(constant);
+        }
+    }
+
+    if (lists.functions) |function_list| {
+        if (result.functions.len != 0) {
+            const namespace = if (result.functions[0].namespace) |text| try allocator.dupe(u8, text) else null;
+
+            try function_list.imports.ensureUnusedCapacity(allocator, result.functions.len);
+
+            for (result.functions) |row| {
+                function_list.imports.appendAssumeCapacity(.{
+                    .namespace = namespace,
+                    .name = try allocator.dupe(u8, row.name),
+                    .id = if (row.id) |id| @fromBackingInt(id) else null,
+                    .input_type = if (row.input_type) |id| @fromBackingInt(id) else null,
+                    .output_type = if (row.output_type) |id| @fromBackingInt(id) else null,
+                    .intrinsic = if (row.intrinsic) |operation| @fromBackingInt(operation) else null,
+                });
+            }
+        }
     }
 
     if (lists.reexports != null) {

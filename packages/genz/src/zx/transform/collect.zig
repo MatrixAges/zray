@@ -5,5 +5,9 @@ const Frame = @import("execution.zig").Frame;
 pub fn storeMapTransformValue(handle: *anyopaque, value: u32) Lower.Error!u32 {
     const frame = Frame.borrow(handle);
 
+    if (frame.transform.kind == .filter) {
+        frame.lowering.used[@backingInt(frame.transform.parameters[0])] = true;
+    }
+
     return @backingInt(try elements.write(frame.lowering, &frame.loop, frame.typeId(), @fromBackingInt(value)));
 }

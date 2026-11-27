@@ -1,4 +1,4 @@
-import type { ReadColumn, TextColumn, U8ListBuffer, WriteColumn } from "memory"
+import type { ReadColumn, TextColumn } from "memory"
 import type { Clock, Retention } from "../../zx/modules/cache_retention/model"
 
 export type Version = {
@@ -29,7 +29,6 @@ export type Update = {
 
 export type Pending = {
     texts: TextColumn,
-    clear: WriteColumn,
     publish: ReadColumn,
     abort: ReadColumn,
     count: u64
@@ -37,11 +36,10 @@ export type Pending = {
 
 export type Retire = {
     pending: Pending,
-    kept: U8ListBuffer,
     published: bool
 }
 
 export type Retired = {
-    count: u64,
+    rows: u64[],
     bytes: u64
 }

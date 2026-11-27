@@ -3,25 +3,20 @@
 
     <Args in={Bindings.Input} out={Bindings.Outcome} />
 
-    <Call fn="reserve" in={$in} />
-
     <Call
         fn="aliases"
         in={{
-            ...$in.destinations.aliases.omit(["storage"]),
+            ...$in.destinations.aliases,
             names: $in.selected.alias_names,
-            indices: $in.selected.alias_indices,
-            owner: $in.owner
+            indices: $in.selected.alias_indices
         }}
     />
 
     <Call
         fn="constants"
         in={{
-            ...$in.destinations.constants.omit(["storage"]),
             names: $in.selected.constant_names,
-            indices: $in.selected.constant_indices,
-            owner: $in.owner
+            indices: $in.selected.constant_indices
         }}
     />
 
@@ -29,11 +24,10 @@
         <Call
             fn="functions"
             in={{
-                ...$in.destinations.functions.omit(["storage"]),
+                ...$in.destinations.functions,
                 names: $in.selected.function_names,
                 indices: $in.selected.function_indices,
-                namespace: $in.selected.namespace,
-                owner: $in.owner
+                namespace: $in.selected.namespace
             }}
         />
 
@@ -50,7 +44,7 @@
         value={{
             aliases: $ctx.aliases,
             constants: $ctx.constants,
-            functions: 0
+            functions: []
         }}
     />
 </Module>

@@ -3,15 +3,16 @@ const rx = @import("rx");
 const zx = @import("zx");
 const Declarations = @import("../../project/declarations.zig");
 const State = @import("state.zig");
-const Object = @import("object/binding.zig");
+const object = @import("object.zig");
 const entry = @import("generated_rx_compile_store_initializer");
 const Request = std.meta.Child(entry.Input);
+const FieldNames = @import("rx_execution_abi").layouts.@"zig:rx_project_host".StoreFieldNames;
 const Value = @import("../initializer.zig").Value;
 const Error = std.mem.Allocator.Error;
 
 const Frame = struct {
     state: *State,
-    object: Object.frame(std.meta.Child(@FieldType(Request, "object"))) = .{},
+    field_names: FieldNames = undefined,
 };
 
 pub fn run(state: *State) Error!Value {
@@ -29,12 +30,12 @@ pub fn run(state: *State) Error!Value {
             .layout = &comptime rx.astLayout(Layout),
         },
         .first = options.first,
-        .object = &frame.object.input,
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var buffer: [4096]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, state.temporary);
 
-    entry.executeValue(empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    entry.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         error.InvalidSource => return .{ .diagnostic = try state.report() },
         else => unreachable,
@@ -71,20 +72,27 @@ pub fn releaseStoreField(handle: *anyopaque) void {
     borrow(handle).state.releaseField();
 }
 
-pub fn resolveStoreInitializer(handle: *anyopaque, invalid: bool) zx.Error!void {
+pub fn resolveStoreInitializer(handle: *anyopaque, invalid: bool) zx.Error!*const FieldNames {
     const frame = borrow(handle);
     const state = frame.state;
 
     try state.resolveType();
+
     if (invalid) return state.invalidLink();
 
-    frame.object.bind(state);
+    frame.field_names = .{
+        .source = state.names,
+        .canonical = state.table.?.get(state.output).object.names,
+    };
+
+    return &frame.field_names;
 }
 
-pub fn finishStoreInitializer(handle: *anyopaque, root: u32) zx.Error!void {
+pub fn finishStoreInitializer(handle: *anyopaque, positions: []const u32) zx.Error!void {
     const state = borrow(handle).state;
+    const root = try object.appendPositioned(&state.builder, state.output, positions, state.evaluation, State.span);
 
-    try state.finishProgram(@fromBackingInt(root));
+    try state.finishProgram(root);
     try state.analyzeOwnership();
     try state.verifyProgram();
 }

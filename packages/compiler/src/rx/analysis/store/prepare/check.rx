@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Definition" />
 
-    <Args in={Definition.Input.Omit("output_types")} out={void} />
+    <Args in={Definition.Input} out={void} />
 
     <Call module="../../../../zx/modules/project/state/check" in={$in.shared} />
 

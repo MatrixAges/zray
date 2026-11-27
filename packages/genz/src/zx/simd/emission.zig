@@ -26,14 +26,11 @@ pub fn lower(self: *Lower, id: ir.ExprId, consumer: ?Consumer) Lower.Error!?node
     };
 
     var origin: publication.OriginBuffer = .{};
-    var literals: []u32 = &.{};
 
     const input: Input = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
         .origin = @ptrCast(&origin),
-        .owner = @ptrCast(&owner),
-        .literals = @ptrCast(&literals),
         .analysis = &analysis,
     };
 

@@ -6,12 +6,13 @@
 
     <Call module="../interface/complete" in={$in.types} />
 
-    <If on={$ctx.complete != Interface.Status.Valid}>
+    <If on={$ctx.complete.status != Interface.Status.Valid}>
         <Return
             value={{
-                status: $ctx.complete,
+                status: $ctx.complete.status,
                 name: "",
-                path: ""
+                path: "",
+                exports: []
             }}
         />
     </If>
@@ -24,7 +25,8 @@
             value={{
                 status: Interface.Status.InvalidModule,
                 name: "",
-                path: ""
+                path: "",
+                exports: []
             }}
         />
     </If>
@@ -35,7 +37,8 @@
         value={{
             status: Interface.Status.Valid,
             name: $ctx.row.name,
-            path: $ctx.row.path
+            path: $ctx.row.path,
+            exports: $ctx.complete.exports
         }}
     />
 </Module>

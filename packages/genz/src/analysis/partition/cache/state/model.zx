@@ -1,4 +1,3 @@
-import type { U8Buffer } from "memory"
 import type { Input as Options, Prepared as Arguments } from "../arguments/model"
 
 export type Lookup = {
@@ -7,8 +6,12 @@ export type Lookup = {
 }
 
 export type Build = Lookup & {
-    present: bool[],
-    target: U8Buffer
+    present: bool[]
+}
+
+export type Checked = {
+    pending: u32[],
+    valid?: bool[]
 }
 
 export type Publish = {
@@ -23,6 +26,7 @@ export type ScheduleInput = {
 
 export type Schedule = {
     pending: u32[],
+    valid?: bool[],
     arguments: Arguments,
     invalidate: bool
 }

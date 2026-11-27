@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Delivery" />
 
-    <Args in={Delivery.Input} out={void} />
+    <Args in={Delivery.Input} out={Delivery.Output} />
 
     <Call
         fn="../../../analysis/semantic/merging/publication/size"
@@ -24,9 +24,7 @@
     <Call
         fn="exports"
         in={{
-            ...$in.bindings,
-            source: $in.exports,
-            target: $in.export_target
+            source: $in.exports
         }}
     />
 
@@ -51,15 +49,10 @@
         }}
     />
 
-    <Call
-        fn="../publication/install"
-        in={{
-            destination: {
-                ...$in.native,
-                member_count: $in.members.length
-            },
-            namespace: $ctx.namespace,
-            exports: $in.bindings
+    <Return
+        value={{
+            ...$ctx.exports,
+            namespace: $ctx.namespace
         }}
     />
 </Module>

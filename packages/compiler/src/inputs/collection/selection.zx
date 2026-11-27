@@ -1,26 +1,30 @@
 import memory from "memory"
 
-import type { ReadColumn, WriteColumn } from "memory"
+import type { ReadColumn } from "memory"
 
 export type Input = {
     source: ReadColumn,
-    target: WriteColumn,
     indices: u64[],
     width: u64
 }
 
-export type Output = void
+export type Output = u8[][]
 
 export default function (in: Input): Output {
-    const selected = loop(0, {
-        while: index => index < in.indices.length,
-        next: index => {
+    const empty: u8[][] = []
+
+    return loop({
+        index: 0,
+        rows: empty
+    }, {
+        while: state => state.index < in.indices.length,
+        next: state => {
             const record =
-                memory.readFixedBytes(in.source, in.indices[index], in.width)
+                memory.readFixedBytes(in.source, in.indices[state.index], in.width)
 
-            memory.copyColumnValue(in.target, index, record)
-
-            index += 1
-        }
+            state.rows = state.rows.push(record)[0]
+            state.index += 1
+        },
+        return: state => state.rows
     })
 }

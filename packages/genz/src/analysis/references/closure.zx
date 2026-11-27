@@ -1,20 +1,17 @@
-import memory from "memory"
-
 import mark from "./mark"
 
-import type { Input as Graph } from "./model"
+import type { Input as Graph, State } from "./model"
 
-export type Input = Graph.Pick("functions", "needed") & {
-    count: u64
-}
+export type Input = State & Graph.Pick("functions")
 
-export type Output = u64
+export type Output = State
 
 export default function (in: Input): Output {
-    const { functions, needed } = in
+    const { functions } = in
 
     return loop({
         index: functions.expressions.length,
+        needed: in.needed,
         count: in.count
     }, {
         while: state => state.index != 0,
@@ -22,16 +19,23 @@ export default function (in: Input): Output {
             state.index -= 1
             const index = state.index
 
-            if (memory.readU8(needed, index) != 0) {
-                state.count += mark({
+            if (state.needed[index]) {
+                const next = mark({
                     body: {
                         expressions: functions.expressions[index],
                         contracts: functions.contracts[index]
                     },
-                    needed
+                    needed: state.needed,
+                    count: state.count
                 })
+
+                state.needed = next.needed
+                state.count = next.count
             }
         },
-        return: state => state.count
+        return: state => ({
+            needed: state.needed,
+            count: state.count
+        })
     })
 }

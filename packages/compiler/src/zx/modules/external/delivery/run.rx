@@ -34,26 +34,23 @@
         />
     </If>
 
-    <If on={$ctx.load.diagnostic.message == ""}>
+    <If on={$ctx.load.diagnostic.message.length == 0}>
         <Call
             fn="prepare"
             in={{
                 implementation: $in.implementation,
                 members: $ctx.load.members,
                 input_type: $ctx.load.input_type,
-                output_type: $ctx.load.output_type,
-                resource: $in.destination.text_allocator
+                output_type: $ctx.load.output_type
             }}
         />
 
-        <Call fn="../../link/signature/publication/reserve" in={$in.destination} />
-
-        <Call
-            fn="../../link/signature/publication/append"
-            in={{
-                ...$in.pick([
-                    "destination",
-                    "empty"
+        <Return
+            value={{
+                ...$ctx.load.pick([
+                    "diagnostic",
+                    "input_type",
+                    "output_type"
                 ]),
                 prepared: $ctx.prepare
             }}
@@ -61,10 +58,13 @@
     </If>
 
     <Return
-        value={$ctx.load.pick([
-            "diagnostic",
-            "input_type",
-            "output_type"
-        ])}
+        value={{
+            ...$ctx.load.pick([
+                "diagnostic",
+                "input_type",
+                "output_type"
+            ]),
+            prepared: null
+        }}
     />
 </Module>

@@ -1,17 +1,21 @@
 import type { Allocator } from "memory"
-import type { WriteColumn } from "memory/columns"
 import type { Layout } from "../../../syntax/tree/layout"
 import type { Bytes } from "../../project/contracts/model"
+
+export type FieldRef = {
+    object: u64,
+    row: u64
+}
 
 export type Input = {
     fragments: u8[],
     offsets: u64[],
     layout: Layout,
-    resource: Allocator,
-    fields: WriteColumn
+    resource: Allocator
 }
 
 export type Output = Bytes & {
     names: string[],
-    expressions: string[]
+    expressions: string[],
+    fields: FieldRef[]
 }

@@ -27,20 +27,9 @@
     />
 
     <Call
-        fn="index.allocateFilledU32Buffer"
-        in={[
-            $in.owner,
-            $in.literals,
-            $ctx.analyze.expression.nodes.length * 2,
-            0
-        ]}
-    />
-
-    <Call
         fn="literal_operands"
         in={{
             frame: $in.frame,
-            literals: $in.literals,
             nodes: $ctx.analyze.expression.nodes
         }}
     />

@@ -9,17 +9,20 @@ pub const Keys = struct {
     hex: []const []const u8,
     /// Replaces presence with the entries safe to record before spawning any worker.
     pub fn plan(self: Keys, allocator: std.mem.Allocator, previous: []const u8, present: []bool, options: *const Options) !Schedule {
-        var bytes = std.mem.sliceAsBytes(present);
-
-        return scheduling.executeValue(allocator, &.{
+        const scheduled = try scheduling.executeValue(allocator, &.{
             .state = &.{
                 .previous = previous,
                 .digests = self.hex,
                 .present = present,
-                .target = @ptrCast(&bytes),
             },
             .options = options,
         });
+
+        if (scheduled.valid) |valid| {
+            @memcpy(present, valid);
+        }
+
+        return scheduled;
     }
     pub fn write(self: Keys, io: std.Io, allocator: std.mem.Allocator, path: []const u8, valid: []const bool) !void {
         var arena = std.heap.ArenaAllocator.init(allocator);
@@ -41,12 +44,21 @@ pub const Keys = struct {
 };
 
 pub fn complete(pending: []const u32, failures: []const ?[]const u8, valid: []bool) !bool {
-    var bytes = std.mem.sliceAsBytes(valid);
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var buffer: [1024]u8 = undefined;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
 
-    return rules.partition_cache_complete.executeValue(empty.allocator(), &.{
+    defer arena.deinit();
+
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+
+    const outcome = try rules.partition_cache_complete.executeValue(scratch.allocator(), &.{
         .pending = pending,
         .failures = failures,
-        .target = @ptrCast(&bytes),
     });
+
+    for (outcome.completed) |partition| {
+        valid[@intCast(partition)] = true;
+    }
+
+    return outcome.failed;
 }

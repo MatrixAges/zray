@@ -24,7 +24,7 @@ pub fn reachable(allocator: std.mem.Allocator, backing: std.mem.Allocator, modul
 
     const selected = try allocator.alloc(rx.ModuleSource, rows.len);
 
-    try compiler.source_inputs.order.select(rx.ModuleSource, modules, rows, selected);
+    try compiler.source_inputs.order.select(rx.ModuleSource, backing, modules, rows, selected);
 
     return selected;
 }

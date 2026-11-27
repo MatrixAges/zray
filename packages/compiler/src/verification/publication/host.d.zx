@@ -3,15 +3,16 @@ export type GraphRegistration = mutable_opaque
 export declare function reserveSymbolicDefinition(graph: GraphRegistration): void
     throws { OutOfMemory }
 
-export declare function allocateSymbolicIndex(graph: GraphRegistration, capacity: u64): void
-    throws { OutOfMemory }
-
 export declare function commitSymbolicDefinition(
     graph: GraphRegistration,
     name: string,
     file: string,
-    resized: bool
+    resized: bool,
+    buckets: u64[],
+    slot: u64,
+    value: u64
 ): void
+    throws { OutOfMemory }
 
 export declare function rejectSymbolicDefinition(
     graph: GraphRegistration,

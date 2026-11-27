@@ -16,7 +16,7 @@ const Active = struct {
     candidates: @FieldType(Plan, "candidates"),
     changes: []const ?u32,
     alias_symbols: []const u32,
-    saved: [][]const u8,
+    saved: []const []const u8,
 };
 
 variables: []const bool,
@@ -42,15 +42,13 @@ pub fn create(lowering: *Lower, scope: ir.ScopeRow, scratch: std.mem.Allocator) 
 
     var storage: @import("../object_update/matching.zig").Borrow = undefined;
     const matching = storage.view(lowering);
-    var saved: [][]const u8 = &.{};
 
     const input: Input = .{
         .matching = &matching,
         .bindings = scope.bindings.values,
         .symbols = scope.bindings.symbols,
         .result = @backingInt(scope.result),
-        .names = @ptrCast(&lowering.names),
-        .saved = @ptrCast(&saved),
+        .names = lowering.names,
     };
 
     const result = entry.executeIn(scratch, &input) catch |err| switch (err) {
@@ -60,22 +58,38 @@ pub fn create(lowering: *Lower, scope: ir.ScopeRow, scratch: std.mem.Allocator) 
 
     const plan = result orelse return null;
 
+    for (plan.updates) |update| {
+        lowering.names[@intCast(update.symbol)] = update.name;
+    }
+
     const state: Active = .{
         .candidates = plan.candidates,
         .changes = plan.changes,
         .alias_symbols = plan.alias_symbols,
-        .saved = saved,
+        .saved = plan.saved,
     };
 
     return .{ .variables = plan.variables, .state = state };
 }
 
+pub const Names = struct {
+    symbols: []const u32,
+    saved: [][]const u8,
+    pub fn restore(self: Names, lowering: *Lower) void {
+        applyNames(lowering, self.symbols, self.saved, &.{}, true);
+    }
+};
+
+pub fn bindNames(lowering: *Lower, symbols: []const ir.SymbolId, replacements: []const []const u8, saved: [][]const u8) Names {
+    applyNames(lowering, view.slice([]const u32, symbols), saved, replacements, false);
+
+    return .{ .symbols = view.slice([]const u32, symbols), .saved = saved };
+}
+
 pub fn restore(self: *const Self, lowering: *Lower) void {
     if (!generated) return self.state.restore(lowering);
 
-    const saved: Names = .{ .symbols = self.state.alias_symbols, .saved = self.state.saved };
-
-    saved.restore(lowering);
+    applyNames(lowering, self.state.alias_symbols, self.state.saved, &.{}, true);
 }
 
 pub fn publish(self: *const Self, lowering: *Lower, index: usize) Lower.Error!?node.Block {
@@ -98,39 +112,33 @@ pub fn publishSeed(self: *const Self, lowering: *Lower, output: *std.ArrayList(n
     return try lowering.builder.statements(output.items);
 }
 
-pub const Names = struct {
-    symbols: []const u32,
-    saved: [][]const u8,
-    pub fn restore(self: Names, lowering: *Lower) void {
-        applyNames(lowering, self, &.{}, true);
-    }
-};
-
-pub fn bindNames(lowering: *Lower, symbols: []const ir.SymbolId, replacements: []const []const u8, saved: [][]const u8) Names {
-    const binding: Names = .{ .symbols = view.slice([]const u32, symbols), .saved = saved };
-
-    applyNames(lowering, binding, replacements, false);
-
-    return binding;
-}
-
-fn applyNames(lowering: *Lower, binding_arg: Names, replacements: []const []const u8, restoring: bool) void {
-    var binding = binding_arg;
-
-    if (binding.symbols.len == 0) return;
+fn applyNames(lowering: *Lower, symbols: []const u32, saved: anytype, replacements: []const []const u8, comptime restoring: bool) void {
+    if (symbols.len == 0) return;
 
     const install = @import("generated_scope_reuse_names");
 
     const input: std.meta.Child(install.Input) = .{
-        .symbols = binding.symbols,
+        .symbols = symbols,
         .sources = &.{},
         .replacements = replacements,
-        .names = @ptrCast(&lowering.names),
-        .saved = @ptrCast(&binding.saved),
+        .names = lowering.names,
+        .saved = saved,
         .restore = restoring,
     };
 
-    var memory = std.heap.FixedBufferAllocator.init(&.{});
+    var buffer: [1024]u8 = undefined;
+    var arena = std.heap.ArenaAllocator.init(lowering.workspace);
 
-    install.executeIn(memory.allocator(), &input) catch unreachable;
+    defer arena.deinit();
+
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+    const output = install.executeIn(scratch.allocator(), &input) catch unreachable;
+
+    for (output.updates) |update| {
+        lowering.names[@intCast(update.symbol)] = update.name;
+    }
+
+    if (!restoring) {
+        @memcpy(saved, output.saved);
+    }
 }

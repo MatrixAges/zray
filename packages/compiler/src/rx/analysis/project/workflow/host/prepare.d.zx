@@ -167,7 +167,7 @@ export declare function reserveStoreDefinitionObjects(state: StoreDefinitionWork
 export declare function compileStoreDefinitionObject(state: StoreDefinitionWork, row: u64): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function freezeStoreDefinitionTypes(state: StoreDefinitionWork): u8[]
+export declare function freezeStoreDefinitionTypes(state: StoreDefinitionWork): void
 
 export declare function publishStoreDefinition(state: StoreDefinitionWork): void
     throws { OutOfMemory }
@@ -175,10 +175,10 @@ export declare function publishStoreDefinition(state: StoreDefinitionWork): void
 export declare function bindStoreRegistryAliases(state: StoreRegistryLoad, row: u64): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function compileStoreRegistryEntry(state: StoreRegistryLoad, row: u64): u8[]
+export declare function compileStoreRegistryEntry(state: StoreRegistryLoad, row: u64): void
     throws { OutOfMemory, InvalidSource }
 
 export declare function openStoreRegistryPublication(
     state: StoreRegistryPublication,
     row: u64
-): u64 throws { OutOfMemory }
+): void throws { OutOfMemory }

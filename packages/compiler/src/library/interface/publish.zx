@@ -7,38 +7,55 @@ import {
     output_type_name
 } from "../../zx/modules/compiled/const"
 
-import type { Input as Interface, Ports } from "./model"
+import type { Input as Interface, Ports, Row } from "./model"
+
+export type { Row } from "./model"
 
 export type Input = Interface.Omit("executable", "input_type", "output_type") & {
     ports: Ports
 }
 
-export type Output = void
+export type Output = Row[]
 
 export default function (in: Input): Output {
-    const { source, target, count, mapping, ports } = in
+    const { source, count, mapping, ports } = in
 
-    const end = loop(0, {
-        while: row => row < count,
-        next: row => {
-            const name = strings.copy(memory.readRowName(source, row))
-            const id = mapping[integers.widen(memory.readRowId(source, row))]
+    const empty: Row[] = []
 
-            memory.writeNamedRow(target, row, name, id)
-            row += 1
-        }
+    const base = loop({
+        row: 0,
+        rows: empty
+    }, {
+        while: state => state.row < count,
+        next: state => {
+            const name = strings.copy(memory.readRowName(source, state.row))
+            const id = mapping[integers.widen(memory.readRowId(
+                source,
+                state.row
+            ))]
+
+            state.rows = state.rows.push({
+                name,
+                type_id: id
+            })[0]
+            state.row += 1
+        },
+        return: state => state.rows
     })
 
-    if (ports.add_input) {
-        memory.writeNamedRow(target, end, input_type_name, ports.input_type)
+    const with_input = match {
+        ports.add_input => base.push({
+            name: input_type_name,
+            type_id: ports.input_type
+        })[0],
+        _ => base
     }
 
-    if (ports.add_output) {
-        memory.writeNamedRow(
-            target,
-            ports.count - 1,
-            output_type_name,
-            ports.output_type
-        )
+    return match {
+        ports.add_output => with_input.push({
+            name: output_type_name,
+            type_id: ports.output_type
+        })[0],
+        _ => with_input
     }
 }

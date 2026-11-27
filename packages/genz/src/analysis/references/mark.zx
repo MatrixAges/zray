@@ -1,33 +1,44 @@
 import markIds from "./mark_ids"
 
-import type { Body, Input as Graph } from "./model"
+import type { Body, State } from "./model"
 
-export type Input = Graph.Pick("needed") & {
+export type Input = State & {
     body: Body
 }
 
-export type Output = u64
+export type Output = State
 
 export default function (in: Input): Output {
-    const { body, needed } = in
+    const { body } = in
+
+    const direct = markIds({
+        ids: body.expressions.call_functions,
+        needed: in.needed,
+        count: in.count
+    })
 
     return loop({
         row: 0,
-        count: markIds({
-            ids: body.expressions.call_functions,
-            needed
-        })
+        needed: direct.needed,
+        count: direct.count
     }, {
         while: state => state.row < body.contracts.expressions.length,
         next: state => {
             const contract = body.contracts.expressions[state.row]
 
-            state.count += markIds({
+            const next = markIds({
                 ids: contract.call_functions,
-                needed
+                needed: state.needed,
+                count: state.count
             })
+
+            state.needed = next.needed
+            state.count = next.count
             state.row += 1
         },
-        return: state => state.count
+        return: state => ({
+            needed: state.needed,
+            count: state.count
+        })
     })
 }

@@ -6,7 +6,6 @@ const Origins = @import("../nominal_origins.zig");
 const External = @import("../interface.zig").External;
 const FunctionImport = @import("../function_import.zig");
 const generated = @import("generated_external_interface_delivery");
-const destination = @import("../link/signature/publication/destination.zig");
 const TypeTail = @import("../../analysis/semantic/merging/publication/view.zig");
 const Input = std.meta.Child(generated.Input);
 const Analysis = std.meta.Child(@FieldType(Input, "analysis"));
@@ -25,10 +24,6 @@ pub fn load(project: *Project, entry: *const External, module: ir.NativeModuleId
 
     errdefer types.release();
 
-    var view: destination.View(std.meta.Child(@FieldType(Input, "destination"))) = undefined;
-
-    view.init(&allocator, &project.functions);
-
     const id = project.functions.count();
     const implementation = entry.implementation;
 
@@ -42,8 +37,6 @@ pub fn load(project: *Project, entry: *const External, module: ir.NativeModuleId
         },
         .identity = entry.identity,
         .types = zx.columns.pointer(@FieldType(Input, "types"), @as(*const TypeTail.Target, &types.target)),
-        .destination = &view.input,
-        .empty = &destination.empty(std.meta.Child(@FieldType(Input, "empty"))),
         .implementation = &.{
             .specifier = entry.specifier,
             .module = @backingInt(module),
@@ -70,10 +63,48 @@ pub fn load(project: *Project, entry: *const External, module: ir.NativeModuleId
         try allocator.dupe(u8, output.diagnostic.message),
     );
 
+    const prepared = output.prepared.?;
+    const external = prepared.function.external.?;
+    const file_name = try allocator.dupe(u8, prepared.function.file);
+    const members = try dupeTexts(allocator, external.members);
+    const errors = if (external.errors) |items| try dupeTexts(allocator, items) else null;
+    const export_name = if (external.export_name) |text| try allocator.dupe(u8, text) else null;
+
+    try project.functions.reserve(allocator, 1);
+
+    project.functions.appendSignatureAssumeCapacity(.{
+        .file_name = file_name,
+        .input_type = @fromBackingInt(prepared.function.ports.input),
+        .output_type = @fromBackingInt(prepared.function.ports.output),
+        .output_ownership = .borrowed,
+        .external = .{
+            .module = @fromBackingInt(prepared.function.ports.native_module.?),
+            .member = members,
+            .export_name = export_name,
+            .allocator_argument = prepared.flags.allocator_argument,
+            .io_argument = prepared.flags.io_argument,
+            .process_argument = prepared.flags.process_argument,
+            .expand_tuple = prepared.flags.expand_tuple,
+            .fallible = prepared.flags.fallible,
+            .errors = errors,
+            .concurrent = prepared.flags.concurrent,
+        },
+    });
+
     return .{
         .name = "",
         .id = @fromBackingInt(@as(u32, @intCast(id))),
         .input_type = @fromBackingInt(output.input_type),
         .output_type = @fromBackingInt(output.output_type),
     };
+}
+
+fn dupeTexts(allocator: std.mem.Allocator, source: []const []const u8) std.mem.Allocator.Error![]const []const u8 {
+    const copy = try allocator.alloc([]const u8, source.len);
+
+    for (source, copy) |item, *slot| {
+        slot.* = try allocator.dupe(u8, item);
+    }
+
+    return copy;
 }

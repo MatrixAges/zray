@@ -24,7 +24,6 @@ pub const Frame = struct {
     values: frontend.expressions.BindingColumns = undefined,
     natives: zx.ir.NativeModuleTable = undefined,
     objects: []Store.Object = undefined,
-    output_types: zx.memory.WriteColumn = undefined,
     complete: zx.ir.TypeTable = undefined,
     result: Store.Value = undefined,
     fn borrow(handle: *anyopaque) *Frame {
@@ -50,7 +49,6 @@ pub fn run(frame: *Frame) std.mem.Allocator.Error!Store.Value {
 
         rule.executeIn(empty.allocator(), &.{
             .state = @ptrCast(frame),
-            .output_types = @ptrCast(&frame.output_types),
             .shared = &.{
                 .table = &table,
                 .modules = zx.columns.pointer(@FieldType(Shared, "modules"), &options.native_modules),
@@ -102,8 +100,6 @@ pub fn reserveStoreDefinitionObjects(handle: *anyopaque) std.mem.Allocator.Error
     frame.natives = try frontend.native_context.copy(frame.allocator, frame.options.native_modules);
     frame.objects = try frame.allocator.alloc(Store.Object, frame.layout.starts.len);
 
-    if (comptime generated) frame.output_types = zx.memory.borrowNestedWriteColumn(zx.ir.TypeTable, &.{ "initial", "types" }, frame.objects);
-
     return frame.objects.len;
 }
 
@@ -132,16 +128,18 @@ pub fn compileStoreDefinitionObject(handle: *anyopaque, row: u64) Error!void {
     };
 }
 
-pub fn freezeStoreDefinitionTypes(handle: *anyopaque) []const u8 {
+pub fn freezeStoreDefinitionTypes(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
     frame.complete = frame.types.view();
-
-    return std.mem.asBytes(&frame.complete);
 }
 
 pub fn publishStoreDefinition(handle: *anyopaque) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
+
+    for (frame.objects) |*object| {
+        object.initial.types = frame.complete;
+    }
 
     frame.result = .{ .definition = .{
         .source_path = frame.path,

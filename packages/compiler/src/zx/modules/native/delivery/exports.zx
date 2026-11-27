@@ -1,31 +1,53 @@
-import integers from "std:integer"
 import strings from "std:string"
-import memory from "memory"
 
-import type { Exports as Input } from "./model"
+import type { Export } from "../interface/exports"
 
-export type Output = void
+export type Row = {
+    name: string,
+    type_id: u32
+}
+
+export type Output = {
+    rows: Row[],
+    names: string[],
+    ids: u32[]
+}
+
+export type Input = {
+    source: Export[]
+}
 
 export default function (in: Input): Output {
-    const { source, target, names, ids } = in
+    const { source } = in
 
-    const count = integers.widen(integers.narrow(source.length))
+    const count = source.length
+    const empty_rows: Row[] = []
+    const empty_names: string[] = []
+    const empty_ids: u32[] = []
 
-    memory.allocateNamedRows(target, count)
-    memory.allocateStringViews(names, count)
-    memory.allocateU32Views(ids, count)
-
-    const written = loop(0, {
-        while: row => row < count,
-        next: row => {
-            const item = source[row]
+    return loop({
+        row: 0,
+        rows: empty_rows,
+        names: empty_names,
+        ids: empty_ids
+    }, {
+        while: state => state.row < count,
+        next: state => {
+            const item = source[state.row]
             const name = strings.copy(item.name)
 
-            memory.writeNamedRow(target, row, name, item.type_id)
-            memory.writeString(names, row, name)
-            memory.writeU32(ids, row, item.type_id)
-
-            row += 1
-        }
+            state.rows = state.rows.push({
+                name,
+                type_id: item.type_id
+            })[0]
+            state.names = state.names.push(name)[0]
+            state.ids = state.ids.push(item.type_id)[0]
+            state.row += 1
+        },
+        return: state => ({
+            rows: state.rows,
+            names: state.names,
+            ids: state.ids
+        })
     })
 }

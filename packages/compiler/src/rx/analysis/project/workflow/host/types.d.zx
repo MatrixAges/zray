@@ -1,5 +1,10 @@
 export type StoreInitializer = mutable_opaque
 
+export type StoreFieldNames = {
+    source: string[],
+    canonical: string[]
+}
+
 export type StoreDefinitionWork = mutable_opaque
 
 export type StoreRegistryLoad = mutable_opaque

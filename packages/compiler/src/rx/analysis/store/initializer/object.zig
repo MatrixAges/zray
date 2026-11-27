@@ -14,6 +14,21 @@ pub fn append(builder: *Builder, type_id: ir.TypeId, names: []const []const u8, 
     return @fromBackingInt(storage.appendHeader(.Object, payload, type_id, span));
 }
 
+pub fn appendPositioned(builder: *Builder, type_id: ir.TypeId, positions: []const u32, evaluation: []const u32, span: zx.Span) std.mem.Allocator.Error!ir.ExprId {
+    const storage = &builder.expressions;
+    const count = evaluation.len;
+
+    try storage.reserveObject(builder.allocator, count, count);
+
+    const payload = ir.ExpressionStorage.aggregate_payload.objectHeader(storage, count, count);
+
+    storage.object_field_indices.appendSliceAssumeCapacity(positions);
+    storage.object_field_values.appendSliceAssumeCapacity(evaluation);
+    storage.object_evaluation_values.appendSliceAssumeCapacity(evaluation);
+
+    return @fromBackingInt(storage.appendHeader(.Object, payload, type_id, span));
+}
+
 fn seed(storage: *ir.ExpressionStorage, names: []const []const u8, canonical: []const []const u8, evaluation: []const u32) usize {
     const count = evaluation.len;
     const positions = storage.object_field_indices.unusedCapacitySlice()[0..count];

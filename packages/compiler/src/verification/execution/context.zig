@@ -22,16 +22,13 @@ pub fn apply(conditions: *Conditions, mode: Mode, path: []const u8, value: ?term
     if (kinds.len == 0) return path;
 
     var frame: Frame = .{ .conditions = conditions, .value = value };
-    var values = [_][]const u8{path};
-    var slot: [][]const u8 = &values;
     const Input = std.meta.Child(clauses.Input);
 
     const input: Input = .{
         .session = @ptrCast(&frame),
         .kinds = zx.columns.slice(@FieldType(Input, "kinds"), kinds),
         .selected = if (mode == .Returned) .Ensures else .Requires,
-        .path = &values,
-        .path_slot = @ptrCast(&slot),
+        .path = path,
         .mode = mode,
     };
 

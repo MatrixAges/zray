@@ -51,34 +51,41 @@ pub fn update(read: Read) Update {
     };
 }
 
-pub fn retire(pending: anytype, kept_arg: [][]u8, published: bool) Retired {
+pub fn retire(pending: anytype, kept: [][]u8, published: bool) Retired {
     if (pending.len == 0) return .{};
-    if (comptime !generated) return seed.retire(pending, kept_arg, published);
+    if (comptime !generated) return seed.retire(pending, kept, published);
 
-    var kept = kept_arg;
     const rule = @import("generated_input_file_retire");
     const texts = memory.borrowReadColumn([]u8, "text", pending);
-    var clear = memory.borrowWriteColumn([]const u8, "text", pending);
     const publish = memory.borrowNestedColumn(bool, &.{ "retention", "keep_on_publish" }, pending);
     const abort = memory.borrowNestedColumn(bool, &.{ "retention", "keep_on_abort" }, pending);
 
     const input: std.meta.Child(rule.Input) = .{
         .pending = &.{
             .texts = @ptrCast(&texts),
-            .clear = @ptrCast(&clear),
             .publish = @ptrCast(&publish),
             .abort = @ptrCast(&abort),
             .count = pending.len,
         },
-        .kept = @ptrCast(&kept),
         .published = published,
     };
 
-    var buffer: [128]u8 = undefined;
-    var scratch = std.heap.FixedBufferAllocator.init(&buffer);
+    var buffer: [4096]u8 = undefined;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+
+    defer arena.deinit();
+
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
     const result = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
 
-    return .{ .count = @intCast(result.count), .bytes = @intCast(result.bytes) };
+    for (result.rows, 0..) |row, index| {
+        const position: usize = @intCast(row);
+
+        kept[index] = pending[position].text;
+        pending[position].text = "";
+    }
+
+    return .{ .count = result.rows.len, .bytes = @intCast(result.bytes) };
 }
 
 pub fn digest(stored: []const u8, text: []const u8, cached: bool) Digest {

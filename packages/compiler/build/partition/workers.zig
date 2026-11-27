@@ -56,19 +56,18 @@ const Work = struct {
         defer arena.deinit();
 
         const allocator = arena.allocator();
-        const argv = try allocator.alloc([]const u8, self.arguments.len + 1);
-        var target = argv[1..];
 
-        argv[0] = self.zig;
-
-        @memcpy(target, self.arguments);
-
-        if (self.indexed.len != 0) try rules.partition_arguments_render.executeValue(allocator, &.{
+        const arguments = if (self.indexed.len != 0) try rules.partition_arguments_render.executeValue(allocator, &.{
             .values = self.arguments,
             .indexed = self.indexed,
             .index = index,
-            .target = @ptrCast(&target),
-        });
+        }) else self.arguments;
+
+        const argv = try allocator.alloc([]const u8, arguments.len + 1);
+
+        argv[0] = self.zig;
+
+        @memcpy(argv[1..], arguments);
 
         const result = try std.process.run(allocator, self.io, .{ .argv = argv });
 

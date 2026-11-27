@@ -50,12 +50,6 @@ pub fn load(project: *Project, entry: *const Native, module: ir.NativeModuleId, 
 
     members.init(&allocator, &project.functions);
 
-    var exports: []zx.memory.NamedId = &.{};
-    var names: []const []const u8 = &.{};
-    var ids: []const u32 = &.{};
-    const slots = zx.memory.borrowColumnLengths(&project.functions);
-    const lengths: zx.memory.ColumnLengths = &slots;
-
     const input: Input = .{
         .delta = try zx.columns.bridge(@FieldType(Input, "delta"), temp, loaded.delta),
         .origins = try zx.columns.bridge(@FieldType(Input, "origins"), temp, loaded.origins),
@@ -63,8 +57,6 @@ pub fn load(project: *Project, entry: *const Native, module: ir.NativeModuleId, 
         .members = try zx.columns.bridge(@FieldType(Input, "members"), temp, loaded.members),
         .owner = &.{ .path = entry.path, .namespace = entry.namespace, .module = @backingInt(module) },
         .types = zx.columns.pointer(@FieldType(Input, "types"), @as(*const TypeTail.Target, &types.target)),
-        .export_target = @ptrCast(&exports),
-        .bindings = &.{ .names = @ptrCast(&names), .ids = @ptrCast(&ids) },
         .member_targets = &.{
             .destination = &members.functions.input,
             .members = &members.output.view,
@@ -72,21 +64,30 @@ pub fn load(project: *Project, entry: *const Native, module: ir.NativeModuleId, 
             .first = project.functions.count(),
             .empty = &destination.empty(std.meta.Child(@FieldType(Members, "empty"))),
         },
-        .native = &.{
-            .module = @backingInt(module),
-            .namespaces = @ptrCast(&project.native_modules.type_namespaces.items),
-            .type_names = @ptrCast(&project.native_modules.type_names.items),
-            .type_ids = @ptrCast(&project.native_modules.type_ids.items),
-            .functions = @ptrCast(&lengths),
-        },
     };
 
-    generated.executeIn(allocator, &input) catch |err| switch (err) {
+    const delivered = generated.executeIn(allocator, &input) catch |err| switch (err) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => return fail(project, entry, span, .contract, 0, try std.fmt.allocPrint(temp, "internal compiler error: generated native delivery failed with {s}", .{@errorName(err)})),
     };
 
-    return .{ .types = project.types.view(), .exports = @ptrCast(exports), .members = members.members() };
+    const module_index = @backingInt(module);
+
+    project.native_modules.type_namespaces.items[module_index] = delivered.namespace;
+    project.native_modules.type_names.items[module_index] = delivered.names;
+    project.native_modules.type_ids.items[module_index] = delivered.ids;
+
+    inline for (@typeInfo(ir.FunctionStorage).@"struct".field_names) |name| {
+        @field(project.functions, name).items.len += loaded.members.len;
+    }
+
+    const exports = try allocator.alloc(ir.Export, delivered.rows.len);
+
+    for (delivered.rows, exports) |row, *slot| {
+        slot.* = .{ .name = row.name, .type_id = @fromBackingInt(row.type_id) };
+    }
+
+    return .{ .types = project.types.view(), .exports = exports, .members = members.members() };
 }
 
 fn fail(project: *Project, entry: *const Native, span: zx.Span, code: @FieldType(zx.Diagnostic, "code"), offset: usize, cause: []const u8) zx.Error {

@@ -411,44 +411,41 @@ fn store(self: *Self, name: []const u8, value: Entry, enqueue: bool) std.mem.All
     const queued: Unwritten = .{ .key = value.key, .source = value.source, .owner = value.owner };
 
     if (comptime generated_parser) {
+        if (self.storage != null and enqueue) try self.unwritten.records.ensureUnusedCapacity(self.allocator, 1);
+
         const rule = @import("generated_store_generation_cache_record");
         const Input = std.meta.Child(rule.Input);
         const Prior = std.meta.Child(@typeInfo(@FieldType(Input, "previous")).optional.child);
         const owner = if (previous) |entry| self.sourceAllocator(entry.owner) else undefined;
         const prior: Prior = if (previous) |entry| .{ .pending = entry.pending, .source = entry.source, .owner = @ptrCast(&owner) } else undefined;
         const sources = memory.borrowReadColumn([]u8, "source", self.unwritten.records.items);
-        var retired = memory.borrowWriteColumn(bool, "retired", self.unwritten.records.items);
-        var ranges: memory.ColumnRangeGroup(1) = .{};
-        const tail = ranges.bind(&self.unwritten.records, 1, true);
 
         const input: Input = .{
             .target = @ptrCast(&binding),
             .cache = @ptrCast(self),
             .active = self.writing.queue.records.items.len != 0,
             .threaded = self.writer != null,
-            .resource = @ptrCast(&self.allocator),
             .previous = if (previous != null) &prior else null,
             .queue = @ptrCast(&sources),
             .count = self.unwritten.records.items.len,
             .persistent = self.storage != null,
             .needs_write = enqueue,
-            .destination = &.{
-                .ranges = @ptrCast(ranges.freeze().?),
-                .tail = @ptrCast(tail),
-                .bytes = std.mem.asBytes(&queued),
-                .retired = @ptrCast(&retired),
-                .retired_offset = @offsetOf(Unwritten, "retired"),
-            },
         };
 
         var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
-        const retired_previous = rule.executeIn(fixed.allocator(), &input) catch |err| switch (err) {
+        const outcome = rule.executeValue(fixed.allocator(), &input) catch |err| switch (err) {
             error.OutOfMemory => return error.OutOfMemory,
             else => unreachable,
         };
 
-        if (retired_previous) self.unwritten.has_retired = true;
+        if (outcome.retire) |row| {
+            self.unwritten.records.items[@intCast(row)].retired = true;
+
+            self.unwritten.has_retired = true;
+        }
+
+        if (outcome.append) self.unwritten.records.appendAssumeCapacity(queued);
 
         return;
     }

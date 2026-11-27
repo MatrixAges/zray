@@ -5,10 +5,11 @@
 
     <Call module="check" in={$in.state} />
 
-    <If on={$ctx.check.length == 0}>
+    <If on={$ctx.check.pending.length == 0}>
         <Return
             value={{
-                pending: $ctx.check,
+                pending: $ctx.check.pending,
+                valid: null,
                 arguments: {
                     values: [],
                     indexed: []
@@ -22,7 +23,8 @@
 
     <Return
         value={{
-            pending: $ctx.check,
+            pending: $ctx.check.pending,
+            valid: $ctx.check.valid,
             arguments: $ctx.prepare,
             invalidate: $in.state.previous.length != 0
         }}

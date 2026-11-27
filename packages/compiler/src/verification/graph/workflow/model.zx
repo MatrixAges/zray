@@ -1,11 +1,9 @@
-import type { U64Buffer } from "memory"
 import type { GraphRegistration } from "verification_publication_host"
 import type { Lookup, Origin, Selection } from "../model"
 
 export type Input = {
     graph: GraphRegistration,
     lookup: Lookup,
-    buckets: U64Buffer,
     origin: Origin,
     expression: string,
     names: string[]

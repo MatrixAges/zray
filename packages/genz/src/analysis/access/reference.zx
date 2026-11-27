@@ -1,17 +1,14 @@
 import { max_u32 } from "core/const"
 import get from "core/integer/index/get"
-import memory from "memory"
 
 import { ExpressionsKind } from "../../printer/model/expressions"
 import { Result } from "./model"
 
 import type { Index } from "core/integer/index/model"
-import type { BoolBuffer } from "memory"
 
 export type Input = {
     name: u8[],
     symbol: u32,
-    used: BoolBuffer,
     stack: Index,
     state: Index,
     active: bool,
@@ -35,8 +32,6 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    memory.copyBools(in.used, [true])
-
     const base = in.expression_base
 
     const nodes: Nodes = {

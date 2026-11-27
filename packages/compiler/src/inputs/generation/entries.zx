@@ -1,31 +1,38 @@
-import bytes from "std:bytes"
 import memory from "memory"
 
-import type { TextColumn, WriteColumn } from "memory"
+import type { TextColumn } from "memory"
+
+export type Row = {
+    path: string,
+    name: string
+}
 
 export type Input = {
     paths: TextColumn,
     names: TextColumn,
-    roots: WriteColumn,
-    export_paths: WriteColumn,
-    export_names: WriteColumn,
     count: u64
 }
 
-export type Output = void
+export type Output = Row[]
 
 export default function (in: Input): Output {
-    const written = loop(0, {
-        while: index => index < in.count,
-        next: index => {
-            const path = bytes.fromText(memory.readTextColumn(in.paths, index))
-            const name = bytes.fromText(memory.readTextColumn(in.names, index))
+    const empty: Row[] = []
 
-            memory.writeColumnBytes(in.roots, index, path)
-            memory.writeColumnBytes(in.export_paths, index, path)
-            memory.writeColumnBytes(in.export_names, index, name)
+    return loop({
+        index: 0,
+        rows: empty
+    }, {
+        while: state => state.index < in.count,
+        next: state => {
+            const path = memory.readTextColumn(in.paths, state.index)
+            const name = memory.readTextColumn(in.names, state.index)
 
-            index += 1
-        }
+            state.rows = state.rows.push({
+                path,
+                name
+            })[0]
+            state.index += 1
+        },
+        return: state => state.rows
     })
 }

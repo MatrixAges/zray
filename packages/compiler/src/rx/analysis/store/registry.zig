@@ -53,21 +53,12 @@ pub fn publish(allocator: std.mem.Allocator, definitions: []Store.Definition, co
             .state = @ptrCast(&publication),
             .count = result.len,
             .row = 0,
-            .tables = &.{
-                .types = @ptrCast(&publication.types),
-                .natives = @ptrCast(&publication.natives),
-                .type_view = std.mem.asBytes(&contract.types),
-                .native_view = std.mem.asBytes(&contract.native_modules),
-            },
         }) catch |err| switch (@as(anyerror, err)) {
             error.OutOfMemory => return error.OutOfMemory,
             else => unreachable,
         };
     } else for (0..result.len) |row| {
-        for (try publication.open(row)) |*object| {
-            object.initial.types = contract.types;
-            object.initial.native_modules = contract.native_modules;
-        }
+        try openStoreRegistryPublication(&publication, row);
     }
 
     return result;
@@ -86,14 +77,11 @@ const Load = struct {
     fn run(work: *Load) Error!void {
         if (comptime generated) {
             const rule = @import("generated_rx_load_store_registry");
-            const data: []Data = @as(*[1]Data, @ptrCast(&work.data));
-            var shared = zx.memory.borrowNestedWriteColumn(zx.ir.TypeTable, &.{ "context", "types" }, data);
 
             return rule.executeIn(.failing, &.{
                 .state = @ptrCast(work),
                 .count = work.sources.len,
                 .row = 0,
-                .types = @ptrCast(&shared),
             }) catch |err| switch (@as(anyerror, err)) {
                 error.OutOfMemory => error.OutOfMemory,
                 error.InvalidSource => error.InvalidSource,
@@ -103,9 +91,7 @@ const Load = struct {
 
         for (0..work.sources.len) |row| {
             try bindStoreRegistryAliases(work, row);
-
-            _ = try compileStoreRegistryEntry(work, row);
-            work.data.context.types = work.data.definitions[row].types;
+            try compileStoreRegistryEntry(work, row);
         }
     }
 
@@ -124,7 +110,7 @@ pub fn bindStoreRegistryAliases(handle: *anyopaque, row: u64) Error!void {
     };
 }
 
-pub fn compileStoreRegistryEntry(handle: *anyopaque, row: u64) Error![]const u8 {
+pub fn compileStoreRegistryEntry(handle: *anyopaque, row: u64) Error!void {
     const work = Load.borrow(handle);
     const index: usize = @intCast(row);
     const source = &work.sources[index];
@@ -146,9 +132,8 @@ pub fn compileStoreRegistryEntry(handle: *anyopaque, row: u64) Error![]const u8 
     }
 
     work.data.definitions[index] = result.definition;
+    work.data.context.types = result.definition.types;
     _ = work.values.reset(.retain_capacity);
-
-    return std.mem.asBytes(&work.data.definitions[index].types);
 }
 
 const Publication = struct {
@@ -156,8 +141,6 @@ const Publication = struct {
     definitions: []Store.Definition,
     contract: *const Contract,
     retained: bool,
-    types: zx.memory.WriteColumn = undefined,
-    natives: zx.memory.WriteColumn = undefined,
     fn open(work: *Publication, row: usize) std.mem.Allocator.Error![]Store.Object {
         const definition = &work.definitions[row];
         const objects = if (work.retained) try work.allocator.dupe(Store.Object, definition.objects) else definition.objects;
@@ -169,12 +152,12 @@ const Publication = struct {
     }
 };
 
-pub fn openStoreRegistryPublication(handle: *anyopaque, row: u64) std.mem.Allocator.Error!u64 {
+pub fn openStoreRegistryPublication(handle: *anyopaque, row: u64) std.mem.Allocator.Error!void {
     const work: *Publication = @ptrCast(@alignCast(handle));
     const objects = try work.open(@intCast(row));
 
-    work.types = zx.memory.borrowNestedWriteColumn(zx.ir.TypeTable, &.{ "initial", "types" }, objects);
-    work.natives = zx.memory.borrowNestedWriteColumn(zx.ir.NativeModuleTable, &.{ "initial", "native_modules" }, objects);
-
-    return objects.len;
+    for (objects) |*object| {
+        object.initial.types = work.contract.types;
+        object.initial.native_modules = work.contract.native_modules;
+    }
 }

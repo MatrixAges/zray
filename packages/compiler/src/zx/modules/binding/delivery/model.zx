@@ -1,20 +1,16 @@
 import type { Allocator } from "memory"
-import type { ColumnAllocator } from "memory/columns"
 import type { ReexportRows } from "../../project/exports/signatures/model"
 import type { Request, Result } from "../model"
-import type { Destinations } from "../publication/model"
+import type { Destinations, Outcome as Published } from "../publication/model"
 
 export type Input = {
     request: Request,
     destinations: Destinations,
     reexports?: ReexportRows,
-    owner: Allocator,
-    owner_rows: ColumnAllocator
+    owner: Allocator
 }
 
-export type Outcome = Result.Pick("message", "start", "end") & {
-    aliases?: u64,
-    constants?: u64,
-    functions?: u64,
-    reexports?: u64
-}
+export type Outcome = Result.Pick("message", "start", "end") &
+    Published & {
+        reexports?: u64
+    }

@@ -1,30 +1,59 @@
-import rebuild from "core/bytes/index/rebuild"
-import probe from "core/bytes/index/slot"
-import memory from "memory"
+import probeSlot from "./probe_slot"
 
-import type { Commit as Input } from "./model"
-
-export type Output = void
+import type { Commit as Input, CommitResult as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { keys, key, buckets, capacity } = in
+    const { keys, key, capacity } = in
 
-    if (in.resized) {
-        const count = rebuild({
-            keys,
-            buckets,
-            capacity
-        })
+    if (!in.resized) {
+        return {
+            buckets: [],
+            slot: in.position,
+            value: keys.length + 1
+        }
+    }
 
-        const located = probe({
-            keys,
-            buckets: memory.u64View(buckets, null),
-            capacity,
-            key
-        })
+    const empty: u64[] = []
 
-        memory.writeU64(buckets, located.slot, count + 1)
-    } else {
-        memory.writeU64(buckets, in.position, keys.length + 1)
+    const initialized = loop(empty, {
+        while: buckets => buckets.length < capacity,
+        next: buckets => {
+            buckets = buckets.push(0)[0]
+        }
+    })
+
+    const rebuilt = loop({
+        row: 0,
+        buckets: initialized
+    }, {
+        while: state => state.row < keys.length,
+        next: state => {
+            const row = state.row
+            const slot = probeSlot({
+                buckets: state.buckets,
+                keys,
+                capacity,
+                key: keys[row]
+            })
+
+            state.buckets[slot] = row + 1
+            state.row += 1
+        },
+        return: state => state.buckets
+    })
+
+    const located = probeSlot({
+        buckets: rebuilt,
+        keys,
+        capacity,
+        key
+    })
+
+    const buckets = rebuilt.splice(located, 1, [keys.length + 1])[0]
+
+    return {
+        buckets,
+        slot: located,
+        value: keys.length + 1
     }
 }

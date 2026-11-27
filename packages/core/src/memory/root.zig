@@ -49,7 +49,6 @@ pub const columnRangeCount = column_range.count;
 pub const setColumnRangeCount = column_range.setCount;
 pub const reserveColumnRange = column_range.reserveOne;
 pub const publishColumnRange = column_range.publishOne;
-pub const bindRangeWriteColumn = column_range.bindWriteColumn;
 pub const columnSetSlotCount = column_set.slotCount;
 pub const columnSetFirstLength = column_set.firstLength;
 pub const functionColumnGrowth = column_set.growth;
@@ -417,12 +416,7 @@ pub const readScalarBoolean = scalar_column.readBoolean;
 pub const readScalarEnumeration = scalar_column.readEnumeration;
 pub const readScalarText = scalar_column.readText;
 pub const copyScalar = scalar_column.copy;
-pub const copyScalarAt = scalar_column.copyAt;
 pub const writeScalarText = scalar_column.writeText;
-pub const writeScalarInteger = scalar_column.writeInteger;
-pub const writeScalarFloat = scalar_column.writeFloat;
-pub const writeScalarBoolean = scalar_column.writeBoolean;
-pub const writeScalarEnumeration = scalar_column.writeEnumeration;
 pub const borrowTextRange = borrowU8Range;
 
 pub inline fn borrowU8Range(source: []const u8, first: u64, count: u64) error{IndexOutOfBounds}![]const u8 {
@@ -491,15 +485,6 @@ inline fn copyRange(comptime T: type, target: *anyopaque, offset: u64, source: [
 
 pub inline fn copyU8s(target: *anyopaque, source: []const u8) error{IndexOutOfBounds}!void {
     return copySlice(u8, target, source);
-}
-
-pub inline fn copyBools(target: *anyopaque, source: []const bool) error{IndexOutOfBounds}!void {
-    const buffer: *const []bool = @ptrCast(@alignCast(target));
-
-    if (buffer.len != source.len) return error.IndexOutOfBounds;
-    if (buffer.ptr == source.ptr) return;
-
-    @memmove(buffer.*, source);
 }
 
 pub inline fn copyU32s(target: *anyopaque, source: []const u32) error{IndexOutOfBounds}!void {

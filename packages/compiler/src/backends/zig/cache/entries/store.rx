@@ -1,7 +1,7 @@
 <Module>
     <Type from="store_model" as="Store" />
 
-    <Args in={Store.Input} out={bool} />
+    <Args in={Store.Input} out={Store.Outcome} />
 
     <Call
         fn="replace"
@@ -13,19 +13,6 @@
             "needs_write"
         ])}
     />
-
-    <If on={$ctx.replace.append != null}>
-        <Call
-            fn="index.reserveColumnRange"
-            in={[
-                $in.resource,
-                $in.destination.ranges,
-                0,
-                null,
-                false
-            ]}
-        />
-    </If>
 
     <Call
         fn="../writes/complete"
@@ -43,30 +30,14 @@
         }}
     />
 
-    <If on={$in.previous != null}>
-        <If on={$ctx.replace.retire != null}>
-            <Call
-                fn="retire_queue"
-                in={{
-                    ...$in.destination.pick([
-                        "ranges",
-                        "retired",
-                        "retired_offset"
-                    ]),
-                    row: $ctx.replace.retire
-                }}
-            />
-
-            <Else>
-                <Call
-                    fn="index.freeOwnedText"
-                    in={[
-                        $in.previous.owner,
-                        $in.previous.source
-                    ]}
-                />
-            </Else>
-        </If>
+    <If on={$in.previous != null && $ctx.replace.retire == null}>
+        <Call
+            fn="index.freeOwnedText"
+            in={[
+                $in.previous.owner,
+                $in.previous.source
+            ]}
+        />
     </If>
 
     <Call
@@ -77,16 +48,10 @@
         ]}
     />
 
-    <If on={$ctx.replace.append != null}>
-        <Call
-            fn="append_queue"
-            in={$in.destination.pick([
-                "ranges",
-                "tail",
-                "bytes"
-            ])}
-        />
-    </If>
-
-    <Return value={$in.previous != null && $ctx.replace.retire != null} />
+    <Return
+        value={{
+            append: $ctx.replace.append != null,
+            retire: $ctx.replace.retire
+        }}
+    />
 </Module>

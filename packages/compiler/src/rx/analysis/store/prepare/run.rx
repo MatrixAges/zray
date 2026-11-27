@@ -5,7 +5,7 @@
 
     <Call fn="host.collectStoreDefinitionLayout" in={$in.state} />
 
-    <Call module="check" in={$in.omit(["output_types"])} />
+    <Call module="check" in={$in} />
 
     <Call fn="host.resolveStoreDefinitionTypes" in={$in.state} />
     <Call fn="host.reserveStoreDefinitionObjects" in={$in.state} />
@@ -19,15 +19,5 @@
     />
 
     <Call fn="host.freezeStoreDefinitionTypes" in={$in.state} />
-
-    <Call
-        fn="publish_types"
-        in={{
-            output_types: $in.output_types,
-            count: $ctx.reserveStoreDefinitionObjects,
-            view: $ctx.freezeStoreDefinitionTypes
-        }}
-    />
-
     <Call fn="host.publishStoreDefinition" in={$in.state} />
 </Module>

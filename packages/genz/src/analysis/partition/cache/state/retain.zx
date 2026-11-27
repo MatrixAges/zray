@@ -1,20 +1,19 @@
 import integers from "std:integer"
-import memory from "memory"
-
-import type { U8Buffer } from "memory"
 
 export type Input = {
     pending: u32[],
-    length: u64,
-    target: U8Buffer
+    length: u64
 }
 
-export type Output = void
+export type Output = bool[]
 
 export default function (in: Input): Output {
-    const retained = loop({
+    const empty: bool[] = []
+
+    return loop({
         partition: 0,
-        next: 0
+        next: 0,
+        valid: empty
     }, {
         while: state => state.partition < in.length,
         next: state => {
@@ -22,13 +21,14 @@ export default function (in: Input): Output {
             const invalidate = next < in.pending.length &&
                 integers.widen(in.pending[next]) == state.partition
 
-            memory.writeU8(in.target, state.partition, invalidate ? 0 : 1)
+            state.valid = state.valid.push(!invalidate)[0]
 
             if (invalidate) {
                 state.next += 1
             }
 
             state.partition += 1
-        }
+        },
+        return: state => state.valid
     })
 }

@@ -1,6 +1,6 @@
 import type { Input as Allocate } from "../../zx/modules/artifact/surface/allocate_rows"
 import type { Input as Constants } from "../../zx/modules/artifact/surface/constants"
-import type { Input as Types, Status } from "../interface/model"
+import type { Input as Types, Row as ExportRow, Status } from "../interface/model"
 import type { Input as Members } from "../members/model"
 
 export type Row = {
@@ -18,5 +18,6 @@ export type Input = {
 export type Output = {
     status: Status,
     name: string,
-    path: string
+    path: string,
+    exports: ExportRow[]
 }

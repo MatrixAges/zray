@@ -1,9 +1,13 @@
-import type { NamedRows, NamedRowBuffer } from "memory"
+import type { NamedRows } from "memory"
+
+export type Row = {
+    name: string,
+    type_id: u32
+}
 
 export type Input = {
     source: NamedRows,
     count: u64,
-    target: NamedRowBuffer,
     mapping: u32[],
     input_type: u32,
     output_type: u32,
@@ -14,6 +18,11 @@ export enum Status {
     Valid,
     InvalidModule,
     ConflictingInterface
+}
+
+export type Outcome = {
+    status: Status,
+    exports: Row[]
 }
 
 export type Ports = {

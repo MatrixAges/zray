@@ -165,9 +165,7 @@ pub fn Map(comptime Key: type) type {
 
             return if (value) |id| @fromBackingInt(id) else null;
         }
-        pub fn read(self: *const Self, key: Key, reads_arg: []u64) ?node.ExpressionId {
-            var reads = reads_arg;
-
+        pub fn read(self: *const Self, key: Key, reads: []u64) ?node.ExpressionId {
             if (!generated) {
                 const value = self.state.get(key) orelse return null;
 
@@ -181,11 +179,15 @@ pub fn Map(comptime Key: type) type {
             const entry = @import("generated_expression_cache_read");
             const Input = std.meta.Child(entry.Input);
             const state = self.view(std.meta.Child(@FieldType(Input, "state")));
-            const input: Input = .{ .state = &state, .key = @backingInt(key), .reads = @ptrCast(&reads) };
+            const input: Input = .{ .state = &state, .key = @backingInt(key), .reads = reads };
             var fixed = std.heap.FixedBufferAllocator.init(&.{});
-            const value = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
+            const result = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
 
-            return if (value) |id| @fromBackingInt(id) else null;
+            if (result.reads) |next| {
+                reads[@backingInt(key)] = next;
+            }
+
+            return if (result.value) |id| @fromBackingInt(id) else null;
         }
         pub fn countRead(key: Key, reads_arg: []u64) void {
             var reads = reads_arg;
@@ -197,10 +199,10 @@ pub fn Map(comptime Key: type) type {
             }
 
             const entry = @import("generated_expression_cache_count");
-            const input: std.meta.Child(entry.Input) = .{ .key = @backingInt(key), .reads = @ptrCast(&reads) };
+            const input: std.meta.Child(entry.Input) = .{ .key = @backingInt(key), .reads = reads };
             var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
-            zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
+            reads[@backingInt(key)] = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
         }
 
         pub fn contains(self: *const Self, key: Key) bool {

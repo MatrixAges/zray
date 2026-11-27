@@ -25,7 +25,7 @@ pub fn stamp(digest: *const Digest) Stamp {
     return text[0..stamp_width].*;
 }
 
-pub fn entries(source: anytype, roots: [][]const u8, exports: anytype) void {
+pub fn entries(allocator: std.mem.Allocator, source: anytype, roots: [][]const u8, exports: anytype) void {
     if (comptime !generated) {
         for (source, roots, exports) |entry, *root, *exported| {
             root.* = entry.path;
@@ -38,22 +38,26 @@ pub fn entries(source: anytype, roots: [][]const u8, exports: anytype) void {
     const memory = zx.memory;
     const paths = memory.borrowTextColumn("path", source);
     const names = memory.borrowTextColumn("name", source);
-    var root_paths = memory.borrowNestedWriteColumn([]const u8, &.{}, roots);
-    var export_paths = memory.borrowWriteColumn([]const u8, "path", exports);
-    var export_names = memory.borrowWriteColumn([]const u8, "name", exports);
     const rule = @import("generated_generation_entries");
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var buffer: [2048]u8 = undefined;
+    var arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer arena.deinit();
+
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
 
     const input: std.meta.Child(rule.Input) = .{
         .paths = @ptrCast(&paths),
         .names = @ptrCast(&names),
-        .roots = @ptrCast(&root_paths),
-        .export_paths = @ptrCast(&export_paths),
-        .export_names = @ptrCast(&export_names),
         .count = source.len,
     };
 
-    zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+    const rows = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
+
+    for (rows, roots, exports) |row, *root, *exported| {
+        root.* = row.path;
+        exported.* = .{ .name = row.name, .path = row.path };
+    }
 }
 
 pub const Counts = struct {

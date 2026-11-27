@@ -9,19 +9,18 @@ pub const Listed = struct {
 };
 
 pub fn list(comptime generated: ?type, allocator: std.mem.Allocator, text: []const u8) !Listed {
+    if (generated) |entry| {
+        const listed = try entry.executeValue(allocator, &.{ .text = text });
+
+        return .{ .paths = listed.paths, .hashes = listed.hashes };
+    }
+
     const count = std.mem.countScalar(u8, text, '\n') + 1;
     const paths = try allocator.alloc([]const u8, count);
     const hashes = try allocator.alloc(u64, count);
-    var paths_buffer = paths;
-    var hashes_buffer = hashes;
+    const length = try seedList(text, paths, hashes);
 
-    const length = if (generated) |entry| try entry.executeValue(allocator, &.{
-        .text = text,
-        .paths = @ptrCast(&paths_buffer),
-        .hashes = @ptrCast(&hashes_buffer),
-    }) else try seedList(text, paths, hashes);
-
-    return .{ .paths = paths[0..@intCast(length)], .hashes = hashes[0..@intCast(length)] };
+    return .{ .paths = paths[0..length], .hashes = hashes[0..length] };
 }
 
 fn seedList(text: []const u8, paths: [][]const u8, hashes: []u64) !usize {

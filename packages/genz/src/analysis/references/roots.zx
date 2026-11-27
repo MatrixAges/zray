@@ -1,32 +1,46 @@
-import memory from "memory"
-
 import mark from "./mark"
 import markIds from "./mark_ids"
 
-import type { Input } from "./model"
-
-export type Output = u64
+import type { Input, State as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { needed, members, roots } = in
+    const { members, roots } = in
 
-    memory.fillByteRange(needed, 0, in.functions.expressions.length, 0)
+    const empty: bool[] = []
+
+    const initialized = loop(empty, {
+        while: needed => needed.length < in.functions.expressions.length,
+        next: needed => {
+            needed = needed.push(false)[0]
+        }
+    })
+
+    const initial = markIds({
+        ids: members,
+        needed: initialized,
+        count: 0
+    })
 
     return loop({
         row: 0,
-        count: markIds({
-            ids: members,
-            needed
-        })
+        needed: initial.needed,
+        count: initial.count
     }, {
         while: state => state.row < roots.length,
         next: state => {
-            state.count += mark({
+            const next = mark({
                 body: roots[state.row],
-                needed
+                needed: state.needed,
+                count: state.count
             })
+
+            state.needed = next.needed
+            state.count = next.count
             state.row += 1
         },
-        return: state => state.count
+        return: state => ({
+            needed: state.needed,
+            count: state.count
+        })
     })
 }

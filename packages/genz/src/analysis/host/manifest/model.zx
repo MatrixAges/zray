@@ -1,9 +1,10 @@
-import type { StringBuffer, U64Buffer } from "memory"
-
 export type Read = {
-    text: string,
-    paths: StringBuffer,
-    hashes: U64Buffer
+    text: string
+}
+
+export type Listed = {
+    paths: string[],
+    hashes: u64[]
 }
 
 export type Write = {

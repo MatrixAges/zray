@@ -1,8 +1,7 @@
 import type { Target } from "../../../analysis/semantic/merging/publication/model"
 import type { Diagnostic } from "../../../analysis/semantic/resolving/model"
 import type { Span } from "../../../frontend/lexer/token_model"
-import type { Flags } from "../../artifact/materializing/publication/model"
-import type { BodyColumns, Destination } from "../../link/signature/publication/model"
+import type { Flags, Signature } from "../../artifact/materializing/publication/model"
 import type { ExternalInput, Result } from "../model"
 
 export type Implementation = Flags.Omit("ownership") & {
@@ -20,16 +19,20 @@ export type Record = {
     output_type: u32
 }
 
+export type Prepared = {
+    function: Signature,
+    flags: Flags
+}
+
 export type Input = {
     analysis:
         ExternalInput.Omit("nominal_origin", "expand_tuple", "fallible", "errors"),
     identity?: string,
     types: Target,
-    destination: Destination,
-    empty: BodyColumns,
     implementation: Implementation
 }
 
 export type Output = Result.Pick("input_type", "output_type") & {
-    diagnostic: Diagnostic
+    diagnostic: Diagnostic,
+    prepared?: Prepared
 }

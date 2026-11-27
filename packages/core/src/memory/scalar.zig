@@ -55,29 +55,9 @@ pub inline fn readText(source: *const anyopaque, index: u64) IndexError!?[]const
 }
 
 pub inline fn copy(source: *const anyopaque, target: *anyopaque, index: u64) IndexError!void {
-    return copyAt(source, index, target, index);
-}
-
-pub inline fn copyAt(source: *const anyopaque, index: u64, target: *anyopaque, destination: u64) IndexError!void {
-    return write(Value, target, destination, try read(Value, source, index));
+    return write(Value, target, index, try read(Value, source, index));
 }
 
 pub inline fn writeText(target: *anyopaque, index: u64, value: []const u8) IndexError!void {
     return write(Value, target, index, .{ .string = value });
-}
-
-pub inline fn writeInteger(target: *anyopaque, index: u64, value: u64, negative: bool) IndexError!void {
-    return write(Value, target, index, if (negative) .{ .negative_integer = value } else .{ .integer = value });
-}
-
-pub inline fn writeFloat(target: *anyopaque, index: u64, value: f64) IndexError!void {
-    return write(Value, target, index, .{ .float = value });
-}
-
-pub inline fn writeBoolean(target: *anyopaque, index: u64, value: bool) IndexError!void {
-    return write(Value, target, index, .{ .boolean = value });
-}
-
-pub inline fn writeEnumeration(target: *anyopaque, index: u64, value: u32) IndexError!void {
-    return write(Value, target, index, .{ .enumeration = value });
 }

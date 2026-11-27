@@ -1,72 +1,43 @@
 import encoding from "std:encoding"
 import { Ownership } from "core/symbol_table/model"
-import memory from "memory"
 
-import copyList from "./copy_list"
+import type { Prepared as Output, Record as Input } from "./model"
 
-import type { Allocator } from "memory"
-import type { Output } from "../../link/signature/publication/prepare"
-import type { Record } from "./model"
-
-export type { Output } from "../../link/signature/publication/prepare"
-
-export type Input = Record & {
-    resource: Allocator
-}
+export type { Prepared as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { implementation } = in
+    const { implementation, members: spans } = in
     const { member, errors, export_name } = implementation
-    const { resource } = in
 
-    const spans = in.members
+    const empty: string[] = []
 
-    const members = memory.requireTextSlots(
-        memory.allocateTextSlots(
-            resource,
-            spans.length,
-            null
-        )
-    )
-
-    const filled = loop(0, {
-        while: row => row < spans.length,
-        next: row => {
-            const part = spans[row]
+    const members = loop({
+        row: 0,
+        items: empty
+    }, {
+        while: state => state.row < spans.length,
+        next: state => {
+            const part = spans[state.row]
             const text = encoding.sliceBytes(member, part.start, part.end)
-            const owned = memory.copyColumnText(resource, text)
 
-            memory.writeTextSlot(members, row, owned)
-
-            row += 1
-        }
+            state.items = state.items.push(text)[0]
+            state.row += 1
+        },
+        return: state => state.items
     })
-
-    const owned_errors: string[]? = match {
-        errors != null => copyList({
-            resource,
-            items: errors
-        }),
-        _ => null
-    }
-
-    const owned_export: string? = match {
-        export_name != null => memory.copyColumnText(resource, export_name),
-        _ => null
-    }
 
     return {
         function: {
-            file: memory.copyColumnText(resource, implementation.specifier),
+            file: implementation.specifier,
             ports: {
                 input: in.input_type,
                 output: in.output_type,
                 native_module: implementation.module
             },
             external: {
-                members: memory.borrowTextSlots(members, spans.length),
-                errors: owned_errors,
-                export_name: owned_export,
+                members,
+                errors,
+                export_name,
                 parameters: null
             }
         },

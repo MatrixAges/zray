@@ -1,53 +1,33 @@
-import bytes from "std:bytes"
-import memory from "memory"
-import columns from "memory/columns"
+import type { ConstantRow as Row } from "./model"
 
-import type { Constants, Selected } from "./model"
+export type { ConstantRow as Row } from "./model"
 
-export type Input = Selected & Constants.Pick("source", "target")
+export type Input = {
+    names: string[],
+    indices: u64[]
+}
 
-export type Output = u64
+export type Output = Row[]
 
 export default function (in: Input): Output {
-    const { names, indices, source, target, used: first, owner } = in
+    const { names, indices } = in
 
-    if (names.length == 0) {
-        return first
-    }
+    const empty: Row[] = []
 
-    const published = loop(0, {
-        while: row => row < names.length,
-        next: row => {
-            const index = indices[row]
-            const destination = first + row
-            const name = memory.copyColumnText(owner, names[row])
-            const type_id = columns.readColumnU32(source.types, index)
-            const text = columns.readScalarText(source.values, index)
+    return loop({
+        row: 0,
+        rows: empty
+    }, {
+        while: state => state.row < names.length,
+        next: state => {
+            const row = state.row
 
-            if (text != null) {
-                columns.writeScalarText(
-                    target.values,
-                    destination,
-                    memory.copyColumnText(owner, text)
-                )
-            } else {
-                columns.copyScalarAt(
-                    source.values,
-                    index,
-                    target.values,
-                    destination
-                )
-            }
-
-            memory.writeColumnBytes(
-                target.names,
-                destination,
-                bytes.fromText(name)
-            )
-            memory.writeColumnU32(target.types, destination, type_id)
-            row += 1
-        }
+            state.rows = state.rows.push({
+                name: names[row],
+                index: indices[row]
+            })[0]
+            state.row += 1
+        },
+        return: state => state.rows
     })
-
-    return first + names.length
 }

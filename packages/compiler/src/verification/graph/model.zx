@@ -1,5 +1,4 @@
 import type { Lookup as Slot } from "core/bytes/index/slot"
-import type { U64Buffer } from "memory"
 
 export type Lookup = Slot & {
     widths: u16[],
@@ -21,9 +20,14 @@ export type Selection = {
 }
 
 export type Commit = Slot.Omit("buckets") & {
-    buckets: U64Buffer,
     resized: bool,
     position: u64
+}
+
+export type CommitResult = {
+    buckets: u64[],
+    slot: u64,
+    value: u64
 }
 
 export type Identity = {

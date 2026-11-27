@@ -1,25 +1,33 @@
 import integers from "std:integer"
-import memory from "memory"
 
-import type { StringBuffer } from "memory"
+export type Update = {
+    symbol: u32,
+    name: string
+}
 
 export type Input = {
     symbols: u32[],
     sources: u32[],
     replacements: string[],
-    names: StringBuffer,
-    saved: StringBuffer,
+    names: string[],
+    saved: string[],
     restore: bool
 }
 
-export type Output = void
+export type Output = {
+    saved: string[],
+    updates: Update[]
+}
 
 export default function (in: Input): Output {
-    const names = memory.stringViews(in.names)
-    const saved = memory.stringViews(in.saved)
+    const empty_saved: string[] = []
+    const empty_updates: Update[] = []
 
-    const updated = loop({
-        index: 0
+    return loop({
+        index: 0,
+        names: in.names,
+        saved: empty_saved,
+        updates: empty_updates
     }, {
         while: state => state.index < in.symbols.length,
         next: state => {
@@ -31,18 +39,29 @@ export default function (in: Input): Output {
             const symbol = integers.widen(in.symbols[index])
 
             if (in.restore) {
-                memory.writeString(in.names, symbol, saved[index])
+                state.updates = state.updates.push({
+                    symbol: in.symbols[index],
+                    name: in.saved[index]
+                })[0]
             } else {
                 const name = match {
                     in.replacements.length != 0 => in.replacements[index],
-                    _ => names[integers.widen(in.sources[index])]
+                    _ => state.names[integers.widen(in.sources[index])]
                 }
 
-                memory.writeString(in.saved, index, names[symbol])
-                memory.writeString(in.names, symbol, name)
+                state.saved = state.saved.push(state.names[symbol])[0]
+                state.names[symbol] = name
+                state.updates = state.updates.push({
+                    symbol: in.symbols[index],
+                    name
+                })[0]
             }
 
             state.index += 1
-        }
+        },
+        return: state => ({
+            saved: state.saved,
+            updates: state.updates
+        })
     })
 }

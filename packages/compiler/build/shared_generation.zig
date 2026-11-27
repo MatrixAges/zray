@@ -76,7 +76,7 @@ pub fn run(target: Target, owned: std.mem.Allocator, entries: []const Entry, inp
     const roots = try allocator.alloc([]const u8, entries.len);
     const exports = try allocator.alloc(analysis.project.Export, entries.len);
 
-    publication.entries(entries, roots, exports);
+    publication.entries(allocator, entries, roots, exports);
 
     const project = compiler.project.Options{
         .entry = "",

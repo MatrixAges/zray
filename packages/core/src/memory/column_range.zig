@@ -101,13 +101,6 @@ pub inline fn publishOne(target: *anyopaque, index: u64) void {
     storage.items.len += range.count;
 }
 
-pub fn bindWriteColumn(source: *const anyopaque, index: u64, target: *anyopaque, offset: u64) void {
-    const storage = view(source)[@intCast(index)].storage;
-    const column: *@import("write_column.zig").Column = @ptrCast(@alignCast(target));
-    column.items = if (storage.items.len == 0) storage.items.ptr else storage.items.ptr + @as(usize, @intCast(offset));
-    column.count = storage.items.len;
-}
-
 pub fn Group(comptime capacity: usize) type {
     return struct {
         const Self = @This();

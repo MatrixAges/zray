@@ -1,7 +1,7 @@
 import { reserveAppend } from "core/row_buffer"
 
 import type { ColumnAllocator } from "memory/columns"
-import type { RowsTarget } from "../../../binding/publication/model"
+import type { RowsTarget } from "./model"
 
 export type Input = RowsTarget & {
     backing: ColumnAllocator,

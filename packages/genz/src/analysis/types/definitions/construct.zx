@@ -3,7 +3,6 @@ import { max_u32 } from "core/const"
 import { scalar_string } from "core/type_table/const"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
-import memory from "memory"
 
 import appendDeclaration from "../../../ast/declarations/append_constant"
 import { ExpressionsKind } from "../../../printer/model/expressions"
@@ -124,7 +123,9 @@ export default function (in: Input): Output {
                             ...current,
                             tags: current.tags.push(ExpressionsKind.Pointer)[0],
                             offsets: current.offsets.push(
-                                integers.narrow(current.pointer.length)
+                                integers.narrow(
+                                    current.pointer.length
+                                )
                             )[0],
                             pointer: current.pointer.push(start + 1)[0]
                         }
@@ -218,11 +219,10 @@ export default function (in: Input): Output {
                     })
                 }
 
-                memory.writeU32(current.source.values, index, value)
-                memory.writeU32(current.source.layouts, index, layout)
-
                 current = {
                     ...current,
+                    values: current.values.push(value)[0],
+                    layouts: current.layouts.push(layout)[0],
                     has_lists: current.has_lists || target == Kind.List,
                     index: current.index + 1
                 }

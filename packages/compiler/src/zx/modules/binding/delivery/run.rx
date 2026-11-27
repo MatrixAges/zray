@@ -10,9 +10,7 @@
             module="../publication/publish"
             in={{
                 selected: $ctx.bind,
-                destinations: $in.destinations,
-                owner: $in.owner,
-                owner_rows: $in.owner_rows
+                destinations: $in.destinations
             }}
         />
 
@@ -58,7 +56,10 @@
                 "message",
                 "start",
                 "end"
-            ])
+            ]),
+            aliases: [],
+            constants: [],
+            functions: []
         }}
     />
 </Module>

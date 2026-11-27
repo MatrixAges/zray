@@ -1,6 +1,5 @@
 import type { Contracts } from "core/contract_table/model"
 import type { Expressions } from "core/expression_table/model"
-import type { U8Buffer } from "memory"
 import type { ColumnAllocator } from "memory/columns"
 
 export type Body = {
@@ -13,10 +12,14 @@ export type Functions = {
     contracts: Contracts[]
 }
 
+export type State = {
+    needed: bool[],
+    count: u64
+}
+
 export type Input = {
     functions: Functions,
     roots: Body[],
-    needed: U8Buffer,
     members: u32[]
 }
 

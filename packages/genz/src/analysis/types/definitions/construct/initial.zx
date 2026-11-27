@@ -1,8 +1,6 @@
-import memory from "memory"
-
 import emptyDeclarations from "../../../../ast/declarations/empty"
 
-import type { Plan, Build } from "../model"
+import type { Build, Plan } from "../model"
 
 export type Input = Plan
 
@@ -10,6 +8,7 @@ export type Output = Build
 
 export default function (in: Input): Output {
     const empty: bool[] = []
+    const empty_ids: u32[] = []
 
     const claimed = loop({
         values: empty,
@@ -51,6 +50,7 @@ export default function (in: Input): Output {
         struct_type_start: [],
         struct_type_len: [],
         declarations: emptyDeclarations({}),
-        values: memory.u32Views(in.source.values)
+        values: empty_ids,
+        layouts: empty_ids
     }
 }

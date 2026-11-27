@@ -1,70 +1,46 @@
-import bytes from "std:bytes"
-import memory from "memory"
-import columns from "memory/columns"
-
 import read from "./read"
 
-import type { Functions, Selected } from "./model"
+import type { FunctionRow as Row, Members } from "./model"
 
-export type Input = Selected & Functions.Pick("named", "fallback", "target") & {
+export type { FunctionRow as Row } from "./model"
+
+export type Input = Members & {
+    names: string[],
+    indices: u64[],
     namespace?: string
 }
 
-export type Output = u64
+export type Output = Row[]
 
 export default function (in: Input): Output {
-    const { names, indices, named, fallback, target, used: first, owner } = in
+    const { names, indices, named, fallback, namespace } = in
 
-    if (names.length == 0) {
-        return first
-    }
+    const empty: Row[] = []
 
     const members = {
         named,
         fallback
     }
 
-    const namespace = in.namespace
-
-    const owned: string? =
-        namespace == null ? null : memory.copyColumnText(owner, namespace)
-
-    const published = loop(0, {
-        while: row => row < names.length,
-        next: row => {
+    return loop({
+        row: 0,
+        rows: empty
+    }, {
+        while: state => state.row < names.length,
+        next: state => {
+            const row = state.row
             const binding = read({
                 members,
                 row: indices[row]
             })
 
-            const name = memory.copyColumnText(owner, names[row])
-            const destination = first + row
-
-            memory.writeColumnBytes(
-                target.name,
-                destination,
-                bytes.fromText(name)
-            )
-            columns.writeColumnOptionalText(target.namespace, destination, owned)
-            columns.writeColumnOptionalU32(target.id, destination, binding.id)
-            columns.writeColumnOptionalU32(
-                target.input_type,
-                destination,
-                binding.input_type
-            )
-            columns.writeColumnOptionalU32(
-                target.output_type,
-                destination,
-                binding.output_type
-            )
-            columns.writeColumnOptionalU8(
-                target.intrinsic,
-                destination,
-                binding.intrinsic
-            )
-            row += 1
-        }
+            state.rows = state.rows.push({
+                ...binding,
+                name: names[row],
+                namespace
+            })[0]
+            state.row += 1
+        },
+        return: state => state.rows
     })
-
-    return first + names.length
 }
