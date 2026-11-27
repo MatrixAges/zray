@@ -13,6 +13,7 @@
                     "recovered",
                     "recovery"
                 ]),
+                replacements: [],
                 row: $ctx.widen
             }}
         />
@@ -25,7 +26,7 @@
     <Return
         value={{
             cursor: $ctx.advance.cursor,
-            count: $in.count,
+            replacements: [],
             cleared: $ctx.advance.cleared
         }}
     />

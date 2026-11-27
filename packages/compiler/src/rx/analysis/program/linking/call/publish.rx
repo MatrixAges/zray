@@ -1,20 +1,15 @@
 <Module>
     <Type from="model" as="Call" />
 
-    <Args in={Call.Input} out={void} />
+    <Args in={Call.Input} out={Call.Output} />
 
     <Call fn="operands" in={$in.operands} />
-    <Call fn="../operands/range" in={$in.stores} />
     <Call fn="../write_header" in={$in.row} />
-    <Call fn="../../../../../core/column_lengths/publish" in={$in.operands_extent} />
 
-    <Call
-        fn="../../../../../core/column_lengths/publish"
-        in={{
-            target: $in.stores_lengths,
-            count: $in.stores.count
+    <Return
+        value={{
+            row: $ctx.write_header,
+            operands: $ctx.operands
         }}
     />
-
-    <Call fn="../../../../../core/column_lengths/publish" in={$in.header_extent} />
 </Module>

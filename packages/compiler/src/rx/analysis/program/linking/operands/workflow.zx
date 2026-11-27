@@ -1,24 +1,36 @@
 import type { Expressions } from "core/expression_table/model"
-import type { Allocator, ColumnRanges } from "memory"
 import type { ExpressionLink, OperandColumn, OperandRoute } from "rx_project_host"
 import type { Symbols } from "./model"
 
-export type Allocation = {
-    resource: Allocator,
-    header: ColumnRanges,
-    members: ColumnRanges,
-    evaluation: ColumnRanges
+export type Cell = {
+    word?: u32,
+    symbol?: u32,
+    byte?: u8
+}
+
+export type Column = {
+    words?: u32[],
+    symbols?: u32?[],
+    bytes?: u8[]
+}
+
+export type Patch = {
+    header: Cell[],
+    members: Column[],
+    evaluation?: u32[]
 }
 
 export type Work = {
     frame: ExpressionLink,
     data: Expressions,
     symbols: Symbols,
-    allocation: Allocation,
     mapping: u32[],
     index: u64,
     slots: OperandColumn[],
     row: u64,
+    payload: u32,
+    members_first: u64,
+    evaluation_first: u64,
     route: OperandRoute
 }
 

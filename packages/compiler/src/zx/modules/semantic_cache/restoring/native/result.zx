@@ -1,5 +1,6 @@
 import type { Table } from "core/type_table/model"
 import type { Bindings } from "core/type_table/nominal"
+import type { Output as Mapping } from "./ports"
 
 export enum Status {
     Ready,
@@ -12,7 +13,8 @@ export enum Status {
 
 export type Value = {
     types: Table,
-    origins: Bindings
+    origins: Bindings,
+    mapping: Mapping
 }
 
 export type Result = {

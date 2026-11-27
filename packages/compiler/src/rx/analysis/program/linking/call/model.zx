@@ -1,14 +1,12 @@
-import type { Extent } from "core/column_lengths"
-import type { ColumnLengths } from "memory"
-import type { Input as Stores } from "../operands/range"
-import type { Input as Header } from "../write_header"
-import type { Input as Operands } from "./operands"
+import type { Input as Header, Output as Row } from "../write_header"
+import type { Input as Operands, Output as OperandRow } from "./operands"
 
 export type Input = {
     row: Header,
-    operands: Operands,
-    stores: Stores,
-    operands_extent: Extent,
-    stores_lengths: ColumnLengths,
-    header_extent: Extent
+    operands: Operands
+}
+
+export type Output = {
+    row: Row,
+    operands: OperandRow
 }

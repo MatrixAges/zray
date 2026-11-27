@@ -2,39 +2,54 @@ import integers from "std:integer"
 import { max_u32 } from "core/const"
 import memory from "memory"
 
-import type { Exports } from "./finalize_model"
+import exports from "../delivery/exports"
 
-export type Input = Exports
+import type { Rows } from "../../../ir/canonical/validation/names/model"
+import type { Output as Bindings } from "../delivery/exports"
+import type { Export } from "../interface/exports"
 
-export type Output = bool
+export type Input = {
+    source: Rows,
+    types: u32[]
+}
+
+export type Output = Bindings & {
+    valid: bool
+}
 
 export default function (in: Input): Output {
-    const { source, names, ids } = in
+    const { source, types } = in
 
-    const count = source.length
-
-    if (count > integers.widen(max_u32)) {
-        return false
+    if (source.length > integers.widen(max_u32)) {
+        return {
+            valid: false,
+            rows: [],
+            names: [],
+            ids: []
+        }
     }
 
-    memory.allocateStringViews(names, count)
-    memory.allocateU32Views(ids, count)
+    const empty: Export[] = []
 
-    return loop(0, {
-        while: row => row < count,
-        next: row => {
-            memory.writeString(
-                names,
-                row,
-                memory.readRowName(source.rows, row)
-            )
-            memory.writeU32(
-                ids,
-                row,
-                memory.readRowId(source.rows, row)
-            )
-            row += 1
-        },
-        return: row => true
+    const rows = loop(empty, {
+        while: values => values.length < source.length,
+        next: values => {
+            const row = values.length
+            const id = memory.readRowId(source.rows, row)
+
+            values = values.push({
+                name: memory.readRowName(source.rows, row),
+                type_id: types[integers.widen(id)]
+            })[0]
+        }
     })
+
+    const owned = exports({
+        source: rows
+    })
+
+    return {
+        ...owned,
+        valid: true
+    }
 }

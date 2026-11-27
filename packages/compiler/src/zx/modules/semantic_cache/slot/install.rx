@@ -1,15 +1,12 @@
 <Module>
     <Type from="model" as="Entry" />
+    <Type from="commit" as="Commit" />
 
-    <Args in={Entry.Install} out={void} />
+    <Args in={Entry.Install} out={Commit.Output} />
 
     <Call fn="prepare" in={$in.slot} />
 
-    <Call
-        fn="commit"
-        in={{
-            ...$in,
-            prepared: $ctx.prepare
-        }}
-    />
+    <Call fn="commit" />
+
+    <Return value={$ctx.commit} />
 </Module>

@@ -1,7 +1,8 @@
 <Module>
     <Type from="model" as="Native" />
+    <Type from="../slot/commit" as="Commit" />
 
-    <Args in={Native.Input} out={void} />
+    <Args in={Native.Input} out={Commit.Output?} />
 
     <Call module="restore" in={$in} />
 
@@ -20,13 +21,10 @@
         <Call fn="index.buildNativeCacheEntry" in={$in.frame} />
         <Call fn="../slot/prepare" in={$in.slot} />
         <Call fn="index.validateNativeCacheEntry" in={$in.frame} />
+        <Call fn="../slot/commit" in={$ctx.prepare} />
 
-        <Call
-            fn="../slot/commit"
-            in={{
-                slot: $in.slot,
-                prepared: $ctx.prepare
-            }}
-        />
+        <Return value={$ctx.commit} />
     </If>
+
+    <Return value={null} />
 </Module>

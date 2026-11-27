@@ -1,5 +1,4 @@
 import type { ExpressionKind } from "core/expression_table/kinds"
-import type { U8Buffer, U32Buffer } from "memory"
 
 export type LiteralBases = {
     integers: u64,
@@ -16,11 +15,7 @@ export type Columns = {
     payloads: u32[],
     rows: u32[],
     literals: LiteralBases,
-    base: u64,
-    limit: u64,
-    target: U32Buffer,
-    pending_rows: U32Buffer,
-    pending_kinds: U8Buffer
+    base: u64
 }
 
 export type Input = {
@@ -28,7 +23,15 @@ export type Input = {
     first: u64
 }
 
+export type Patch = {
+    index: u64,
+    value: u32
+}
+
 export type Output = {
-    next: u64,
-    pending: u64
+    next?: u64,
+    pending: bool,
+    row: u32,
+    kind: u8,
+    writes: Patch[]
 }

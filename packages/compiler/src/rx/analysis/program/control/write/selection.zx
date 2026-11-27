@@ -1,4 +1,3 @@
-import integers from "std:integer"
 import { StatementKind } from "core/control_table/model"
 import memory from "memory"
 
@@ -6,6 +5,7 @@ import { cases_lane, selections_lane } from "../const"
 import header from "./header"
 
 import type { Cursor } from "./buffers"
+import type { Statement } from "./publication"
 
 export type Input = {
     writer: Cursor,
@@ -14,27 +14,25 @@ export type Input = {
     exhaustive: bool
 }
 
-export type Output = void
+export type Output = Statement
 
 export default function (in: Input): Output {
-    const { writer } = in
-    const { columns, cells } = writer
+    const { writer, subject, count, exhaustive } = in
 
-    const row = memory.readU32(cells, selections_lane)
-    const index = integers.widen(row)
-    const first = memory.readU32(cells, cases_lane)
+    const first = memory.readU32(writer.cells, cases_lane)
 
-    memory.writeU32(columns.selection_subjects, index, in.subject)
-    memory.writeU32(columns.selection_first, index, first)
-    memory.writeU32(columns.selection_count, index, in.count)
-    memory.writeU8(columns.selection_exhaustive, index, in.exhaustive ? 1 : 0)
-
-    header({
-        writer,
-        kind: StatementKind.Switch,
-        row,
-        lane: selections_lane
-    })
-
-    memory.writeU32(cells, cases_lane, first + in.count)
+    return {
+        header: header({
+            writer,
+            kind: StatementKind.Switch,
+            row: memory.readU32(writer.cells, selections_lane),
+            lane: selections_lane
+        }),
+        value: subject,
+        first,
+        count,
+        exhaustive,
+        member_lane: cases_lane,
+        next_member: first + count
+    }
 }

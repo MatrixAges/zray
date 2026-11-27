@@ -4,15 +4,13 @@ const ir = zx.ir;
 const Native = @import("../../interface.zig").Native;
 const Artifact = @import("../../artifact/model.zig");
 const Origins = @import("../../nominal_origins.zig");
-const FunctionImport = @import("../../function_import.zig");
+const publication = @import("../../native/publication/host.zig");
 const columns = @import("../../artifact/materializing/publication/columns.zig");
 const TypeTail = @import("../../../analysis/semantic/merging/publication/view.zig");
 const generated = @import("generated_native_artifact");
 const publishing = @import("generated_native_artifact_publish");
 const Input = std.meta.Child(generated.Input);
 const PublishInput = std.meta.Child(publishing.Input);
-const Targets = std.meta.Child(@FieldType(PublishInput, "targets"));
-const SignatureRow = @import("project_execution_abi").layouts.@"zig:memory/columns".SignatureRow;
 
 pub fn create(allocator: std.mem.Allocator, entry: Native, fingerprint: [32]u8, error_allocator: std.mem.Allocator, reporter: *zx.Reporter, span: zx.Span) zx.Error!Artifact.Result {
     var scratch = std.heap.ArenaAllocator.init(allocator);
@@ -58,28 +56,6 @@ pub fn create(allocator: std.mem.Allocator, entry: Native, fingerprint: [32]u8, 
 
     type_tail.init(&options, .{}, Origins.Table{});
 
-    var exports: []const zx.memory.NamedId = &.{};
-    var bindings: FunctionImport.Output(std.meta.Child(@FieldType(Targets, "binding_target"))) = undefined;
-
-    bindings.init();
-
-    var signatures: ir.SignatureStorage = .{};
-    var signature_tails: ir.SignatureTable = .{};
-    var ranges = zx.memory.bindColumnRanges(&signatures, @as(ir.SignatureTable, .{}), &signature_tails);
-    var signature_ranges: zx.memory.ColumnRanges = &ranges;
-    const slots = zx.memory.bindColumnSet(SignatureRow, true, &signatures);
-    const signature_target: zx.memory.ColumnSet = &slots;
-
-    const targets: Targets = .{
-        .payload = @ptrCast(&payload),
-        .types = zx.columns.pointer(@FieldType(Targets, "types"), @as(*const TypeTail.Target, &type_tail.target)),
-        .signature_target = @ptrCast(&signature_target),
-        .signature_ranges = @ptrCast(&signature_ranges),
-        .binding_target = &bindings.view,
-        .binding_storage = @ptrCast(&bindings.buffer),
-        .export_target = @ptrCast(&exports),
-    };
-
     const publish_input: PublishInput = .{
         .declaration = &declaration,
         .key = key,
@@ -87,7 +63,7 @@ pub fn create(allocator: std.mem.Allocator, entry: Native, fingerprint: [32]u8, 
         .origins = try zx.columns.bridge(@FieldType(PublishInput, "origins"), temp, artifact.origins),
         .exports = try zx.columns.bridge(@FieldType(PublishInput, "exports"), temp, artifact.exports),
         .members = try zx.columns.bridge(@FieldType(PublishInput, "members"), temp, artifact.members),
-        .targets = &targets,
+        .target = zx.columns.pointer(@FieldType(PublishInput, "target"), @as(*const TypeTail.Target, &type_tail.target)),
     };
 
     const value = publishing.executeIn(payload, &publish_input) catch |err| switch (err) {
@@ -95,13 +71,27 @@ pub fn create(allocator: std.mem.Allocator, entry: Native, fingerprint: [32]u8, 
         else => unreachable,
     };
 
+    const exports = try payload.alloc(ir.Export, value.exports.names.len);
+    const bindings = try publication.ownBindings(payload, value.members.bindings);
+    var signatures: ir.SignatureStorage = .{};
+
+    for (value.exports.names, value.exports.ids, exports) |name, id, *slot| {
+        slot.* = .{ .name = name, .type_id = @fromBackingInt(id) };
+    }
+
+    inline for (@typeInfo(ir.SignatureStorage).@"struct".field_names) |name| {
+        try @field(signatures, name).ensureTotalCapacityPrecise(payload, value.members.signatures.len);
+    }
+
+    publication.appendColumnsAssumeCapacity(&signatures, value.members.signatures);
+
     return .{ .arena = arena, .value = .{
         .path = value.path,
         .source_digest = fingerprint,
         .types = types.view(),
         .nominal_types = columns.view(Origins.Table, value.origins),
-        .exports = @ptrCast(exports),
-        .function_imports = bindings.rows(),
+        .exports = exports,
+        .function_imports = bindings,
         .functions = signatures.view(),
         .native_modules = columns.view(ir.NativeModuleTable, value.modules),
         .dependencies = &.{},

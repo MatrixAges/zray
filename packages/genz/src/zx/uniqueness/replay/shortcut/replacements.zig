@@ -1,9 +1,8 @@
-const zx = @import("zx");
+const std = @import("std");
 const Row = @import("../shortcut.zig").Replacement;
 const Self = @This();
 
-buffer: zx.memory.RowBuffer = .empty(Row),
-used: usize = 0,
+items: std.ArrayList(Row) = .empty,
 pub fn rows(self: *const Self) []const Row {
-    return self.buffer.rows(Row)[0..self.used];
+    return self.items.items;
 }

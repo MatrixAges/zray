@@ -5,6 +5,7 @@ const Function = @import("../../function.zig");
 const Level = @import("../../level.zig").Level;
 const Memo = @import("../../memo.zig");
 const Trace = @import("../../trace.zig");
+const Visit = @import("../../replay/root.zig").Visit;
 const BodyRows = @import("../../memo/body_rows.zig");
 const target = @import("../../row_output.zig").Target;
 const Context = @import("../host.zig").Context;
@@ -26,7 +27,8 @@ pub fn run(comptime kind: Memo.Kind, comptime persistent: bool, ctx: *Context, s
     const temporary = ctx.replay.allocator;
     const previous: ?*const Trace = if (persistent) ctx.replay.trace else null;
     const history: ?@FieldType(Trace, @tagName(kind)) = if (previous) |trace| @field(trace, @tagName(kind)) else null;
-    const selection = if (history) |rows| ctx.replay.control.visit(target(Input, "history"), kind, index, rows.starts, false) else undefined;
+    const visit = if (history) |rows| ctx.replay.control.visit(Visit, kind, index, rows.starts, false) else undefined;
+    const selection = if (history != null) visit.input(target(Input, "history")) else undefined;
     const Body = target(Probe, "rows");
     var views: BodyRows.Views(Body) = undefined;
     var bytes: []u8 = &memo.key;
@@ -63,6 +65,7 @@ pub fn run(comptime kind: Memo.Kind, comptime persistent: bool, ctx: *Context, s
         else => std.debug.panic("ownership visit intake failed: {s}", .{@errorName(err)}),
     };
 
+    if (history != null) try visit.advance(temporary, result.next);
     if (kind == .planned and result.origin == .Analyze) _ = scratch.reset(.retain_capacity);
 
     memo.encoding.state_end = result.state_end;
@@ -71,11 +74,11 @@ pub fn run(comptime kind: Memo.Kind, comptime persistent: bool, ctx: *Context, s
 
     const cached = if (persistent) lookup: {
         if (result.trace_row) |row| {
-            const visit = history.?.entries[row];
+            const recalled = history.?.entries[row];
 
-            ctx.replay.recalled = visit.state;
+            ctx.replay.recalled = recalled.state;
 
-            break :lookup visit.value;
+            break :lookup recalled.value;
         }
 
         break :lookup if (result.memo_row) |row| table.values.items[row] else null;

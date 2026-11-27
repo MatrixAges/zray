@@ -1,26 +1,27 @@
-import type { ExpressionLink } from "rx_project_host"
-import type { Work } from "../operands/workflow"
-import type { Columns, Input as Scan } from "./model"
+import type { Patch, Work } from "../operands/workflow"
+import type { Columns, Input as Scan, Patch as Payload } from "./model"
 import type { Kind } from "./route"
 
 export type Cursor = Scan & {
-    frame: ExpressionLink,
     operands: Work
 }
 
-export type Pending = {
-    frame: ExpressionLink,
-    columns: Columns,
-    operands: Work,
-    row: u64,
-    end: u64
+export type Step = {
+    next?: u64,
+    writes: Payload[],
+    operand?: Payload,
+    patch?: Patch
 }
 
 export type Effect = {
-    frame: ExpressionLink,
     row: u32,
     route: Kind,
     operands: Work
+}
+
+export type Operand = {
+    value: u32,
+    patch?: Patch
 }
 
 export type Publication = {

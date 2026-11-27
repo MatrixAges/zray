@@ -11,7 +11,6 @@ const names = @import("../../../ir/canonical/validation/names/view.zig");
 const Input = std.meta.Child(@import("generated_native_restore").Input);
 const Validation = std.meta.Child(@FieldType(Input, "validation"));
 const Request = std.meta.Child(@FieldType(Validation, "request"));
-const Mapping = std.meta.Child(@FieldType(Input, "mapping"));
 const Admission = std.meta.Child(@typeInfo(@FieldType(Input, "admission")).optional.child);
 const Ports = std.meta.Child(@FieldType(Admission, "ports"));
 const Self = @This();
@@ -28,17 +27,13 @@ exports: std.meta.Child(@FieldType(Request, "exports")),
 request: Request,
 validation: Validation,
 type_ids: []u32,
-input_ids: []u32,
-output_ids: []u32,
-storage: []u32,
-mapping: Mapping,
 ports: FunctionImport.Readable,
 binding_names: zx.memory.TextColumn,
 namespaces: zx.memory.ReadColumn,
 port_rows: Ports,
 admission: Admission,
 input: Input,
-pub fn init(self: *Self, artifact: *const Artifact.Module, entry: Native, current: Current, admitted: bool) void {
+pub fn init(self: *Self, artifact: *const Artifact.Module, entry: Native, current: Current, admitted: bool, type_ids: []u32) void {
     self.signatures = borrow.columns(@TypeOf(self.signatures), artifact.functions);
     self.modules = borrow.columns(@TypeOf(self.modules), artifact.native_modules);
     self.origins = Origins.Table.borrow(@TypeOf(self.origins), artifact.nominal_types);
@@ -72,17 +67,7 @@ pub fn init(self: *Self, artifact: *const Artifact.Module, entry: Native, curren
         .maximum_count = std.math.maxInt(u32),
     };
 
-    self.storage = &.{};
-    self.type_ids = &.{};
-    self.input_ids = &.{};
-    self.output_ids = &.{};
-
-    self.mapping = .{
-        .storage = @ptrCast(&self.storage),
-        .types = @ptrCast(&self.type_ids),
-        .inputs = @ptrCast(&self.input_ids),
-        .outputs = @ptrCast(&self.output_ids),
-    };
+    self.type_ids = type_ids;
 
     if (!admitted) {
         self.ports = FunctionImport.Readable.borrowRows(artifact.function_imports);
@@ -102,7 +87,8 @@ pub fn init(self: *Self, artifact: *const Artifact.Module, entry: Native, curren
         .origin_names = artifact.nominal_types.names,
         .base = &self.base,
         .base_origins = &self.base_origins,
-        .mapping = &self.mapping,
+        .mapping = @ptrCast(&self.type_ids),
+        .type_ids = self.type_ids,
         .admission = if (admitted) null else &self.admission,
     };
 }

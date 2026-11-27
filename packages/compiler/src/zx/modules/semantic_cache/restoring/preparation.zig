@@ -14,7 +14,6 @@ const Bindings = std.meta.Child(@FieldType(Input, "bindings"));
 const BindingColumns = std.meta.Child(@FieldType(Bindings, "previous"));
 const Signatures = std.meta.Child(@FieldType(Input, "signatures"));
 const Modules = std.meta.Child(@FieldType(Input, "modules"));
-const Buffers = std.meta.Child(@FieldType(Transaction, "buffers"));
 const Origins = @import("../../nominal_origins.zig");
 const Merge = std.meta.Child(@FieldType(TypeRequest, "merge"));
 const Table = std.meta.Child(@FieldType(Merge, "source"));
@@ -23,28 +22,14 @@ const Constants = std.meta.Child(@typeInfo(@FieldType(TypeRequest, "current_cons
 const marshal = @import("../../../analysis/constants/input.zig").marshal;
 const scalar_rows = @import("../../../analysis/type_table.zig").scalar_rows;
 
-pub const Maps = struct {
-    allocator: std.mem.Allocator,
-    types: []u32 = &.{},
-    functions: []?ir.FunctionId = &.{},
-    natives: []?ir.NativeModuleId = &.{},
-    fn view(self: *Maps) Buffers {
-        return .{
-            .allocator = @ptrCast(&self.allocator),
-            .types = @ptrCast(&self.types),
-            .functions = @ptrCast(&self.functions),
-            .modules = @ptrCast(&self.natives),
-        };
-    }
-};
-
 pub fn execute(frame: *@import("run.zig").Frame) Artifact.Error!@import("../restore.zig").Restored {
-    const temporary = frame.maps.allocator;
+    const temporary = frame.workspace;
     const module = frame.module;
     const current = frame.current;
     const decoded = frame.decoded;
     const current_types = current.types.view();
     const source = ir.TypeTable.borrow(Table, module.types);
+    var type_ids = try temporary.alloc(u32, module.types.count());
     const destination = ir.TypeTable.borrow(Table, current_types);
     const base = ir.TypeTable.borrow(Table, if (current_types.count() == 0) scalar_rows else current_types);
     const empty = ir.TypeTable.borrow(Table, .{});
@@ -57,7 +42,7 @@ pub fn execute(frame: *@import("run.zig").Frame) Artifact.Error!@import("../rest
         .names = module.nominal_types.names,
         .base = &base,
         .base_origins = &base_origins,
-        .mapping = @ptrCast(&frame.maps.types),
+        .mapping = @ptrCast(&type_ids),
     };
 
     const types_request: TypeRequest = .{
@@ -106,7 +91,7 @@ pub fn execute(frame: *@import("run.zig").Frame) Artifact.Error!@import("../rest
         .preflight = &preflight.input,
         .types = &types_request,
         .rebind = &input,
-        .buffers = &frame.maps.view(),
+        .type_ids = type_ids,
     };
 
     return frame.execute(&transaction);

@@ -1,7 +1,8 @@
 <Module>
     <Type from="model" as="Calls" />
+    <Type from="../workflow" as="Traversal" />
 
-    <Args in={Calls.Batch} out={Calls.Batch} />
+    <Args in={Calls.Batch} out={Traversal.Effect} />
 
     <Call fn="target" in={$in} />
 
@@ -9,7 +10,6 @@
         module="invoke"
         in={{
             frame: $in.frame,
-            bindings: $in.bindings,
             item: $ctx.target
         }}
     />
@@ -27,28 +27,19 @@
 
         <Return
             value={{
-                ...$in,
-                offset: $in.offset + 1,
-                published: $in.published + ($ctx.parallel_member ? 1 : 0)
+                member: $ctx.parallel_member
             }}
         />
-
-        <Else>
-            <Call
-                module="publish_call"
-                in={{
-                    frame: $in.frame,
-                    control: $in.control,
-                    value: $ctx.invoke
-                }}
-            />
-        </Else>
     </If>
 
-    <Return
-        value={{
-            ...$in,
-            offset: $in.offset + 1
+    <Call
+        module="publish_call"
+        in={{
+            frame: $in.frame,
+            control: $in.control,
+            value: $ctx.invoke
         }}
     />
+
+    <Return value={$ctx.publish_call} />
 </Module>

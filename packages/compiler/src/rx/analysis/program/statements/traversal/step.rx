@@ -1,7 +1,7 @@
 <Module>
     <Type from="workflow" as="Traversal" />
 
-    <Args in={Traversal.Scan} out={Traversal.Scan} />
+    <Args in={Traversal.Scan} out={Traversal.Step} />
 
     <Call
         fn="host.selectBodyWriter"
@@ -18,14 +18,10 @@
             control: $in.control,
             scopes: $in.scopes,
             event: $in.events[$in.row],
-            call_ids: $in.call_ids
+            call_ids: $in.call_ids,
+            offset: $in.offset
         }}
     />
 
-    <Return
-        value={{
-            ...$in,
-            row: $in.row + 1
-        }}
-    />
+    <Return value={$ctx.apply} />
 </Module>

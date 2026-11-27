@@ -10,7 +10,6 @@ const Error = Statements.Error;
 const request = @import("../traversal.zig").Input;
 const Control = std.meta.Child(@FieldType(request, "control"));
 const Cursor = std.meta.Child(@FieldType(Control, "writer"));
-const Columns = std.meta.Child(@FieldType(Cursor, "columns"));
 
 const Scope = struct {
     bindings: u64,
@@ -28,27 +27,51 @@ pub const State = struct {
     row: *const Plan.Row = undefined,
     writer: *Writer.Cursor = undefined,
     call: Invocation = undefined,
+    call_binding_count: usize = undefined,
     control: Control = undefined,
     view: Cursor = undefined,
-    columns: Columns = undefined,
     cells: []u32 = undefined,
-    binding_ranges: zx.memory.ColumnRangeGroup(1) = .{},
     pub fn initControl(self: *State, layout: []const u32) void {
         const statements = self.statements;
         const table = &statements.writer.columns;
-        const builder = statements.builder;
-        self.columns = @import("../../control/write/buffers.zig").bind(Columns, table);
-        self.view = .{ .columns = &self.columns, .cells = @ptrCast(&self.cells) };
-        _ = self.binding_ranges.bind(&builder.bindings, 0, false);
+
+        self.view = .{ .parallel_symbols = @ptrCast(&table.parallel_symbols.items), .cells = @ptrCast(&self.cells) };
 
         self.control = .{
             .writer = &self.view,
             .layout = layout,
             .firsts = table.block_first.items,
             .lengths = table.block_count.items,
-            .resource = @ptrCast(&builder.allocator),
-            .bindings = @ptrCast(self.binding_ranges.freeze().?),
         };
+    }
+    pub fn commit(self: *State, effect: anytype) Error!void {
+        const statements = self.statements;
+        const writer = statements.writer;
+
+        if (effect.bindings) |bindings| {
+            const builder = statements.builder;
+
+            try builder.bindings.ensureUnusedCapacity(builder.allocator, bindings.len);
+            for (bindings) |symbol| builder.bindings.appendAssumeCapacity(@fromBackingInt(symbol));
+        }
+
+        if (effect.statement) |statement| writer.commit(self.writer, statement);
+
+        if (effect.member) |item| {
+            const symbol: ?ir.SymbolId = if (item.symbol) |id| @fromBackingInt(id) else null;
+
+            writer.parallelBranch(item.position, symbol, @fromBackingInt(item.value));
+        }
+
+        if (effect.case_member) |item| writer.commitCase(item.position, item.block, item.label);
+
+        if (effect.scope) |scope| {
+            self.scope_counts[scope.slot] = scope.bindings;
+            self.scope_values[scope.slot] = scope.value;
+        }
+
+        if (effect.restore) |count| statements.restoreBindings(@intCast(count));
+        if (effect.binding) |symbol| try statements.publishBinding(@fromBackingInt(symbol));
     }
 
     pub fn borrow(handle: *anyopaque) *State {

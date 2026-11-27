@@ -1,4 +1,3 @@
-import type { Allocator, OptionalU32Buffer, U32Buffer } from "memory"
 import type { Aliases, Bindings, Signatures } from "../functions/model"
 import type { Input as Modules } from "../modules"
 
@@ -8,16 +7,19 @@ export enum Status {
     Ready
 }
 
-export type Result = {
+export type Candidate = {
     status: Status,
     entry?: u32
 }
 
+export type Result = Candidate & {
+    functions?: u32?[],
+    modules?: u32?[]
+}
+
 export type Entry = {
     has_body: bool,
-    local_count: u64,
-    linked_count: u64,
-    target: OptionalU32Buffer
+    linked_count: u64
 }
 
 export type Input = {
@@ -25,7 +27,7 @@ export type Input = {
     modules: Modules,
     bindings: Bindings,
     members: Bindings,
-    signatures: Signatures,
+    signatures: Signatures.Pick("previous", "current", "types"),
     entry: Entry
 }
 
@@ -37,24 +39,4 @@ export type Source = {
     signatures: Signatures.Pick("previous", "current"),
     has_body: bool,
     linked_count: u64
-}
-
-export type MappingBuffers = {
-    allocator: Allocator,
-    types: U32Buffer,
-    functions: OptionalU32Buffer,
-    modules: OptionalU32Buffer
-}
-
-export type Reservation = MappingBuffers & {
-    type_count: u64,
-    function_count: u64,
-    module_count: u64,
-    has_body: bool
-}
-
-export type Mappings = {
-    types: u32[],
-    functions: u32?[],
-    modules: u32?[]
 }

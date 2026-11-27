@@ -156,6 +156,14 @@ pub fn commitSeed(slot: *Pending, prepared: Probe) void {
     if (prepared.row != 0) replaceCacheSlot(slot, prepared.row - 1) else appendCacheSlot(slot, prepared.bucket);
 }
 
+pub fn commitPrepared(slot: *Pending, plan: anytype) void {
+    if (plan.replacement) |row| {
+        replaceCacheSlot(slot, row);
+    } else {
+        appendCacheSlot(slot, plan.bucket);
+    }
+}
+
 fn install(allocator: std.mem.Allocator, entries: *Map, value: Entry) std.mem.Allocator.Error!void {
     var slot: Pending = .{ .allocator = allocator, .entries = entries, .value = value };
 
@@ -166,8 +174,11 @@ fn install(allocator: std.mem.Allocator, entries: *Map, value: Entry) std.mem.Al
         const input: std.meta.Child(entry.Input) = .{ .slot = @ptrCast(&slot) };
         var buffer: [128]u8 = undefined;
         var scratch = std.heap.FixedBufferAllocator.init(&buffer);
+        const plan = try entry.executeIn(scratch.allocator(), &input);
 
-        return entry.executeIn(scratch.allocator(), &input);
+        commitPrepared(&slot, plan);
+
+        return;
     }
 
     commitSeed(&slot, try prepareSeed(&slot));

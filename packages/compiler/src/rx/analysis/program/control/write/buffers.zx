@@ -1,26 +1,6 @@
-import type { OptionalU32Buffer, U8Buffer, U32Buffer } from "memory"
-import type { StatementKindBuffer } from "memory/columns"
-
-export type Columns = {
-    statement_kinds: StatementKindBuffer,
-    statement_payloads: U32Buffer,
-    evaluations: U32Buffer,
-    constant_symbols: U32Buffer,
-    constant_values: U32Buffer,
-    parallel_first: U32Buffer,
-    parallel_count: U32Buffer,
-    parallel_symbols: OptionalU32Buffer,
-    parallel_values: U32Buffer,
-    selection_subjects: U32Buffer,
-    selection_first: U32Buffer,
-    selection_count: U32Buffer,
-    selection_exhaustive: U8Buffer,
-    case_values: OptionalU32Buffer,
-    case_bodies: U32Buffer,
-    results: OptionalU32Buffer
-}
+import type { OptionalU32Buffer, U32Buffer } from "memory"
 
 export type Cursor = {
-    columns: Columns,
+    parallel_symbols: OptionalU32Buffer,
     cells: U32Buffer
 }

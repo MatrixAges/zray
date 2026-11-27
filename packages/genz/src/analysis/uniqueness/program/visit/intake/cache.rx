@@ -10,6 +10,7 @@
             <Return
                 value={{
                     trace_row: $ctx.select.cursor,
+                    next: $ctx.select.next,
                     memo_row: null,
                     following: $ctx.select.following,
                     state_end: $in.state_end

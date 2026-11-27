@@ -1,19 +1,18 @@
 import integers from "std:integer"
-import memory from "memory"
 
+import type { Patch } from "./model"
 import type { Publication } from "./workflow"
 
 export type Input = Publication
 
-export type Output = void
+export type Output = Patch
 
 export default function (in: Input): Output {
     const columns = in.columns
     const mapped = columns.rows[integers.widen(in.row)]
 
-    memory.writeU32(
-        columns.target,
-        integers.widen(mapped) - columns.base,
-        in.value
-    )
+    return {
+        index: integers.widen(mapped) - columns.base,
+        value: in.value
+    }
 }

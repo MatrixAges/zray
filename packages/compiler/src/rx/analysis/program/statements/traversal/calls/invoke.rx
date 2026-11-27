@@ -4,14 +4,6 @@
     <Args in={Calls.Invocation} out={u32} />
 
     <Call
-        fn="../host.readLengthSlot"
-        in={[
-            $in.bindings,
-            0
-        ]}
-    />
-
-    <Call
         fn="../host.prepareBodyCall"
         in={[
             $in.frame,
@@ -28,15 +20,6 @@
             <Call fn="../host.createBodyUnitArgument" in={$in.frame} />
         </Else>
     </If>
-
-    <Call
-        fn="../host.shrinkLengthSlot"
-        in={[
-            $in.bindings,
-            0,
-            $ctx.readLengthSlot
-        ]}
-    />
 
     <Call fn="../host.resolveBodyCallStores" in={$in.frame} />
 

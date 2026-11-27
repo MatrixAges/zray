@@ -1,7 +1,7 @@
 <Module>
     <Type from="workflow" as="Payload" />
 
-    <Args in={Payload.Effect} out={u32} />
+    <Args in={Payload.Effect} out={Payload.Operand} />
 
     <Call
         fn="../operands/prepare"
@@ -13,15 +13,21 @@
     />
 
     <If on={!$ctx.prepare}>
-        <Return value={0} />
+        <Return
+            value={{
+                value: 0
+            }}
+        />
     </If>
 
-    <Call module="../operands/reserve" in={$in.operands.allocation} />
     <Call module="../operands/write" in={$in.operands} />
 
-    <Call fn="../host.requireExpressionOperand" />
+    <Call fn="../host.requireExpressionOperand" in={$ctx.write != null} />
 
-    <Call fn="../operands/commit" in={$in.operands.allocation.omit(["resource"])} />
-
-    <Return value={$ctx.commit} />
+    <Return
+        value={{
+            value: $in.operands.payload,
+            patch: $ctx.write
+        }}
+    />
 </Module>

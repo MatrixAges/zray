@@ -1,10 +1,8 @@
 import type {
     ListColumn,
     ReadColumn,
-    U8Buffer,
-    WriteColumn
+    U8Buffer
 } from "memory"
-import type { ColumnAllocator, RowBuffer } from "memory/columns"
 import type {
     Input as RecordedState,
     Restore as StateRestore
@@ -30,48 +28,37 @@ export type Demands = {
     memo: Demand
 }
 
-export type Plans = {
-    index: Index,
-    values: ReadColumn,
-    width: u64
-}
-
 export type Tables = {
     settled: Settlements,
     demanded: Demands,
-    planned: Plans,
+    planned: Index,
     identities: ReadColumn,
     digest: U8Buffer,
     digest_width: u64
 }
 
-export type Replacements = {
-    rows: RowBuffer,
-    positions: WriteColumn,
-    values: WriteColumn,
-    width: u64,
-    granule: u64,
-    owner: ColumnAllocator
+export type Replacement = {
+    visit: u32,
+    row: u32
 }
 
 export type Input = {
     replay: Advance,
     tables: Tables,
-    replacements: Replacements,
     recovery: Recovery,
-    count: u64,
     recovered?: u32
 }
 
 export type Output = {
     cursor: Cursor,
-    count: u64,
+    replacements: Replacement[],
     cleared?: u8[]
 }
 
-export type Resume = Input.Omit("recovered", "recovery") & {
-    row: u64
-}
+export type Resume =
+    Input.Omit("recovered", "recovery") & Output.Pick("replacements") & {
+        row: u64
+    }
 
 export type Recovery = StateRestore.Omit("state") & {
     summaries: RecordedState.Pick("input", "output", "inputs", "outputs"),
@@ -97,21 +84,13 @@ export type Compare = Lookup & {
     row: u64
 }
 
-export type Append = {
-    target: Replacements,
-    visit: u32,
-    value: u8[],
-    used: u64
+export type Consume = Compare & Output.Pick("replacements")
+
+export type Consumed = Output.Pick("replacements") & {
+    agreed: bool
 }
 
-export type Consume = Compare & Input.Pick("replacements", "count")
-
-export type Consumed = {
-    agreed: bool,
-    count: u64
-}
-
-export type Traversal = Input.Omit("recovered", "count") & Output & {
+export type Traversal = Input.Omit("recovered") & Output & {
     running: bool
 }
 

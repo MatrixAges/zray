@@ -1,23 +1,8 @@
-import type { Into } from "core/owned_text"
-import type { ColumnLengths, U8Buffer } from "memory"
-
-export type Column = {
-    source: u8[],
-    target: U8Buffer
-}
-
-export type Text = Into
-
 export type Copy = {
-    columns: Column[],
-    owned_text?: Text
-}
-
-export type Publication = {
-    target: ColumnLengths,
-    counts: u64[]
+    columns: u8[][],
+    owned_text?: string[]
 }
 
 export type Input = Copy & {
-    publication: Publication
+    counts: u64[]
 }

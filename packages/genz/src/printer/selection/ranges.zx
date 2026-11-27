@@ -9,30 +9,42 @@ export type Input = {
     ranges: Ranges
 }
 
-export type Output = void
+export type Output = u8[][]
 
 export default function (in: Input): Output {
     const { target, ranges } = in
 
-    const rendered = loop(0, {
-        while: index => index < ranges.count,
-        next: index => {
-            const first = columns.readColumnU32(ranges.starts, index)
-            const count = columns.readColumnU32(ranges.lengths, index)
+    const chunks: u8[][] = []
 
-            const range = loop(first, {
-                while: row => row - first < count,
-                next: row => {
-                    one({
+    return loop({
+        index: 0,
+        chunks
+    }, {
+        while: state => state.index < ranges.count,
+        next: state => {
+            const first = columns.readColumnU32(ranges.starts, state.index)
+            const count = columns.readColumnU32(ranges.lengths, state.index)
+
+            const range = loop({
+                row: first,
+                chunks: state.chunks
+            }, {
+                while: current => current.row - first < count,
+                next: current => {
+                    const chunk = one({
                         ...target,
-                        row
+                        row: current.row
                     })
 
-                    row += 1
-                }
+                    current.chunks = current.chunks.push(chunk)[0]
+                    current.row += 1
+                },
+                return: current => current.chunks
             })
 
-            index += 1
-        }
+            state.chunks = range
+            state.index += 1
+        },
+        return: state => state.chunks
     })
 }

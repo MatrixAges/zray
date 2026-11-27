@@ -1,10 +1,10 @@
 import type { Table } from "core/signature_table/model"
-import type { RowBuffer } from "memory/columns"
+import type { FunctionRow } from "memory/columns"
 import type { Input as External } from "../../artifact/materializing/copy_external"
 import type { Flags } from "../../artifact/materializing/publication/model"
-import type { Target } from "../../artifact/surface/bindings"
-import type { BodyColumns, Destination } from "../../link/signature/publication/model"
+import type { BodyColumns } from "../../link/signature/publication/model"
 import type { Member } from "../interface/members"
+import type { Output as Binding } from "./binding"
 
 export type Cache = {
     signatures: Table,
@@ -34,9 +34,6 @@ export type Row = {
 }
 
 export type Staging = {
-    destination: Destination,
-    members: Target,
-    member_storage: RowBuffer,
     first: u64,
     empty: BodyColumns
 }
@@ -46,4 +43,11 @@ export type Input = Staging & {
     owner: Owner
 }
 
-export type Output = string[]
+export type Batch = {
+    functions: FunctionRow[],
+    members: Binding[]
+}
+
+export type Output = Batch & {
+    namespace?: string[]
+}

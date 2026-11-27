@@ -1,13 +1,14 @@
-import type { ColumnLengths, U8Buffer } from "memory"
 import type { Copy } from "../literals/model"
 
 export type Ownership = {
-    rows: U8Buffer,
     count: u64,
     copy_tag: u8
 }
 
 export type Input = Copy & {
-    ownership: Ownership,
-    lengths: ColumnLengths
+    ownership: Ownership
+}
+
+export type Output = Copy & {
+    ownership: u8[]
 }

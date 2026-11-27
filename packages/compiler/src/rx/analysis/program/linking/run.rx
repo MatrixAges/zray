@@ -1,7 +1,24 @@
 <Module>
     <Type from="workflow" as="Linking" />
 
-    <Args in={Linking.Request} out={u32} />
+    <Args in={Linking.Request} out={Linking.Output} />
+
+    <If on={$in.first != null}>
+        <Call
+            module="payload/step"
+            in={{
+                columns: $in.payload,
+                operands: $in.operands,
+                first: $in.first
+            }}
+        />
+
+        <Return
+            value={{
+                step: $ctx.step
+            }}
+        />
+    </If>
 
     <Call module="plan" in={$in.plan} />
 
@@ -17,38 +34,35 @@
     />
 
     <Call fn="host.prepareLinkSymbols" in={$in.frame} />
+    <Call fn="host.prepareLinkLiterals" in={$in.frame} />
+    <Call fn="headers" in={$ctx.plan.rows} />
 
     <If on={$ctx.prepareLinkSymbols}>
         <Call module="symbols/publish" in={$in.symbols} />
-    </If>
 
-    <Call fn="host.prepareLinkLiterals" in={$in.frame} />
-
-    <If on={$ctx.prepareLinkLiterals}>
-        <Call module="literals/write" in={$in.literals} />
-    </If>
-
-    <Loop on={$in.first < $in.columns.rows.length}>
-        <Call
-            module="payload/step"
-            in={{
-                frame: $in.frame,
-                columns: $in.payload,
-                operands: $in.operands,
-                first: 0
+        <Return
+            value={{
+                initial: {
+                    returned: $ctx.reserveExpressionLink,
+                    first: $ctx.plan.rows.length > 0 ? 0 : null,
+                    ranges: $ctx.headers,
+                    count: $ctx.plan.count,
+                    symbols: $ctx.publish,
+                    literals: $ctx.prepareLinkLiterals ? $in.literals : null
+                }
             }}
         />
-    </Loop>
+    </If>
 
-    <Call fn="headers" in={$in.headers} />
-
-    <Call
-        fn="../../../../core/column_lengths/publish"
-        in={{
-            target: $in.lengths,
-            count: $ctx.plan.count
+    <Return
+        value={{
+            initial: {
+                returned: $ctx.reserveExpressionLink,
+                first: $ctx.plan.rows.length > 0 ? 0 : null,
+                ranges: $ctx.headers,
+                count: $ctx.plan.count,
+                literals: $ctx.prepareLinkLiterals ? $in.literals : null
+            }
         }}
     />
-
-    <Return value={$ctx.reserveExpressionLink} />
 </Module>

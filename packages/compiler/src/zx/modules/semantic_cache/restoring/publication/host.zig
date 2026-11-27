@@ -26,9 +26,6 @@ const Table = std.meta.Child(@typeInfo(@FieldType(Input, "scalars")).optional.ch
 const Destination = std.meta.Child(@FieldType(Input, "functions"));
 const Empty = std.meta.Child(@FieldType(Input, "empty"));
 const Columns = std.meta.Child(@typeInfo(@FieldType(RestoreInput, "columns")).optional.child);
-const Mappings = std.meta.Child(@FieldType(RestoreInput, "mappings"));
-const BodyMappings = std.meta.Child(@typeInfo(@FieldType(Mappings, "body")).optional.child);
-const slot = @import("../run.zig").slot;
 const Self = @This();
 
 offsets: TypeTail.Offsets,
@@ -40,10 +37,6 @@ attributes: Attributes,
 stores: Stores,
 columns: Columns,
 has_columns: bool,
-types_slot: [][]const u32,
-candidate_slot: []?u32,
-mappings: Mappings,
-body_mappings: BodyMappings,
 surface: Surface(std.meta.Child(@FieldType(Input, "surface"))),
 functions: destination.View(Destination),
 empty: Empty,
@@ -57,7 +50,7 @@ pub fn bind(self: *Self, frame: *@import("../run.zig").Frame) void {
     var control_source: ?Control = null;
 
     self.surface.init(module.exports, module.constant_exports, .{ .mapped = &.{} });
-    self.types_slot = slot(&self.surface.mapping.dense);
+
     self.has_columns = source != null and !frame.decoded;
 
     if (source) |value| {
@@ -81,17 +74,8 @@ pub fn bind(self: *Self, frame: *@import("../run.zig").Frame) void {
         };
 
         if (self.has_columns) self.columns = remap.functionColumns(Columns, value);
-
-        self.candidate_slot = slot(&self.body.input.candidate);
-
-        self.body_mappings = .{
-            .functions = @ptrCast(&self.body.functions.sparse),
-            .natives = @ptrCast(&self.body.natives.sparse),
-            .candidate = @ptrCast(&self.candidate_slot),
-        };
     }
 
-    self.mappings = .{ .types = @ptrCast(&self.types_slot), .body = if (source != null) &self.body_mappings else null };
     self.offsets = TypeTail.offsets(target.types);
     self.options = .{ .allocator = target.allocator, .payload = frame.payload, .types = target.types, .origins = &target.origins.items, .offsets = &self.offsets };
 
@@ -127,6 +111,16 @@ pub fn bind(self: *Self, frame: *@import("../run.zig").Frame) void {
         .empty = &self.empty,
         .path = target.path,
     };
+}
+
+pub fn map(self: *Self, mappings: anytype) void {
+    self.surface.mapping.dense = mappings.types;
+
+    if (self.input.body != null) {
+        self.body.input.candidate = mappings.candidate;
+        self.body.functions.sparse = mappings.functions;
+        self.body.natives.sparse = mappings.modules;
+    }
 }
 
 pub fn finish(self: *const Self, target: *const Current, plan: anytype, verified: verification.Verified) Restored {

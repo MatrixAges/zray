@@ -23,6 +23,7 @@ export type ProbeInput = Cache.Omit("history") & {
 
 export type Found = {
     trace_row?: u64,
+    next?: u32,
     memo_row?: u32,
     following: bool,
     state_end: u64

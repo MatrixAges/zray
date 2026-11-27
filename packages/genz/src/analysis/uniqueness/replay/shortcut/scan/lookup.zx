@@ -12,7 +12,7 @@ export default function (in: Input): Output {
     const index = match cursor.phase {
         Phase.Settled => tables.settled.index,
         Phase.Demanded => tables.demanded.index,
-        _ => tables.planned.index
+        _ => tables.planned
     }
 
     const kind = match cursor.phase {

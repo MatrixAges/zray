@@ -1,9 +1,5 @@
-import type { CacheProbe, CacheSlot } from "project_host"
+import type { CacheSlot } from "project_host"
 
 export type Install = {
     slot: CacheSlot
-}
-
-export type Commit = Install & {
-    prepared: CacheProbe
 }

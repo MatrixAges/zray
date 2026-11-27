@@ -9,7 +9,7 @@ export type Input = {
     indices: u32[]
 }
 
-export type Output = bool
+export type Output = u8[][]?
 
 export default function (in: Input): Output {
     const { target, indices } = in
@@ -29,20 +29,11 @@ export default function (in: Input): Output {
     })
 
     if (!valid) {
-        return false
+        return null
     }
 
-    const rendered = loop(0, {
-        while: position => position < indices.length,
-        next: position => {
-            one({
-                ...target,
-                row: indices[position]
-            })
-
-            position += 1
-        }
-    })
-
-    return true
+    return indices.map(row => one({
+        ...target,
+        row
+    }))[0]
 }

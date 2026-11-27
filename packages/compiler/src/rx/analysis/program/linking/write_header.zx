@@ -1,37 +1,22 @@
-import memory from "memory"
-
-import type { Extent } from "core/column_lengths"
 import type { Metadata } from "core/expression_table/append/model"
-import type { U8Buffer, U32Buffer, U64Buffer } from "memory"
-
-export type Header = {
-    kinds: U8Buffer,
-    types: U32Buffer,
-    starts: U64Buffer,
-    ends: U64Buffer,
-    payloads: U32Buffer
-}
+import type { ExpressionRow } from "../capture/model"
 
 export type Input = {
-    header: Header,
     metadata: Metadata,
     kind: u8,
     payload: u32
 }
 
-export type Output = void
-
-export type Publication = {
-    row: Input,
-    extent: Extent
-}
+export type Output = ExpressionRow
 
 export default function (in: Input): Output {
-    const { header, metadata } = in
+    const { metadata, kind, payload } = in
 
-    memory.writeU8(header.kinds, 0, in.kind)
-    memory.writeU32(header.types, 0, metadata.type_id)
-    memory.writeU64(header.starts, 0, metadata.span_start)
-    memory.writeU64(header.ends, 0, metadata.span_end)
-    memory.writeU32(header.payloads, 0, in.payload)
+    return {
+        kind,
+        payload,
+        type_id: metadata.type_id,
+        start: metadata.span_start,
+        end: metadata.span_end
+    }
 }

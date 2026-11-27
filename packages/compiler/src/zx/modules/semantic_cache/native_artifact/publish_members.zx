@@ -1,29 +1,33 @@
-import { appendSignature } from "core/column_set"
-
 import signature from "../../link/signature/publication/signature_row"
 import bind from "../../native/publication/binding"
 import declaration from "../../native/publication/declaration"
 import own from "../../native/publication/record"
 
-import type { ColumnSet } from "memory/columns"
-import type { Target as MemberRows } from "../../artifact/surface/bindings"
+import type { SignatureRow } from "memory/columns"
 import type { Member } from "../../native/interface/members"
+import type { Output as Binding } from "../../native/publication/binding"
 import type { Owner } from "../../native/publication/model"
 
 export type Input = {
     members: Member[],
-    signature_target: ColumnSet,
-    binding_target: MemberRows,
     owner: Owner
 }
 
-export type Output = void
+export type Output = {
+    signatures: SignatureRow[],
+    bindings: Binding[]
+}
 
 export default function (in: Input): Output {
-    const { members, owner, binding_target, signature_target } = in
+    const { members, owner } = in
 
-    const written = loop({
-        row: 0
+    const signatures: SignatureRow[] = []
+    const bindings: Binding[] = []
+
+    return loop({
+        row: 0,
+        signatures,
+        bindings
     }, {
         while: state => state.row < members.length,
         next: state => {
@@ -39,13 +43,7 @@ export default function (in: Input): Output {
                 "flags"
             ]))
 
-            appendSignature({
-                storage: signature_target,
-                row: fields
-            })
-
-            bind({
-                target: binding_target,
+            const binding = bind({
                 row,
                 first: 0,
                 name: record.name,
@@ -53,7 +51,13 @@ export default function (in: Input): Output {
                 output: source.output
             })
 
+            state.signatures = state.signatures.push(fields)[0]
+            state.bindings = state.bindings.push(binding)[0]
             state.row += 1
-        }
+        },
+        return: state => ({
+            signatures: state.signatures,
+            bindings: state.bindings
+        })
     })
 }

@@ -1,31 +1,29 @@
 <Module>
     <Type from="model" as="Printer" />
 
-    <Args in={Printer.SourceSelection} out={bool} />
+    <Args in={Printer.SourceSelection} out={u8[][]?} />
 
     <If on={$in.ranges != null}>
         <Call
             fn="ranges"
             in={{
-                target: $in.pick([
-                    "source",
-                    "writer"
-                ]),
+                target: {
+                    source: $in.source
+                },
                 ranges: $in.ranges
             }}
         />
 
-        <Return value={true} />
+        <Return value={$ctx.ranges} />
     </If>
 
     <If on={$in.indices != null}>
         <Call
             fn="indices"
             in={{
-                target: $in.pick([
-                    "source",
-                    "writer"
-                ]),
+                target: {
+                    source: $in.source
+                },
                 indices: $in.indices
             }}
         />
@@ -33,5 +31,5 @@
         <Return value={$ctx.indices} />
     </If>
 
-    <Return value={true} />
+    <Return value={[]} />
 </Module>

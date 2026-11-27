@@ -1,6 +1,5 @@
 const std = @import("std");
-const zx = @import("zx");
-const ir = zx.ir;
+const ir = @import("zx").ir;
 const Builder = @import("../../builder.zig");
 const invokeRule = @import("../operands.zig").invoke;
 const headers = @import("../headers.zig");
@@ -33,49 +32,38 @@ pub fn publish(builder: *Builder, function: ir.FunctionId, argument: ir.ExprId, 
     const span = builder.expressionSpan(argument);
     const kind: std.meta.Elem(@FieldType(ir.ExpressionTable, "kinds")) = .Call;
     const Input = std.meta.Child(generated.Input);
-    const Row = std.meta.Child(@FieldType(Input, "row"));
-    const Header = std.meta.Child(@FieldType(Row, "header"));
-    var header = headers.Tail.init(storage, 1);
-    var functions: []u32 = storage.call_functions.unusedCapacitySlice()[0..1];
-    var arguments: []u32 = storage.call_arguments.unusedCapacitySlice()[0..1];
-    var firsts: []u32 = storage.call_store_first.unusedCapacitySlice()[0..1];
-    var counts: []u32 = storage.call_store_count.unusedCapacitySlice()[0..1];
-    var operand_slots: [operands.len]*usize = undefined;
+    var arena = std.heap.ArenaAllocator.init(builder.allocator);
 
-    inline for (operands, &operand_slots) |name, *slot| slot.* = &@field(storage, name).items.len;
+    defer arena.deinit();
 
-    const header_slots = headers.lengthSlots(storage);
-    var operand_lengths: zx.memory.ColumnLengths = &operand_slots;
-    var store_lengths: zx.memory.ColumnLengths = &.{&storage.call_stores.items.len};
-    var header_lengths: zx.memory.ColumnLengths = &header_slots;
+    var bytes: [512]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&bytes, arena.allocator());
 
     const input: Input = .{
         .row = &.{
-            .header = &header.view(Header),
             .metadata = &.{ .type_id = @backingInt(result_type), .span_start = span.start, .span_end = span.end },
             .kind = @backingInt(kind),
             .payload = @intCast(storage.call_functions.items.len),
         },
         .operands = &.{
-            .functions = @ptrCast(&functions),
-            .arguments = @ptrCast(&arguments),
             .function_id = @backingInt(function),
             .argument = @backingInt(argument),
-        },
-        .stores = &.{
-            .range = &.{
-                .firsts = @ptrCast(&firsts),
-                .counts = @ptrCast(&counts),
+            .stores = &.{
                 .first = @intCast(storage.call_stores.items.len),
+                .count = store_count,
             },
-            .count = store_count,
         },
-        .operands_extent = &.{ .target = @ptrCast(&operand_lengths), .count = 1 },
-        .stores_lengths = @ptrCast(&store_lengths),
-        .header_extent = &.{ .target = @ptrCast(&header_lengths), .count = 1 },
     };
 
-    try invokeRule(generated, input);
+    const output = try invokeRule(generated, scratch.allocator(), input);
+
+    storage.call_functions.appendAssumeCapacity(output.operands.function_id);
+    storage.call_arguments.appendAssumeCapacity(output.operands.argument);
+    storage.call_store_first.appendAssumeCapacity(output.operands.stores.first);
+    storage.call_store_count.appendAssumeCapacity(output.operands.stores.count);
+    storage.call_stores.items.len += output.operands.stores.count;
+
+    headers.append(storage, output.row);
 
     return id;
 }

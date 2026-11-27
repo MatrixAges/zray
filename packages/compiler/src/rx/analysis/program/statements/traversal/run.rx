@@ -1,38 +1,58 @@
 <Module>
     <Type from="workflow" as="Traversal" />
 
-    <Args in={Traversal.Request} out={u32} />
+    <Args in={Traversal.Request} out={Traversal.Output} />
 
-    <Call
-        fn="walk"
-        in={$in.pick([
-            "shape",
-            "layout",
-            "borrow_root"
-        ])}
-    />
+    <If on={!$in.started}>
+        <Call
+            fn="walk"
+            in={$in.pick([
+                "shape",
+                "layout",
+                "borrow_root"
+            ])}
+        />
 
-    <Call
-        fn="host.reserveBodyStatements"
-        in={[
-            $in.frame,
-            $ctx.walk.slots
-        ]}
-    />
+        <Call
+            fn="host.reserveBodyStatements"
+            in={[
+                $in.frame,
+                $ctx.walk.slots
+            ]}
+        />
 
-    <Loop on={$in.row < $in.events.length}>
+        <Return
+            value={{
+                events: $ctx.walk.events
+            }}
+        />
+    </If>
+
+    <If on={$in.row < $in.events.length}>
         <Call
             module="step"
             in={{
                 frame: $in.frame,
                 control: $in.control,
                 scopes: $in.scopes,
-                events: $ctx.walk.events,
+                events: $in.events,
                 call_ids: $in.shape.steps.firsts,
-                row: 0
+                row: $in.row,
+                offset: $in.offset
             }}
         />
-    </Loop>
+
+        <Return
+            value={{
+                next: {
+                    row: $ctx.step.offset == null ? $in.row + 1 : $in.row,
+                    offset: $ctx.step.offset ?? 0,
+                    implicit_return: $in.implicit_return,
+                    effect: $ctx.step.effect
+                }
+            }}
+        />
+    </If>
 
     <Call
         fn="host.selectBodyWriter"
@@ -47,6 +67,19 @@
             fn="../../control/write/result"
             in={{
                 writer: $in.control.writer
+            }}
+        />
+
+        <Return
+            value={{
+                next: {
+                    row: $in.row,
+                    offset: 0,
+                    implicit_return: false,
+                    effect: {
+                        statement: $ctx.result
+                    }
+                }
             }}
         />
     </If>
@@ -70,5 +103,9 @@
 
     <Call fn="host.requireBodyBlock" />
 
-    <Return value={$ctx.block_id} />
+    <Return
+        value={{
+            block: $ctx.block_id
+        }}
+    />
 </Module>

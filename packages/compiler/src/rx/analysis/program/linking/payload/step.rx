@@ -1,7 +1,7 @@
 <Module>
     <Type from="workflow" as="Payload" />
 
-    <Args in={Payload.Cursor} out={Payload.Cursor} />
+    <Args in={Payload.Cursor} out={Payload.Step} />
 
     <Call
         fn="publish"
@@ -11,23 +11,41 @@
         ])}
     />
 
-    <Loop on={$in.row < $in.end}>
-        <Call
-            module="pending"
-            in={{
-                frame: $in.frame,
-                columns: $in.columns,
-                operands: $in.operands,
-                row: 0,
-                end: $ctx.publish.pending
+    <If on={!$ctx.publish.pending}>
+        <Return
+            value={{
+                next: $ctx.publish.next,
+                writes: $ctx.publish.writes
             }}
         />
-    </Loop>
+    </If>
+
+    <Call fn="route" in={$ctx.publish.kind} />
+
+    <Call
+        module="apply"
+        in={{
+            row: $ctx.publish.row,
+            route: $ctx.route,
+            operands: $in.operands
+        }}
+    />
+
+    <Call
+        fn="store"
+        in={{
+            columns: $in.columns,
+            row: $ctx.publish.row,
+            value: $ctx.apply.value
+        }}
+    />
 
     <Return
         value={{
-            ...$in,
-            first: $ctx.publish.next
+            next: $ctx.publish.next,
+            writes: $ctx.publish.writes,
+            operand: $ctx.store,
+            patch: $ctx.apply.patch
         }}
     />
 </Module>

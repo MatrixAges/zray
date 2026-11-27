@@ -7,11 +7,11 @@ import writeRange from "./destination_window"
 import expressions from "./expressions"
 import optionalSymbols from "./optional_symbols"
 
-import type { Work } from "./workflow"
+import type { Patch, Work } from "./workflow"
 
 export type Input = Work
 
-export type Output = bool
+export type Output = Patch?
 
 export default function (in: Input): Output {
     const { data, row } = in
@@ -19,60 +19,72 @@ export default function (in: Input): Output {
     const first = data.scope_first[row]
     const count = data.scope_count[row]
 
-    const { header, members } = in.allocation
-
     const result = in.mapping[integers.widen(data.scope_results[row])]
 
     if (result == max_u32) {
-        return false
+        return null
     }
 
     const symbols = optionalSymbols({
         source: data.scope_symbols,
         first,
         count,
-        symbols: in.symbols,
-        target: memory.columnRangeOptionalU32Tail(members, 0, null)
+        symbols: in.symbols
     })
 
-    if (!symbols) {
-        return false
+    if (symbols == null) {
+        return null
     }
 
     const values = expressions({
         source: data.scope_values,
         first,
         count,
-        mapping: in.mapping,
-        target: memory.columnRangeU32Tail(members, 1, null)
+        mapping: in.mapping
     })
 
-    if (!values) {
-        return false
+    if (values == null) {
+        return null
     }
 
+    const start = integers.widen(first)
     const length = integers.widen(count)
 
-    if (length != 0) {
-        const start = integers.widen(first)
-
-        const copied = memory.copyBytes(
-            memory.columnRangeU8Tail(members, 2, null),
-            0,
-            expressionOperandBytes(in.frame, OperandColumn.scope_borrows),
+    const borrows = match {
+        length == 0 => [],
+        _ => memory.borrowU8Range(
+            expressionOperandBytes(
+                in.frame,
+                OperandColumn.scope_borrows
+            ),
             start,
-            start + length
+            length
         )
     }
 
-    memory.writeU32(memory.columnRangeU32Tail(header, 0, null), 0, result)
-
-    writeRange({
-        header,
-        slot: 1,
-        members: members,
-        count: length
+    const window = writeRange({
+        first: in.members_first,
+        count
     })
 
-    return true
+    return {
+        header: [
+            {
+                word: result
+            },
+            window.first,
+            window.count
+        ],
+        members: [
+            {
+                symbols: symbols
+            },
+            {
+                words: values
+            },
+            {
+                bytes: borrows
+            }
+        ]
+    }
 }

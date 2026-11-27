@@ -1,7 +1,8 @@
 <Module>
     <Type from="publication" as="Control" />
+    <Type from="case_member" as="Member" />
 
-    <Args in={Control.Case} out={void} />
+    <Args in={Control.Case} out={Member.Row} />
 
     <Call
         fn="block_id"
@@ -30,10 +31,8 @@
 
     <Call fn="../../statements/traversal/host.requireBodyBlock" />
 
-    <Call
-        fn="case_member"
-        in={{
-            writer: $in.control.writer,
+    <Return
+        value={{
             block: $ctx.block_id,
             position: $in.position,
             label: $in.label

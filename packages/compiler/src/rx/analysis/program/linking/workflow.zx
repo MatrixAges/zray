@@ -1,11 +1,11 @@
-import type { ColumnLengths } from "memory"
 import type { ExpressionLink } from "rx_project_host"
-import type { Input as Headers } from "./headers"
+import type { Output as Headers } from "./headers"
 import type { Input as Literals } from "./literals/model"
 import type { Input as Plan } from "./model"
 import type { Work as Operands } from "./operands/workflow"
 import type { Columns } from "./payload/model"
-import type { Input as Symbols } from "./symbols/model"
+import type { Step } from "./payload/workflow"
+import type { Input as Symbols, Output as SymbolRows } from "./symbols/model"
 
 export type Request = {
     frame: ExpressionLink,
@@ -14,6 +14,19 @@ export type Request = {
     literals: Literals,
     payload: Columns,
     operands: Operands,
-    headers: Headers,
-    lengths: ColumnLengths
+    first?: u64
+}
+
+export type Initial = {
+    returned: u32,
+    first?: u64,
+    ranges: Headers,
+    count: u64,
+    symbols?: SymbolRows,
+    literals?: Literals
+}
+
+export type Output = {
+    initial?: Initial,
+    step?: Step
 }

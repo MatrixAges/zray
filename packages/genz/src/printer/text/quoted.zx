@@ -1,3 +1,4 @@
+import bytes from "std:bytes"
 import integers from "std:integer"
 import {
     ascii_backslash,
@@ -8,72 +9,68 @@ import {
     ascii_lower_r,
     ascii_lower_t,
     ascii_lower_x,
-    ascii_printable_last,
-    ascii_space,
     ascii_tab
 } from "core/ascii/const"
 import { hexadecimal_radix } from "core/const"
-import memory from "memory"
 
 import { hexadecimal_digits } from "../../const"
+import width from "./quoted/width"
 
-import type { ByteWriter } from "memory"
+export type Input = u8[]
 
-export type Input = {
-    output: ByteWriter,
-    bytes: u8[]
-}
-
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    memory.appendByte(in.output, ascii_double_quote)
-
-    const written = loop(0, {
-        while: index => index < in.bytes.length,
-        next: index => {
-            const byte = in.bytes[index]
-
-            if (byte == ascii_double_quote || byte == ascii_backslash) {
-                memory.appendBytes(in.output, [
-                    ascii_backslash,
-                    byte
-                ])
-            } else {
-                const condition = (
-                    - byte == ascii_line_feed
-                    - or byte == ascii_carriage_return
-                    - or byte == ascii_tab
-                )
-
-                if (condition) {
-                    const escape = match byte {
-                        ascii_line_feed => ascii_lower_n,
-                        ascii_carriage_return => ascii_lower_r,
-                        _ => ascii_lower_t
-                    }
-
-                    memory.appendBytes(in.output, [
-                        ascii_backslash,
-                        escape
-                    ])
-                } else if (byte >= ascii_space && byte <= ascii_printable_last) {
-                    memory.appendByte(in.output, byte)
-                } else {
-                    const value = integers.widenByte(byte)
-
-                    memory.appendBytes(in.output, [
-                        ascii_backslash,
-                        ascii_lower_x,
-                        hexadecimal_digits[value / hexadecimal_radix],
-                        hexadecimal_digits[value % hexadecimal_radix]
-                    ])
-                }
-            }
-
-            index += 1
+    const measured = loop({
+        index: 0,
+        size: 2
+    }, {
+        while: state => state.index < in.length,
+        next: state => {
+            state.size += width(in[state.index])
+            state.index += 1
         }
     })
 
-    memory.appendByte(in.output, ascii_double_quote)
+    const output = bytes.repeat(measured.size, ascii_double_quote)
+
+    return loop({
+        output,
+        index: 0,
+        offset: 1
+    }, {
+        while: state => state.index < in.length,
+        next: state => {
+            const byte = in[state.index]
+            const offset = state.offset
+            const size = width(byte)
+
+            if (size == 1) {
+                state.output[offset] = byte
+            } else {
+                state.output[offset] = ascii_backslash
+
+                if (size == 2) {
+                    state.output[offset + 1] = match byte {
+                        ascii_line_feed => ascii_lower_n,
+                        ascii_carriage_return => ascii_lower_r,
+                        ascii_tab => ascii_lower_t,
+                        _ => byte
+                    }
+                } else {
+                    const value = integers.widenByte(byte)
+
+                    state.output[offset + 1] = ascii_lower_x
+                    state.output[offset + 2] =
+                        hexadecimal_digits[value / hexadecimal_radix]
+                    state.output[offset + 3] =
+                        hexadecimal_digits[value % hexadecimal_radix]
+                }
+            }
+
+            state.offset += size
+            state.index += 1
+        },
+        return: state => state.output
+    })
 }

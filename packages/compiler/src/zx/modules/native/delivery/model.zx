@@ -5,7 +5,7 @@ import type {
 } from "../../../analysis/semantic/merging/publication/model"
 import type { Export } from "../interface/exports"
 import type { Member } from "../interface/members"
-import type { Owner, Staging } from "../publication/model"
+import type { Batch, Owner, Staging } from "../publication/model"
 import type { Output as Diagnostic } from "../validation/model"
 import type { Output as ExportBindings } from "./exports"
 
@@ -29,7 +29,7 @@ export type LoadOutput = {
     origins: Origins
 }
 
-export type Output = ExportBindings & {
+export type Output = ExportBindings & Batch & {
     namespace: string[]
 }
 

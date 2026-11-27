@@ -12,26 +12,25 @@ pub fn unit(builder: *Builder, span: zx.Span) Builder.Error!ir.ExprId {
     if (comptime !generated) return builder.seedExpression(.{ .type_id = type_id, .span = span, .value = .unit });
 
     const rule = @import("generated_rx_link_expression_row");
-    const Input = std.meta.Child(rule.Input);
-    const Row = std.meta.Child(@FieldType(Input, "row"));
     const storage = &builder.expressions;
     const id: ir.ExprId = @fromBackingInt(@as(u32, @intCast(storage.count())));
 
     try storage.reserveHeaders(builder.allocator, 1);
 
-    var columns = headers.Tail.init(storage, 1);
-    const slots = headers.lengthSlots(storage);
-    const lengths: zx.memory.ColumnLengths = &slots;
+    var arena = std.heap.ArenaAllocator.init(builder.allocator);
 
-    try operands.invoke(rule, .{
-        .row = &.{
-            .header = &columns.view(std.meta.Child(@FieldType(Row, "header"))),
-            .metadata = &.{ .type_id = @backingInt(type_id), .span_start = span.start, .span_end = span.end },
-            .kind = kindByte(.Unit),
-            .payload = 0,
-        },
-        .extent = &.{ .target = @ptrCast(&lengths), .count = 1 },
+    defer arena.deinit();
+
+    var bytes: [512]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&bytes, arena.allocator());
+
+    const row = try operands.invoke(rule, scratch.allocator(), .{
+        .metadata = &.{ .type_id = @backingInt(type_id), .span_start = span.start, .span_end = span.end },
+        .kind = kindByte(.Unit),
+        .payload = 0,
     });
+
+    headers.append(storage, row);
 
     return id;
 }

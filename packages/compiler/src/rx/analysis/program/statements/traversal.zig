@@ -6,6 +6,7 @@ const Writer = @import("../control/writer.zig");
 const generated = @import("rx_options").generated_graph;
 const rule = if (generated) @import("generated_rx_execute_statements") else void;
 pub const Input = if (generated) std.meta.Child(rule.Input) else void;
+const Output = if (generated) rule.Output else void;
 
 pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer: *Writer.Cursor) Statements.Error!zx.ir.BlockId {
     if (comptime !generated) {
@@ -35,7 +36,7 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
 
     const binding_slots: zx.memory.ColumnLengths = &.{&self.builder.bindings.items.len};
 
-    const input: Input = .{
+    var input: Input = .{
         .control = &state.control,
         .scopes = &.{
             .active = @ptrCast(&binding_slots),
@@ -45,6 +46,10 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
         .root = root,
         .expected = std.mem.bytesAsSlice(u32, std.mem.asBytes(&self.plan.size)),
         .implicit_return = self.plan.implicit_return,
+        .started = false,
+        .events = &.{},
+        .row = 0,
+        .offset = 0,
         .frame = @ptrCast(&state),
         .shape = &.{
             .steps = &.{
@@ -69,12 +74,37 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
 
     errdefer self.restoreBindings(bindings);
 
-    const block = rule.executeValue(allocator, &input) catch |err| return switch (@as(anyerror, err)) {
+    input.events = (try execute(allocator, &input)).events.?;
+    input.started = true;
+
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+
+    defer arena.deinit();
+
+    var bytes: [4096]u8 = undefined;
+
+    while (true) {
+        var scratch = std.heap.BufferFirstAllocator.init(&bytes, arena.allocator());
+        const output = try execute(scratch.allocator(), &input);
+
+        if (output.block) |block| return @fromBackingInt(block);
+
+        const next = output.next.?;
+
+        try state.commit(next.effect);
+
+        input.row = next.row;
+        input.offset = next.offset;
+        input.implicit_return = next.implicit_return;
+        _ = arena.reset(.retain_capacity);
+    }
+}
+
+fn execute(allocator: std.mem.Allocator, input: *const Input) Statements.Error!Output {
+    return rule.executeIn(allocator, input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
         error.UnreachableFlow => error.UnreachableFlow,
         error.IncompleteFlow => error.IncompleteFlow,
         else => error.InvalidModule,
     };
-
-    return @fromBackingInt(block);
 }

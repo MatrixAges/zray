@@ -1,7 +1,7 @@
 <Module>
     <Type from="../workflow" as="Traversal" />
 
-    <Args in={Traversal.CallResult} out={void} />
+    <Args in={Traversal.CallResult} out={Traversal.Effect} />
 
     <Call
         fn="../host.registerBodyCallResult"
@@ -21,13 +21,10 @@
         }}
     />
 
-    <If on={$ctx.registerBodyCallResult != null}>
-        <Call
-            fn="../host.publishBodyBinding"
-            in={[
-                $in.frame,
-                $ctx.registerBodyCallResult
-            ]}
-        />
-    </If>
+    <Return
+        value={{
+            statement: $ctx.binding,
+            binding: $ctx.registerBodyCallResult
+        }}
+    />
 </Module>

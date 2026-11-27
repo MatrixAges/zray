@@ -1,44 +1,37 @@
 import integers from "std:integer"
 import memory from "memory"
 
-import type { ColumnRanges } from "memory"
 import type { Cursor } from "./buffers"
 
 export type Input = {
     writer: Cursor,
-    bindings: ColumnRanges,
     first: u32,
     count: u32
 }
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    if (memory.columnRangeCount(in.bindings, 0) == 0) {
-        return
-    }
-
     const first = integers.widen(in.first)
     const count = integers.widen(in.count)
-    const symbols = memory.optionalU32Views(in.writer.columns.parallel_symbols)
-    const bindings = memory.columnRangeU32Tail(in.bindings, 0, null)
+    const symbols = memory.optionalU32Views(in.writer.parallel_symbols)
 
-    const published = loop({
+    const bindings: u32[] = []
+
+    return loop({
         source: first,
-        target: 0
+        bindings
     }, {
         while: state => state.source < first + count,
         next: state => {
             const id = symbols[state.source]
 
             if (id != null) {
-                memory.writeU32(bindings, state.target, id)
-                state.target += 1
+                state.bindings = state.bindings.push(id)[0]
             }
 
             state.source += 1
-        }
+        },
+        return: state => state.bindings
     })
-
-    memory.publishColumnRange(in.bindings, 0)
 }

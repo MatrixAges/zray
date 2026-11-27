@@ -1,4 +1,4 @@
-import type { StringBuffer, TextColumn } from "memory"
+import type { TextColumn } from "memory"
 import type { Import } from "../../../frontend/parser/imports/model"
 import type { Registry } from "./find"
 
@@ -23,11 +23,10 @@ export type Input = {
     eligible?: u64,
     standard: Registry,
     scoped?: Registry,
-    internal: Registry,
-    output: StringBuffer
+    internal: Registry
 }
 
 export type Output = {
-    count: u64,
+    keys: string[],
     needs_scope?: u64
 }

@@ -1,17 +1,25 @@
-import memory from "memory"
+import range from "../operands/range"
 
-import type { U32Buffer } from "memory"
+import type { Input as Stores, Output as StoreRange } from "../operands/range"
 
 export type Input = {
-    functions: U32Buffer,
-    arguments: U32Buffer,
     function_id: u32,
-    argument: u32
+    argument: u32,
+    stores: Stores
 }
 
-export type Output = void
+export type Output = {
+    function_id: u32,
+    argument: u32,
+    stores: StoreRange
+}
 
 export default function (in: Input): Output {
-    memory.writeU32(in.functions, 0, in.function_id)
-    memory.writeU32(in.arguments, 0, in.argument)
+    const { function_id, argument, stores } = in
+
+    return {
+        function_id,
+        argument,
+        stores: range(stores)
+    }
 }

@@ -1,9 +1,7 @@
-import type { ByteWriter } from "memory"
 import type { Source } from "../model"
 
 export type Input = {
     source: Source,
-    writer: ByteWriter,
     count?: u32
 }
 

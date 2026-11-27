@@ -1,10 +1,8 @@
-export { readLengthSlot, shrinkLengthSlot } from "memory"
 export {
     reserveBodyStatements,
     selectBodyWriter,
     evaluateBodyValue,
     defineBodyTaskBinding,
-    publishBodyBinding,
     evaluateBodyCaseLabel,
     initializeBodyCase,
     requireBodyBlock,

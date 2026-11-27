@@ -1,15 +1,13 @@
-import host from "project_host"
+import type { CacheProbe as Input } from "project_host"
 
-import type { Commit as Input } from "./model"
-
-export type Output = void
+export type Output = {
+    replacement?: u64,
+    bucket: u64
+}
 
 export default function (in: Input): Output {
-    const { slot, prepared } = in
-
-    if (prepared.row != 0) {
-        host.replaceCacheSlot(slot, prepared.row - 1)
-    } else {
-        host.appendCacheSlot(slot, prepared.bucket)
+    return {
+        replacement: in.row == 0 ? null : in.row - 1,
+        bucket: in.bucket
     }
 }

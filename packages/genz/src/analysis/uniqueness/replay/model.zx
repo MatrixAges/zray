@@ -1,4 +1,3 @@
-import type { U32Buffer } from "memory"
 import type { Graph } from "./graph/model"
 
 export type Previous = {
@@ -25,7 +24,7 @@ export type Build = {
 }
 
 export type Step = {
-    positions: U32Buffer,
+    positions: u32[],
     changed: bool,
     verify: bool,
     index: u64,
@@ -35,4 +34,5 @@ export type Step = {
 export type Selection = {
     following: bool,
     cursor?: u64
+    next?: u32
 }

@@ -2,24 +2,24 @@ import integers from "std:integer"
 import { max_u32 } from "core/const"
 import memory from "memory"
 
-import type { U32Buffer } from "memory"
-
 export type Input = {
     source: u32[],
     first: u32,
     count: u32,
-    mapping: u32[],
-    target: U32Buffer
+    mapping: u32[]
 }
 
-export type Output = bool
+export type Output = u32[]?
 
 export default function (in: Input): Output {
     const count = integers.widen(in.count)
     const first = integers.widen(in.first)
     const source = memory.borrowU32Range(in.source, first, count)
 
-    return loop({
+    const items: u32[] = []
+
+    const mapped = loop({
+        items,
         position: 0,
         valid: true
     }, {
@@ -30,10 +30,15 @@ export default function (in: Input): Output {
             if (id == max_u32) {
                 state.valid = false
             } else {
-                memory.writeU32(in.target, state.position, id)
+                state.items = state.items.push(id)[0]
                 state.position += 1
             }
-        },
-        return: state => state.valid
+        }
     })
+
+    if (!mapped.valid) {
+        return null
+    }
+
+    return mapped.items
 }

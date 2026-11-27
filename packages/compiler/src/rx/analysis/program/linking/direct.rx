@@ -1,8 +1,1 @@
-<Module>
-    <Type from="write_header" as="Header" />
-
-    <Args in={Header.Publication} out={void} />
-
-    <Call fn="write_header" in={$in.row} />
-    <Call fn="../../../../core/column_lengths/publish" in={$in.extent} />
-</Module>
+<Module fn="write_header" />

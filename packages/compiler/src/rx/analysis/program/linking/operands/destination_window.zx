@@ -1,33 +1,24 @@
 import integers from "std:integer"
-import memory from "memory"
 
-import type { ColumnRanges } from "memory"
+import type { Cell } from "./workflow"
 
 export type Input = {
-    header: ColumnRanges,
-    slot: u64,
-    members: ColumnRanges,
-    count: u64
+    first: u64,
+    count: u32
 }
 
-export type Output = void
+export type Output = {
+    first: Cell,
+    count: Cell
+}
 
 export default function (in: Input): Output {
-    const { header, slot, members } = in
-
-    const count_slot = slot + 1
-
-    const first = memory.columnRangeLength(members, 0)
-
-    memory.writeU32(
-        memory.columnRangeU32Tail(header, slot, null),
-        0,
-        integers.narrow(first)
-    )
-
-    memory.writeU32(
-        memory.columnRangeU32Tail(header, count_slot, null),
-        0,
-        integers.narrow(in.count)
-    )
+    return {
+        first: {
+            word: integers.narrow(in.first)
+        },
+        count: {
+            word: in.count
+        }
+    }
 }

@@ -1,43 +1,19 @@
-import integers from "std:integer"
-import memory from "memory"
-
-import { Kind } from "../../../artifact/remapping/model"
-
-import type { Input as Exports } from "../../../artifact/surface/exports"
 import type { Input as Publication, Members } from "./publish_model"
 
-export type Input = Publication.Pick("target", "mapping", "signatures", "exported")
+export type Input = Publication.Pick("members", "mapping", "signatures", "module")
 
-export type Output = {
-    exports: Exports,
-    members: Members
-}
+export type Output = Members
 
 export default function (in: Input): Output {
-    const { target, mapping, signatures, exported } = in
+    const { members, mapping, signatures, module } = in
 
     return {
-        exports: {
-            ...target.exports,
-            source: exported,
-            types: {
-                kind: Kind.Dense,
-                dense: memory.u32Views(mapping.types),
-                sparse: [],
-                planned: [],
-                first: 0,
-                prefix: 0,
-                count: 0
-            }
+        ...members,
+        cached: {
+            signatures,
+            inputs: mapping.inputs,
+            outputs: mapping.outputs
         },
-        members: {
-            ...target.members,
-            cached: {
-                signatures,
-                inputs: memory.u32Views(mapping.inputs),
-                outputs: memory.u32Views(mapping.outputs)
-            },
-            module: integers.narrow(target.native.module)
-        }
+        module
     }
 }

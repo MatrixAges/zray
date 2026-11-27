@@ -19,6 +19,11 @@ export type Source = {
     count: u32
 }
 
+export type Render = {
+    source: Source,
+    output: ByteWriter
+}
+
 export type Published = Source & {
     valid: bool
 }
@@ -86,14 +91,6 @@ export type Frame = {
     bytes: ByteSource
     index: u64
     number: u64
-}
-
-export type State = {
-    source: Source
-    stack: Frame[]
-    output: ByteWriter
-    depth: u32
-    next: u32
 }
 
 export type Step = {

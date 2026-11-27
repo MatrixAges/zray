@@ -5,8 +5,8 @@ const Error = @import("../../statements.zig").Error;
 pub fn prepareBodyCall(handle: *anyopaque, item: u32) bool {
     const state = State.borrow(handle);
     const call = &state.statements.calls[item];
-
     state.call = .{ .call = call };
+    state.call_binding_count = state.statements.builder.bindings.items.len;
 
     return !call.input_omitted;
 }
@@ -31,6 +31,8 @@ pub fn createBodyUnitArgument(handle: *anyopaque) Error!void {
 
 pub fn resolveBodyCallStores(handle: *anyopaque) Error!void {
     const state = State.borrow(handle);
+
+    state.statements.restoreBindings(state.call_binding_count);
 
     try state.call.resolveStores(state.statements.builder);
 }

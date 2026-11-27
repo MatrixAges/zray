@@ -1,11 +1,8 @@
 const std = @import("std");
-const zx = @import("zx");
-const ir = zx.ir;
+const ir = @import("zx").ir;
 const Builder = @import("../../builder.zig");
 const abi = @import("../abi.zig");
 const Input = std.meta.Child(@FieldType(abi.Request, "literals"));
-const Column = std.meta.Child(std.meta.Child(@FieldType(Input, "columns")));
-const Text = std.meta.Child(@typeInfo(@FieldType(Input, "owned_text")).optional.child);
 const Bases = std.meta.Child(@FieldType(abi.Payload, "literals"));
 const names = @typeInfo(Bases).@"struct".field_names;
 
@@ -13,19 +10,12 @@ pub const Frame = struct {
     input: Input = undefined,
     bases: Bases = undefined,
     views: [names.len][]u8 = undefined,
-    columns: [names.len]Column = undefined,
-    pointers: [names.len]*const Column = undefined,
-    strings: [][]const u8 = undefined,
-    text: Text = undefined,
-    length_slots: [names.len]*usize = undefined,
-    lengths: zx.memory.ColumnLengths = undefined,
+    columns: [names.len][]const u8 = undefined,
     counts: [names.len]u64 = undefined,
-    publication: std.meta.Child(@FieldType(Input, "publication")) = undefined,
-    /// Inlining removes binding references. Literal payloads keep their source order.
     pub fn prepare(self: *Frame, builder: *Builder, source: *const ir.ExpressionTable, borrow_text: bool) Builder.Error!bool {
         const storage = &builder.expressions;
         var count: usize = 0;
-        var owned: ?*const Text = null;
+        var owned: ?[]const []const u8 = null;
 
         inline for (names, 0..) |name, index| {
             const values = @field(source, name);
@@ -33,37 +23,53 @@ pub const Frame = struct {
 
             @field(self.bases, name) = target.items.len;
 
-            self.length_slots[index] = &target.items.len;
             self.counts[index] = values.len;
 
             if (values.len != 0) {
                 try storage.reserveColumns(builder.allocator, &.{name}, values.len);
 
-                const tail = target.unusedCapacitySlice()[0..values.len];
                 const own_text = comptime std.mem.eql(u8, name, "strings");
 
                 if (own_text and !borrow_text) {
-                    self.strings = tail;
-                    self.text = .{ .allocator = @ptrCast(&builder.allocator), .source = values, .target = @ptrCast(&self.strings) };
-                    owned = &self.text;
+                    owned = values;
                 } else {
-                    self.views[count] = std.mem.sliceAsBytes(tail);
-                    self.columns[count] = .{ .source = std.mem.sliceAsBytes(values), .target = @ptrCast(&self.views[count]) };
-                    self.pointers[count] = &self.columns[count];
+                    self.views[count] = std.mem.sliceAsBytes(target.unusedCapacitySlice()[0..values.len]);
+                    self.columns[count] = std.mem.sliceAsBytes(values);
                     count += 1;
                 }
             }
         }
 
-        self.lengths = &self.length_slots;
-        self.publication = .{ .target = @ptrCast(&self.lengths), .counts = &self.counts };
-
         self.input = .{
-            .columns = self.pointers[0..count],
+            .columns = self.columns[0..count],
             .owned_text = owned,
-            .publication = &self.publication,
+            .counts = &self.counts,
         };
 
         return count != 0 or owned != null;
     }
+    pub fn commit(self: *const Frame, builder: *Builder, rows: *const Input) Builder.Error!void {
+        const storage = &builder.expressions;
+
+        copyColumns(self.views[0..rows.columns.len], rows.columns);
+
+        if (rows.owned_text) |text| try ownText(builder.allocator, storage.strings.unusedCapacitySlice()[0..text.len], text);
+
+        inline for (names, 0..) |name, index| @field(storage, name).items.len += rows.counts[index];
+    }
 };
+
+pub fn copyColumns(targets: []const []u8, sources: []const []const u8) void {
+    for (targets, sources) |target, source| @memcpy(target, source);
+}
+
+pub fn ownText(allocator: std.mem.Allocator, targets: [][]const u8, sources: []const []const u8) std.mem.Allocator.Error!void {
+    var copied: usize = 0;
+
+    errdefer for (targets[0..copied]) |text| allocator.free(text);
+
+    for (targets, sources) |*target, source| {
+        target.* = try allocator.dupe(u8, source);
+        copied += 1;
+    }
+}

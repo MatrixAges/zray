@@ -22,7 +22,7 @@
     <Return
         value={{
             cursor: $ctx.advance.cursor,
-            count: $ctx.consume.count,
+            replacements: $ctx.consume.replacements,
             cleared: $ctx.advance.cleared
         }}
     />

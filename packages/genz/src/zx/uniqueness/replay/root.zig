@@ -41,10 +41,36 @@ pub fn init(allocator: std.mem.Allocator, previous: anytype, key: [32]u8, identi
 
 pub fn visit(self: *Self, comptime View: type, comptime kind: anytype, index: usize, starts: []const u32, verify: bool) View {
     return .{
-        .positions = @ptrCast(&self.cursors[@backingInt(kind)]),
+        .positions = &self.cursors[@backingInt(kind)],
         .index = index,
         .starts = starts,
         .changed = self.changes[index],
         .verify = verify,
     };
 }
+
+pub const Visit = struct {
+    positions: *[]u32,
+    index: usize,
+    starts: []const u32,
+    changed: bool,
+    verify: bool,
+    pub fn input(self: Visit, comptime View: type) View {
+        return .{
+            .positions = self.positions.*,
+            .index = self.index,
+            .starts = self.starts,
+            .changed = self.changed,
+            .verify = self.verify,
+        };
+    }
+    pub fn advance(self: Visit, allocator: std.mem.Allocator, next: ?u32) std.mem.Allocator.Error!void {
+        const position = next orelse return;
+
+        if (self.positions.*.len == 0) {
+            self.positions.* = try allocator.dupe(u32, self.starts[0 .. self.starts.len - 1]);
+        }
+
+        self.positions.*[self.index] = position;
+    }
+};

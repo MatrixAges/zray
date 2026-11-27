@@ -1,40 +1,4 @@
-import type {
-    ColumnLengths,
-    StringBuffer,
-    StringListBuffer,
-    U32Buffer,
-    U32ListBuffer
-} from "memory"
-import type { Rows } from "../../../ir/canonical/validation/names/model"
-
 export type Namespace = {
     published?: string[],
     original: string[]
-}
-
-export type Bindings = {
-    names: StringBuffer,
-    ids: U32Buffer
-}
-
-export type Exports = Bindings & {
-    source: Rows
-}
-
-export type Table = {
-    module: u64,
-    namespaces: StringListBuffer,
-    type_names: StringListBuffer,
-    type_ids: U32ListBuffer,
-    functions: ColumnLengths
-}
-
-export type Destination = Table & {
-    member_count: u64
-}
-
-export type Input = {
-    namespace: Namespace,
-    exports: Exports,
-    destination: Destination
 }

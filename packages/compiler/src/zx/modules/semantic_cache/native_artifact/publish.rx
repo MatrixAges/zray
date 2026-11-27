@@ -9,14 +9,14 @@
             in={{
                 delta: $in.types,
                 origins: $in.origins,
-                destination: $in.targets.types.destination
+                destination: $in.target.destination
             }}
         />
 
         <Call
             module="../../../analysis/semantic/merging/publication/write"
             in={{
-                ...$in.targets.types,
+                ...$in.target,
                 delta: $in.types,
                 origins: {
                     ids: [],
@@ -27,31 +27,6 @@
             }}
         />
     </If>
-
-    <Call
-        fn="../../artifact/surface/allocate_exports"
-        in={{
-            target: $in.targets.export_target,
-            count: $in.exports.length
-        }}
-    />
-
-    <Call
-        fn="index.allocateRows"
-        in={{
-            target: $in.targets.binding_storage,
-            count: $in.members.length
-        }}
-    />
-
-    <Call
-        fn="reserve_signatures"
-        in={{
-            resource: $in.targets.payload,
-            ranges: $in.targets.signature_ranges,
-            count: $in.members.length
-        }}
-    />
 
     <Call
         fn="header"
@@ -65,8 +40,7 @@
     <Call
         fn="surface"
         in={{
-            exports: $in.exports,
-            export_target: $in.targets.export_target
+            exports: $in.exports
         }}
     />
 
@@ -84,8 +58,6 @@
         fn="publish_members"
         in={{
             members: $in.members,
-            signature_target: $in.targets.signature_target,
-            binding_target: $in.targets.binding_target,
             owner: $ctx.header.owner
         }}
     />
@@ -94,7 +66,7 @@
         fn="origins"
         in={{
             origins: $in.origins,
-            labels: $in.targets.types.target.labels,
+            labels: $in.target.target.labels,
             key: $ctx.header.key
         }}
     />
@@ -103,7 +75,9 @@
         value={{
             path: $ctx.header.key,
             modules: $ctx.modules,
-            origins: $ctx.origins
+            origins: $ctx.origins,
+            exports: $ctx.surface,
+            members: $ctx.publish_members
         }}
     />
 </Module>

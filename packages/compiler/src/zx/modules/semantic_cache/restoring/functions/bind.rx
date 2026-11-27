@@ -1,16 +1,16 @@
 <Module>
     <Type from="model" as="Function" />
 
-    <Args in={Function.Binding} out={bool} />
+    <Args in={Function.Binding} out={u32?[]?} />
 
     <Call fn="identity" in={$in} />
 
     <If on={!$ctx.identity}>
-        <Return value={false} />
+        <Return value={null} />
     </If>
 
     <If on={$in.previous.intrinsic != null}>
-        <Return value={true} />
+        <Return value={$in.mapping} />
     </If>
 
     <Call fn="mapped" in={$in} />

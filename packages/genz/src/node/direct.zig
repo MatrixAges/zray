@@ -16,46 +16,57 @@ const Frame = struct {
     storage: *Storage,
     allocator: std.mem.Allocator,
     rows: Rows,
-    tags: []u8 = &.{},
-    offsets: []u32 = &.{},
 };
 
 pub fn append(storage: *Storage, allocator: std.mem.Allocator, comptime field: []const u8, values: anytype) Error!u32 {
     const entry = @import("generated_direct_ast_range");
     const table = &@field(storage, field);
+    const start = table.tags.items.len;
 
-    if (values.len == 0) return @intCast(table.tags.items.len);
+    if (values.len == 0) return @intCast(start);
+    if (values.len > std.math.maxInt(u32) - start) return error.OutOfMemory;
+    try table.tags.ensureUnusedCapacity(allocator, values.len);
+    try table.offsets.ensureUnusedCapacity(allocator, values.len);
 
     var frame: Frame = .{ .storage = storage, .allocator = allocator, .rows = @unionInit(Rows, field, values) };
-    const lengths: zx.memory.ColumnLengths = &.{ &table.tags.items.len, &table.offsets.items.len };
+    var arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer arena.deinit();
+
+    var local: [256]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&local, arena.allocator());
 
     const input: std.meta.Child(entry.Input) = .{
         .rows = @ptrCast(&frame),
-        .start = table.tags.items.len,
         .count = values.len,
-        .tags = @ptrCast(&frame.tags),
-        .offsets = @ptrCast(&frame.offsets),
-        .lengths = @ptrCast(&lengths),
     };
 
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-    return zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => error.OutOfMemory,
+    const result = zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
+
+    const count: usize = @intCast(result.count);
+    const Tag = std.meta.Elem(@TypeOf(table.tags.items));
+
+    for (result.tags[0..count]) |tag| table.tags.appendAssumeCapacity(@as(Tag, @fromBackingInt(@intCast(tag))));
+
+    table.offsets.appendSliceAssumeCapacity(result.offsets[0..count]);
+
+    if (count != values.len) return error.OutOfMemory;
+
+    return @intCast(start);
 }
 
+/// A failed preparation ends the batch and lets the caller publish the completed prefix.
 pub fn prepareDirectAstRow(handle: *anyopaque, position: u64) Error!u64 {
     const frame: *Frame = @ptrCast(@alignCast(handle));
 
     return switch (frame.rows) {
         inline else => |values, field| row: {
-            const value = try stored.copy(frame.storage, frame.allocator, values[@intCast(position)]);
+            const value = stored.copy(frame.storage, frame.allocator, values[@intCast(position)]) catch return std.math.maxInt(u64);
             const table = &@field(frame.storage, @tagName(field));
-            const header = try table.prepare(frame.allocator, value);
-            frame.tags = std.mem.sliceAsBytes(table.tags.unusedCapacitySlice()[0..1]);
-            frame.offsets = table.offsets.unusedCapacitySlice()[0..1];
+            const header = table.prepare(frame.allocator, value) catch return std.math.maxInt(u64);
 
             break :row @bitCast(Header{ .offset = header.offset, .tag = @backingInt(header.tag) });
         },

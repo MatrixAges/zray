@@ -1,0 +1,24 @@
+import {
+    ascii_backslash,
+    ascii_carriage_return,
+    ascii_double_quote,
+    ascii_line_feed,
+    ascii_printable_last,
+    ascii_space,
+    ascii_tab
+} from "core/ascii/const"
+
+export type Input = u8
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return match in {
+        ascii_double_quote => 2,
+        ascii_backslash => 2,
+        ascii_line_feed => 2,
+        ascii_carriage_return => 2,
+        ascii_tab => 2,
+        _ => in >= ascii_space && in <= ascii_printable_last ? 1 : 4
+    }
+}

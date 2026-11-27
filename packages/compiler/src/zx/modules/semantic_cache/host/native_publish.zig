@@ -1,38 +1,22 @@
 const std = @import("std");
 const zx = @import("zx");
-const memory = zx.memory;
-const Artifact = @import("../../artifact/model.zig");
+const ir = zx.ir;
 const Current = @import("../native_restore.zig").Current;
+const Loaded = @import("../../native.zig");
 const OriginTable = @import("../../nominal_origins.zig").Table;
-const publication = @import("../../link/signature/publication/host.zig");
+const publication = @import("../../native/publication/host.zig");
 const function_target = @import("../../link/signature/publication/destination.zig");
-const native_bindings = @import("../../link/signature/publication/native_bindings.zig");
 const TypeTail = @import("../../../analysis/semantic/merging/publication/view.zig");
 const Publish = std.meta.Child(@import("generated_native_restore_publish").Input);
-const Target = std.meta.Child(@FieldType(Publish, "target"));
-const Bindings = std.meta.Child(@FieldType(Target, "bindings"));
-const Native = std.meta.Child(@FieldType(Target, "native"));
-const Members = std.meta.Child(@FieldType(Target, "members"));
-const Exports = std.meta.Child(@FieldType(Target, "exports"));
+const Members = std.meta.Child(@FieldType(Publish, "members"));
 const empty = function_target.empty(std.meta.Child(@FieldType(Members, "empty")));
 const Self = @This();
 
-exports: []const memory.NamedId,
-written: [1]u64,
-progress: []u64,
-export_view: Exports,
-functions: publication.Stage(Members),
-member_view: Members,
-bindings: native_bindings.View(Bindings, Native),
+members: Members,
 offsets: TypeTail.Offsets,
 options: TypeTail.Options,
 tail: TypeTail,
-input: Target,
-pub fn init(self: *Self, allocator: std.mem.Allocator, artifact: *const Artifact.Module, current: Current) void {
-    self.exports = &.{};
-    self.written = .{0};
-    self.progress = &self.written;
-    self.export_view = .{ .target = @ptrCast(&self.exports), .progress = @ptrCast(&self.progress) };
+pub fn init(self: *Self, allocator: std.mem.Allocator, current: Current) void {
     self.offsets = TypeTail.offsets(current.types);
 
     self.options = .{
@@ -44,33 +28,34 @@ pub fn init(self: *Self, allocator: std.mem.Allocator, artifact: *const Artifact
     };
 
     self.tail.init(&self.options, .{}, OriginTable{});
-    self.bindings.init(current.modules, current.functions, current.module, &self.exports, artifact.exports.len);
-    self.functions.init(&self.options.allocator, current.functions);
 
-    self.member_view = .{
-        .destination = &self.functions.functions.input,
-        .members = &self.functions.output.view,
-        .member_storage = @ptrCast(&self.functions.output.buffer),
-        .first = current.functions.count(),
-        .empty = &empty,
-    };
-
-    const tail: *const TypeTail.Target = &self.tail.target;
-
-    self.input = .{
-        .exports = &self.export_view,
-        .members = &self.member_view,
-        .bindings = &self.bindings.exports,
-        .native = &self.bindings.destination,
-        .destination = zx.columns.pointer(@FieldType(Target, "destination"), tail),
-    };
+    self.members = .{ .first = current.functions.count(), .empty = &empty };
 }
 
-pub fn release(self: *const Self, allocator: std.mem.Allocator) void {
-    self.tail.release();
-    self.bindings.release(allocator);
+pub fn commit(self: *Self, allocator: std.mem.Allocator, current: Current, value: anytype) std.mem.Allocator.Error!Loaded.Result {
+    const exports = try allocator.alloc(ir.Export, value.exports.rows.len);
 
-    for (self.exports[0..@intCast(self.written[0])]) |item| allocator.free(item.name);
+    errdefer allocator.free(exports);
 
-    allocator.free(self.exports);
+    for (value.exports.rows, exports) |row, *slot| {
+        slot.* = .{ .name = row.name, .type_id = @fromBackingInt(row.type_id) };
+    }
+
+    const members = try publication.ownBindings(allocator, value.members);
+
+    errdefer allocator.free(members);
+
+    try current.functions.reserve(allocator, value.functions.len);
+
+    const module = @backingInt(current.module);
+
+    publication.appendColumnsAssumeCapacity(current.functions, value.functions);
+
+    current.modules.type_namespaces.items[module] = value.namespace;
+    current.modules.type_names.items[module] = value.exports.names;
+    current.modules.type_ids.items[module] = value.exports.ids;
+
+    publication.publishTypes(&self.tail);
+
+    return .{ .types = current.types.view(), .exports = exports, .members = members };
 }

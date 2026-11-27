@@ -11,8 +11,9 @@
         value={{
             ...$in,
             row: $in.row + 1,
-            valid: $ctx.bind,
-            running: $ctx.bind && $in.row + 1 < $in.source.previous.count
+            mapping: $ctx.bind ?? $in.mapping,
+            valid: $ctx.bind != null,
+            running: $ctx.bind != null && $in.row + 1 < $in.source.previous.count
         }}
     />
 </Module>

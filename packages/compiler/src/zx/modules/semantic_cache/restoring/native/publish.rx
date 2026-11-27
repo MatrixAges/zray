@@ -2,37 +2,42 @@
     <Type from="publish_model" as="Publish" />
     <Type from="result" as="Result" />
 
-    <Args in={Publish.Input} out={Result.Status} />
+    <Args in={Publish.Input} out={Publish.Output} />
 
     <Call
         fn="publication_input"
         in={$in.pick([
-            "target",
+            "members",
             "mapping",
             "signatures",
-            "exported"
+            "module"
         ])}
     />
 
-    <Call
-        module="../../../artifact/surface/own_exports"
-        in={$ctx.publication_input.exports}
-    />
-
-    <Call module="publish_members" in={$ctx.publication_input.members} />
+    <Call module="publish_members" />
 
     <Call
         fn="../../../native/publication/namespace"
         in={{
-            published: $ctx.publish_members,
+            published: $ctx.publish_members.namespace,
             original: $in.namespace
         }}
     />
 
-    <Call fn="../../../native/publication/bindings" in={$in.target.bindings} />
+    <Call
+        fn="../../../native/publication/bindings"
+        in={{
+            source: $in.exported,
+            types: $in.mapping.types
+        }}
+    />
 
-    <If on={!$ctx.bindings}>
-        <Return value={Result.Status.Full} />
+    <If on={!$ctx.bindings.valid}>
+        <Return
+            value={{
+                status: Result.Status.Full
+            }}
+        />
     </If>
 
     <Call
@@ -40,39 +45,27 @@
         in={{
             delta: $in.types,
             origins: $in.origins,
-            destination: $in.target.destination.destination
+            destination: $in.destination.destination
         }}
     />
 
     <Call
         module="../../../../analysis/semantic/merging/publication/stage"
         in={{
-            ...$in.target.destination,
+            ...$in.destination,
             delta: $in.types,
             origins: $in.origins
         }}
     />
 
-    <Call
-        fn="commit"
-        in={{
-            types: $in.target.destination.pick([
-                "destination",
-                "progress"
-            ]),
-            module: {
-                destination: {
-                    ...$in.target.native,
-                    member_count: $in.signatures.files.length
-                },
+    <Return
+        value={{
+            status: Result.Status.Ready,
+            installation: {
+                ...$ctx.publish_members,
                 namespace: $ctx.namespace,
-                exports: $in.target.bindings.pick([
-                    "names",
-                    "ids"
-                ])
+                exports: $ctx.bindings.omit(["valid"])
             }
         }}
     />
-
-    <Return value={Result.Status.Ready} />
 </Module>

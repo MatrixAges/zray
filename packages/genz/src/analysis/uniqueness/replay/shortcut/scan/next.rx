@@ -21,8 +21,7 @@
                 ...$in.pick([
                     "tables",
                     "cursor",
-                    "replacements",
-                    "count"
+                    "replacements"
                 ]),
                 row: $ctx.widen
             }}
@@ -42,7 +41,7 @@
                 ...$in,
                 cursor: $ctx.advance.cursor,
                 cleared: $ctx.advance.cleared,
-                count: $ctx.consume.count,
+                replacements: $ctx.consume.replacements,
                 running:
                     $ctx.advance.cursor.phase != Trace.Phase.Done &&
                     $ctx.advance.cursor.phase != Trace.Phase.Reject

@@ -15,10 +15,8 @@ const Demand = std.meta.Child(@FieldType(Tables, "demanded"));
 const DemandBinding = Views.Demanded.Binding(std.meta.Child(@FieldType(Demand, "trace")));
 const Index = std.meta.Child(@FieldType(Settlement, "index"));
 const Probe = std.meta.Child(@FieldType(Index, "table"));
-const Targets = std.meta.Child(@FieldType(Input, "replacements"));
 const Recovery = std.meta.Child(@FieldType(Input, "recovery"));
 const Views = @import("../ordered/columns.zig");
-const Row = Cursor.Replacement;
 const Error = std.mem.Allocator.Error;
 pub const Prepared = struct { cursor: Cursor, growth: Growth.Rows };
 
@@ -37,20 +35,14 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, s
     const current_demanded = Views.Demanded.init(&.{}, ctx.memo.demanded.values.items);
     var previous_binding: DemandBinding = undefined;
     var current_binding: DemandBinding = undefined;
-    const stored_plans = zx.memory.borrowNestedColumn(Memo.Planned, &.{}, ctx.memo.planned.values.items);
     const digests = zx.memory.borrowNestedColumn(Memo.Digest, &.{}, ctx.bodies.identities);
     var key: []u8 = &ctx.memo.key;
     const demands = ctx.summaries.storage.?.demands;
-    var output: zx.memory.RowOutput(Row, Columns, .{ .positions = &.{"visit"}, .values = &.{"value"} }) = undefined;
     var normalized: rows.Normalized(Recovery) = undefined;
     var renewed: rows.Renewed(Recovery) = undefined;
 
-    output.init();
-    output.bind(replacements.buffer.rows(Row));
     normalized.init();
     renewed.init();
-
-    defer replacements.buffer.bytes = output.buffer.bytes;
 
     const input: Input = .{
         .replay = &.{
@@ -74,18 +66,10 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, s
                 .trace = &previous_binding.init(&previous_demanded),
                 .memo = &current_binding.init(&current_demanded),
             },
-            .planned = &.{ .index = &planned.view(), .values = @ptrCast(&stored_plans), .width = @sizeOf(Memo.Planned) },
+            .planned = &planned.view(),
             .identities = @ptrCast(&digests),
             .digest = @ptrCast(&key),
             .digest_width = @sizeOf(Memo.Digest),
-        },
-        .replacements = &.{
-            .rows = @ptrCast(&output.buffer),
-            .positions = output.view.positions,
-            .values = output.view.values,
-            .width = @sizeOf(Row),
-            .granule = @max(1, std.atomic.cache_line / @sizeOf(Row)),
-            .owner = @ptrCast(&staged),
         },
         .recovery = &.{
             .normalized = &.{ .storage = @ptrCast(&normalized.buffer), .columns = &normalized.view },
@@ -98,7 +82,6 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, s
                 .outputs = @ptrCast(&ctx.summaries.outputs),
             },
         },
-        .count = replacements.used,
         .recovered = recovered,
     };
 
@@ -107,9 +90,16 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, s
         else => std.debug.panic("ownership replay scan failed: {s}", .{@errorName(err)}),
     };
 
-    if (result.cleared) |cleared| @memcpy(demands, cleared);
+    try replacements.items.ensureUnusedCapacity(staged, result.replacements.len);
 
-    replacements.used = @intCast(result.count);
+    for (result.replacements) |replacement| {
+        replacements.items.appendAssumeCapacity(.{
+            .visit = replacement.visit,
+            .value = ctx.memo.planned.values.items[replacement.row],
+        });
+    }
+
+    if (result.cleared) |cleared| @memcpy(demands, cleared);
 
     return .{
         .cursor = .{
@@ -120,11 +110,6 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, s
         .growth = .{ .normalized = normalized.rows(), .renewed = renewed.rows() },
     };
 }
-
-const Columns = struct {
-    positions: @FieldType(Targets, "positions"),
-    values: @FieldType(Targets, "values"),
-};
 
 const BoundIndex = struct {
     used: zx.memory.WriteColumn,

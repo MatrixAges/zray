@@ -1,21 +1,19 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
 import { ExpressionKind } from "core/expression_table/kinds"
-import memory from "memory"
 import { expressionOperandBytes, expressionOperandWords } from "rx_project_host"
 
 import symbol from "../operands/symbol"
 
-import type { Work } from "../operands/workflow"
+import type { Cell, Patch, Work } from "../operands/workflow"
 
 export type Input = Work
 
-export type Output = bool
+export type Output = Patch?
 
 export default function (in: Input): Output {
     const { data, row, slots, frame } = in
 
-    const header = in.allocation.header
     const kind = data.kinds[in.index]
     const width = slots.length
 
@@ -45,7 +43,10 @@ export default function (in: Input): Output {
         _ => words
     }
 
+    const cells: Cell[] = []
+
     const written = loop({
+        cells,
         position: 0,
         valid: true
     }, {
@@ -66,62 +67,52 @@ export default function (in: Input): Output {
             state.valid = position >= mapped || value != max_u32
 
             if (state.valid) {
-                memory.writeU32(
-                    memory.columnRangeU32Tail(
-                        header,
-                        position,
-                        null
-                    ),
-                    0,
-                    value
-                )
+                state.cells = state.cells.push({
+                    word: value
+                })[0]
             }
 
             state.position += 1
-        },
-        return: state => state.valid
+        }
     })
 
-    if (!written) {
-        return false
+    if (!written.valid) {
+        return null
     }
 
-    if (kind == ExpressionKind.Iteration) {
-        const source = data.iteration_environment_symbols[row]
-
-        const id: u32? = match {
-            source == null => null,
-            _ => symbol({
-                symbols: in.symbols,
-                source
-            })
-        }
-
-        if (id == max_u32) {
-            return false
-        }
-
-        memory.writeOptionalU32(
-            memory.columnRangeOptionalU32Tail(
-                header,
-                words,
-                null
-            ),
-            0,
-            id
-        )
+    const source: u32? = match kind {
+        ExpressionKind.Iteration => data.iteration_environment_symbols[row],
+        _ => null
     }
 
-    if (has_metadata) {
-        const position = width - 1
-        const bytes = expressionOperandBytes(frame, slots[position])
-
-        memory.writeU8(
-            memory.columnRangeU8Tail(header, position, null),
-            0,
-            bytes[row]
-        )
+    const id: u32? = match {
+        source == null => null,
+        _ => symbol({
+            symbols: in.symbols,
+            source
+        })
     }
 
-    return true
+    if (id == max_u32) {
+        return null
+    }
+
+    const header = match kind {
+        ExpressionKind.Iteration => written.cells.push({
+            symbol: id
+        })[0],
+        _ => written.cells
+    }
+
+    const completed = match {
+        has_metadata => header.push({
+            byte: expressionOperandBytes(frame, slots[width - 1])[row]
+        })[0],
+        _ => header
+    }
+
+    return {
+        header: completed,
+        members: []
+    }
 }

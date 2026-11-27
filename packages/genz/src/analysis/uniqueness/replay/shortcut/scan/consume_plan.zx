@@ -1,25 +1,15 @@
 import integers from "std:integer"
-import memory from "memory"
-
-import append from "./append"
 
 import type { Consumed as Output, Consume as Input } from "./model"
 
 export default function (in: Input): Output {
-    const { tables, cursor, row, count } = in
-
-    const plan =
-        memory.readFixedBytes(tables.planned.values, row, tables.planned.width)
-
-    const written = append({
-        target: in.replacements,
-        visit: integers.narrow(cursor.visit),
-        value: plan,
-        used: count
-    })
+    const replacement = {
+        visit: integers.narrow(in.cursor.visit),
+        row: integers.narrow(in.row)
+    }
 
     return {
         agreed: true,
-        count: written
+        replacements: in.replacements.push(replacement)[0]
     }
 }

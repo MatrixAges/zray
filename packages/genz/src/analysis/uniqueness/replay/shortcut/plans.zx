@@ -1,17 +1,20 @@
 import integers from "std:integer"
 
-import retain from "./retain_plan"
+import readPlan from "../record/read_plan"
 
-import type { Plans as Input } from "./model"
-
-export type Output = void
+import type { Planned } from "../ordered/model"
+import type { PlanUpdate, PlanUpdates as Output, Plans as Input } from "./model"
 
 export default function (in: Input): Output {
     const last = in.changed.length - 1
+    const functions: PlanUpdate[] = []
+    const entry: Planned? = null
 
-    const filled = loop({
+    return loop({
         body: 0,
-        replacement: 0
+        replacement: 0,
+        functions,
+        entry
     }, {
         while: state => state.body < in.changed.length,
         next: state => {
@@ -20,14 +23,19 @@ export default function (in: Input): Output {
 
             if (start != in.planned[body + 1]) {
                 const replaced = in.changed[body]
-                const entry = body == last
-
-                retain({
+                const value = readPlan({
                     source: replaced ? in.replacements : in.recorded,
-                    row: replaced ? state.replacement : integers.widen(start),
-                    target: entry ? in.entry : in.functions,
-                    destination: entry ? 0 : body
+                    row: replaced ? state.replacement : integers.widen(start)
                 })
+
+                if (body == last) {
+                    state.entry = value
+                } else {
+                    state.functions = state.functions.push({
+                        body,
+                        value
+                    })[0]
+                }
 
                 if (replaced) {
                     state.replacement += 1
@@ -35,6 +43,10 @@ export default function (in: Input): Output {
             }
 
             state.body += 1
-        }
+        },
+        return: state => ({
+            functions: state.functions,
+            entry: state.entry
+        })
     })
 }

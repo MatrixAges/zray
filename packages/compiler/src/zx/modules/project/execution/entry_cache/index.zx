@@ -3,5 +3,7 @@ export {
     CacheWrite,
     extractProjectCacheArtifact,
     projectCacheSlot,
+    replaceCacheSlot,
+    appendCacheSlot,
     rejectProjectCacheArtifact
 } from "project_host"

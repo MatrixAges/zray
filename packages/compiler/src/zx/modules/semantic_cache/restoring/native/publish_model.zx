@@ -1,43 +1,32 @@
 import type { Table as Signatures } from "core/signature_table/model"
-import type { U32Buffer } from "memory"
 import type {
     Target as TypeTarget
 } from "../../../../analysis/semantic/merging/publication/model"
 import type { Rows } from "../../../../ir/canonical/validation/names/model"
-import type { Input as Exports } from "../../../artifact/surface/exports"
-import type {
-    Exports as Bindings,
-    Table
-} from "../../../native/publication/finalize_model"
-import type { Cache, Staging } from "../../../native/publication/model"
-import type { Value } from "./result"
+import type { Output as ExportBindings } from "../../../native/delivery/exports"
+import type { Batch, Cache, Staging } from "../../../native/publication/model"
+import type { Status, Value } from "./result"
 
 export type Members = Staging & {
     cached: Cache,
     module: u32
 }
 
-export type Mapping = {
-    storage: U32Buffer,
-    types: U32Buffer,
-    inputs: U32Buffer,
-    outputs: U32Buffer
-}
-
-export type Target = {
-    exports: Exports.Omit("source", "types"),
-    members: Staging,
-    bindings: Bindings,
-    native: Table,
-    destination: TypeTarget
-}
-
 export type Input = Value & {
-    target: Target,
-    mapping: Mapping,
+    destination: TypeTarget,
+    members: Staging,
+    module: u32,
     signatures: Signatures,
     exported: Rows,
     namespace: string[]
 }
 
-export type Output = string[]?
+export type Installation = Batch & {
+    namespace: string[],
+    exports: ExportBindings
+}
+
+export type Output = {
+    status: Status,
+    installation?: Installation
+}

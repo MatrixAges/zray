@@ -1,151 +1,22 @@
-import { ascii_at } from "core/ascii/const"
-import { ascii_underscore } from "core/const"
 import memory from "memory"
 
-import { indentation } from "../const"
-import block from "./block"
-import declaration from "./declaration"
-import expression from "./expression"
-import member from "./member"
-import { Action, ByteSource } from "./model"
-import { Token } from "./model/token"
-import statement from "./statement"
-import identifier from "./text/identifier"
-import quoted from "./text/quoted"
-import source from "./text/source"
-import token from "./text/token"
-import integer from "./text/write_integer"
+import type { ByteWriter } from "memory"
 
-import type { Frame, State } from "./model"
-
-export type Input = State
+export type Input = {
+    output: ByteWriter,
+    chunks: u8[][]
+}
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const ast = in.source
-    const writer = in.output
+    const { output, chunks } = in
 
-    const result = loop({
-        stack: in.stack,
-        depth: in.depth,
-        next: in.next
-    }, {
-        while: current => current.next < ast.count || current.stack.length != 0,
-        next: current => {
-            const root = current.stack.length == 0
-            const frame: Frame = match {
-                root => {
-                    action: Action.Declaration,
-                    token: Token.Empty,
-                    bytes: ByteSource.None,
-                    id: ast.first + current.next,
-                    count: 0,
-                    index: 0,
-                    number: 0
-                },
-                _ => current.stack[current.stack.length - 1]
-            }
-
-            if (root) {
-                if (current.next != 0) {
-                    memory.appendText(writer, token(Token.Newline))
-                }
-
-                current.next += 1
-            } else {
-                current.stack = current.stack.pop()[0]
-            }
-
-            if (frame.action == Action.Text) {
-                memory.appendText(writer, token(frame.token))
-            } else {
-                const condition = (
-                    match frame.action {
-                        Action.Identifier => true,
-                        Action.BindingIdentifier => true,
-                        Action.Quoted => true,
-                        _ => false
-                    }
-                )
-
-                if (condition) {
-                    const bytes = source({
-                        source: ast,
-                        frame
-                    })
-
-                    if (frame.action == Action.Quoted) {
-                        quoted({
-                            output: writer,
-                            bytes
-                        })
-                    } else {
-                        const discard =
-                            frame.action == Action.BindingIdentifier &&
-                            bytes.length == 1 && bytes[0] == ascii_underscore
-
-                        if (discard || identifier(bytes)) {
-                            memory.appendBytes(writer, bytes)
-                        } else {
-                            memory.appendByte(writer, ascii_at)
-                            quoted({
-                                output: writer,
-                                bytes
-                            })
-                        }
-                    }
-                } else if (frame.action == Action.Integer) {
-                    integer({
-                        output: writer,
-                        value: frame.number
-                    })
-                } else if (frame.action == Action.Enter) {
-                    current.depth += 1
-                } else if (frame.action == Action.Leave) {
-                    current.depth -= 1
-                } else if (frame.action == Action.Indent) {
-                    const indented = loop(current.depth, {
-                        while: remaining => remaining != 0,
-                        next: remaining => {
-                            memory.appendText(writer, indentation)
-                            remaining -= 1
-                        }
-                    })
-                } else {
-                    const step = {
-                        source: ast,
-                        frame
-                    }
-                    const frames = match frame.action {
-                        Action.Expression => expression(step),
-                        Action.Statement => statement(step),
-                        Action.Declaration => declaration(step),
-                        Action.Block => block(step),
-                        _ => member(step),
-                    }
-                    const expanded = loop({
-                        stack: current.stack,
-                        remaining: frames.length,
-                        frames
-                    }, {
-                        while: pending => pending.remaining != 0,
-                        next: pending => {
-                            pending.remaining -= 1
-                            pending.stack =
-                                pending.stack.push(
-                                    pending.frames[pending.remaining]
-                                )[0]
-                        }
-                    })
-
-                    current.stack = expanded.stack
-                }
-            }
+    const written = loop(0, {
+        while: index => index < chunks.length,
+        next: index => {
+            memory.appendBytes(output, chunks[index])
+            index += 1
         }
     })
-
-    if (ast.count != 0) {
-        memory.appendText(writer, token(Token.Newline))
-    }
 }

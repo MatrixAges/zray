@@ -4,11 +4,11 @@ import memory from "memory"
 import writeRange from "./destination_window"
 import expressions from "./expressions"
 
-import type { Work } from "./workflow"
+import type { Patch, Work } from "./workflow"
 
 export type Input = Work
 
-export type Output = bool
+export type Output = Patch?
 
 export default function (in: Input): Output {
     const { data, row } = in
@@ -18,62 +18,65 @@ export default function (in: Input): Output {
     const evaluation_first = data.object_evaluation_first[row]
     const evaluation_count = data.object_evaluation_count[row]
 
-    const { header, members } = in.allocation
-
-    const evaluation_columns = in.allocation.evaluation
-
     const fields = expressions({
         source: data.object_field_values,
         first,
         count,
-        mapping: in.mapping,
-        target: memory.columnRangeU32Tail(members, 1, null)
+        mapping: in.mapping
     })
 
-    if (!fields) {
-        return false
+    if (fields == null) {
+        return null
     }
 
     const evaluation = expressions({
         source: data.object_evaluation_values,
         first: evaluation_first,
         count: evaluation_count,
-        mapping: in.mapping,
-        target: memory.columnRangeU32Tail(evaluation_columns, 0, null)
+        mapping: in.mapping
     })
 
-    if (!evaluation) {
-        return false
+    if (evaluation == null) {
+        return null
     }
 
     const field_count = integers.widen(count)
 
-    if (field_count != 0) {
-        const start = integers.widen(first)
-        const end = start + field_count
-
-        memory.copyU32Range(
-            memory.columnRangeU32Tail(members, 0, null),
-            0,
-            data.object_field_indices,
-            start,
-            end
-        )
+    const indices = match {
+        field_count == 0 => [],
+        _ =>
+            memory.borrowU32Range(
+                data.object_field_indices,
+                integers.widen(first),
+                field_count
+            )
     }
 
-    writeRange({
-        header,
-        slot: 0,
-        members: members,
-        count: field_count
+    const evaluation_window = writeRange({
+        first: in.evaluation_first,
+        count: evaluation_count
     })
 
-    writeRange({
-        header,
-        slot: 2,
-        members: evaluation_columns,
-        count: integers.widen(evaluation_count)
+    const window = writeRange({
+        first: in.members_first,
+        count
     })
 
-    return true
+    return {
+        header: [
+            window.first,
+            window.count,
+            evaluation_window.first,
+            evaluation_window.count
+        ],
+        members: [
+            {
+                words: indices
+            },
+            {
+                words: fields
+            }
+        ],
+        evaluation
+    }
 }

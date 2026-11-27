@@ -66,8 +66,9 @@ pub fn load(self: *Self, allocator: std.mem.Allocator, entry: Native, current: C
 
         var buffer: [256]u8 = undefined;
         var scratch = std.heap.FixedBufferAllocator.init(&buffer);
+        const plan = generated.executeIn(scratch.allocator(), &input) catch |err| return @import("../project/execution/invoke.zig").errorSet(err);
 
-        generated.executeIn(scratch.allocator(), &input) catch |err| return @import("../project/execution/invoke.zig").errorSet(err);
+        if (plan) |prepared| entries.commitPrepared(&request.slot, prepared);
     } else {
         try seed(&request);
     }

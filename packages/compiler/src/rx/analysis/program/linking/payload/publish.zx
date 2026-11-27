@@ -1,7 +1,6 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
 import { ExpressionKind } from "core/expression_table/kinds"
-import memory from "memory"
 
 import {
     collection,
@@ -14,7 +13,7 @@ import {
 } from "./const"
 import literal from "./literal"
 
-import type { Input as Request, Output as Progress } from "./model"
+import type { Input as Request, Output as Progress, Patch } from "./model"
 
 export type Input = Request
 
@@ -23,11 +22,18 @@ export type Output = Progress
 export default function (in: Input): Output {
     const columns = in.columns
 
-    return loop({
+    const writes: Patch[] = []
+    const row: u32 = 0
+    const kind: u8 = 0
+
+    const progress = loop({
         next: in.first,
-        pending: 0
+        pending: false,
+        row,
+        kind,
+        writes
     }, {
-        while: state => state.next < columns.rows.length && state.pending < columns.limit,
+        while: state => state.next < columns.rows.length && !state.pending,
         next: state => {
             const row = state.next
             const target = columns.rows[row]
@@ -53,19 +59,14 @@ export default function (in: Input): Output {
                         _ => fixed
                     }
 
-                    memory.writeU8(columns.pending_kinds, state.pending, route)
-                    memory.writeU32(
-                        columns.pending_rows,
-                        state.pending,
-                        integers.narrow(row)
-                    )
-                    state.pending += 1
+                    state.pending = true
+                    state.row = integers.narrow(row)
+                    state.kind = route
                 } else {
-                    memory.writeU32(
-                        columns.target,
-                        integers.widen(target) - columns.base,
-                        integers.narrow(ready)
-                    )
+                    state.writes = state.writes.push({
+                        index: integers.widen(target) - columns.base,
+                        value: integers.narrow(ready)
+                    })[0]
                 }
             }
 
@@ -73,4 +74,14 @@ export default function (in: Input): Output {
         },
         return: state => state
     })
+
+    const next: u64? = match {
+        progress.next < columns.rows.length => progress.next,
+        _ => null
+    }
+
+    return {
+        ...progress,
+        next
+    }
 }

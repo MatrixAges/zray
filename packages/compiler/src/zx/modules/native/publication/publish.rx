@@ -3,7 +3,6 @@
 
     <Args in={Native.Input} out={Native.Output} />
 
-    <Call fn="reserve" in={$in} />
     <Call fn="owner" in={$in.owner} />
 
     <Call
@@ -14,5 +13,10 @@
         }}
     />
 
-    <Return value={$ctx.owner.namespace} />
+    <Return
+        value={{
+            ...$ctx.batch,
+            namespace: $ctx.owner.namespace
+        }}
+    />
 </Module>

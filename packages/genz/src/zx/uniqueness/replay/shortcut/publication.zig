@@ -1,75 +1,39 @@
 const std = @import("std");
 const zx = @import("zx");
-const memory = zx.memory;
 const Trace = @import("../../trace.zig");
-const Plan = @import("../../function.zig").Plan;
-const Planned = @import("../../memo.zig").Planned;
+const Function = @import("../../function.zig");
 const PlanWriter = @import("../../program/visit/plan_writer.zig");
 const Replacement = @import("../shortcut.zig").Replacement;
 const Reads = @import("../ordered/columns.zig").Planned;
 const publishing = @import("generated_uniqueness_shortcut_publish");
 const Input = std.meta.Child(publishing.Input);
-const Plans = std.meta.Child(@FieldType(Input, "plans"));
 
 pub fn apply(allocator: std.mem.Allocator, trace: *Trace, replay: *const Trace.Replay, replacements: []const Replacement, output: *PlanWriter) std.mem.Allocator.Error!void {
     const recorded = Reads.init(&.{"value"}, trace.planned.entries);
     const replacement = Reads.init(&.{"value"}, replacements);
-    const View = std.meta.Child(@FieldType(Plans, "recorded"));
-    var functions = Writes.init(output.rows);
-    var entry = Writes.init(@as(*[1]Plan, @ptrCast(&output.entry)));
-    const positions = memory.borrowReadColumn(u32, "visit", replacements);
-    const values = memory.borrowReadColumn(Planned, "value", replacements);
-    var records = memory.borrowWriteColumn(Planned, "value", trace.planned.entries);
-    var identities = std.mem.sliceAsBytes(trace.identities);
+    const View = std.meta.Child(@FieldType(Input, "recorded"));
+    var scratch = std.heap.ArenaAllocator.init(allocator);
+
+    defer scratch.deinit();
 
     const input: Input = .{
-        .plans = &.{
-            .planned = trace.planned.starts,
-            .changed = replay.changed,
-            .recorded = &recorded.view(View),
-            .replacements = &replacement.view(View),
-            .functions = &functions.view(),
-            .entry = &entry.view(),
-        },
-        .commit = &.{
-            .count = replacements.len,
-            .width = @sizeOf(Planned),
-            .positions = @ptrCast(&positions),
-            .values = @ptrCast(&values),
-            .records = @ptrCast(&records),
-            .old_identities = @ptrCast(&identities),
-            .identities = std.mem.sliceAsBytes(replay.identities),
-        },
+        .planned = trace.planned.starts,
+        .changed = replay.changed,
+        .recorded = &recorded.view(View),
+        .replacements = &replacement.view(View),
     };
 
-    zx.columns.invoke(publishing.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
+    const result = zx.columns.invoke(publishing.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
+
+    for (result.functions) |update| output.rows[@intCast(update.body)] = try Function.Plan.fromColumns(update.value).copy(allocator);
+    if (result.entry) |entry| output.entry = try Function.Plan.fromColumns(entry).copy(allocator);
+
+    for (replacements) |replacement_row| {
+        trace.planned.entries[replacement_row.visit].value = replacement_row.value;
+    }
+
+    @memcpy(trace.identities, replay.identities);
 }
-
-const Writes = struct {
-    flags: memory.WriteColumn,
-    keys: memory.WriteColumn,
-    paths: memory.WriteColumn,
-    transfers: memory.WriteColumn,
-    slot_first: memory.WriteColumn,
-    const View = std.meta.Child(@FieldType(Plans, "functions"));
-
-    fn init(rows: []Plan) Writes {
-        return .{
-            .flags = memory.borrowWriteColumn([]const u8, "flags", rows),
-            .keys = memory.borrowNestedWriteColumn([]const u64, &.{ "renewals", "keys" }, rows),
-            .paths = memory.borrowNestedWriteColumn([]const []const u32, &.{ "renewals", "paths" }, rows),
-            .transfers = memory.borrowWriteColumn([]const u64, "transfers", rows),
-            .slot_first = memory.borrowWriteColumn([]const u32, "slot_first", rows),
-        };
-    }
-    fn view(self: *Writes) View {
-        var result: View = undefined;
-
-        inline for (@typeInfo(View).@"struct".field_names) |name| @field(result, name) = @ptrCast(&@field(self, name));
-
-        return result;
-    }
-};

@@ -10,9 +10,7 @@ const headers = @import("headers.zig");
 const operands = @import("operands/host.zig");
 const abi = @import("abi.zig");
 const Plan = std.meta.Child(@FieldType(abi.Request, "plan"));
-const Header = std.meta.Child(@FieldType(abi.Request, "headers"));
 const Error = Builder.Error;
-const batch_size = 16;
 
 pub const State = struct {
     builder: *Builder,
@@ -24,13 +22,7 @@ pub const State = struct {
     literals: literal_link.Frame = .{},
     operands: operands.Frame = .{},
     payload: abi.Payload = undefined,
-    header: Header = undefined,
-    pending_rows: [batch_size]u32 = undefined,
-    pending_kinds: [batch_size]u8 = undefined,
-    row_view: []u32 = undefined,
-    kind_view: []u8 = undefined,
     target_payloads: []u32 = undefined,
-    header_views: [4][]u8 = undefined,
     pub fn borrow(handle: *anyopaque) *State {
         return @ptrCast(@alignCast(handle));
     }
@@ -38,8 +30,6 @@ pub const State = struct {
 
 pub fn run(builder: *Builder, program: *const ir.Program, block: ir.Block, borrow_text: bool, allocator: std.mem.Allocator) Error!ir.ExprId {
     var state: State = .{ .builder = builder, .program = program, .borrow_text = borrow_text };
-    const slots = headers.lengthSlots(&builder.expressions);
-    const lengths: zx.memory.ColumnLengths = &slots;
     const target = builder.symbols.view();
     const table = &program.expressions;
     const control = block.control;
@@ -48,7 +38,7 @@ pub fn run(builder: *Builder, program: *const ir.Program, block: ir.Block, borro
 
     state.operands.initialize(&state);
 
-    const input: abi.Request = .{
+    var input: abi.Request = .{
         .frame = @ptrCast(&state),
         .plan = &.{
             .body = &.{
@@ -78,18 +68,46 @@ pub fn run(builder: *Builder, program: *const ir.Program, block: ir.Block, borro
         .literals = &state.literals.input,
         .payload = &state.payload,
         .operands = &state.operands.input,
-        .headers = &state.header,
-        .lengths = @ptrCast(&lengths),
+        .first = null,
     };
 
-    const result = abi.entry.executeValue(allocator, &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.Overflow, error.IntegerOverflow => return if (state.planning) error.OutOfMemory else error.InvalidModule,
-        error.IndexOutOfBounds, error.InvalidModule => return error.InvalidModule,
+    const initial = (try execute(&state, allocator, &input)).initial.?;
+
+    if (initial.symbols) |rows| try state.symbols.commit(builder, rows);
+    if (initial.literals) |rows| try state.literals.commit(builder, rows);
+
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+
+    defer arena.deinit();
+
+    var bytes: [4096]u8 = undefined;
+
+    input.first = initial.first;
+
+    while (input.first != null) {
+        var scratch = std.heap.BufferFirstAllocator.init(&bytes, arena.allocator());
+        const step = (try execute(&state, scratch.allocator(), &input)).step.?;
+
+        for (step.writes) |write| state.target_payloads[write.index] = write.value;
+        if (step.patch) |patch| try state.operands.commit(builder, patch);
+        if (step.operand) |operand| state.target_payloads[operand.index] = operand.value;
+
+        input.first = step.next;
+        _ = arena.reset(.retain_capacity);
+    }
+
+    headers.commit(&builder.expressions, table, initial.ranges, @intCast(initial.count));
+
+    return @fromBackingInt(initial.returned);
+}
+
+fn execute(state: *const State, allocator: std.mem.Allocator, input: *const abi.Request) Error!abi.Output {
+    return zx.columns.invoke(abi.entry.executeValue, allocator, input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory => error.OutOfMemory,
+        error.Overflow, error.IntegerOverflow => if (state.planning) error.OutOfMemory else error.InvalidModule,
+        error.IndexOutOfBounds, error.InvalidModule => error.InvalidModule,
         else => unreachable,
     };
-
-    return @fromBackingInt(result);
 }
 
 pub fn reserveExpressionLink(handle: *anyopaque, returned: ?u32, rows: []const u32, bindings: []const u32, count: u64) Error!u32 {
@@ -114,11 +132,7 @@ pub fn reserveExpressionLink(handle: *anyopaque, returned: ?u32, rows: []const u
         .expressions = rows,
     };
 
-    state.row_view = &state.pending_rows;
-    state.kind_view = &state.pending_kinds;
-    const tail = headers.Tail.init(storage, length);
-
-    state.target_payloads = tail.payloads;
+    state.target_payloads = storage.payloads.unusedCapacitySlice()[0..length];
 
     state.payload = .{
         .kinds = zx.columns.slice(@FieldType(abi.Payload, "kinds"), source.kinds),
@@ -126,31 +140,6 @@ pub fn reserveExpressionLink(handle: *anyopaque, returned: ?u32, rows: []const u
         .rows = rows,
         .literals = &state.literals.bases,
         .base = base,
-        .limit = batch_size,
-        .target = @ptrCast(&state.target_payloads),
-        .pending_rows = @ptrCast(&state.row_view),
-        .pending_kinds = @ptrCast(&state.kind_view),
-    };
-
-    state.header_views = .{
-        tail.kinds,
-        std.mem.sliceAsBytes(tail.types),
-        std.mem.sliceAsBytes(tail.starts),
-        std.mem.sliceAsBytes(tail.ends),
-    };
-
-    state.header = .{
-        .rows = rows,
-        .kinds = std.mem.sliceAsBytes(source.kinds),
-        .types = std.mem.sliceAsBytes(source.types),
-        .starts = std.mem.sliceAsBytes(source.span_start),
-        .ends = std.mem.sliceAsBytes(source.span_end),
-        .target_kinds = @ptrCast(&state.header_views[0]),
-        .target_types = @ptrCast(&state.header_views[1]),
-        .target_starts = @ptrCast(&state.header_views[2]),
-        .target_ends = @ptrCast(&state.header_views[3]),
-        .type_width = @sizeOf(u32),
-        .span_width = @sizeOf(u64),
     };
 
     return result;

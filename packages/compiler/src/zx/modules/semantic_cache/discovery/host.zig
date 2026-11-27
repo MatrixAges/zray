@@ -35,8 +35,6 @@ pub fn prefetch(header: anytype, path: []const u8, project: *const Options, call
     const internal = columns("module", project.internal_modules);
     var scope: @TypeOf(standard) = undefined;
     var scope_view: Registry = undefined;
-    var keys: [2 * batch_size][]const u8 = undefined;
-    var output: [][]const u8 = &keys;
     var batch: Batch = .{ .paths = &paths, .first = 0, .count = 0 };
 
     var request: Input = .{
@@ -45,16 +43,18 @@ pub fn prefetch(header: anytype, path: []const u8, project: *const Options, call
         .standard = &registryView(Registry, &standard),
         .scoped = null,
         .internal = &registryView(Registry, &internal),
-        .output = @ptrCast(&output),
     };
 
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    var scratch = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+
+    defer scratch.deinit();
 
     while (batch.first < total) {
         batch.count = @min(batch_size, total - batch.first);
-        const scanned = zx.columns.invoke(rule.executeValue, scratch.allocator(), @as(*const Input, &request)) catch unreachable;
 
-        const count = if (scanned.needs_scope) |mask| resolved: {
+        const scanned = try zx.columns.invoke(rule.executeValue, scratch.allocator(), @as(*const Input, &request));
+
+        const keys = if (scanned.needs_scope) |mask| resolved: {
             const interfaces = scopes.nativeInterfaces(project.package_scopes, path, project.native_interfaces);
 
             scope = columns("specifier", interfaces);
@@ -62,15 +62,16 @@ pub fn prefetch(header: anytype, path: []const u8, project: *const Options, call
             request.scoped = &scope_view;
             request.eligible = mask;
 
-            const resumed = zx.columns.invoke(rule.executeValue, scratch.allocator(), @as(*const Input, &request)) catch unreachable;
+            const resumed = try zx.columns.invoke(rule.executeValue, scratch.allocator(), @as(*const Input, &request));
 
             request.eligible = null;
 
-            break :resolved resumed.count;
-        } else scanned.count;
+            break :resolved resumed.keys;
+        } else scanned.keys;
 
-        for (keys[0..@intCast(count)]) |key| try callback.loadNative(key);
+        for (keys) |key| try callback.loadNative(key);
 
+        _ = scratch.reset(.retain_capacity);
         batch.first += batch.count;
     }
 }

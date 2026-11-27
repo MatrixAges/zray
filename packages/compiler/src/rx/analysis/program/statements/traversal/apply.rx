@@ -2,21 +2,25 @@
     <Type from="model" as="Plan" />
     <Type from="workflow" as="Traversal" />
 
-    <Args in={Traversal.Write} out={void} />
+    <Args in={Traversal.Write} out={Traversal.Step} />
 
     <Switch on={$in.event.action}>
         <Case value={Plan.Action.Calls}>
             <Call
-                module="calls/run"
+                module="calls/step"
                 in={{
                     frame: $in.frame,
                     control: $in.control,
-                    bindings: $in.scopes.active,
                     indices: $in.call_ids,
                     first: $in.event.first,
-                    count: $in.event.count,
-                    offset: 0,
-                    published: 0
+                    offset: $in.offset
+                }}
+            />
+
+            <Return
+                value={{
+                    effect: $ctx.step,
+                    offset: $in.offset + 1 < $in.event.count ? $in.offset + 1 : null
                 }}
             />
         </Case>
@@ -24,30 +28,42 @@
         <Case value={Plan.Action.Parallel}>
             <Call fn="../../control/write/parallel_start" in={$in.control.writer} />
 
-            <Call
-                module="calls/run"
-                in={{
-                    frame: $in.frame,
-                    control: $in.control,
-                    bindings: $in.scopes.active,
-                    indices: $in.call_ids,
-                    first: $in.event.first,
-                    count: $in.event.count,
-                    offset: 0,
-                    parallel_first: $ctx.parallel_start,
-                    published: 0
-                }}
-            />
+            <If on={$in.offset < $in.event.count}>
+                <Call
+                    module="calls/step"
+                    in={{
+                        frame: $in.frame,
+                        control: $in.control,
+                        indices: $in.call_ids,
+                        first: $in.event.first,
+                        offset: $in.offset,
+                        parallel_first: $ctx.parallel_start
+                    }}
+                />
+
+                <Return
+                    value={{
+                        effect: $ctx.step,
+                        offset: $in.offset + 1
+                    }}
+                />
+            </If>
 
             <Call
                 module="../../control/write/publish_parallel"
                 in={{
-                    resource: $in.control.resource,
-                    bindings: $in.control.bindings,
                     writer: $in.control.writer,
                     first: $ctx.parallel_start,
-                    count: $in.event.count,
-                    published: $ctx.run
+                    count: $in.event.count
+                }}
+            />
+
+            <Return
+                value={{
+                    effect: {
+                        statement: $ctx.publish_parallel.statement,
+                        bindings: $ctx.publish_parallel.bindings
+                    }
                 }}
             />
         </Case>
@@ -69,6 +85,14 @@
                     value: $ctx.evaluateBodyValue
                 }}
             />
+
+            <Return
+                value={{
+                    effect: {
+                        statement: $ctx.result
+                    }
+                }}
+            />
         </Case>
 
         <Case value={Plan.Action.ReturnBorrowed}>
@@ -88,15 +112,31 @@
                     value: $ctx.evaluateBodyValue
                 }}
             />
+
+            <Return
+                value={{
+                    effect: {
+                        statement: $ctx.result
+                    }
+                }}
+            />
         </Case>
 
         <Case value={Plan.Action.OpenTask}>
             <Call
                 fn="scope_save"
                 in={{
-                    scopes: $in.scopes,
+                    active: $in.scopes.active,
                     slot: $in.event.slot,
                     value: null
+                }}
+            />
+
+            <Return
+                value={{
+                    effect: {
+                        scope: $ctx.scope_save
+                    }
                 }}
             />
         </Case>
@@ -114,9 +154,17 @@
             <Call
                 fn="scope_save"
                 in={{
-                    scopes: $in.scopes,
+                    active: $in.scopes.active,
                     slot: $in.event.slot,
                     value: $ctx.evaluateBodyValue
+                }}
+            />
+
+            <Return
+                value={{
+                    effect: {
+                        scope: $ctx.scope_save
+                    }
                 }}
             />
         </Case>
@@ -133,13 +181,21 @@
             <Call
                 fn="scope_save"
                 in={{
-                    scopes: $in.scopes,
+                    active: $in.scopes.active,
                     slot: $in.event.slot,
                     value: $ctx.evaluateBodyCaseLabel
                 }}
             />
 
             <Call fn="host.initializeBodyCase" in={$in.frame} />
+
+            <Return
+                value={{
+                    effect: {
+                        scope: $ctx.scope_save
+                    }
+                }}
+            />
         </Case>
 
         <Case value={Plan.Action.CloseTask}>
@@ -148,6 +204,14 @@
                 in={{
                     scopes: $in.scopes,
                     slot: $in.event.slot
+                }}
+            />
+
+            <Return
+                value={{
+                    effect: {
+                        restore: $ctx.scope_restore
+                    }
                 }}
             />
         </Case>
@@ -162,6 +226,12 @@
                     "event"
                 ])}
             />
+
+            <Return
+                value={{
+                    effect: $ctx.finish_task
+                }}
+            />
         </Case>
 
         <Case value={Plan.Action.BindTask}>
@@ -173,6 +243,12 @@
                     "scopes",
                     "event"
                 ])}
+            />
+
+            <Return
+                value={{
+                    effect: $ctx.finish_task
+                }}
             />
         </Case>
 
@@ -196,10 +272,24 @@
                     }}
                 />
 
+                <Return
+                    value={{
+                        effect: {
+                            statement: $ctx.selection
+                        }
+                    }}
+                />
+
                 <Else>
                     <Call fn="host.requireBodyBlock" in={false} />
                 </Else>
             </If>
+
+            <Return
+                value={{
+                    effect: {}
+                }}
+            />
         </Case>
 
         <Case value={Plan.Action.CloseCase}>
@@ -229,6 +319,21 @@
                     slot: $in.event.slot
                 }}
             />
+
+            <Return
+                value={{
+                    effect: {
+                        case_member: $ctx.publish_case,
+                        restore: $ctx.scope_restore
+                    }
+                }}
+            />
         </Case>
     </Switch>
+
+    <Return
+        value={{
+            effect: {}
+        }}
+    />
 </Module>

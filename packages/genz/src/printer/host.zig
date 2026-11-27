@@ -4,7 +4,8 @@ const Storage = @import("../node/storage.zig");
 const view = @import("../node/view.zig");
 const schema = @import("../node/schema.zig");
 const Range = @import("../node/stored.zig").Declarations;
-const generated = @import("generated_printer");
+const generated = @import("generated_printer_module_range");
+const module = @import("module.zig");
 const Input = @typeInfo(generated.Input).pointer.child;
 const Source = schema.Source;
 const selection = @import("generated_printer_selection");
@@ -71,32 +72,33 @@ fn render(
 
         const input: Selection = .{
             .source = zx.columns.pointer(@FieldType(Selection, "source"), &source),
-            .writer = @ptrCast(&output),
             .ranges = if (shape == .scoped) &ranges else null,
             .indices = if (shape == .indices) rows else null,
         };
 
-        const valid = zx.columns.invoke(selection.executeValue, arena.allocator(), &input) catch |err| return failure(err);
+        const result = zx.columns.invoke(selection.executeValue, arena.allocator(), &input) catch |err| return failure(err);
+        const chunks = result orelse if (comptime shape == .indices) return error.InvalidAst else unreachable;
 
-        if (comptime shape == .indices) {
-            if (!valid) return error.InvalidAst;
-        } else {
-            std.debug.assert(valid);
-        }
+        try module.writeChunks(&output, chunks);
     }
 
     return output.finish();
 }
 
 fn write(allocator: std.mem.Allocator, source: *const Source, output: *zx.memory.ByteWriter) std.mem.Allocator.Error!void {
-    const input: Input = .{ .source = source, .output = @ptrCast(output) };
+    const input: Input = .{
+        .source = zx.columns.pointer(@FieldType(Input, "source"), source),
+        .count = source.count,
+    };
 
-    generated.executeIn(allocator, &input) catch |err| return failure(err);
+    const chunks = zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| return failure(err);
+
+    try module.writeChunks(output, chunks orelse unreachable);
 }
 
 fn failure(err: anyerror) std.mem.Allocator.Error {
     return switch (err) {
-        error.OutOfMemory, error.Overflow => error.OutOfMemory,
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => error.OutOfMemory,
         else => unreachable,
     };
 }

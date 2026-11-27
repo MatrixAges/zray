@@ -22,7 +22,7 @@
     <Return
         value={$ctx.next.pick([
             "cursor",
-            "count",
+            "replacements",
             "cleared"
         ])}
     />

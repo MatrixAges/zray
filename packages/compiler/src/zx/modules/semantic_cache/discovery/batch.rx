@@ -14,7 +14,7 @@
     <If on={$ctx.eligible != 0 && $in.scoped == null}>
         <Return
             value={{
-                count: 0,
+                keys: [],
                 needs_scope: $ctx.eligible
             }}
         />
@@ -23,7 +23,7 @@
     <If on={$ctx.eligible == 0 && $in.internal.length == 0}>
         <Return
             value={{
-                count: 0,
+                keys: [],
                 needs_scope: null
             }}
         />
@@ -39,7 +39,7 @@
 
     <Return
         value={{
-            count: $ctx.scan,
+            keys: $ctx.scan,
             needs_scope: null
         }}
     />

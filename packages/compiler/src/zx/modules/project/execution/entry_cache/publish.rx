@@ -44,6 +44,26 @@
                     slot: $ctx.projectCacheSlot
                 }}
             />
+
+            <If on={$ctx.install.replacement != null}>
+                <Call
+                    fn="index.replaceCacheSlot"
+                    in={[
+                        $ctx.projectCacheSlot,
+                        $ctx.install.replacement
+                    ]}
+                />
+
+                <Else>
+                    <Call
+                        fn="index.appendCacheSlot"
+                        in={[
+                            $ctx.projectCacheSlot,
+                            $ctx.install.bucket
+                        ]}
+                    />
+                </Else>
+            </If>
         </Case>
 
         <Case value={Cache.CacheWrite.MissingOrigin}>

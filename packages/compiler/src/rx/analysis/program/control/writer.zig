@@ -111,8 +111,7 @@ pub fn finishCase(self: *Self, cursor: *const Cursor, block: u32, end: *const Co
     const value = if (label) |id| @backingInt(id) else null;
     const body = try self.finishBlock(cursor, block, end);
 
-    self.columns.case_values.items[position] = value;
-    self.columns.case_bodies.items[position] = @backingInt(body);
+    self.commitCase(position, @backingInt(body), value);
 }
 
 fn member(index: usize, optional: *const []?u32, required: *const []u32, optional_id: ?u32, required_id: u32) void {
@@ -133,6 +132,44 @@ pub fn selection(self: *Self, cursor: *Cursor, subject: ir.ExprId, count: usize,
     cursor.counts.cases += @intCast(count);
     cursor.counts.selections += 1;
     cursor.statement += 1;
+}
+
+pub fn commit(self: *Self, cursor: *Cursor, statement: anytype) void {
+    const header = statement.header;
+    const kind: Kind = @fromBackingInt(@backingInt(header.kind));
+    const row = header.row;
+
+    switch (kind) {
+        .Evaluate => self.columns.evaluations.items[row] = statement.value.?,
+        .Constant => {
+            self.columns.constant_values.items[row] = statement.value.?;
+            self.columns.constant_symbols.items[row] = statement.symbol.?;
+        },
+        .Result => self.columns.results.items[row] = statement.value,
+        .Parallel => {
+            self.columns.parallel_first.items[row] = statement.first.?;
+            self.columns.parallel_count.items[row] = statement.count.?;
+        },
+        .Switch => {
+            self.columns.selection_subjects.items[row] = statement.value.?;
+            self.columns.selection_first.items[row] = statement.first.?;
+            self.columns.selection_count.items[row] = statement.count.?;
+            self.columns.selection_exhaustive.items[row] = statement.exhaustive.?;
+        },
+        else => unreachable,
+    }
+
+    self.seedHeader(header.statement, kind, row);
+
+    cursor.statement = header.next_statement;
+
+    cursor.cells()[header.lane] = header.next_row;
+
+    if (statement.member_lane) |lane| cursor.cells()[lane] = statement.next_member.?;
+}
+
+pub fn commitCase(self: *Self, position: u32, block: u32, label: ?u32) void {
+    member(position, &self.columns.case_values.items, &self.columns.case_bodies.items, label, block);
 }
 
 fn seedHeader(self: *Self, statement: u32, kind: Kind, payload: u32) void {

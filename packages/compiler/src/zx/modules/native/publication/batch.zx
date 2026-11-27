@@ -1,20 +1,23 @@
-import { writeFunction } from "core/column_set"
-
 import complete from "../../link/signature/publication/function_row"
 import signature from "../../link/signature/publication/signature_row"
 import bind from "./binding"
 import own from "./record"
 import read from "./row"
 
-import type { Input } from "./model"
-
-export type Output = void
+import type { FunctionRow } from "memory/columns"
+import type { Output as Binding } from "./binding"
+import type { Batch as Output, Input } from "./model"
 
 export default function (in: Input): Output {
-    const { rows, owner, empty, members, first, destination } = in
+    const { rows, owner, empty, first } = in
 
-    const written = loop({
-        row: 0
+    const functions: FunctionRow[] = []
+    const members: Binding[] = []
+
+    return loop({
+        row: 0,
+        functions,
+        members
     }, {
         while: state => state.row < rows.count,
         next: state => {
@@ -36,14 +39,7 @@ export default function (in: Input): Output {
                 empty
             })
 
-            writeFunction({
-                storage: destination.storage,
-                row: value,
-                index: row
-            })
-
-            bind({
-                target: members,
+            const member = bind({
                 row,
                 first,
                 name: record.name,
@@ -51,7 +47,13 @@ export default function (in: Input): Output {
                 output: source.output
             })
 
+            state.functions = state.functions.push(value)[0]
+            state.members = state.members.push(member)[0]
             state.row += 1
-        }
+        },
+        return: state => ({
+            functions: state.functions,
+            members: state.members
+        })
     })
 }

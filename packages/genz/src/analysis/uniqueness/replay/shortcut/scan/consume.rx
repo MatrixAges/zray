@@ -22,7 +22,7 @@
     <Return
         value={{
             agreed: $ctx.compare,
-            count: $in.count
+            replacements: $in.replacements
         }}
     />
 </Module>

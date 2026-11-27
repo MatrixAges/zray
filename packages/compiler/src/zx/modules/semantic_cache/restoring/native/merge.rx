@@ -7,15 +7,6 @@
     <Args in={Restore.Preparation} out={Failed.Output} />
 
     <Call
-        fn="reserve"
-        in={{
-            ...$in.mapping,
-            type_count: $in.validation.types.kinds.length,
-            member_count: $in.validation.request.signatures.files.length
-        }}
-    />
-
-    <Call
         fn="../../../compiled/loading/type_base"
         in={{
             table: $in.base,
@@ -31,7 +22,7 @@
             names: $in.origin_names,
             base: $ctx.type_base,
             base_origins: $in.base_origins,
-            mapping: $in.mapping.types
+            mapping: $in.mapping
         }}
     />
 
@@ -43,9 +34,7 @@
                     "input_types",
                     "output_types"
                 ]),
-                mapping: $ctx.reserve,
-                inputs: $in.mapping.inputs,
-                outputs: $in.mapping.outputs
+                types: $in.type_ids
             }}
         />
 
@@ -63,7 +52,8 @@
                 status: Result.Status.Ready,
                 value: {
                     types: $ctx.type_delta,
-                    origins: $ctx.types.origins
+                    origins: $ctx.types.origins,
+                    mapping: $ctx.ports
                 }
             }}
         />

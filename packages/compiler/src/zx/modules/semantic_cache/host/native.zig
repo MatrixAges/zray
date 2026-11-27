@@ -20,10 +20,11 @@ pub fn restore(allocator: std.mem.Allocator, artifact: *const Artifact.Module, e
     var input: Input = undefined;
     var target: Target = undefined;
     const temp = scratch.allocator();
+    const type_ids = try temp.alloc(u32, artifact.types.count());
 
-    target.init(allocator, artifact, current);
-    input.init(artifact, entry, current, admitted);
-    errdefer target.release(allocator);
+    target.init(allocator, current);
+    input.init(artifact, entry, current, admitted, type_ids);
+    errdefer target.tail.release();
 
     const prepared = generated.executeIn(temp, &input.input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
@@ -37,25 +38,23 @@ pub fn restore(allocator: std.mem.Allocator, artifact: *const Artifact.Module, e
     const publish_input: PublishInput = .{
         .types = try zx.columns.bridge(@FieldType(PublishInput, "types"), temp, value.types),
         .origins = try zx.columns.bridge(@FieldType(PublishInput, "origins"), temp, value.origins),
-        .mapping = try zx.columns.bridge(@FieldType(PublishInput, "mapping"), temp, &input.mapping),
+        .mapping = try zx.columns.bridge(@FieldType(PublishInput, "mapping"), temp, value.mapping),
         .signatures = try zx.columns.bridge(@FieldType(PublishInput, "signatures"), temp, &input.signatures),
         .exported = try zx.columns.bridge(@FieldType(PublishInput, "exported"), temp, &input.exports),
         .namespace = entry.namespace,
-        .target = &target.input,
+        .destination = zx.columns.pointer(@FieldType(PublishInput, "destination"), @as(*const @TypeOf(target.tail.target), &target.tail.target)),
+        .members = &target.members,
+        .module = @backingInt(current.module),
     };
 
-    const status = publishing.executeIn(allocator, &publish_input) catch |err| switch (@as(anyerror, err)) {
+    const published = publishing.executeIn(allocator, &publish_input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
 
-    try mapStatus(status);
+    try mapStatus(published.status);
 
-    return .{
-        .types = current.types.view(),
-        .exports = @ptrCast(target.exports),
-        .members = target.functions.members(),
-    };
+    return target.commit(allocator, current, published.installation orelse unreachable);
 }
 
 fn mapStatus(status: anytype) restoring.Error!void {

@@ -1,16 +1,14 @@
 import type { Modules } from "core/native_module_table/model"
 import type { Table as Types } from "core/type_table/model"
 import type { Bindings as Origins } from "core/type_table/nominal"
-import type { Allocator, ColumnRanges, NamedRowBuffer } from "memory"
-import type { ColumnSet, RowBuffer } from "memory/columns"
 import type {
     Target as TypeTail
 } from "../../../analysis/semantic/merging/publication/model"
 import type { Diagnostic } from "../../../frontend/lexer/model"
-import type { Target as MemberRows } from "../../artifact/surface/bindings"
 import type { Export } from "../../native/interface/exports"
 import type { Member } from "../../native/interface/members"
 import type { Declaration } from "../restoring/native/model"
+import type { Output as PublishedMembers } from "./publish_members"
 
 export type Request = {
     key: string
@@ -41,24 +39,16 @@ export type OwnedOrigins = Origins & {
     names: string[]
 }
 
-export type Targets = {
-    payload: Allocator,
-    types: TypeTail,
-    signature_target: ColumnSet,
-    signature_ranges: ColumnRanges,
-    binding_target: MemberRows,
-    binding_storage: RowBuffer,
-    export_target: NamedRowBuffer
-}
-
 export type Publish = Artifact & {
     declaration: Declaration,
     key: string,
-    targets: Targets
+    target: TypeTail
 }
 
 export type Published = {
     path: string,
     origins: OwnedOrigins,
-    modules: Modules
+    modules: Modules,
+    exports: Surface,
+    members: PublishedMembers
 }

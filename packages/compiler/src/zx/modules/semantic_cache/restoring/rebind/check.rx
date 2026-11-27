@@ -13,23 +13,21 @@
         />
     </If>
 
-    <If on={$in.modules.previous.specifiers.length != 0}>
-        <Call fn="../modules" in={$in.modules} />
+    <Call fn="../modules" in={$in.modules} />
 
-        <If on={!$ctx.modules}>
-            <Return
-                value={{
-                    status: Rebind.Status.Invalid
-                }}
-            />
-        </If>
+    <If on={$ctx.modules == null}>
+        <Return
+            value={{
+                status: Rebind.Status.Invalid
+            }}
+        />
     </If>
 
     <Task name="imports" out={$ctx.bindings}>
         <Call module="../functions/bindings" in={$in.bindings} />
     </Task>
 
-    <If on={!$ctx.task.imports}>
+    <If on={$ctx.task.imports == null}>
         <Return
             value={{
                 status: Rebind.Status.Invalid
@@ -37,9 +35,15 @@
         />
     </If>
 
-    <Call module="../functions/bindings" in={$in.members} />
+    <Call
+        module="../functions/bindings"
+        in={{
+            ...$in.members,
+            mapping: $ctx.task.imports ?? []
+        }}
+    />
 
-    <If on={!$ctx.bindings}>
+    <If on={$ctx.bindings == null}>
         <Return
             value={{
                 status: Rebind.Status.Invalid
@@ -47,8 +51,15 @@
         />
     </If>
 
-    <If on={$in.signatures.functions.length != 0}>
-        <Call fn="../functions/signatures" in={$in.signatures} />
+    <If on={$in.signatures.previous.files.length != 0}>
+        <Call
+            fn="../functions/signatures"
+            in={{
+                ...$in.signatures,
+                functions: $ctx.bindings ?? [],
+                modules: $ctx.modules ?? []
+            }}
+        />
 
         <If on={!$ctx.signatures}>
             <Return
@@ -61,5 +72,11 @@
 
     <Call fn="entry" in={$in.entry} />
 
-    <Return value={$ctx.entry} />
+    <Return
+        value={{
+            ...$ctx.entry,
+            functions: $ctx.bindings,
+            modules: $ctx.modules
+        }}
+    />
 </Module>

@@ -1,74 +1,42 @@
 import { max_u32 } from "core/const"
-import memory from "memory"
 
-import type { U8Buffer } from "memory"
+export type Input = u32[]
 
-export type Input = {
-    rows: u32[],
-    kinds: u8[],
-    types: u8[],
-    starts: u8[],
-    ends: u8[],
-    target_kinds: U8Buffer,
-    target_types: U8Buffer,
-    target_starts: U8Buffer,
-    target_ends: U8Buffer,
-    type_width: u64,
-    span_width: u64
+export type Range = {
+    start: u64,
+    end: u64
 }
 
-export type Output = void
+export type Output = Range[]
 
 export default function (in: Input): Output {
-    const written = loop({
-        source: 0,
-        target: 0
+    const ranges: Range[] = []
+
+    return loop({
+        cursor: 0,
+        ranges
     }, {
-        while: state => state.source < in.rows.length,
+        while: state => state.cursor < in.length,
         next: state => {
-            const source = state.source
-            if (in.rows[source] == max_u32) {
-                state.source += 1
+            const start = state.cursor
+
+            if (in[start] == max_u32) {
+                state.cursor += 1
             } else {
-                const end = loop(source + 1, {
-                    while: row => row < in.rows.length && in.rows[row] != max_u32,
+                const end = loop(start + 1, {
+                    while: row => row < in.length && in[row] != max_u32,
                     next: row => {
                         row += 1
                     }
                 })
-                const target = state.target
-                const kinds = memory.copyBytes(
-                    in.target_kinds,
-                    target,
-                    in.kinds,
-                    source,
-                    end
-                )
-                const types = memory.copyBytes(
-                    in.target_types,
-                    target * in.type_width,
-                    in.types,
-                    source * in.type_width,
-                    end * in.type_width
-                )
-                const starts = memory.copyBytes(
-                    in.target_starts,
-                    target * in.span_width,
-                    in.starts,
-                    source * in.span_width,
-                    end * in.span_width
-                )
-                const ends = memory.copyBytes(
-                    in.target_ends,
-                    target * in.span_width,
-                    in.ends,
-                    source * in.span_width,
-                    end * in.span_width
-                )
 
-                state.target += end - source
-                state.source = end
+                state.ranges = state.ranges.push({
+                    start,
+                    end
+                })[0]
+                state.cursor = end
             }
-        }
+        },
+        return: state => state.ranges
     })
 }

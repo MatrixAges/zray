@@ -1,14 +1,13 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
-import memory from "memory"
 
 import { Status } from "./model"
 
-import type { Entry, Result } from "./model"
+import type { Entry, Candidate } from "./model"
 
 export type Input = Entry
 
-export type Output = Result
+export type Output = Candidate
 
 export default function (in: Input): Output {
     if (!in.has_body) {
@@ -24,8 +23,6 @@ export default function (in: Input): Output {
     }
 
     const id = integers.narrow(in.linked_count)
-
-    memory.writeOptionalU32(in.target, in.local_count, id)
 
     return {
         status: Status.Ready,

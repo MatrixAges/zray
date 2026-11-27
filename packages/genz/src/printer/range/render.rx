@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Range" />
 
-    <Args in={Range.Input} out={bool} />
+    <Args in={Range.Input} out={u8[][]?} />
 
     <Call
         fn="count"
@@ -14,18 +14,15 @@
 
     <If on={$ctx.count != null}>
         <Call
-            module="../render"
+            fn="../chunks"
             in={{
-                source: {
-                    ...$in.source,
-                    count: $ctx.count
-                },
-                output: $in.writer
+                ...$in.source,
+                count: $ctx.count
             }}
         />
 
-        <Return value={true} />
+        <Return value={$ctx.chunks} />
     </If>
 
-    <Return value={false} />
+    <Return value={null} />
 </Module>

@@ -1,31 +1,19 @@
-import { restore, truncate } from "core/column_lengths"
-import memory from "memory"
+import type { Output as Saved } from "./snapshot"
 
-import type { Columns } from "./snapshot"
-
-export type Input = Columns & {
-    function_count: u64,
-    origin_count: u64,
-    type_counts: u64[]
+export type Input = Saved & {
+    current_function_count: u64
 }
 
-export type Output = void
+export type Output = Saved.Omit("function_count") & {
+    function_count?: u64
+}
 
 export default function (in: Input): Output {
-    if (in.function_count != memory.readLengthSlot(in.functions, 0)) {
-        truncate({
-            target: in.functions,
-            count: in.function_count
-        })
+    const { function_count, current_function_count, type_counts, origin_count } = in
+
+    return {
+        function_count: function_count == current_function_count ? null : function_count,
+        type_counts,
+        origin_count
     }
-
-    restore({
-        target: in.types,
-        counts: in.type_counts
-    })
-
-    truncate({
-        target: in.origins,
-        count: in.origin_count
-    })
 }

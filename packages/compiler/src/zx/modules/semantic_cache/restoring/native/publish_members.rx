@@ -1,10 +1,17 @@
 <Module>
     <Type from="publish_model" as="Publish" />
+    <Type from="../../../native/publication/model" as="Native" />
 
-    <Args in={Publish.Members} out={Publish.Output} />
+    <Args in={Publish.Members} out={Native.Output} />
 
     <If on={$in.cached.signatures.files.length == 0}>
-        <Return value={null} />
+        <Return
+            value={{
+                functions: [],
+                members: [],
+                namespace: null
+            }}
+        />
     </If>
 
     <Call

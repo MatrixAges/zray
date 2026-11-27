@@ -1,17 +1,18 @@
 <Module>
     <Type from="model" as="Cache" />
 
-    <Args in={Cache.Bindings} out={bool} />
+    <Args in={Cache.Bindings} out={u32?[]?} />
 
     <If on={$in.previous.count != $in.current.count}>
-        <Return value={false} />
+        <Return value={null} />
     </If>
 
     <Loop on={$in.running}>
         <Call
             module="advance_bindings"
             in={{
-                source: $in,
+                source: $in.omit(["mapping"]),
+                mapping: $in.mapping,
                 row: 0,
                 valid: true,
                 running: $in.previous.count != 0
@@ -19,5 +20,9 @@
         />
     </Loop>
 
-    <Return value={$ctx.advance_bindings.valid} />
+    <If on={$ctx.advance_bindings.valid}>
+        <Return value={$ctx.advance_bindings.mapping} />
+    </If>
+
+    <Return value={null} />
 </Module>

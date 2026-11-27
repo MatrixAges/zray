@@ -1,7 +1,8 @@
 <Module>
     <Type from="../workflow" as="Traversal" />
+    <Type from="../../../control/write/parallel_member" as="Member" />
 
-    <Args in={Traversal.ParallelMember} out={bool} />
+    <Args in={Traversal.CallMember} out={Member.Row} />
 
     <Call
         fn="../host.registerBodyCallResult"
@@ -12,15 +13,11 @@
         ]}
     />
 
-    <Call
-        fn="../../../control/write/parallel_member"
-        in={{
-            writer: $in.control.writer,
+    <Return
+        value={{
             position: $in.position,
             symbol: $ctx.registerBodyCallResult,
             value: $in.value
         }}
     />
-
-    <Return value={$ctx.registerBodyCallResult != null} />
 </Module>

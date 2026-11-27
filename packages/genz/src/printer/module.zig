@@ -58,16 +58,23 @@ pub fn write(output: *zx.memory.ByteWriter, workspace: std.mem.Allocator, compti
 
     const input: Input = .{
         .source = &source,
-        .writer = @ptrCast(output),
         .count = if (@hasField(Module, "count")) module.count else null,
     };
 
-    const valid = zx.columns.invoke(generated.executeValue, workspace, &input) catch |err| switch (err) {
+    const chunks = zx.columns.invoke(generated.executeValue, workspace, &input) catch |err| switch (err) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
 
-    if (!valid) return error.OutOfMemory;
+    try writeChunks(output, chunks orelse return error.OutOfMemory);
+}
+
+pub fn writeChunks(output: *zx.memory.ByteWriter, chunks: []const []const u8) std.mem.Allocator.Error!void {
+    var size: usize = 0;
+
+    for (chunks) |chunk| size = std.math.add(usize, size, chunk.len) catch return error.OutOfMemory;
+    try output.buffer.ensureUnusedCapacity(output.allocator, size);
+    for (chunks) |chunk| output.buffer.appendSliceAssumeCapacity(chunk);
 }
 
 fn project(comptime Target: type, sources: anytype) Target {

@@ -1,5 +1,4 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import find from "./find"
 import path from "./path"
@@ -10,15 +9,17 @@ export type Input = Request.Omit("eligible") & {
     eligible: u64
 }
 
-export type Output = u64
+export type Output = string[]
 
 export default function (in: Input): Output {
-    const { batch, eligible, standard, scoped, internal, output } = in
+    const { batch, eligible, standard, scoped, internal } = in
     const { paths, first, count } = batch
 
-    const native_count = loop({
+    const empty: string[] = []
+
+    const native_keys = loop({
         row: 0,
-        count: 0,
+        keys: empty,
         remaining: eligible
     }, {
         while: state => state.remaining != 0,
@@ -42,24 +43,23 @@ export default function (in: Input): Output {
                 }
 
                 if (key != null) {
-                    memory.writeString(output, state.count, key)
-                    state.count += 1
+                    state.keys = state.keys.push(key)[0]
                 }
             }
 
             state.remaining /= 2
             state.row += 1
         },
-        return: state => state.count
+        return: state => state.keys
     })
 
     if (internal.length == 0) {
-        return native_count
+        return native_keys
     }
 
     return loop({
         row: 0,
-        count: native_count
+        keys: native_keys
     }, {
         while: state => state.row < count,
         next: state => {
@@ -74,12 +74,11 @@ export default function (in: Input): Output {
             })
 
             if (key != null) {
-                memory.writeString(output, state.count, key)
-                state.count += 1
+                state.keys = state.keys.push(key)[0]
             }
 
             state.row += 1
         },
-        return: state => state.count
+        return: state => state.keys
     })
 }

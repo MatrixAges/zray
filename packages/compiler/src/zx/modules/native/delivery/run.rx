@@ -13,7 +13,7 @@
     />
 
     <Call
-        module="../../../analysis/semantic/merging/publication/write"
+        module="../../../analysis/semantic/merging/publication/stage"
         in={{
             ...$in.types,
             delta: $in.delta,
@@ -44,7 +44,7 @@
     <Call
         fn="../publication/namespace"
         in={{
-            published: $ctx.members,
+            published: $ctx.members.namespace,
             original: $in.owner.namespace
         }}
     />
@@ -52,7 +52,9 @@
     <Return
         value={{
             ...$ctx.exports,
-            namespace: $ctx.namespace
+            namespace: $ctx.namespace,
+            functions: $ctx.members.functions,
+            members: $ctx.members.members
         }}
     />
 </Module>

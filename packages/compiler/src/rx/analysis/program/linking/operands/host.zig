@@ -1,9 +1,9 @@
 const std = @import("std");
 const zx = @import("zx");
+const Builder = @import("../../builder.zig");
 const State = @import("../host.zig").State;
 const Request = @import("../abi.zig").Request;
 const Work = std.meta.Child(@FieldType(Request, "operands"));
-const Allocation = std.meta.Child(@FieldType(Work, "allocation"));
 const Symbols = std.meta.Child(@FieldType(Work, "symbols"));
 const Column = std.meta.Elem(@FieldType(Work, "slots"));
 const Route = @FieldType(Work, "route");
@@ -38,23 +38,79 @@ const layouts = blk: {
 
 pub const Frame = struct {
     input: Work = undefined,
-    allocation: Allocation = undefined,
     symbols: Symbols = undefined,
-    header: zx.memory.ColumnRangeGroup(7) = .{},
-    members: zx.memory.ColumnRangeGroup(3) = .{},
-    evaluation: zx.memory.ColumnRangeGroup(1) = .{},
+    layout: *const Layout = undefined,
+    member_count: usize = undefined,
+    evaluation_count: usize = undefined,
     pub fn initialize(self: *Frame, state: *State) void {
         self.input = .{
             .frame = @ptrCast(state),
             .data = zx.columns.pointer(@FieldType(Work, "data"), &state.program.expressions),
-            .allocation = &self.allocation,
             .symbols = &self.symbols,
             .mapping = &.{},
             .index = undefined,
             .row = undefined,
+            .payload = undefined,
+            .members_first = undefined,
+            .evaluation_first = undefined,
             .slots = &.{},
             .route = undefined,
         };
+    }
+    pub fn commit(self: *const Frame, builder: *Builder, patch: anytype) Builder.Error!void {
+        const storage = &builder.expressions;
+        const layout = self.layout;
+        const header = layout.header[0..layout.header_len];
+        const members = layout.members[0..layout.members_len];
+
+        for (header) |key| try reserveColumn(storage, builder.allocator, key, 1);
+        for (members) |key| try reserveColumn(storage, builder.allocator, key, self.member_count);
+
+        if (patch.evaluation != null) {
+            try reserveColumn(storage, builder.allocator, .object_evaluation_values, self.evaluation_count);
+        }
+
+        for (header, patch.header) |key, cell| {
+            switch (key) {
+                inline else => |column| {
+                    const target = &@field(storage, @tagName(column));
+                    const Item = std.meta.Elem(@TypeOf(target.items));
+
+                    const value: Item = switch (Item) {
+                        u32 => cell.word.?,
+                        ?u32 => cell.symbol,
+                        bool => cell.byte.? != 0,
+                        else => @fromBackingInt(@as(@typeInfo(Item).@"enum".tag_type, @intCast(cell.byte.?))),
+                    };
+
+                    target.appendAssumeCapacity(value);
+                },
+            }
+        }
+
+        for (members, patch.members) |key, values| {
+            switch (key) {
+                inline else => |column| {
+                    const target = &@field(storage, @tagName(column));
+                    const Item = std.meta.Elem(@TypeOf(target.items));
+
+                    switch (Item) {
+                        u32 => target.appendSliceAssumeCapacity(values.words.?),
+                        ?u32 => target.appendSliceAssumeCapacity(values.symbols.?),
+                        bool => {
+                            const bytes = values.bytes.?;
+
+                            @memcpy(std.mem.sliceAsBytes(target.unusedCapacitySlice()[0..bytes.len]), bytes);
+
+                            target.items.len += bytes.len;
+                        },
+                        else => unreachable,
+                    }
+                },
+            }
+        }
+
+        if (patch.evaluation) |values| storage.object_evaluation_values.appendSliceAssumeCapacity(values);
     }
 };
 
@@ -69,44 +125,30 @@ pub fn bindExpressionOperands(handle: *anyopaque, index: u32, route: Route, coun
 
     if (header.len == 0) return error.InvalidModule;
 
-    frame.header.len = 0;
-    frame.members.len = 0;
-    frame.evaluation.len = 0;
-
-    for (header) |column| bind(&frame.header, storage, column, 1);
-    for (members) |column| bind(&frame.members, storage, column, count);
-    if (route == .Object) bind(&frame.evaluation, storage, .object_evaluation_values, evaluation_count);
-
+    frame.layout = layout;
+    frame.member_count = count;
+    frame.evaluation_count = evaluation_count;
     frame.symbols = @import("../operands.zig").symbolView(Symbols, &state.mapping);
     frame.input.slots = header;
     frame.input.route = route;
     frame.input.index = index;
     frame.input.row = state.program.expressions.payloads[index];
     frame.input.mapping = state.mapping.expressions[0..index];
+    frame.input.payload = @intCast(columnLength(storage, header[0]));
+    frame.input.members_first = if (members.len == 0) 0 else columnLength(storage, members[0]);
+    frame.input.evaluation_first = storage.object_evaluation_values.items.len;
+}
 
-    frame.allocation = .{
-        .resource = @ptrCast(&builder.allocator),
-        .header = @ptrCast(ranges(&frame.header)),
-        .members = @ptrCast(ranges(&frame.members)),
-        .evaluation = @ptrCast(ranges(&frame.evaluation)),
+fn columnLength(storage: *const zx.ir.ExpressionStorage, key: Column) usize {
+    return switch (key) {
+        inline else => |column| @field(storage, @tagName(column)).items.len,
     };
 }
 
-var empty: zx.memory.ColumnRanges = &.{};
-
-fn ranges(group: anytype) *anyopaque {
-    return @ptrCast(group.freeze() orelse &empty);
-}
-
-fn bind(group: anytype, storage: *zx.ir.ExpressionStorage, key: Column, count: usize) void {
-    switch (key) {
-        inline else => |column| {
-            const target = &@field(storage, @tagName(column));
-            const Item = std.meta.Elem(@TypeOf(target.items));
-
-            _ = group.bind(target, count, @typeInfo(Item) == .@"enum" or Item == bool);
-        },
-    }
+fn reserveColumn(storage: *zx.ir.ExpressionStorage, allocator: std.mem.Allocator, key: Column, count: usize) std.mem.Allocator.Error!void {
+    return switch (key) {
+        inline else => |column| storage.reserveColumns(allocator, &.{@tagName(column)}, count),
+    };
 }
 
 pub fn expressionOperandWords(handle: *anyopaque, key: Column) []const u32 {

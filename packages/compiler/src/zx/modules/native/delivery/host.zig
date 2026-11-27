@@ -5,7 +5,7 @@ const Native = @import("../../interface.zig").Native;
 const Loaded = @import("../../native.zig");
 const Origins = @import("../../nominal_origins.zig");
 const Project = @import("../../project.zig").Project;
-const signatures = @import("../../link/signature/publication/host.zig");
+const publication = @import("../publication/host.zig");
 const destination = @import("../../link/signature/publication/destination.zig");
 const TypeTail = @import("../../../analysis/semantic/merging/publication/view.zig");
 const loading = @import("generated_native_interface_load");
@@ -46,10 +46,6 @@ pub fn load(project: *Project, entry: *const Native, module: ir.NativeModuleId, 
 
     errdefer types.release();
 
-    var members: signatures.Stage(Members) = undefined;
-
-    members.init(&allocator, &project.functions);
-
     const input: Input = .{
         .delta = try zx.columns.bridge(@FieldType(Input, "delta"), temp, loaded.delta),
         .origins = try zx.columns.bridge(@FieldType(Input, "origins"), temp, loaded.origins),
@@ -58,9 +54,6 @@ pub fn load(project: *Project, entry: *const Native, module: ir.NativeModuleId, 
         .owner = &.{ .path = entry.path, .namespace = entry.namespace, .module = @backingInt(module) },
         .types = zx.columns.pointer(@FieldType(Input, "types"), @as(*const TypeTail.Target, &types.target)),
         .member_targets = &.{
-            .destination = &members.functions.input,
-            .members = &members.output.view,
-            .member_storage = @ptrCast(&members.output.buffer),
             .first = project.functions.count(),
             .empty = &destination.empty(std.meta.Child(@FieldType(Members, "empty"))),
         },
@@ -71,23 +64,31 @@ pub fn load(project: *Project, entry: *const Native, module: ir.NativeModuleId, 
         else => return fail(project, entry, span, .contract, 0, try std.fmt.allocPrint(temp, "internal compiler error: generated native delivery failed with {s}", .{@errorName(err)})),
     };
 
-    const module_index = @backingInt(module);
-
-    project.native_modules.type_namespaces.items[module_index] = delivered.namespace;
-    project.native_modules.type_names.items[module_index] = delivered.names;
-    project.native_modules.type_ids.items[module_index] = delivered.ids;
-
-    inline for (@typeInfo(ir.FunctionStorage).@"struct".field_names) |name| {
-        @field(project.functions, name).items.len += loaded.members.len;
-    }
-
     const exports = try allocator.alloc(ir.Export, delivered.rows.len);
+
+    errdefer allocator.free(exports);
 
     for (delivered.rows, exports) |row, *slot| {
         slot.* = .{ .name = row.name, .type_id = @fromBackingInt(row.type_id) };
     }
 
-    return .{ .types = project.types.view(), .exports = exports, .members = members.members() };
+    const members = try publication.ownBindings(allocator, delivered.members);
+
+    errdefer allocator.free(members);
+
+    try project.functions.reserve(allocator, delivered.functions.len);
+
+    const module_index = @backingInt(module);
+
+    publication.appendColumnsAssumeCapacity(&project.functions, delivered.functions);
+
+    project.native_modules.type_namespaces.items[module_index] = delivered.namespace;
+    project.native_modules.type_names.items[module_index] = delivered.names;
+    project.native_modules.type_ids.items[module_index] = delivered.ids;
+
+    publication.publishTypes(&types);
+
+    return .{ .types = project.types.view(), .exports = exports, .members = members };
 }
 
 fn fail(project: *Project, entry: *const Native, span: zx.Span, code: @FieldType(zx.Diagnostic, "code"), offset: usize, cause: []const u8) zx.Error {

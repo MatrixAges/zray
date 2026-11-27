@@ -2,40 +2,29 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const missing = @import("../linking.zig").missing;
 
-pub const Tail = struct {
-    kinds: []u8,
-    types: []u32,
-    starts: []u64,
-    ends: []u64,
-    payloads: []u32,
-    pub fn init(storage: *ir.ExpressionStorage, count: usize) Tail {
-        return .{
-            .kinds = std.mem.sliceAsBytes(storage.kinds.unusedCapacitySlice()[0..count]),
-            .types = storage.types.unusedCapacitySlice()[0..count],
-            .starts = storage.span_start.unusedCapacitySlice()[0..count],
-            .ends = storage.span_end.unusedCapacitySlice()[0..count],
-            .payloads = storage.payloads.unusedCapacitySlice()[0..count],
-        };
-    }
-    pub fn view(self: *Tail, comptime Target: type) Target {
-        return .{
-            .kinds = @ptrCast(&self.kinds),
-            .types = @ptrCast(&self.types),
-            .starts = @ptrCast(&self.starts),
-            .ends = @ptrCast(&self.ends),
-            .payloads = @ptrCast(&self.payloads),
-        };
-    }
-};
+pub fn append(storage: *ir.ExpressionStorage, row: anytype) void {
+    const Kind = std.meta.Elem(@FieldType(ir.ExpressionTable, "kinds"));
+
+    storage.kinds.appendAssumeCapacity(@fromBackingInt(@as(@typeInfo(Kind).@"enum".tag_type, @intCast(row.kind))));
+    storage.types.appendAssumeCapacity(row.type_id);
+    storage.span_start.appendAssumeCapacity(row.start);
+    storage.span_end.appendAssumeCapacity(row.end);
+    storage.payloads.appendAssumeCapacity(row.payload);
+}
 
 const header_columns = .{ "kinds", "payloads", "types", "span_start", "span_end" };
 
-pub fn lengthSlots(storage: *ir.ExpressionStorage) [header_columns.len]*usize {
-    var slots: [header_columns.len]*usize = undefined;
+pub fn commit(storage: *ir.ExpressionStorage, source: *const ir.ExpressionTable, ranges: anytype, count: usize) void {
+    for (ranges) |range| {
+        const start: usize = @intCast(range.start);
+        const end: usize = @intCast(range.end);
 
-    inline for (header_columns, &slots) |name, *slot| slot.* = &@field(storage, name).items.len;
+        inline for (.{ "kinds", "types", "span_start", "span_end" }) |name| {
+            @field(storage, name).appendSliceAssumeCapacity(@field(source, name)[start..end]);
+        }
+    }
 
-    return slots;
+    storage.payloads.items.len += count;
 }
 
 pub fn publishSeed(storage: *ir.ExpressionStorage, source: *const ir.ExpressionTable, rows: []const u32, count: usize) void {

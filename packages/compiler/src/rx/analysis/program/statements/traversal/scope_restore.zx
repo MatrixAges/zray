@@ -8,12 +8,10 @@ export type Input = {
     slot: u32
 }
 
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
     const { scopes, slot } = in
 
-    const count = memory.readU64(scopes.bindings, integers.widen(slot))
-
-    memory.shrinkLengthSlot(scopes.active, 0, count)
+    return memory.readU64(scopes.bindings, integers.widen(slot))
 }

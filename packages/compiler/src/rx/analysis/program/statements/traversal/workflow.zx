@@ -1,7 +1,10 @@
 import type { ColumnLengths, OptionalU32Buffer, U64Buffer } from "memory"
 import type { BodyStatements } from "rx_project_host"
-import type { Control } from "../../control/write/publication"
+import type { Row as CaseMember } from "../../control/write/case_member"
+import type { Row as ParallelMember } from "../../control/write/parallel_member"
+import type { Control, Statement } from "../../control/write/publication"
 import type { Config, Event } from "./model"
+import type { Output as SavedScope } from "./scope_save"
 
 export type Scopes = {
     active: ColumnLengths,
@@ -15,16 +18,19 @@ export type Request = Config & {
     scopes: Scopes,
     root: u32,
     expected: u32[],
-    implicit_return: bool
-}
-
-export type Scan = Request.Pick("frame", "control", "scopes") & {
+    implicit_return: bool,
+    started: bool,
     events: Event[],
-    call_ids: u32[],
-    row: u64
+    row: u64,
+    offset: u32
 }
 
-export type Write = Scan.Pick("frame", "control", "scopes", "call_ids") & {
+export type Scan =
+    Request.Pick("frame", "control", "scopes", "events", "row", "offset") & {
+        call_ids: u32[]
+    }
+
+export type Write = Scan.Pick("frame", "control", "scopes", "call_ids", "offset") & {
     event: Event
 }
 
@@ -34,6 +40,34 @@ export type CallResult = Write.Pick("frame", "control") & {
     value: u32
 }
 
-export type ParallelMember = CallResult & {
+export type CallMember = CallResult & {
     position: u32
+}
+
+export type Effect = {
+    statement?: Statement,
+    member?: ParallelMember,
+    case_member?: CaseMember,
+    scope?: SavedScope,
+    restore?: u64,
+    binding?: u32,
+    bindings?: u32[]
+}
+
+export type Step = {
+    effect: Effect,
+    offset?: u32
+}
+
+export type Next = {
+    row: u64,
+    offset: u32,
+    implicit_return: bool,
+    effect: Effect
+}
+
+export type Output = {
+    events?: Event[],
+    next?: Next,
+    block?: u32
 }

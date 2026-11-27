@@ -1,4 +1,9 @@
+import type { Statement } from "./publication"
 import type { Input as Publication } from "./publish_bindings"
-import type { Input as Reservation } from "./reserve_bindings"
 
-export type Input = Reservation & Publication
+export type Input = Publication
+
+export type Output = {
+    statement: Statement,
+    bindings: u32[]
+}

@@ -1,34 +1,23 @@
 import integers from "std:integer"
-import memory from "memory"
-
-import type { U32Buffer } from "memory"
 
 export type Input = {
     input_types: u32[],
     output_types: u32[],
-    mapping: u32[],
-    inputs: U32Buffer,
-    outputs: U32Buffer
+    types: u32[]
 }
 
-export type Output = void
+export type Output = {
+    types: u32[],
+    inputs: u32[],
+    outputs: u32[]
+}
 
 export default function (in: Input): Output {
-    const { input_types, output_types, mapping, inputs, outputs } = in
+    const { input_types, output_types, types } = in
 
-    const written = loop({
-        index: 0
-    }, {
-        while: state => state.index < input_types.length,
-        next: state => {
-            const index = state.index
-            const input = mapping[integers.widen(input_types[index])]
-            const output = mapping[integers.widen(output_types[index])]
-
-            memory.writeU32(inputs, index, input)
-            memory.writeU32(outputs, index, output)
-
-            state.index += 1
-        }
-    })
+    return {
+        types,
+        inputs: input_types.map(id => types[integers.widen(id)])[0],
+        outputs: output_types.map(id => types[integers.widen(id)])[0]
+    }
 }

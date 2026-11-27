@@ -1,13 +1,11 @@
-import type { Allocator, ColumnRanges } from "memory"
 import type { Cursor } from "./buffers"
+import type { Output as Header } from "./header"
 
 export type Control = {
     writer: Cursor,
     layout: u32[],
     firsts: u32[],
-    lengths: u32[],
-    resource: Allocator,
-    bindings: ColumnRanges
+    lengths: u32[]
 }
 
 export type Finish = {
@@ -22,4 +20,15 @@ export type Case = {
     end: u32,
     position: u32,
     label?: u32
+}
+
+export type Statement = {
+    header: Header,
+    value?: u32,
+    symbol?: u32,
+    first?: u32,
+    count?: u32,
+    exhaustive?: bool,
+    member_lane?: u64,
+    next_member?: u32
 }
