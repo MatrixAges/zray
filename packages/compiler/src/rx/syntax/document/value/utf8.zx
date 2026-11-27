@@ -1,0 +1,33 @@
+import integers from "std:integer"
+
+export type Input = u64
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    if (in < 128) {
+        return [integers.narrowByte(in)]
+    }
+
+    if (in < 2048) {
+        return [
+            integers.narrowByte(192 + in / 64),
+            integers.narrowByte(128 + in % 64)
+        ]
+    }
+
+    if (in < 65536) {
+        return [
+            integers.narrowByte(224 + in / 4096),
+            integers.narrowByte(128 + (in / 64) % 64),
+            integers.narrowByte(128 + in % 64)
+        ]
+    }
+
+    return [
+        integers.narrowByte(240 + in / 262144),
+        integers.narrowByte(128 + (in / 4096) % 64),
+        integers.narrowByte(128 + (in / 64) % 64),
+        integers.narrowByte(128 + in % 64)
+    ]
+}

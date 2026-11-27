@@ -19,7 +19,6 @@ export default function (in: Input): Output {
     }
 
     return paths({
-        owner: setup.owner,
         root,
         paths: source
     })

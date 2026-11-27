@@ -12,14 +12,12 @@ import string from "../string"
 import strings from "../strings"
 import aliases from "./aliases"
 
-import type { StringBuffer } from "memory"
 import type { AliasOutput, ModuleOutput } from "../model"
 import type { Input as Value } from "../value"
 
 export type Input = Value & {
     target: ModuleOutput,
-    alias_target: AliasOutput,
-    strings_target: StringBuffer
+    alias_target: AliasOutput
 }
 
 export type Record = {
@@ -36,7 +34,7 @@ export type Record = {
 export type Output = void
 
 export default function (in: Input): Output {
-    const { document, target, alias_target, strings_target } = in
+    const { document, target, alias_target } = in
 
     const items = sequence({
         document: in.document,
@@ -90,19 +88,16 @@ export default function (in: Input): Output {
                         case Field.Dependencies:
                             state.dependencies = strings({
                                 ...value,
-                                target: strings_target,
                                 workspace: false
                             })
                         case Field.BundleFiles:
                             state.bundle_files = strings({
                                 ...value,
-                                target: strings_target,
                                 workspace: false
                             })
                         case Field.IncludePaths:
                             state.include_paths = strings({
                                 ...value,
-                                target: strings_target,
                                 workspace: false
                             })
                         case Field.AbiAliases:

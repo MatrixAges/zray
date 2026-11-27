@@ -5,7 +5,7 @@ const State = @import("driver/storage.zig").State;
 const Error = @import("driver/storage.zig").Error;
 const source = @import("cli_source");
 const Run = struct { path: []const u8, process: Backend };
-const Launch = struct { path: []const u8, argv: [][]const u8 = &.{} };
+const Launch = struct { path: []const u8, argv: []const []const u8 = &.{} };
 
 active: ?Run = null,
 pending: ?Launch = null,
@@ -30,8 +30,7 @@ pub fn prepareApplication(handle: *const anyopaque) Error!void {
     };
 
     self.application.pending = .{ .path = path };
-
-    source.application_arguments.executeIn(temporary, &.{ .path = path, .tail = self.options.run_args, .target = @ptrCast(&self.application.pending.?.argv) }) catch |err| return self.fail(err);
+    self.application.pending.?.argv = source.application_arguments.executeIn(temporary, &.{ .path = path, .tail = self.options.run_args }) catch |err| return self.fail(err);
 }
 
 pub fn startApplication(handle: *const anyopaque) Error!void {

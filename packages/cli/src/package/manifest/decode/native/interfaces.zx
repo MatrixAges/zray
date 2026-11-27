@@ -11,19 +11,17 @@ import sequence from "../sequence"
 import string from "../string"
 import strings from "../strings"
 
-import type { StringBuffer } from "memory"
 import type { InterfaceOutput } from "../model"
 import type { Input as Value } from "../value"
 
 export type Input = Value & {
-    target: InterfaceOutput,
-    strings_target: StringBuffer
+    target: InterfaceOutput
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { document, target, strings_target } = in
+    const { document, target } = in
 
     const items = sequence({
         document: in.document,
@@ -74,7 +72,6 @@ export default function (in: Input): Output {
                         case Field.Namespace:
                             state.namespace = strings({
                                 ...value,
-                                target: strings_target,
                                 workspace: false
                             })
                         default:

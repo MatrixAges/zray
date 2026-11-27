@@ -39,7 +39,7 @@ fn roundTrip(allocator: std.mem.Allocator) !void {
     var output: std.Io.Writer.Allocating = .init(allocator);
 
     defer output.deinit();
-    manifest.write(&output.writer, data) catch return error.OutOfMemory;
+    manifest.write(allocator, &output.writer, data) catch return error.OutOfMemory;
 
     var second = try manifest.parse(allocator, output.written());
 
@@ -87,7 +87,7 @@ test "exports writer reports bounded output failure" {
     var buffer: [80]u8 = undefined;
     var writer: std.Io.Writer = .fixed(&buffer);
 
-    try std.testing.expectError(error.WriteFailed, manifest.write(&writer, parsed.value.data));
+    try std.testing.expectError(error.WriteFailed, manifest.write(std.testing.allocator, &writer, parsed.value.data));
 }
 
 test "legacy entry round trip keeps exports empty" {
@@ -101,7 +101,7 @@ test "legacy entry round trip keeps exports empty" {
 
     defer output.deinit();
 
-    try manifest.write(&output.writer, parsed.value.data);
+    try manifest.write(std.testing.allocator, &output.writer, parsed.value.data);
 
     var second = try manifest.parse(std.testing.allocator, output.written());
 

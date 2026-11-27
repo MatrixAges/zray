@@ -40,17 +40,15 @@ pub fn parse(allocator: std.mem.Allocator, source: []const u8, comptime schema: 
 
     const input = parsed.value.document;
     const temporary = parsed.arena.allocator();
-    const count = input.tree.nodes.len;
-    const links = try temporary.alloc(u64, count * 2);
-    var first = links[0..count];
-    var next = links[count..];
     const execute = layout.executeValue;
     const Parameter = @typeInfo(@TypeOf(execute)).@"fn".param_types[1].?;
     const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
-    const args: Input = .{ .nodes = input.tree.nodes, .first = @ptrCast(&first), .next = @ptrCast(&next) };
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const args: Input = .{ .nodes = input.tree.nodes };
 
-    execute(empty.allocator(), if (@typeInfo(Parameter) == .pointer) &args else args) catch unreachable;
+    const links = @import("zx").columns.invoke(execute, temporary, &args) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
 
     const decoded: []const u8 = if (schema)
         try adapter.values.materialize(@import("generated_xml_decode").executeValue, temporary, source, input.tree.parts, input.control.decoded_length)
@@ -61,7 +59,7 @@ pub fn parse(allocator: std.mem.Allocator, source: []const u8, comptime schema: 
         break try adapter.values.materialize(@import("generated_xml_decode").executeValue, temporary, source, input.tree.parts, input.control.decoded_length);
     } else &.{};
 
-    return .{ .arena = parsed.arena, .value = .{ .document = .{ .source = source, .syntax = input, .first = first, .next = next, .decoded = decoded } } };
+    return .{ .arena = parsed.arena, .value = .{ .document = .{ .source = source, .syntax = input, .first = links.first, .next = links.next, .decoded = decoded } } };
 }
 
 pub const Node = struct {

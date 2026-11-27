@@ -8,7 +8,6 @@
     <Call
         fn="../../command/scope/paths"
         in={{
-            owner: $in.setup.owner,
             root: $in.setup.root,
             paths: $in.setup.libraries
         }}

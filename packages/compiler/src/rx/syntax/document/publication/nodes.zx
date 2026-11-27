@@ -1,11 +1,11 @@
 import encoding from "std:encoding"
-import memory from "memory"
 import columns from "memory/columns"
 
 import type { Node } from "../model"
 import type { Input as Publication, Nodes } from "./model"
 
-export type Input = Publication.Pick("source", "node_slots", "storage") & {
+export type Input = Publication.Pick("source", "storage") & {
+    node_slots: u64[],
     rows: Node[],
     target: Nodes
 }
@@ -23,7 +23,7 @@ export default function (in: Input): Output {
         while: state => state.row < rows.length,
         next: state => {
             const item = rows[state.row]
-            const slot = memory.readU64(node_slots, state.row)
+            const slot = node_slots[state.row]
             const { location } = item
             const name = encoding.sliceBytes(source, item.name.start, item.name.end)
 

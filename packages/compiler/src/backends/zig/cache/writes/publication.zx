@@ -1,10 +1,8 @@
 import memory from "memory"
 
-import { failure_slot, written_slot } from "./const"
+import type { Allocator, ReadColumn, TextColumn } from "memory"
 
-import type { Allocator, ColumnLengths, ReadColumn, TextColumn } from "memory"
-
-export type Retired = {
+export type Input = {
     flags: ReadColumn,
     sources: TextColumn,
     owners: ReadColumn,
@@ -14,26 +12,10 @@ export type Retired = {
     shared_owner: u8
 }
 
-export type Input = {
-    counters: ColumnLengths,
-    written: u64,
-    failures: u64,
-    retired?: Retired
-}
-
 export type Output = void
 
 export default function (in: Input): Output {
-    memory.advanceLengthSlot(in.counters, written_slot, in.written)
-    memory.advanceLengthSlot(in.counters, failure_slot, in.failures)
-
-    const { retired } = in
-
-    if (retired == null) {
-        return
-    }
-
-    const { count, flags, sources, owners, local, shared, shared_owner } = retired
+    const { count, flags, sources, owners, local, shared, shared_owner } = in
 
     const released = loop(0, {
         while: row => row < count,

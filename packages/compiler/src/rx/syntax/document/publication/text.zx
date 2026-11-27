@@ -1,5 +1,4 @@
 import encoding from "std:encoding"
-import memory from "memory"
 import columns from "memory/columns"
 
 import value from "./value"
@@ -7,7 +6,8 @@ import value from "./value"
 import type { Text as Row } from "../model"
 import type { Input as Publication, Text } from "./model"
 
-export type Input = Publication.Pick("source", "decoded", "indexed", "text_slots") & {
+export type Input = Publication.Pick("source", "decoded", "indexed") & {
+    text_slots: u64[],
     rows: Row[],
     target: Text,
     extent: u64
@@ -25,7 +25,7 @@ export default function (in: Input): Output {
         while: state => state.row < rows.length,
         next: state => {
             const item = rows[state.row]
-            const slot = memory.readU64(text_slots, state.row)
+            const slot = text_slots[state.row]
             const span = item.value.span
             const original = encoding.sliceBytes(source, span.start, span.end)
             const selected = value({

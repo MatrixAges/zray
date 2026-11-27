@@ -68,7 +68,7 @@ const Target = struct {
     }
 };
 
-const Stored = struct { snapshot: Frame, position: u64 = 0, fields: Fields.Alignment = .{} };
+const Stored = struct { snapshot: Frame, fields: Fields.Alignment = .{} };
 
 const Walk = struct {
     frames: std.mem.Allocator,
@@ -76,14 +76,13 @@ const Walk = struct {
     stack: std.ArrayList(Stored) = .empty,
     view: Stack = undefined,
     row: Row = undefined,
-    position: []u64 = undefined,
     known: Known = undefined,
     fn current(self: *Walk) *Stored {
         return &self.stack.items[self.stack.items.len - 1];
     }
     fn bind(self: *Walk) void {
         const item = self.current();
-        self.position = (&item.position)[0..1];
+
         self.row = .{ .snapshot = &item.snapshot, .positions = item.fields.positions[0..item.fields.scanned] };
     }
 };
@@ -142,7 +141,6 @@ pub noinline fn walkUnificationFrames(handle: *anyopaque, depth: u64) zx.Error!v
 
     state.view = .{
         .frame = &state.row,
-        .position = @ptrCast(&state.position),
         .parents = @ptrCast(&target.parents),
         .known = &state.known,
     };
@@ -150,9 +148,10 @@ pub noinline fn walkUnificationFrames(handle: *anyopaque, depth: u64) zx.Error!v
     target.walk = &state;
 
     const input: Request = .{ .target = @ptrCast(handle), .candidate = &target.candidate, .stack = &state.view, .depth = depth };
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var cursor_buffer: [256]u8 = undefined;
+    var cursor_memory = std.heap.BufferFirstAllocator.init(&cursor_buffer, allocator);
 
-    walk_rule.executeIn(empty.allocator(), &input) catch |err| return errors.errorSet(err);
+    walk_rule.executeIn(cursor_memory.allocator(), &input) catch |err| return errors.errorSet(err);
 }
 
 pub fn appendUnificationFrame(handle: *anyopaque) std.mem.Allocator.Error!void {

@@ -1,19 +1,22 @@
-import memory from "memory"
-
-import type { StringBuffer } from "memory"
-
 export type Input = {
-    target: StringBuffer,
     path: string,
     tail: string[]
 }
 
-export type Output = void
+export type Output = string[]
 
 export default function (in: Input): Output {
-    const { target, tail } = in
+    const initial: string[] = [in.path]
 
-    memory.allocateStringViews(target, tail.length + 1)
-    memory.writeString(target, 0, in.path)
-    memory.copyStringViewsAt(target, 1, tail)
+    return loop({
+        index: 0,
+        out: initial
+    }, {
+        while: state => state.index < in.tail.length,
+        next: state => {
+            state.out = state.out.push(in.tail[state.index])[0]
+            state.index += 1
+        },
+        return: state => state.out
+    })
 }

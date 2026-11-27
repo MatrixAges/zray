@@ -1,23 +1,20 @@
 import yaml from "manifest_yaml_document"
-import memory from "memory"
 
 import { Kind } from "../../workspace/paths/model"
 import relative from "../../workspace/paths/relative"
 import { bad_sequence, workspace_path, workspace_sequence } from "./const"
 import string from "./string"
 
-import type { StringBuffer } from "memory"
 import type { Input as Value } from "./value"
 
 export type Input = Value & {
-    target: StringBuffer,
     workspace: bool
 }
 
 export type Output = string[]
 
 export default function (in: Input): Output {
-    const { document, node, target, workspace } = in
+    const { document, node, workspace } = in
 
     const items = yaml.items(node)
 
@@ -27,12 +24,15 @@ export default function (in: Input): Output {
         return []
     }
 
-    memory.allocateStringViews(target, items.length)
+    const empty: string[] = []
 
-    const written = loop(0, {
-        while: row => row < items.length,
-        next: row => {
-            const item = yaml.node(document, items[row], null)
+    return loop({
+        row: 0,
+        out: empty
+    }, {
+        while: state => state.row < items.length,
+        next: state => {
+            const item = yaml.node(document, items[state.row], null)
             const value = string({
                 document,
                 node: item
@@ -49,10 +49,9 @@ export default function (in: Input): Output {
                 }
             }
 
-            memory.writeString(target, row, value)
-            row += 1
-        }
+            state.out = state.out.push(value)[0]
+            state.row += 1
+        },
+        return: state => state.out
     })
-
-    return memory.stringViews(target)
 }

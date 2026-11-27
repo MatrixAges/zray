@@ -13,9 +13,9 @@ pub fn add(b: *std.Build, cli: *std.Build.Dependency, compiler: *std.Build.Depen
         .root_source_file = root,
         .target = target,
         .optimize = optimize,
+        .strip = if (optimize == .safe) true else null,
         .imports = &.{
             .{ .name = "cli_source", .module = cli.module("cli_source") },
-            .{ .name = "manifest_output", .module = cli.module("manifest_output") },
             .{ .name = "manifest_yaml_document", .module = cli.module("manifest_yaml_document") },
             .{ .name = "compiler", .module = compiler.module("compiler") },
             .{ .name = "zx", .module = compiler.module("compiler").import_table.get("zx").? },
@@ -42,6 +42,7 @@ pub fn add(b: *std.Build, cli: *std.Build.Dependency, compiler: *std.Build.Depen
         .root_source_file = b.path("tests/package_manifest/resources/exports_test.zig"),
         .target = target,
         .optimize = optimize,
+        .strip = if (optimize == .safe) true else null,
         .imports = &.{.{ .name = "manifest", .module = manifest }},
     }) });
 

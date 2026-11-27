@@ -28,15 +28,13 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, bundle: *const @import(
 
     defer allocator.free(graph);
 
-    const paths = try allocator.alloc([]const u8, bundle.modules.len);
-    var output = paths;
     var context: disk.Context = .{ .io = io };
     const view_paths = zx.memory.borrowTextColumn("path", abi.views);
     const view_sources = zx.memory.borrowTextColumn("source", abi.views);
     const names = zx.memory.borrowTextColumn("name", bundle.modules);
     const sources = zx.memory.borrowTextColumn("source", bundle.modules);
 
-    const directory = source.workspace_build.executeIn(allocator, &.{
+    const prepared = source.workspace_build.executeValue(allocator, &.{
         .fs = @ptrCast(&context),
         .separator = &.{std.fs.path.sep},
         .identity = &.{
@@ -48,13 +46,10 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, bundle: *const @import(
             .graph = graph,
         },
         .views = &.{ .count = abi.views.len, .paths = @ptrCast(&view_paths), .sources = @ptrCast(&view_sources) },
-        .modules = &.{
-            .files = &.{ .count = bundle.modules.len, .paths = @ptrCast(&names), .sources = @ptrCast(&sources) },
-            .output = @ptrCast(&output),
-        },
+        .modules = &.{ .count = bundle.modules.len, .paths = @ptrCast(&names), .sources = @ptrCast(&sources) },
     }) catch |err| return context.unwrap(err);
 
-    return .{ .directory = directory, .module_paths = paths };
+    return .{ .directory = prepared.directory, .module_paths = prepared.module_paths };
 }
 
 pub fn retain(io: std.Io, allocator: std.mem.Allocator, path: []const u8, content: []const u8) !void {

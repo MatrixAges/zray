@@ -1,16 +1,12 @@
-import memory from "memory"
-
-import { failure_slot, written_slot } from "./writes/const"
-
-import type { ColumnLengths } from "memory"
-
 export type Input = {
     written: u64[],
-    failures: u64[],
-    counters: ColumnLengths
+    failures: u64[]
 }
 
-export type Output = void
+export type Output = {
+    written: u64,
+    failures: u64
+}
 
 export default function (in: Input): Output {
     const totals = loop({
@@ -28,6 +24,5 @@ export default function (in: Input): Output {
         }
     })
 
-    memory.advanceLengthSlot(in.counters, written_slot, totals.written)
-    memory.advanceLengthSlot(in.counters, failure_slot, totals.failures)
+    return totals.omit(["index"])
 }

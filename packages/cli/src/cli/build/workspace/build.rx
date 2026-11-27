@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Workspace" />
 
-    <Args in={Workspace.Input} out={string} />
+    <Args in={Workspace.Input} out={Workspace.Output} />
 
     <Call fn="identity" in={$in.identity} />
 
@@ -38,10 +38,15 @@
     <Call
         fn="modules"
         in={{
-            ...$in.modules,
-            fs: $in.fs
+            fs: $in.fs,
+            files: $in.modules
         }}
     />
 
-    <Return value={$ctx.identity} />
+    <Return
+        value={{
+            directory: $ctx.identity,
+            module_paths: $ctx.modules
+        }}
+    />
 </Module>

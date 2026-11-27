@@ -1,3 +1,0 @@
-export const written_slot: u64 = 0
-
-export const failure_slot: u64 = 1

@@ -25,9 +25,6 @@ comptime {
 
 pub fn convert(comptime rules: anytype, allocator: std.mem.Allocator, temporary: std.mem.Allocator, source: []const u8, input: anytype) !Document {
     const tree = input.tree;
-    const slots = try temporary.alloc(u64, tree.nodes.len + tree.text.len);
-    var node_slots = slots[0..tree.nodes.len];
-    var text_slots = slots[tree.nodes.len..];
     const decoded = try values.materialize(rules.decode, allocator, source, tree.parts, input.control.decoded_length);
     const nodes = try allocator.alloc(ast.Node, tree.nodes.len);
     const attributes = try allocator.alloc(ast.Attribute, tree.attributes.len);
@@ -61,8 +58,6 @@ pub fn convert(comptime rules: anytype, allocator: std.mem.Allocator, temporary:
         .decoded = decoded,
         .tree = tree,
         .root = input.control.result,
-        .node_slots = @ptrCast(&node_slots),
-        .text_slots = @ptrCast(&text_slots),
         .indexed = indexed,
         .nodes = &node_output.view,
         .attributes = &attribute_output.view,
@@ -74,11 +69,13 @@ pub fn convert(comptime rules: anytype, allocator: std.mem.Allocator, temporary:
         },
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const extent = zx.columns.invoke(rules.publish, empty.allocator(), &publication) catch unreachable;
+    const published = zx.columns.invoke(rules.publish, temporary, &publication) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
 
     return .{
         .node = nodes[0],
-        .references = if (comptime indexed) try references.build(rules.scan, rules.references, allocator, temporary, source, input, node_slots, nodes, attributes, @intCast(extent)) else null,
+        .references = if (comptime indexed) try references.build(rules.scan, rules.references, allocator, temporary, source, input, published.node_slots, nodes, attributes, @intCast(published.extent)) else null,
     };
 }

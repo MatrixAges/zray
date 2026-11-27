@@ -16,17 +16,14 @@ pub fn validate(lock: Lock, allocator: std.mem.Allocator) !void {
         .root = root,
     }) catch unreachable);
 
-    const storage = try allocator.alloc(u8, 2 * packages.len);
+    var marks = try allocator.alloc(u8, packages.len);
 
-    defer allocator.free(storage);
-
-    var marks = storage[0..packages.len];
-    var heights = storage[packages.len..];
-
-    graph.prepare(storage, packages, .lock);
+    defer allocator.free(marks);
+    graph.prepare(marks, packages, .lock);
 
     var sample: Lock.Package = undefined;
     sample.source = .{ .workspace = undefined };
+
     const paths = memory.borrowProjectedText(packages, &sample, &sample.source.workspace);
     sample.source = .{ .archive = undefined };
 
@@ -38,8 +35,7 @@ pub fn validate(lock: Lock, allocator: std.mem.Allocator) !void {
     const edge_names = memory.borrowListColumn([]const u8, "dependencies", "name", packages);
     const requirements = memory.borrowListColumn([]const u8, "dependencies", "requirement", packages);
     const development = memory.borrowListColumn(bool, "dependencies", "development", packages);
-    var frames: graph.Frames = .{};
-    const traversal = frames.input(&targets, &marks, &heights, true);
+    const traversal = graph.input(&targets, marks, true);
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();

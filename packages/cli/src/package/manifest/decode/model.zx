@@ -1,4 +1,3 @@
-import type { StringBuffer } from "memory"
 import type { RowBuffer, WriteColumn } from "memory/columns"
 import type { Input as Value } from "./value"
 
@@ -88,8 +87,7 @@ export type Tables = {
     interfaces: InterfaceOutput,
     modules: ModuleOutput,
     externals: ExternalOutput,
-    aliases: AliasOutput,
-    strings: StringBuffer
+    aliases: AliasOutput
 }
 
 export type Input = Value & {

@@ -1,4 +1,3 @@
-import type { U64Buffer } from "memory"
 import type { ObjectReplay } from "rx_project_host"
 import type { Scan as Construction, Row as Constructed } from "../construction/workflow"
 import type { Scan as Selection, Row as Selected } from "../selection/workflow"
@@ -10,8 +9,7 @@ export type View = {
     construction: Constructed,
     selections: Selection,
     selection: Selected,
-    readiness: Context,
-    revision: U64Buffer
+    readiness: Context
 }
 
 export type Input = {

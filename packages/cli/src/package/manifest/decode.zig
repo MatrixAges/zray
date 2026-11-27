@@ -66,7 +66,6 @@ pub fn read(allocator: std.mem.Allocator, document: *Document, root: *const c.ya
     var modules: Modules = undefined;
     var aliases: Aliases = undefined;
     var externals: Externals = undefined;
-    var strings: [][]const u8 = &.{};
 
     exports.rows.init();
     dependencies.rows.init();
@@ -87,7 +86,6 @@ pub fn read(allocator: std.mem.Allocator, document: *Document, root: *const c.ya
             .modules = &modules.view(),
             .aliases = &aliases.view(),
             .externals = &externals.view(),
-            .strings = @ptrCast(&strings),
         },
     }) catch |err| switch (err) {
         error.OutOfMemory, error.InvalidManifest => |failure| return failure,

@@ -3,16 +3,21 @@ const std = @import("std");
 pub fn materialize(comptime decode: anytype, allocator: std.mem.Allocator, source: []const u8, parts: anytype, length: u64) std.mem.Allocator.Error![]const u8 {
     if (length == 0) return &.{};
 
-    var output = try allocator.alloc(u8, @intCast(length));
     const Parameter = @typeInfo(@TypeOf(decode)).@"fn".param_types[1].?;
     const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
-    const input: Input = .{ .source = source, .parts = parts, .target = @ptrCast(&output) };
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const written = decode(empty.allocator(), if (@typeInfo(Parameter) == .pointer) &input else input) catch unreachable;
+    const input: Input = .{ .source = source, .parts = parts };
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
-    std.debug.assert(written == output.len);
+    defer arena.deinit();
 
-    return output;
+    const output = decode(arena.allocator(), if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    std.debug.assert(output.len == length);
+
+    return try allocator.dupe(u8, output);
 }
 
 pub fn raw(source: []const u8, value: anytype) []const u8 {

@@ -10,7 +10,8 @@
             module="advance"
             in={{
                 ...$in,
-                count: 1
+                count: 1,
+                positions: [0]
             }}
         />
     </Loop>

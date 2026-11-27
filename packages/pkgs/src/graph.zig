@@ -1,58 +1,43 @@
 const std = @import("std");
 const memory = @import("memory");
 const traversal = @import("pkgs_source").dependency_graph;
-const depth_limit = 256;
-const Input = @typeInfo(traversal.Input).pointer.child;
+pub const depth_limit = 256;
+pub const Input = @typeInfo(traversal.Input).pointer.child;
 const Result = @typeInfo(@TypeOf(traversal.executeValue(undefined, undefined))).error_union.payload;
-
-pub const Frames = struct {
-    node_storage: [depth_limit]u64 = undefined,
-    cursor_storage: [depth_limit]u64 = undefined,
-    nodes: []u64 = undefined,
-    cursors: []u64 = undefined,
-    pub fn input(self: *Frames, targets: *const memory.ListColumn, marks: *[]u8, heights: *[]u8, ranked: bool) Input {
-        self.nodes = &self.node_storage;
-        self.cursors = &self.cursor_storage;
-
-        return .{
-            .targets = @ptrCast(targets),
-            .count = marks.len,
-            .limit = depth_limit,
-            .ranked = ranked,
-            .marks = @ptrCast(marks),
-            .heights = @ptrCast(heights),
-            .nodes = @ptrCast(&self.nodes),
-            .cursors = @ptrCast(&self.cursors),
-        };
-    }
-};
-
 const Mode = enum { workspace, lock };
+
+pub fn input(targets: *const memory.ListColumn, initial_marks: []const u8, ranked: bool) Input {
+    return .{
+        .targets = @ptrCast(targets),
+        .count = initial_marks.len,
+        .limit = depth_limit,
+        .ranked = ranked,
+        .initial_marks = initial_marks,
+    };
+}
 
 pub fn prepare(storage: []u8, packages: anytype, comptime mode: Mode) void {
     if (mode == .lock) {
-        for (packages, storage[0..packages.len]) |package, *mark| mark.* = @intFromBool(package.source == .workspace);
-
-        @memset(storage[packages.len..], 0);
+        for (packages, storage) |package, *mark| mark.* = @intFromBool(package.source == .workspace);
     } else {
         @memset(storage, @intFromBool(true));
     }
 }
 
 pub fn check(allocator: std.mem.Allocator, packages: anytype, comptime mode: Mode) !Result {
-    const storage = try allocator.alloc(u8, if (mode == .lock) 2 * packages.len else packages.len);
+    const marks = try allocator.alloc(u8, packages.len);
 
-    defer allocator.free(storage);
-    prepare(storage, packages, mode);
+    defer allocator.free(marks);
+    prepare(marks, packages, mode);
 
-    var marks = storage[0..packages.len];
-    var heights = storage[packages.len..];
     const targets = memory.borrowListColumn(usize, "dependencies", "target", packages);
-    var frames: Frames = .{};
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const input = frames.input(&targets, &marks, &heights, mode == .lock);
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
-    return traversal.executeValue(empty.allocator(), &input) catch unreachable;
+    defer arena.deinit();
+
+    const query = input(&targets, marks, mode == .lock);
+
+    return traversal.executeValue(arena.allocator(), &query);
 }
 
 const assembly = @import("pkgs_source").workspace_graph;
@@ -75,11 +60,9 @@ pub fn assemble(allocator: std.mem.Allocator, root: []const u8, packages: anytyp
 
     @memset(buckets, 0);
 
-    var marks = try scratch.alloc(u8, packages.len);
+    const marks = try scratch.alloc(u8, packages.len);
 
     @memset(marks, 1);
-
-    var heights = marks[marks.len..];
 
     const portable_root = if (comptime std.fs.path.sep == '/') root else path: {
         const native = try std.fs.path.resolve(scratch, &.{root});
@@ -89,8 +72,7 @@ pub fn assemble(allocator: std.mem.Allocator, root: []const u8, packages: anytyp
         break :path native;
     };
 
-    var frames: Frames = .{};
-    const traversal_input = frames.input(&adjacency, &marks, &heights, false);
+    const traversal_input = input(&adjacency, marks, false);
 
     return assembly.executeValue(scratch, &.{
         .manifests = &manifests.input(),

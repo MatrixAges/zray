@@ -1,42 +1,40 @@
-import memory from "memory"
+import bytes from "std:bytes"
 
-import type { U8Buffer } from "memory"
+import utf8 from "./utf8"
+
 import type { Part } from "../../model"
 
 export type Input = {
     source: u8[],
-    parts: Part[],
-    target: U8Buffer
+    parts: Part[]
 }
 
-export type Output = u64
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    return loop({
+    const empty: u8[][] = []
+
+    const chunks = loop({
         index: 0,
-        cursor: 0
+        parts: empty
     }, {
         while: state => state.index < in.parts.length,
         next: state => {
             const part = in.parts[state.index]
-            const count = match {
-                part.character => memory.writeUtf8Scalar(
-                    in.target,
-                    state.cursor,
-                    part.codepoint
-                ),
-                _ => memory.copyBytes(
-                    in.target,
-                    state.cursor,
-                    in.source,
+            const chunk: u8[] = match {
+                part.character => utf8(part.codepoint),
+                _ => in.source.splice(
                     part.span.start,
-                    part.span.end
-                )
+                    part.span.end - part.span.start,
+                    []
+                )[1]
             }
 
-            state.cursor += count
+            state.parts = state.parts.push(chunk)[0]
             state.index += 1
         },
-        return: state => state.cursor
+        return: state => state.parts
     })
+
+    return bytes.join([], chunks)
 }

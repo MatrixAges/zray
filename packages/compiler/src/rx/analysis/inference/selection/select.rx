@@ -1,7 +1,7 @@
 <Module>
     <Type from="../object_closure/replay" as="Objects" />
 
-    <Args in={Objects.Input} out={u64} />
+    <Args in={Objects.Input} out={void} />
 
     <Loop on={$in.start < $in.request.view.selections.sources.length}>
         <Call
@@ -12,14 +12,4 @@
             }}
         />
     </Loop>
-
-    <Call
-        fn="../object_closure/host.readU64"
-        in={[
-            $in.view.revision,
-            0
-        ]}
-    />
-
-    <Return value={$ctx.readU64} />
 </Module>

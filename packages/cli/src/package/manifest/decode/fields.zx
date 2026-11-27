@@ -101,45 +101,36 @@ export default function (in: Input): Output {
                         target: tables.dev_dependencies
                     })
                 case Field.Workspace:
-                    state.values.workspace = workspace({
-                        ...value,
-                        target: tables.strings
-                    })
+                    state.values.workspace = workspace(value)
                 case Field.NativeInterfaces:
                     interfaces({
                         ...value,
-                        target: tables.interfaces,
-                        strings_target: tables.strings
+                        target: tables.interfaces
                     })
                 case Field.NativeModules:
                     modules({
                         ...value,
                         target: tables.modules,
-                        alias_target: tables.aliases,
-                        strings_target: tables.strings
+                        alias_target: tables.aliases
                     })
                 case Field.Externals:
                     externals({
                         ...value,
-                        target: tables.externals,
-                        strings_target: tables.strings
+                        target: tables.externals
                     })
                 case Field.Libraries:
                     state.values.libraries = strings({
                         ...value,
-                        target: tables.strings,
                         workspace: false
                     })
                 case Field.IncludePaths:
                     state.values.include_paths = strings({
                         ...value,
-                        target: tables.strings,
                         workspace: false
                     })
                 case Field.LibraryPaths:
                     state.values.library_paths = strings({
                         ...value,
-                        target: tables.strings,
                         workspace: false
                     })
                 default:

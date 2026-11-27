@@ -1,37 +1,50 @@
-import memory from "memory"
-
-import type { U64Buffer } from "memory"
 import type { Node } from "./model"
 
 export type Input = {
-    nodes: Node[],
-    first: U64Buffer,
-    next: U64Buffer
+    nodes: Node[]
 }
 
-export type Output = void
+export type Output = {
+    first: u64[],
+    next: u64[]
+}
 
 export default function (in: Input): Output {
-    const links = loop(0, {
-        while: row => row < in.nodes.length,
-        next: row => {
-            const siblings = loop({
-                remaining: in.nodes[row].children,
-                first: 0
-            }, {
-                while: state => state.remaining != 0,
-                next: state => {
-                    const child = state.remaining - 1
+    const empty: u64[] = []
 
-                    memory.writeU64(in.next, child, state.first)
-                    state.first = state.remaining
-                    state.remaining = in.nodes[child].previous_sibling
-                },
-                return: state => state.first
+    const zeros = loop(empty, {
+        while: out => out.length < in.nodes.length,
+        next: out => {
+            out = out.push(0)[0]
+        }
+    })
+
+    return loop({
+        row: 0,
+        first: zeros,
+        next: zeros
+    }, {
+        while: state => state.row < in.nodes.length,
+        next: state => {
+            const reversed = loop({
+                remaining: in.nodes[state.row].children,
+                head: 0,
+                next: state.next
+            }, {
+                while: inner => inner.remaining != 0,
+                next: inner => {
+                    const child = inner.remaining - 1
+
+                    inner.next = inner.next.splice(child, 1, [inner.head])[0]
+                    inner.head = inner.remaining
+                    inner.remaining = in.nodes[child].previous_sibling
+                }
             })
 
-            memory.writeU64(in.first, row, siblings)
-            row += 1
-        }
+            state.next = reversed.next
+            state.first = state.first.splice(state.row, 1, [reversed.head])[0]
+            state.row += 1
+        },
+        return: state => state.omit(["row"])
     })
 }

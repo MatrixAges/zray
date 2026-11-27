@@ -1,16 +1,14 @@
 <Module>
     <Type from="model" as="Publication" />
 
-    <Args in={Publication.Input} out={u64} />
+    <Args in={Publication.Input} out={Publication.Output} />
 
     <Call
         fn="../slots"
         in={{
             nodes: $in.tree.nodes,
             text: $in.tree.text,
-            root: $in.root,
-            node_slots: $in.node_slots,
-            text_slots: $in.text_slots
+            root: $in.root
         }}
     />
 
@@ -33,9 +31,9 @@
             ...$in.pick([
                 "source",
                 "decoded",
-                "indexed",
-                "text_slots"
+                "indexed"
             ]),
+            text_slots: $ctx.slots.text_slots,
             rows: $in.tree.text,
             target: $in.text,
             extent: $ctx.attributes
@@ -47,13 +45,18 @@
         in={{
             ...$in.pick([
                 "source",
-                "node_slots",
                 "storage"
             ]),
+            node_slots: $ctx.slots.node_slots,
             rows: $in.tree.nodes,
             target: $in.nodes
         }}
     />
 
-    <Return value={$ctx.text} />
+    <Return
+        value={{
+            extent: $ctx.text,
+            node_slots: $ctx.slots.node_slots
+        }}
+    />
 </Module>

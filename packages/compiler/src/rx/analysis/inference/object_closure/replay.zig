@@ -31,12 +31,10 @@ construction: ConstructionRow = undefined,
 selection: SelectionRow = undefined,
 source: std.meta.Child(@FieldType(SelectionRow, "source")) = undefined,
 parents: []u32 = undefined,
-revision: []u64 = undefined,
 selection_spans: []const zx.Span = undefined,
 pub fn bind(self: *Self, graph: *Graph, closure: *Closure, scope: *zx.memory.ArenaScope) void {
     self.graph = graph;
     self.scope = scope;
-    self.revision = (&graph.revision)[0..1];
     self.readiness = .{ .graph = graph, .closure = closure };
 
     self.readiness.bind();
@@ -70,7 +68,6 @@ pub fn bind(self: *Self, graph: *Graph, closure: *Closure, scope: *zx.memory.Are
         .selections = &self.selections,
         .selection = &self.selection,
         .readiness = &self.context,
-        .revision = @ptrCast(&self.revision),
     };
 
     self.refresh();

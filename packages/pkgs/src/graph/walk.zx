@@ -1,3 +1,4 @@
+import bytes from "std:bytes"
 import integers from "std:integer"
 import memory from "memory"
 
@@ -11,93 +12,102 @@ export type Output = Result & {
 }
 
 export default function (in: Input): Output {
-    const { marks, heights, nodes, cursors, ranked, targets } = in
+    const { ranked, targets } = in
+
+    const initial_heights: u8[] = match {
+        ranked => bytes.repeat(in.count, 0),
+        _ => []
+    }
+
+    const empty_stack: u64[] = []
 
     return loop({
         root: 0,
-        depth: 0,
         completed: 0,
+        marks: in.initial_marks,
+        heights: initial_heights,
+        nodes: empty_stack,
+        cursors: empty_stack,
         status: Status.Valid,
         owner: 0
     }, {
         while: s => {
-            const more = s.root < in.count || s.depth != 0
+            const more = s.root < in.count || s.nodes.length != 0
 
             return more && s.status == Status.Valid
         },
         next: s => {
-            if (s.depth == 0) {
+            if (s.nodes.length == 0) {
                 const row = s.root
-                const mark = memory.readU8(marks, row)
+                const mark = s.marks[row]
                 s.root += 1
 
                 if (mark == workspace_root) {
-                    memory.writeU8(marks, row, visiting)
-                    memory.writeU64(nodes, 0, row)
-                    memory.writeU64(cursors, 0, 0)
-                    s.depth = 1
+                    s.marks = s.marks.splice(row, 1, [visiting])[0]
+                    s.nodes = [row]
+                    s.cursors = [0]
                 }
             } else {
-                const frame = s.depth - 1
-                const owner = memory.readU64(nodes, frame)
-                const edge = memory.readU64(cursors, frame)
+                const frame = s.nodes.length - 1
+                const owner = s.nodes[frame]
+                const edge = s.cursors[frame]
                 const length = memory.listLength(targets, owner)
 
                 if (edge == length) {
-                    memory.writeU8(marks, owner, finished)
+                    s.marks = s.marks.splice(owner, 1, [finished])[0]
                     s.completed += 1
-                    s.depth = frame
+                    s.nodes = s.nodes.splice(frame, 1, [])[0]
+                    s.cursors = s.cursors.splice(frame, 1, [])[0]
 
                     if (ranked && frame != 0) {
-                        const parent = memory.readU64(nodes, frame - 1)
-                        const height = memory.readU8(heights, owner)
+                        const parent = s.nodes[frame - 1]
+                        const height = s.heights[owner]
 
-                        if (height >= memory.readU8(heights, parent)) {
-                            memory.writeU8(heights, parent, height + 1)
+                        if (height >= s.heights[parent]) {
+                            s.heights = s.heights.splice(parent, 1, [height + 1])[0]
                         }
                     }
                 } else {
                     const target = memory.readListIndex(targets, owner, edge)
-                    const mark = memory.readU8(marks, target)
+                    const mark = s.marks[target]
                     const revisit = mark == finished
                     const check_depth = ranked || !revisit
+                    const depth = s.nodes.length
 
                     if (mark == visiting) {
                         s.status = Status.CyclicPackageDependencies
                         s.owner = target
-                    } else if (check_depth && s.depth >= in.limit) {
+                    } else if (check_depth && depth >= in.limit) {
                         s.status = Status.PackageDependencyDepthExceeded
                         s.owner = target
                     } else if (revisit) {
-                        memory.writeU64(cursors, frame, edge + 1)
+                        s.cursors = s.cursors.splice(frame, 1, [edge + 1])[0]
 
                         if (ranked) {
-                            const height = memory.readU8(heights, target)
-                            const rank = memory.readU8(heights, owner)
+                            const height = s.heights[target]
+                            const rank = s.heights[owner]
 
-                            if (
-                                s.depth + integers.widenByte(height) >= in.limit
-                            ) {
+                            if (depth + integers.widenByte(height) >= in.limit) {
                                 s.status = Status.PackageDependencyDepthExceeded
                                 s.owner = target
                             } else if (height >= rank) {
-                                memory.writeU8(heights, owner, height + 1)
+                                s.heights =
+                                    s.heights.splice(owner, 1, [height + 1])[0]
                             }
                         }
                     } else {
-                        memory.writeU64(cursors, frame, edge + 1)
-
-                        memory.writeU8(marks, target, visiting)
-                        memory.writeU64(nodes, s.depth, target)
-                        memory.writeU64(cursors, s.depth, 0)
-                        s.depth += 1
+                        s.cursors = s.cursors.splice(frame, 1, [edge + 1])[0]
+                        s.marks = s.marks.splice(target, 1, [visiting])[0]
+                        s.nodes = s.nodes.push(target)[0]
+                        s.cursors = s.cursors.push(0)[0]
                     }
                 }
             }
         },
-        return: s => s.omit([
-            "root",
-            "depth"
+        return: s => s.pick([
+            "status",
+            "owner",
+            "completed"
         ])
     })
 }

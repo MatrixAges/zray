@@ -1,12 +1,11 @@
-import type { IndexBuffer, SourceSpanBuffer, U32Buffer, U64Buffer } from "memory"
+import type { IndexBuffer, SourceSpanBuffer, U32Buffer } from "memory"
 import type { NonNullReplay } from "rx_project_host"
 import type { Input as Append } from "../nodes/append"
 import type { Input as Scan } from "./scan"
 
 export type View = Scan.Omit("next", "infer_source") & {
     frame: NonNullReplay,
-    node: Append,
-    revision: U64Buffer
+    node: Append
 }
 
 export type Replay = {

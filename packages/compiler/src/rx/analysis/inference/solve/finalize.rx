@@ -3,7 +3,10 @@
 
     <Args in={Solve.Request} out={bool} />
 
-    <Call fn="host.solveRevision" in={$in.frame} />
+    <Task name="initial" out={$ctx.solveRevision}>
+        <Call fn="host.solveRevision" in={$in.frame} />
+    </Task>
+
     <Call fn="host.refreshSolverNonNull" in={$in.frame} />
 
     <Call
@@ -14,7 +17,11 @@
         }}
     />
 
-    <If on={$ctx.replay != $ctx.solveRevision}>
+    <Task name="after_non_null" out={$ctx.solveRevision}>
+        <Call fn="host.solveRevision" in={$in.frame} />
+    </Task>
+
+    <If on={$ctx.task.after_non_null != $ctx.task.initial}>
         <Return value={true} />
     </If>
 
@@ -28,7 +35,11 @@
         }}
     />
 
-    <If on={$ctx.select != $ctx.solveRevision}>
+    <Task name="after_select" out={$ctx.solveRevision}>
+        <Call fn="host.solveRevision" in={$in.frame} />
+    </Task>
+
+    <If on={$ctx.task.after_select != $ctx.task.initial}>
         <Return value={true} />
     </If>
 
@@ -40,7 +51,11 @@
         }}
     />
 
-    <If on={$ctx.construct != $ctx.solveRevision}>
+    <Task name="after_construct" out={$ctx.solveRevision}>
+        <Call fn="host.solveRevision" in={$in.frame} />
+    </Task>
+
+    <If on={$ctx.task.after_construct != $ctx.task.initial}>
         <Return value={true} />
     </If>
 

@@ -11,13 +11,11 @@ import sequence from "../sequence"
 import string from "../string"
 import implementation from "./implementation"
 
-import type { StringBuffer } from "memory"
 import type { ExternalOutput } from "../model"
 import type { Input as Value } from "../value"
 
 export type Input = Value & {
-    target: ExternalOutput,
-    strings_target: StringBuffer
+    target: ExternalOutput
 }
 
 export type Record = {
@@ -31,7 +29,7 @@ export type Record = {
 export type Output = void
 
 export default function (in: Input): Output {
-    const { document, target, strings_target } = in
+    const { document, target } = in
 
     const items = sequence({
         document: in.document,
@@ -83,7 +81,6 @@ export default function (in: Input): Output {
                             state.implementation = implementation({
                                 ...value,
                                 target: target.columns,
-                                strings_target,
                                 row
                             })
                         default:

@@ -1,25 +1,39 @@
-import memory from "memory"
-
-import type { U64Buffer } from "memory"
 import type { Node, Text } from "./model"
 
 export type Input = {
     nodes: Node[],
     text: Text[],
-    root: u64,
-    node_slots: U64Buffer,
-    text_slots: U64Buffer
+    root: u64
 }
 
-export type Output = void
+export type Output = {
+    node_slots: u64[],
+    text_slots: u64[]
+}
 
 export default function (in: Input): Output {
-    memory.writeU64(in.node_slots, in.root, 0)
+    const empty: u64[] = []
 
-    const layout = loop({
+    const zero_nodes = loop(empty, {
+        while: out => out.length < in.nodes.length,
+        next: out => {
+            out = out.push(0)[0]
+        }
+    })
+
+    const zero_text = loop(empty, {
+        while: out => out.length < in.text.length,
+        next: out => {
+            out = out.push(0)[0]
+        }
+    })
+
+    return loop({
         index: 0,
         child_end: 1,
-        text_end: 0
+        text_end: 0,
+        node_slots: zero_nodes.splice(in.root, 1, [0])[0],
+        text_slots: zero_text
     }, {
         while: state => state.index < in.nodes.length,
         next: state => {
@@ -29,35 +43,43 @@ export default function (in: Input): Output {
 
             const children = loop({
                 head: node.children,
-                cursor: child_end
+                cursor: child_end,
+                slots: state.node_slots
             }, {
                 while: child => child.head != 0,
                 next: child => {
                     const index = child.head - 1
 
                     child.cursor -= 1
-                    memory.writeU64(in.node_slots, index, child.cursor)
+                    child.slots = child.slots.splice(index, 1, [child.cursor])[0]
                     child.head = in.nodes[index].previous_sibling
                 }
             })
 
             const text = loop({
                 head: node.text,
-                cursor: text_end
+                cursor: text_end,
+                slots: state.text_slots
             }, {
                 while: item => item.head != 0,
                 next: item => {
                     const index = item.head - 1
 
                     item.cursor -= 1
-                    memory.writeU64(in.text_slots, index, item.cursor)
+                    item.slots = item.slots.splice(index, 1, [item.cursor])[0]
                     item.head = in.text[index].previous
                 }
             })
 
+            state.node_slots = children.slots
+            state.text_slots = text.slots
             state.index += 1
             state.child_end = child_end
             state.text_end = text_end
-        }
+        },
+        return: state => state.pick([
+            "node_slots",
+            "text_slots"
+        ])
     })
 }

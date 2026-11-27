@@ -1,5 +1,5 @@
 import type { FileSystem } from "artifact_io"
-import type { StringBuffer, TextColumn } from "memory"
+import type { TextColumn } from "memory"
 
 export type Identity = {
     entry: string,
@@ -14,11 +14,6 @@ export type Files = {
     count: u64,
     paths: TextColumn,
     sources: TextColumn
-}
-
-export type Modules = {
-    files: Files,
-    output: StringBuffer
 }
 
 export type Workspace = {
@@ -37,7 +32,12 @@ export type Input = {
     separator: string,
     identity: Identity,
     views: Files,
-    modules: Modules
+    modules: Files
+}
+
+export type Output = {
+    directory: string,
+    module_paths: string[]
 }
 
 export type Artifact = {

@@ -1,2 +1,1 @@
-export { readU64 } from "memory"
 export { updateObjectReadiness, finishObjectRow } from "rx_project_host"

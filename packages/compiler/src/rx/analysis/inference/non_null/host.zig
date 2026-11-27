@@ -12,7 +12,6 @@ pub const Frame = struct {
     view: Replay,
     topology: Topology(Replay),
     spans: []const zx.Span,
-    revision: []u64,
     node: Node,
     append: Nodes.Append(Node),
     pub fn bind(self: *Frame, graph: *Graph) void {
@@ -20,7 +19,6 @@ pub const Frame = struct {
 
         self.graph = graph;
         self.spans = projections.items(.span);
-        self.revision = (&graph.revision)[0..1];
 
         self.topology.bind(graph);
 
@@ -32,7 +30,6 @@ pub const Frame = struct {
             .sources = @ptrCast(projections.items(.source)),
             .values = @ptrCast(projections.items(.value)),
             .node = &self.node,
-            .revision = @ptrCast(&self.revision),
         };
     }
 

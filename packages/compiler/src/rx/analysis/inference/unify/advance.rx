@@ -8,12 +8,19 @@
     <Call fn="scan" in={$in} />
 
     <If on={$ctx.scan.step == Application.Step.Publish}>
-        <Call module="publish" in={$in.omit(["count"])} />
+        <Call
+            module="publish"
+            in={$in.omit([
+                "count",
+                "positions"
+            ])}
+        />
 
         <Return
             value={{
                 ...$in,
-                count: $in.count - 1
+                count: $in.count - 1,
+                positions: $ctx.scan.positions
             }}
         />
     </If>
@@ -30,12 +37,17 @@
         module="child"
         in={{
             ...$in,
-            ...$ctx.scan
+            ...$ctx.scan.omit(["positions"])
         }}
     />
 
     <If on={$in.candidate.frame.route == Admission.Route.Same}>
-        <Return value={$in} />
+        <Return
+            value={{
+                ...$in,
+                positions: $ctx.scan.positions
+            }}
+        />
     </If>
 
     <Call
@@ -56,21 +68,30 @@
             }}
         />
 
-        <Return value={$in} />
+        <Return
+            value={{
+                ...$in,
+                positions: $ctx.scan.positions
+            }}
+        />
     </If>
 
     <Call
         module="push"
         in={$in.omit([
             "stack",
-            "count"
+            "count",
+            "positions"
         ])}
     />
+
+    <Call fn="push_position" in={$ctx.scan.positions} />
 
     <Return
         value={{
             ...$in,
-            count: $in.count + 1
+            count: $in.count + 1,
+            positions: $ctx.push_position
         }}
     />
 </Module>

@@ -1,4 +1,4 @@
-import type { ListColumn, U8Buffer, U64Buffer } from "memory"
+import type { ListColumn } from "memory"
 
 export enum Status {
     Valid,
@@ -12,10 +12,7 @@ export type Input = {
     count: u64,
     limit: u64,
     ranked: bool,
-    marks: U8Buffer,
-    heights: U8Buffer,
-    nodes: U64Buffer,
-    cursors: U64Buffer
+    initial_marks: u8[]
 }
 
 export type Result = {

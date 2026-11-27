@@ -244,13 +244,13 @@ fn completeWrites(self: *Self, action: policy.Action) void {
 
     if (self.writing.last_io_error) |err| self.last_io_error = err;
 
-    if (comptime generated_parser) {
-        self.publishWrites();
-    } else {
-        self.written += self.writing.written;
-        self.io_errors += self.writing.io_errors;
+    self.written += self.writing.written;
+    self.io_errors += self.writing.io_errors;
 
-        if (self.writing.queue.has_retired) {
+    if (self.writing.queue.has_retired) {
+        if (comptime generated_parser) {
+            self.publishWrites();
+        } else {
             for (self.writing.queue.records.items) |item| {
                 if (item.retired) self.sourceAllocator(item.owner).free(item.source);
             }
@@ -265,37 +265,20 @@ fn completeWrites(self: *Self, action: policy.Action) void {
 fn publishWrites(self: *Self) void {
     const rule = @import("generated_generation_cache_write_publication");
     const Input = std.meta.Child(rule.Input);
-    const Retired = std.meta.Child(@typeInfo(@FieldType(Input, "retired")).optional.child);
-    const counters: memory.ColumnLengths = &.{ &self.written, &self.io_errors };
     const shared = self.sourceAllocator(.shared);
-    var retired: Retired = undefined;
-    var flags: memory.ReadColumn = undefined;
-    var sources: memory.TextColumn = undefined;
-    var owners: memory.ReadColumn = undefined;
-
-    if (self.writing.queue.has_retired) {
-        const records = self.writing.queue.records.items;
-
-        flags = memory.borrowReadColumn(bool, "retired", records);
-        sources = memory.borrowReadColumn([]u8, "source", records);
-        owners = memory.borrowReadColumn(Owner, "owner", records);
-
-        retired = .{
-            .flags = @ptrCast(&flags),
-            .sources = @ptrCast(&sources),
-            .owners = @ptrCast(&owners),
-            .count = records.len,
-            .local = @ptrCast(&self.allocator),
-            .shared = @ptrCast(&shared),
-            .shared_owner = @backingInt(Owner.shared),
-        };
-    }
+    const records = self.writing.queue.records.items;
+    const flags = memory.borrowReadColumn(bool, "retired", records);
+    const sources = memory.borrowReadColumn([]u8, "source", records);
+    const owners = memory.borrowReadColumn(Owner, "owner", records);
 
     const input: Input = .{
-        .counters = @ptrCast(&counters),
-        .written = self.writing.written,
-        .failures = self.writing.io_errors,
-        .retired = if (self.writing.queue.has_retired) &retired else null,
+        .flags = @ptrCast(&flags),
+        .sources = @ptrCast(&sources),
+        .owners = @ptrCast(&owners),
+        .count = records.len,
+        .local = @ptrCast(&self.allocator),
+        .shared = @ptrCast(&shared),
+        .shared_owner = @backingInt(Owner.shared),
     };
 
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
@@ -366,11 +349,11 @@ fn collectWrites(writing: *Writing, written: []const u64, failures: []const u64)
     }
 
     const summary = @import("generated_generation_cache_write_results");
-    const counters: memory.ColumnLengths = &.{ &writing.written, &writing.io_errors };
-    const input: std.meta.Child(summary.Input) = .{ .written = written, .failures = failures, .counters = @ptrCast(&counters) };
+    const input: std.meta.Child(summary.Input) = .{ .written = written, .failures = failures };
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-    summary.executeIn(fixed.allocator(), &input) catch unreachable;
+    const totals = zx.columns.invoke(summary.executeValue, fixed.allocator(), &input) catch unreachable;
+    writing.written += @intCast(totals.written);
+    writing.io_errors += @intCast(totals.failures);
 }
 
 const writers = 8;

@@ -3,7 +3,10 @@
 
     <Args in={Solve.Request} out={bool} />
 
-    <Call fn="host.solveRevision" in={$in.frame} />
+    <Task name="initial" out={$ctx.solveRevision}>
+        <Call fn="host.solveRevision" in={$in.frame} />
+    </Task>
+
     <Call fn="host.refreshSolverBindings" in={$in.frame} />
 
     <Call module="../bindings/validate" in={$in.bindings} />
@@ -56,13 +59,9 @@
 
     <Call module="../index/run" in={$in.indexes} />
 
-    <Call
-        fn="../non_null/host.readU64"
-        in={[
-            $in.non_null.revision,
-            0
-        ]}
-    />
+    <Task name="current" out={$ctx.solveRevision}>
+        <Call fn="host.solveRevision" in={$in.frame} />
+    </Task>
 
-    <Return value={$ctx.readU64 != $ctx.solveRevision} />
+    <Return value={$ctx.task.current != $ctx.task.initial} />
 </Module>

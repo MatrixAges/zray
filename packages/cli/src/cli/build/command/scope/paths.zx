@@ -1,10 +1,6 @@
 import { resolvePathFrom } from "lexical_path"
-import memory from "memory"
-
-import type { Allocator } from "memory"
 
 export type Input = {
-    owner: Allocator,
     root: string,
     paths: string[]
 }
@@ -12,21 +8,19 @@ export type Input = {
 export type Output = string[]
 
 export default function (in: Input): Output {
-    const { owner, paths } = in
+    const empty: string[] = []
 
-    const resolved = memory.requireTextSlots(
-        memory.allocateTextSlots(owner, paths.length, null)
-    )
+    return loop({
+        row: 0,
+        out: empty
+    }, {
+        while: state => state.row < in.paths.length,
+        next: state => {
+            const path = resolvePathFrom(in.root, in.paths[state.row])
 
-    const written = loop(0, {
-        while: row => row < in.paths.length,
-        next: row => {
-            const path = resolvePathFrom(in.root, in.paths[row])
-
-            memory.writeTextSlot(resolved, row, path)
-            row += 1
-        }
+            state.out = state.out.push(path)[0]
+            state.row += 1
+        },
+        return: state => state.out
     })
-
-    return memory.borrowTextSlots(resolved, paths.length)
 }
