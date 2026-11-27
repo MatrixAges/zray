@@ -36,10 +36,6 @@ export declare function stringBufferSlots(
 
 export declare function duplicateText(allocator: Allocator, source: string): string?
 
-export declare function copyColumnText(allocator: Allocator, source: string): string throws {
-    OutOfMemory
-}
-
 export declare function freeOwnedText(allocator: Allocator, text: string): void
 
 export declare function freeTextSlots(allocator: Allocator, slots: string[]): void

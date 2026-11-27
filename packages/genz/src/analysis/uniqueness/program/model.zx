@@ -1,6 +1,5 @@
 import type { Cells, Create } from "../summaries/model"
-import type { Bodies, Calls, Input as Graph } from "../topology/model"
-import type { Buffers } from "../work/allocate"
+import type { Bodies, Calls, Plan } from "../topology/model"
 
 export type Prepare = Create & {
     bodies: Bodies
@@ -11,8 +10,8 @@ export type Prepared = {
     cells: Cells
 }
 
-export type Open = Graph & {
-    queue: Buffers
+export type Open = Plan & {
+    queue_count: u64
 }
 
 export enum Phase {

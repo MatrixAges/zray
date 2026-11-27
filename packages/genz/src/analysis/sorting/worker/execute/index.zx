@@ -10,5 +10,6 @@ export {
     registerSortParameters,
     lowerExpression,
     lowerType,
+    readSortOperand,
     readSortWorkerFacts
 } from "lowering_host"

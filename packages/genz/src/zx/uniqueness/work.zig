@@ -25,26 +25,20 @@ queued: []u8,
 
 cursor: Cursor = .{},
 pub fn open(owner: std.mem.Allocator, scratch: std.mem.Allocator, called: []const []const u32, exported: []const zx.ir.FunctionId) std.mem.Allocator.Error!struct { work: Self, reverse: Topology.Plan } {
-    var slots: zx.memory.RowBuffer = .empty(u64);
-    var queued: zx.memory.RowBuffer = .empty(u8);
-
-    errdefer owner.free(slots.rows(u64));
-    errdefer owner.free(queued.rows(u8));
-
     const input: std.meta.Child(opening.Input) = .{
         .callees = called,
         .exported = @ptrCast(exported),
-        .queue = &.{
-            .owner = @ptrCast(&owner),
-            .slots = @ptrCast(&slots),
-            .queued = @ptrCast(&queued),
-        },
     };
 
     const reverse = try invoke(opening, scratch, &input);
+    const slots = try owner.alloc(u64, @intCast(reverse.queue_count));
+
+    errdefer owner.free(slots);
+
+    const queued = try owner.alloc(u8, @intCast(reverse.queue_count));
 
     return .{
-        .work = .{ .allocator = owner, .slots = slots.rows(u64), .queued = queued.rows(u8) },
+        .work = .{ .allocator = owner, .slots = slots, .queued = queued },
         .reverse = .{ .callers = reverse.callers, .known = reverse.known },
     };
 }

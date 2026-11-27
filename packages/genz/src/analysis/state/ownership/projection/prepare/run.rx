@@ -40,14 +40,18 @@
         />
 
         <If on={$ctx.build.clear_plan != null}>
-            <Call
-                fn="../prepare_layouts"
-                in={{
-                    frame: $in.frame,
-                    references: $ctx.build.clear_plan.references,
-                    layouts: $in.layouts
-                }}
-            />
+            <Loop on={$in.running}>
+                <Call
+                    module="layout_row"
+                    in={{
+                        frame: $in.frame,
+                        references: $ctx.build.clear_plan.references,
+                        layouts: $in.layouts,
+                        row: 0,
+                        running: $ctx.build.clear_plan.references.length != 0
+                    }}
+                />
+            </Loop>
         </If>
 
         <Return

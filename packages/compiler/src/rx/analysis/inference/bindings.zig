@@ -11,7 +11,7 @@ pub fn isVoid(graph: *const Graph, id: Graph.Id) bool {
 }
 
 pub fn requireValue(graph: *Graph, value: Graph.Id, span: zx.Span) zx.Error!void {
-    if (comptime @import("rx_options").generated_graph) return @import("bindings/require.zig").run(graph, value, span);
+    if (comptime @import("rx_options").generated_graph) return @import("bindings/host.zig").require(graph, value, span);
 
     switch (rules.status(graph, value)) {
         .Void => return graph.reporter.fail(.name, span, missing_message),

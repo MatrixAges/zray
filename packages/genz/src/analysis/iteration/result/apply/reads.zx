@@ -1,22 +1,9 @@
-import host from "lowering_host"
+import type { Reads } from "./model"
 
-import type { Reads as Input } from "./model"
+export type Input = Reads.Pick("plan")
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    const { frame, plan } = in
-
-    const reads = plan.reads ?? plan.projections
-
-    const applied = loop(0, {
-        while: row => row < reads.length,
-        next: row => {
-            const id = reads[row]
-            const value = host.projectIterationResult(frame, id)
-
-            host.cacheIterationResult(frame, id, value)
-            row += 1
-        }
-    })
+    return in.plan.reads ?? in.plan.projections
 }

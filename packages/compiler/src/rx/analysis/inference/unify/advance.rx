@@ -5,14 +5,15 @@
 
     <Args in={Walk.Cursor} out={Walk.Cursor} />
 
-    <Call fn="scan" in={$in} />
+    <Call fn="scan" in={$in.omit(["diagnostic"])} />
 
     <If on={$ctx.scan.step == Application.Step.Publish}>
         <Call
             module="publish"
             in={$in.omit([
                 "count",
-                "positions"
+                "positions",
+                "diagnostic"
             ])}
         />
 
@@ -25,18 +26,21 @@
         />
     </If>
 
-    <Call
-        fn="reject_child"
-        in={{
-            target: $in.target,
-            step: $ctx.scan.step
-        }}
-    />
+    <Call fn="reject_child" in={$ctx.scan.step} />
+
+    <If on={$ctx.reject_child != null}>
+        <Return
+            value={{
+                ...$in,
+                diagnostic: $ctx.reject_child
+            }}
+        />
+    </If>
 
     <Call
         module="child"
         in={{
-            ...$in,
+            ...$in.omit(["diagnostic"]),
             ...$ctx.scan.omit(["positions"])
         }}
     />
@@ -50,13 +54,16 @@
         />
     </If>
 
-    <Call
-        fn="diagnose"
-        in={{
-            target: $in.target,
-            route: $in.candidate.frame.route
-        }}
-    />
+    <Call fn="diagnose" in={$in.candidate.frame.route} />
+
+    <If on={$ctx.diagnose != null}>
+        <Return
+            value={{
+                ...$in,
+                diagnostic: $ctx.diagnose
+            }}
+        />
+    </If>
 
     <If on={$in.candidate.frame.action == Application.Action.Adopt}>
         <Call
@@ -81,7 +88,8 @@
         in={$in.omit([
             "stack",
             "count",
-            "positions"
+            "positions",
+            "diagnostic"
         ])}
     />
 

@@ -1,4 +1,5 @@
 import type { ConstraintRound, ProjectionGraph, ProjectionSpans } from "rx_project_host"
+import type { Diagnostic } from "../projections/site"
 import type { ReplayInput } from "./model"
 
 export type Replay = ReplayInput.Omit("start") & {
@@ -9,7 +10,8 @@ export type Replay = ReplayInput.Omit("start") & {
 
 export type Cursor = {
     request: Replay,
-    row: u64
+    row: u64,
+    diagnostic?: Diagnostic
 }
 
 export type List = {
@@ -20,7 +22,6 @@ export type List = {
 }
 
 export type Failure = {
-    owner: ProjectionGraph,
     spans: ProjectionSpans,
     row: u64,
     length: bool

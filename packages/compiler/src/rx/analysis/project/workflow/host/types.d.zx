@@ -43,9 +43,11 @@ export type ObjectConstructionRow = mutable_opaque
 
 export type BindingReplay = mutable_opaque
 
-export type BindingReporter = mutable_opaque
-
-export type BindingSpans = opaque
+export enum BindingDiagnosticSource {
+    Collision,
+    Lookup,
+    Use
+}
 
 export type NonNullReplay = mutable_opaque
 

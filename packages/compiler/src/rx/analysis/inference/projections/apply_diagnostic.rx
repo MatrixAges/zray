@@ -1,0 +1,18 @@
+<Module>
+    <Type from="site" as="Projection" />
+
+    <Args in={Projection.Publication} out={void} />
+
+    <If on={$in.diagnostic != null}>
+        <Call
+            fn="host.applyProjectionDiagnostic"
+            in={[
+                $in.graph,
+                $in.diagnostic.spans,
+                $in.diagnostic.row,
+                $in.diagnostic.message,
+                $in.diagnostic.unsupported
+            ]}
+        />
+    </If>
+</Module>

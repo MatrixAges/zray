@@ -14,5 +14,8 @@ export {
     emitFunctionModuleBody,
     appendModuleAuxiliary,
     appendModuleSuffix,
-    finishModuleDeclarations
+    finishModuleDeclarations,
+    readModuleSuffix,
+    emitModuleComparison,
+    emitModuleParallelAllocator
 } from "lowering_host"

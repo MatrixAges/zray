@@ -66,10 +66,16 @@
             <Call
                 fn="reject"
                 in={{
-                    owner: $in.request.owner,
                     spans: $in.request.spans,
                     row: $ctx.replay.row,
                     length: $ctx.replay.plan.route == Sequences.SequenceRoute.Length
+                }}
+            />
+
+            <Return
+                value={{
+                    ...$in,
+                    diagnostic: $ctx.reject
                 }}
             />
         </Default>

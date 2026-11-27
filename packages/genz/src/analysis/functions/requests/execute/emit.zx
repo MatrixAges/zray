@@ -1,34 +1,17 @@
-import host from "lowering_host"
 import { ModuleRequestForm } from "lowering_host"
 
-import type { ModuleFrame } from "lowering_host"
+export type Input = ModuleRequestForm
 
-export type Input = {
-    module_frame: ModuleFrame,
-    form: ModuleRequestForm
+export type Output = {
+    native: bool,
+    first: bool,
+    value: bool
 }
 
-export type Output = void
-
 export default function (in: Input): Output {
-    const { module_frame, form } = in
-
-    if (form == ModuleRequestForm.Native) {
-        host.emitRequestedNative(module_frame)
-
-        return
+    return {
+        native: in == ModuleRequestForm.Native,
+        first: in == ModuleRequestForm.FirstRegular || in == ModuleRequestForm.FirstValue,
+        value: in == ModuleRequestForm.Value || in == ModuleRequestForm.FirstValue
     }
-
-    host.openRequestedFunction(module_frame)
-
-    if (
-        form == ModuleRequestForm.FirstRegular || form == ModuleRequestForm.FirstValue
-    ) {
-        host.emitRequestedStore(module_frame)
-    }
-
-    const value = form == ModuleRequestForm.Value || form == ModuleRequestForm.FirstValue
-
-    host.emitRequestedBody(module_frame, value)
-    host.publishRequestedFunction(module_frame)
 }

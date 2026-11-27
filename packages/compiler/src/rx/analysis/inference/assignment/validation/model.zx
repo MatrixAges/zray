@@ -1,6 +1,7 @@
 import type { U32Buffer } from "memory"
 import type { ConstraintRound, ProjectionGraph, ProjectionSpans } from "rx_project_host"
 import type { Graph } from "../../optional/model"
+import type { Diagnostic } from "../../projections/site"
 import type { Session as Resolver } from "../../resolve/model"
 import type { Edges } from "../model"
 
@@ -37,5 +38,6 @@ export type Request = {
 }
 
 export type Iteration = Cursor & {
-    request: Request
+    request: Request,
+    diagnostic?: Diagnostic
 }

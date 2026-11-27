@@ -1,68 +1,9 @@
-import {
-    AstPayloadOwnership,
-    AstSequenceMode,
-    appendExpressionRows,
-    appendStatementRows,
-    appendStatementSequence,
-    astFieldCount,
-    readAstOrigin
-} from "ast_rows"
-import { requireAllocation } from "memory"
-
-import emptyVariables from "../../../ast/statements/empty_variables"
 import publishGuard from "../../intrinsics/guard/publish"
 import checkBounds from "./check"
 
-import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
-
-export type Input = {
-    writer: AstWriter,
-    origin: AstOriginBuffer,
-    sequence: AstSequence,
-    items: u32,
-    index: u32
-}
-
-export type Output = void
+import type { Output } from "../../intrinsics/guard/model"
+import type { Bounds as Input } from "./model"
 
 export default function (in: Input): Output {
-    const { writer, origin, sequence, items, index } = in
-
-    const current = readAstOrigin(writer, origin)
-    const field_base = astFieldCount(writer)
-
-    const emitted = publishGuard(
-        checkBounds({
-            bases: {
-                ...current,
-                field_base
-            },
-            items,
-            index
-        })
-    )
-
-    requireAllocation(emitted.valid)
-
-    appendExpressionRows(
-        writer,
-        emitted.expressions,
-        emitted.forms,
-        AstPayloadOwnership.BorrowingText
-    )
-
-    appendStatementRows(
-        writer,
-        emitted.statements,
-        null,
-        AstPayloadOwnership.BorrowingText
-    )
-
-    appendStatementSequence(
-        writer,
-        sequence,
-        emitted.roots,
-        emptyVariables({}),
-        AstSequenceMode.BorrowingText
-    )
+    return publishGuard(checkBounds(in))
 }

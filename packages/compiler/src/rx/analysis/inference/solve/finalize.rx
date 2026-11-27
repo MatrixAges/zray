@@ -35,6 +35,14 @@
         }}
     />
 
+    <Call
+        module="../projections/apply_diagnostic"
+        in={{
+            graph: $in.objects.selections.owner,
+            diagnostic: $ctx.select
+        }}
+    />
+
     <Task name="after_select" out={$ctx.solveRevision}>
         <Call fn="host.solveRevision" in={$in.frame} />
     </Task>
@@ -63,19 +71,49 @@
 
     <Call module="../projections/validate" in={$in.lengths} />
 
-    <Call fn="host.refreshSolverBindings" in={$in.frame} />
-
     <Call
-        module="../bindings/run"
+        module="../projections/apply_diagnostic"
         in={{
-            view: $in.bindings,
-            final: true
+            graph: $in.lengths.owner,
+            diagnostic: $ctx.validate
         }}
     />
+
+    <Call fn="host.refreshSolverBindings" in={$in.frame} />
+
+    <Task name="bindings" out={$ctx.run}>
+        <Call
+            module="../bindings/run"
+            in={{
+                view: $in.bindings,
+                final: true
+            }}
+        />
+    </Task>
+
+    <If on={$ctx.task.bindings != null}>
+        <Call
+            fn="../bindings/host.applyBindingDiagnostic"
+            in={[
+                $in.bindings.frame,
+                $ctx.task.bindings.source,
+                $ctx.task.bindings.row,
+                $ctx.task.bindings.message
+            ]}
+        />
+    </If>
 
     <Call fn="host.refreshSolverValidation" in={$in.frame} />
 
     <Call module="../assignment/validation/run" in={$in.validation} />
+
+    <Call
+        module="../projections/apply_diagnostic"
+        in={{
+            graph: $in.validation.owner,
+            diagnostic: $ctx.run
+        }}
+    />
 
     <Return value={false} />
 </Module>

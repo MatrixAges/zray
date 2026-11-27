@@ -1,0 +1,9 @@
+<Module>
+    <Type from="model" as="Driver" />
+
+    <Args in={Driver.Convergence} out={void} />
+
+    <Loop on={$in.running}>
+        <Call module="cycle" in={$in} />
+    </Loop>
+</Module>

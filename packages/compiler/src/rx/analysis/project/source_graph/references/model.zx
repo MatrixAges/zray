@@ -1,8 +1,9 @@
-import type { GraphEdgeScan } from "rx_graph_host"
+import type { GraphInternalModules } from "rx_graph_host"
 import type { Import } from "../../../../../zx/frontend/parser/imports/model"
 import type { Cursor } from "../../../../dependency_graph/reference/tree/model"
 import type { Layout } from "../../../../syntax/tree/layout"
 import type { Input as Route } from "./route/model"
+import type { ReferenceDelivery } from "./send"
 
 export type References = {
     bytes: u8[],
@@ -18,7 +19,7 @@ export type References = {
 }
 
 export type Scan = Route.Pick("packages") & {
-    target: GraphEdgeScan,
+    internal?: GraphInternalModules,
     intrinsic?: string,
     discover: bool
 }
@@ -41,4 +42,4 @@ export type Input = {
     imports?: Imports
 }
 
-export type Output = void
+export type Output = ReferenceDelivery[]

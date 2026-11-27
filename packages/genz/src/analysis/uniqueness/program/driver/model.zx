@@ -1,4 +1,4 @@
-import type { Execution, RoundKind } from "ownership_host"
+import type { Execution, RoundKind, RoundOutcome } from "ownership_host"
 
 export type Kind = RoundKind
 
@@ -12,4 +12,11 @@ export type Round = {
     frame: Execution,
     kind: Kind,
     exhausted: bool
+}
+
+export type Outcome = RoundOutcome
+
+export type Convergence = {
+    frame: Execution,
+    running: bool
 }

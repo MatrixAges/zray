@@ -30,8 +30,6 @@ pub fn prepare(self: *Self, count: usize) std.mem.Allocator.Error!Columns {
     const plan_entry = @import("generated_type_scratch_plan");
     const bind_entry = @import("generated_type_scratch_bind");
     const PlanInput = std.meta.Child(plan_entry.Input);
-    const BindInput = std.meta.Child(bind_entry.Input);
-    const Table = std.meta.Child(@FieldType(BindInput, "tables"));
     var fixed = std.heap.FixedBufferAllocator.init(&.{});
 
     const plan_input: PlanInput = .{
@@ -51,29 +49,20 @@ pub fn prepare(self: *Self, count: usize) std.mem.Allocator.Error!Columns {
         self.items = next;
     }
 
-    const tables = self.borrow(Table);
+    const starts = bind_entry.executeValue(fixed.allocator(), plan.stride) catch unreachable;
+    const words = self.items;
+    const ids: []Id = @ptrCast(words);
 
-    const input: BindInput = .{
-        .items = @ptrCast(&self.items),
-        .tables = &tables,
-        .count = count,
-        .stride = plan.stride,
+    self.columns = .{
+        .abi_types = ids[@intCast(starts.abi_types)..][0..count],
+        .abi_layouts = ids[@intCast(starts.abi_layouts)..][0..count],
+        .state_types = ids[@intCast(starts.state_types)..][0..count],
+        .state_layouts = ids[@intCast(starts.state_layouts)..][0..count],
+        .views = ids[@intCast(starts.views)..][0..count],
+        .touched = words[@intCast(starts.touched)..][0..count],
     };
-
-    bind_entry.executeIn(fixed.allocator(), &input) catch unreachable;
 
     return self.columns;
-}
-
-fn borrow(self: *Self, comptime Table: type) Table {
-    return .{
-        .abi_types = @ptrCast(&self.columns.abi_types),
-        .abi_layouts = @ptrCast(&self.columns.abi_layouts),
-        .state_types = @ptrCast(&self.columns.state_types),
-        .state_layouts = @ptrCast(&self.columns.state_layouts),
-        .views = @ptrCast(&self.columns.views),
-        .touched = @ptrCast(&self.columns.touched),
-    };
 }
 
 pub fn reset(self: *Self) void {

@@ -1,5 +1,3 @@
-import { GraphReferenceKind } from "rx_graph_host"
-
 import classify from "../../../../../zx/modules/project/target/classify"
 import { Route as ImportRoute } from "../../../../../zx/modules/project/target/model"
 import { Target } from "../../../../dependency_graph/reference/model"
@@ -8,11 +6,12 @@ import publishImport from "./import"
 import member from "./member"
 import { Kind } from "./route/model"
 import resolve from "./route/resolve"
+import { Kind as DeliveryKind } from "./send"
 import send from "./send"
 
 import type { Scan } from "./model"
 import type { Input as Route } from "./route/model"
-import type { Site } from "./send"
+import type { ReferenceDelivery, Site } from "./send"
 
 export type Input = Route.Omit("packages", "reference") & {
     scan: Scan,
@@ -21,20 +20,17 @@ export type Input = Route.Omit("packages", "reference") & {
     site: Site
 }
 
-export type Output = void
+export type Output = ReferenceDelivery
 
 export default function (in: Input): Output {
     const { scan, reference, site } = in
 
     if (reference == null) {
-        send({
-            target: scan.target,
-            kind: GraphReferenceKind.Diagnostic,
+        return send({
+            kind: DeliveryKind.Diagnostic,
             site,
             value: missing_reference
         })
-
-        return
     }
 
     const route = resolve({
@@ -53,9 +49,8 @@ export default function (in: Input): Output {
             ])
 
             if (scan.discover) {
-                send({
-                    target: scan.target,
-                    kind: GraphReferenceKind.Import,
+                return send({
+                    kind: DeliveryKind.Import,
                     site,
                     value: reference,
                     selection
@@ -71,8 +66,8 @@ export default function (in: Input): Output {
                     })
                 }
 
-                publishImport({
-                    target: scan.target,
+                return publishImport({
+                    internal: scan.internal,
                     reference,
                     site,
                     route: import_route,
@@ -87,25 +82,22 @@ export default function (in: Input): Output {
                 _ => null
             }
 
-            send({
-                target: scan.target,
-                kind: GraphReferenceKind.Source,
+            return send({
+                kind: DeliveryKind.Source,
                 site,
                 path: route.path,
                 member: export_name
             })
         case Kind.Store:
-            send({
-                target: scan.target,
-                kind: GraphReferenceKind.Store,
+            return send({
+                kind: DeliveryKind.Store,
                 site,
                 value: in.owner,
                 path: route.path
             })
         default:
-            send({
-                target: scan.target,
-                kind: GraphReferenceKind.Diagnostic,
+            return send({
+                kind: DeliveryKind.Diagnostic,
                 site,
                 value: invalid_reference
             })

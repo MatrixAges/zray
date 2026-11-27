@@ -49,3 +49,12 @@ export type Appended = {
 export type Published = Appended & {
     check: Check
 }
+
+export type PublishCursor = Columns & {
+    index: u64,
+    running: bool
+}
+
+export type PublishCount = PublishCursor.Pick("counts", "index")
+
+export { publish as publishColumnGroup } from "core/column_transfer"

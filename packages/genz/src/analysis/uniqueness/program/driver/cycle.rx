@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Driver" />
+
+    <Args in={Driver.Convergence} out={Driver.Convergence} />
+
+    <Task name="settle" out={$ctx.round}>
+        <Call
+            fn="round"
+            in={{
+                frame: $in.frame,
+                kind: Driver.Kind.Settle,
+                exhausted: false
+            }}
+        />
+    </Task>
+
+    <Call
+        fn="round"
+        in={{
+            frame: $in.frame,
+            kind: Driver.Kind.Demand,
+            exhausted: $ctx.task.settle == Driver.Outcome.Exhausted
+        }}
+    />
+
+    <Return
+        value={{
+            frame: $in.frame,
+            running: $ctx.round == Driver.Outcome.Grew
+        }}
+    />
+</Module>

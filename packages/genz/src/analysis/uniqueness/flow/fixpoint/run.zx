@@ -1,55 +1,7 @@
-import host from "ownership_host"
-
 import advance from "./advance"
 
-import type { FlowFixpoint } from "ownership_host"
-import type { Advance } from "./model"
-
-export type Input = {
-    flow: FlowFixpoint,
-    queue: Advance
-}
-
-export type Output = void
+import type { Advance as Input, Visit as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { flow, queue } = in
-
-    const changed: u32? = null
-
-    const settled = loop({
-        count: queue.count,
-        changed,
-        indices: queue.indices,
-        queued: queue.queued,
-        active: true
-    }, {
-        while: state => state.active,
-        next: state => {
-            const visit = advance({
-                first: queue.first,
-                items: queue.items,
-                indices: state.indices,
-                queued: state.queued,
-                count: state.count,
-                changed: state.changed
-            })
-            const index = visit.index
-
-            if (index == null) {
-                state.active = false
-            } else {
-                if (visit.retain) {
-                    host.retainFlowFacts(flow, index)
-                }
-
-                const grew = host.visitRecursiveFlow(flow, index, visit.retain)
-
-                state.count = visit.count
-                state.indices = visit.indices
-                state.queued = visit.queued
-                state.changed = grew ? index : null
-            }
-        }
-    })
+    return advance(in)
 }

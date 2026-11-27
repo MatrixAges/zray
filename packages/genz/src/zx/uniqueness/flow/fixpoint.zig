@@ -5,21 +5,16 @@ const Slots = @import("../slots.zig");
 const Body = @import("body.zig");
 const Walk = @import("walk.zig");
 const create = @import("generated_uniqueness_flow_queue");
-const run = @import("generated_uniqueness_flow_fixpoint");
+const Queue = @import("../program/driver.zig").Api.FlowQueue;
 const Error = std.mem.Allocator.Error;
+const Self = @This();
 
-const Frame = struct {
-    owner: std.mem.Allocator,
-    functions: *const zx.ir.FunctionTable,
-    walk: Walk,
-    bodies: []?*const Body.Facts,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-};
-
-pub fn settle(flow: Flow, owner_arg: std.mem.Allocator, workspace: std.mem.Allocator, functions: *const zx.ir.FunctionTable, slots: Slots) Error!void {
-    const owner = owner_arg;
+owner: std.mem.Allocator,
+functions: *const zx.ir.FunctionTable,
+walk: Walk,
+bodies: []?*const Body.Facts,
+queue: Queue,
+pub fn open(flow: Flow, owner: std.mem.Allocator, workspace: std.mem.Allocator, scratch: std.mem.Allocator, functions: *const zx.ir.FunctionTable, slots: Slots) Error!Self {
     const size = functions.count();
     const Input = std.meta.Child(create.Input);
 
@@ -29,11 +24,7 @@ pub fn settle(flow: Flow, owner_arg: std.mem.Allocator, workspace: std.mem.Alloc
         .held = flow.held,
     };
 
-    var scratch = std.heap.ArenaAllocator.init(workspace);
-
-    defer scratch.deinit();
-
-    const queue = zx.columns.invoke(create.executeValue, scratch.allocator(), &input) catch |err| switch (err) {
+    const queue = zx.columns.invoke(create.executeValue, scratch, &input) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
@@ -42,43 +33,31 @@ pub fn settle(flow: Flow, owner_arg: std.mem.Allocator, workspace: std.mem.Alloc
 
     @memset(bodies, null);
 
-    var frame: Frame = .{
+    return .{
         .owner = owner,
         .functions = functions,
         .bodies = bodies,
         .walk = .{ .allocator = workspace, .flow = flow, .slots = slots },
-    };
-
-    defer frame.walk.deinit();
-
-    const request: std.meta.Child(run.Input) = .{
-        .flow = @ptrCast(&frame),
-        .queue = &.{
-            .indices = queue.indices,
-            .queued = queue.queued,
+        .queue = .{
             .first = queue.first,
             .items = queue.items,
+            .indices = queue.indices,
+            .queued = queue.queued,
             .count = queue.count,
-            .changed = null,
         },
-    };
-
-    run.executeIn(scratch.allocator(), &request) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
     };
 }
 
-pub fn retainFlowFacts(handle: *anyopaque, index: u32) Error!void {
-    const frame = Frame.borrow(handle);
+pub fn deinit(self: *Self) void {
+    self.walk.deinit();
+}
 
-    if (frame.bodies[index] == null) {
-        frame.bodies[index] = try frame.walk.keep(frame.owner, Body.View.at(frame.functions, index));
+pub fn retain(self: *Self, index: u32) Error!void {
+    if (self.bodies[index] == null) {
+        self.bodies[index] = try self.walk.keep(self.owner, Body.View.at(self.functions, index));
     }
 }
 
-pub fn visitRecursiveFlow(handle: *anyopaque, index: u32, retained: bool) Error!bool {
-    const frame = Frame.borrow(handle);
-
-    return frame.walk.visit(index, Body.View.at(frame.functions, index), if (retained) frame.bodies[index] else null);
+pub fn visit(self: *Self, index: u32, retained: bool) Error!bool {
+    return self.walk.visit(index, Body.View.at(self.functions, index), if (retained) self.bodies[index] else null);
 }

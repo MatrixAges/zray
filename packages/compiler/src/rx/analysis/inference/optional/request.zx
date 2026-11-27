@@ -13,5 +13,16 @@ export type Cursor = {
     request: Request,
     value: u32,
     remaining?: u64,
-    action: Action
+    action: Action,
+    diagnostic?: Diagnostic
+}
+
+export type Diagnostic = {
+    root: u32,
+    message: string
+}
+
+export type Result = {
+    value?: u32,
+    diagnostic?: Diagnostic
 }

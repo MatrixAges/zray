@@ -2,7 +2,7 @@
     <Type from="../round" as="Assignments" />
     <Type from="../../depth/model" as="Depth" />
 
-    <Args in={Assignments.Execution} out={bool} />
+    <Args in={Assignments.Execution} out={Assignments.Update} />
 
     <Call fn="../host.assignmentRevision" in={$in.frame} />
 
@@ -23,11 +23,17 @@
         <Call
             fn="reject"
             in={{
-                owner: $in.owner,
                 node_spans: $in.node_spans,
                 spans: $in.rows.spans,
                 edges: $in.rows.edges.left.length,
                 issue: $ctx.solve
+            }}
+        />
+
+        <Return
+            value={{
+                changed: false,
+                diagnostic: $ctx.reject
             }}
         />
     </If>
@@ -56,5 +62,10 @@
         }}
     />
 
-    <Return value={$ctx.run != $ctx.assignmentRevision} />
+    <Return
+        value={{
+            changed: $ctx.run != $ctx.assignmentRevision,
+            diagnostic: null
+        }}
+    />
 </Module>

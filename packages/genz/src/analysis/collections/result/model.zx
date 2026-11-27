@@ -51,3 +51,10 @@ export type Member = {
 export type Publication = Member.Pick("state", "value") & {
     members: Members
 }
+
+export { prepareCollectionMember } from "lowering_host"
+
+export type PrepareCursor = Preparation & {
+    row: u64,
+    running: bool
+}

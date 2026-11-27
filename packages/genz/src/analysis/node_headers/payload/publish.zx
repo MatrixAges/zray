@@ -1,27 +1,9 @@
 import integers from "std:integer"
-import { publish } from "core/column_transfer"
 
-import type { Columns as Input } from "./model"
+import type { PublishCount as Input } from "./model"
 
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
-    const { counts, groups } = in
-
-    const written = loop(0, {
-        while: index => index < counts.length,
-        next: index => {
-            const count = integers.widen(counts[index])
-
-            if (count != 0) {
-                publish({
-                    groups,
-                    index,
-                    count
-                })
-            }
-
-            index += 1
-        }
-    })
+    return integers.widen(in.counts[in.index])
 }

@@ -1,5 +1,6 @@
 export {
+    BindingDiagnosticSource,
     refreshBindingTopology,
-    reportBindingName,
+    applyBindingDiagnostic,
     unifyBindingReplay
 } from "rx_project_host"

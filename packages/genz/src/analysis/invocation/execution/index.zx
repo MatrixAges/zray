@@ -2,3 +2,4 @@ export {
     lowerCall,
     lowerRegular
 } from "lowering_host"
+export { lowerExpression, openIterationCall } from "lowering_host"

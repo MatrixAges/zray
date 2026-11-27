@@ -1,14 +1,17 @@
-import { rejectProjection } from "../projections/host"
 import { invalid_sequence, tuple_length } from "./const"
 
+import type { Diagnostic } from "../projections/site"
 import type { Failure } from "./workflow"
 
 export type Input = Failure
 
-export type Output = void
+export type Output = Diagnostic
 
 export default function (in: Input): Output {
-    const message = in.length ? tuple_length : invalid_sequence
-
-    rejectProjection(in.owner, in.spans, in.row, message)
+    return {
+        spans: in.spans,
+        row: in.row,
+        message: in.length ? tuple_length : invalid_sequence,
+        unsupported: false
+    }
 }

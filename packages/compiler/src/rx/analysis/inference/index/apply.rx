@@ -7,12 +7,13 @@
 
     <If on={$ctx.effect.message != null}>
         <Call
-            fn="../projections/host.rejectProjection"
+            fn="../projections/host.applyProjectionDiagnostic"
             in={[
                 $in.site.graph,
                 $ctx.effect.error_spans,
                 $in.site.row,
-                $ctx.effect.message ?? ""
+                $ctx.effect.message,
+                false
             ]}
         />
 

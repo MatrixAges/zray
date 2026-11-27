@@ -17,9 +17,15 @@
         <Call
             fn="reject"
             in={{
-                graph: $in.request.owner,
                 spans: $in.request.spans,
                 row: $ctx.scan.index
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                diagnostic: $ctx.reject
             }}
         />
     </If>
@@ -40,7 +46,8 @@
                 request: $in.request,
                 index: $ctx.scan.index,
                 source_type: $ctx.scan.source_type,
-                resolved: $ctx.run
+                resolved: $ctx.run,
+                diagnostic: null
             }}
         />
     </If>
@@ -50,7 +57,8 @@
             request: $in.request,
             index: $ctx.scan.index,
             source_type: null,
-            resolved: null
+            resolved: null,
+            diagnostic: null
         }}
     />
 </Module>

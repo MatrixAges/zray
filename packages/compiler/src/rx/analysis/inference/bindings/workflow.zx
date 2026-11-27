@@ -1,21 +1,13 @@
-import type { BindingReplay, BindingReporter, BindingSpans } from "rx_project_host"
+import type { BindingDiagnosticSource, BindingReplay } from "rx_project_host"
 import type { Input, Pairs } from "./model"
-
-export type Uses = {
-    values: u32[],
-    spans: BindingSpans
-}
 
 export type View = Input.Omit("start", "collisions") & {
     frame: BindingReplay,
-    reporter: BindingReporter,
     collisions: CollisionRows,
-    lookup_spans: BindingSpans,
-    uses: Uses
+    uses: u32[]
 }
 
 export type CollisionRows = Pairs.Omit("final") & {
-    spans: BindingSpans,
     messages: string[]
 }
 
@@ -24,8 +16,15 @@ export type Replay = {
     final: bool
 }
 
+export type Diagnostic = {
+    source: BindingDiagnosticSource,
+    row: u64,
+    message: string
+}
+
 export type Cursor = {
     request: Replay,
     start: u64,
-    running: bool
+    running: bool,
+    diagnostic?: Diagnostic
 }

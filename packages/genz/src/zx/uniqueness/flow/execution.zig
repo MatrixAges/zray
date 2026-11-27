@@ -5,7 +5,8 @@ const Slots = @import("../slots.zig");
 const Memo = @import("../memo.zig");
 const layers = @import("layers/root.zig");
 const entry = @import("generated_uniqueness_flow_solve");
-const Plan = @import("../program/driver.zig").Api.FlowPlan;
+const Api = @import("../program/driver.zig").Api;
+const Fixpoint = @import("fixpoint.zig");
 const Error = std.mem.Allocator.Error;
 
 const Request = struct {
@@ -22,6 +23,8 @@ const Request = struct {
 
 const Frame = struct {
     request: Request,
+    scratch: std.mem.Allocator,
+    recursive: ?Fixpoint = null,
     result: Flow = undefined,
     plan: layers.Plan = undefined,
     remembered: ?Flow.Remembered = null,
@@ -32,16 +35,24 @@ const Frame = struct {
 };
 
 pub fn solve(request: Request) Error!Flow {
-    var frame: Frame = .{ .request = request };
+    var scratch = std.heap.ArenaAllocator.init(request.workspace);
+
+    defer scratch.deinit();
+
+    var frame: Frame = .{ .request = request, .scratch = scratch.allocator() };
 
     defer Flow.Walker.close(frame.walkers);
+    defer if (frame.recursive) |*recursive| recursive.deinit();
 
     const input: std.meta.Child(entry.Input) = .{
         .flow = @ptrCast(&frame),
         .remembered = request.memo != null,
     };
 
-    try @import("../../expressions/evaluate.zig").execute(entry, &input);
+    entry.executeIn(frame.scratch, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => unreachable,
+    };
 
     return frame.result;
 }
@@ -53,7 +64,7 @@ pub fn initializeFlow(handle: *anyopaque) Error!void {
     frame.result = try @import("initial.zig").create(input.allocator, input.program.*, input.slots, input.texts);
 }
 
-pub fn planFlow(handle: *anyopaque) Error!Plan {
+pub fn planFlow(handle: *anyopaque) Error!Api.FlowPlan {
     const frame = Frame.borrow(handle);
     const input = &frame.request;
 
@@ -118,9 +129,19 @@ pub fn publishFlowMemo(handle: *anyopaque, row: u64) Error!void {
     try kept.memo.putFlowed(kept.keys[index], flow.held[index], flow.text_held[index], flow.written[index]);
 }
 
-pub fn solveRecursiveFlow(handle: *anyopaque) Error!void {
+pub fn openRecursiveFlow(handle: *anyopaque) Error!*const Api.FlowQueue {
     const frame = Frame.borrow(handle);
     const input = &frame.request;
 
-    try @import("fixpoint.zig").settle(frame.result, input.temporary, input.workspace, &input.program.functions, input.slots);
+    frame.recursive = try Fixpoint.open(frame.result, input.temporary, input.workspace, frame.scratch, &input.program.functions, input.slots);
+
+    return &frame.recursive.?.queue;
+}
+
+pub fn retainFlowFacts(handle: *anyopaque, index: u32) Error!void {
+    try Frame.borrow(handle).recursive.?.retain(index);
+}
+
+pub fn visitRecursiveFlow(handle: *anyopaque, index: u32, retained: bool) Error!bool {
+    return Frame.borrow(handle).recursive.?.visit(index, retained);
 }

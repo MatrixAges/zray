@@ -3,15 +3,13 @@
     <Type from="../unification/model" as="Admission" />
     <Type from="../unification/application/model" as="Application" />
 
-    <Args in={Walk.Merge} out={void} />
+    <Args in={Walk.Merge} out={Walk.Diagnostic?} />
 
-    <Call
-        fn="diagnose"
-        in={{
-            target: $in.target,
-            route: $in.candidate.frame.route
-        }}
-    />
+    <Call fn="diagnose" in={$in.candidate.frame.route} />
+
+    <If on={$ctx.diagnose != null}>
+        <Return value={$ctx.diagnose} />
+    </If>
 
     <If on={$in.candidate.frame.route != Admission.Route.Same}>
         <If on={$in.candidate.frame.action == Application.Action.Adopt}>
@@ -35,4 +33,6 @@
             />
         </If>
     </If>
+
+    <Return value={null} />
 </Module>

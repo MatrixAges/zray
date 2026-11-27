@@ -1,12 +1,15 @@
-import { rejectProjection } from "../../projections/host"
 import { incompatible_assignment } from "./const"
 
-import type { Site } from "../../projections/site"
+import type { Diagnostic, Site } from "../../projections/site"
 
-export type Input = Site
+export type Input = Site.Omit("graph")
 
-export type Output = void
+export type Output = Diagnostic
 
 export default function (in: Input): Output {
-    rejectProjection(in.graph, in.spans, in.row, incompatible_assignment)
+    return {
+        ...in,
+        message: incompatible_assignment,
+        unsupported: false
+    }
 }

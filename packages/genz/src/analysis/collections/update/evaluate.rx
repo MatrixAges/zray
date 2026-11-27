@@ -34,13 +34,33 @@
     />
 
     <Call
+        fn="../../statements/rows.readAstOrigin"
+        in={[
+            $in.ast.writer,
+            $in.ast.origin
+        ]}
+    />
+
+    <Call fn="../../statements/rows.astFieldCount" in={$in.ast.writer} />
+
+    <Call
         fn="check_bounds"
         in={{
-            writer: $in.ast.writer,
-            origin: $in.ast.origin,
-            sequence: $in.ast.sequence,
+            bases: {
+                ...$ctx.readAstOrigin,
+                field_base: $ctx.astFieldCount
+            },
             items: $ctx.bind_target.items,
             index: $ctx.operand
+        }}
+    />
+
+    <Call
+        module="../../intrinsics/guard/append"
+        in={{
+            writer: $in.ast.writer,
+            body: $in.ast.sequence,
+            fragment: $ctx.check_bounds
         }}
     />
 

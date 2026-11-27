@@ -33,7 +33,7 @@
     />
 
     <Call
-        fn="publish"
+        module="../../../intrinsics/guard/append"
         in={{
             writer: $in.writer,
             body: $in.body,

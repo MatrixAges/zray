@@ -1,15 +1,19 @@
 <Module>
     <Type from="workflow" as="Sequences" />
+    <Type from="../projections/site" as="Projection" />
 
-    <Args in={Sequences.Replay} out={void} />
+    <Args in={Sequences.Replay} out={Projection.Diagnostic?} />
 
-    <Loop on={$in.row < $in.request.values.length}>
+    <Loop on={$in.diagnostic == null && $in.row < $in.request.values.length}>
         <Call
             module="advance"
             in={{
                 request: $in,
-                row: 0
+                row: 0,
+                diagnostic: null
             }}
         />
     </Loop>
+
+    <Return value={$ctx.advance.diagnostic} />
 </Module>

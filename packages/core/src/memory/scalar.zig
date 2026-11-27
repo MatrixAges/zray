@@ -1,5 +1,4 @@
 const read = @import("rows.zig").readColumn;
-const write = @import("write_column.zig").write;
 const IndexError = error{IndexOutOfBounds};
 
 pub const Value = union(enum) {
@@ -52,12 +51,4 @@ pub inline fn readText(source: *const anyopaque, index: u64) IndexError!?[]const
         .string => |text| text,
         else => null,
     };
-}
-
-pub inline fn copy(source: *const anyopaque, target: *anyopaque, index: u64) IndexError!void {
-    return write(Value, target, index, try read(Value, source, index));
-}
-
-pub inline fn writeText(target: *anyopaque, index: u64, value: []const u8) IndexError!void {
-    return write(Value, target, index, .{ .string = value });
 }

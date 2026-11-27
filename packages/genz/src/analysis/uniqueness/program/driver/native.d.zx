@@ -1,18 +1,13 @@
 export type Execution = mutable_opaque
 
-export type IdentityWorker = mutable_opaque
-
 export type FlowExecution = mutable_opaque
 
-export type FlowWorker = opaque
-
-export type FlowFixpoint = mutable_opaque
-
-export enum IdentityRow {
-    Zero,
-    Content,
-    Known,
-    Body
+export type FlowQueue = {
+    first: u64[],
+    items: u32[],
+    indices: u32[],
+    queued: u8[],
+    count: u64
 }
 
 export enum FlowPlan {
@@ -62,10 +57,6 @@ export declare function prepareOwnershipQueue(in: Execution): void
 
 export declare function bindOwnershipMemoRows(in: Execution): void
 
-export declare function releaseOwnership(in: Execution): void
-
-export declare function commitOwnership(in: Execution): void throws { OutOfMemory }
-
 export declare function beginOwnershipRound(
     in: Execution,
     kind: RoundKind,
@@ -104,14 +95,6 @@ export declare function publishOwnershipReplay(in: Execution): void throws { Out
 
 export declare function finishOwnershipReplay(in: Execution): void
 
-export declare function claimOwnershipIdentity(worker: IdentityWorker): u64?
-
-export declare function writeOwnershipIdentity(
-    worker: IdentityWorker,
-    row: u64,
-    action: IdentityRow
-): void
-
 export declare function initializeFlow(flow: FlowExecution): void throws { OutOfMemory }
 
 export declare function planFlow(flow: FlowExecution): FlowPlan throws { OutOfMemory }
@@ -137,20 +120,14 @@ export declare function keepFlowMemo(flow: FlowExecution, row: u64): void
 export declare function publishFlowMemo(flow: FlowExecution, row: u64): void
     throws { OutOfMemory }
 
-export declare function solveRecursiveFlow(flow: FlowExecution): void throws { OutOfMemory }
-
-export declare function claimFlowBody(worker: FlowWorker): u32?
-
-export declare function adoptFlowMemo(worker: FlowWorker, index: u32): bool
-
-export declare function walkFlowBody(worker: FlowWorker, index: u32): void
+export declare function openRecursiveFlow(flow: FlowExecution): FlowQueue
     throws { OutOfMemory }
 
-export declare function retainFlowFacts(flow: FlowFixpoint, index: u32): void
+export declare function retainFlowFacts(flow: FlowExecution, index: u32): void
     throws { OutOfMemory }
 
 export declare function visitRecursiveFlow(
-    flow: FlowFixpoint,
+    flow: FlowExecution,
     index: u32,
     retained: bool
 ): bool throws { OutOfMemory }

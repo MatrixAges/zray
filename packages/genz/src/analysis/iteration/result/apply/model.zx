@@ -21,3 +21,18 @@ export type Input = {
 export type Transfers = Input.Pick("frame", "plan", "slots")
 
 export type Reads = Input.Pick("frame", "plan")
+
+export { cacheIterationResult, transferIterationResult } from "lowering_host"
+export { readU32 } from "memory"
+
+export type ReadCursor = {
+    frame: IterationResultApplication,
+    ids: u32[],
+    row: u64,
+    running: bool
+}
+
+export type TransferCursor = Transfers & {
+    row: u64,
+    running: bool
+}

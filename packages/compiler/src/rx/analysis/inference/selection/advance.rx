@@ -20,7 +20,7 @@
     <If on={$ctx.selection.row == $in.request.view.selections.sources.length}>
         <Return
             value={{
-                request: $in.request,
+                ...$in,
                 start: $ctx.selection.row
             }}
         />
@@ -40,7 +40,7 @@
 
         <Return
             value={{
-                request: $in.request,
+                ...$in,
                 start: $ctx.selection.row
             }}
         />
@@ -50,9 +50,15 @@
         <Call
             fn="reject_incomplete"
             in={{
-                graph: $in.request.view.selections.owner,
                 spans: $in.request.view.selections.spans,
                 row: $ctx.selection.row
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                diagnostic: $ctx.reject_incomplete
             }}
         />
     </If>
@@ -74,16 +80,22 @@
                 <Call
                     fn="reject_incomplete"
                     in={{
-                        graph: $in.request.view.selections.owner,
                         spans: $in.request.view.selections.spans,
                         row: $ctx.selection.row
+                    }}
+                />
+
+                <Return
+                    value={{
+                        ...$in,
+                        diagnostic: $ctx.reject_incomplete
                     }}
                 />
             </If>
 
             <Return
                 value={{
-                    request: $in.request,
+                    ...$in,
                     start: $ctx.selection.row + 1
                 }}
             />
@@ -111,7 +123,7 @@
 
     <Return
         value={{
-            request: $in.request,
+            ...$in,
             start: $ctx.selection.row + 1
         }}
     />

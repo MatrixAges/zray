@@ -1,0 +1,21 @@
+import { missing_message } from "./const"
+import { Status } from "./model"
+
+import type { Status as BindingStatus } from "./model"
+import type { Input as Node } from "./node"
+
+export type Use = Node
+
+export type Input = BindingStatus
+
+export type Output = {
+    pending: bool,
+    message?: string
+}
+
+export default function (in: Input): Output {
+    return {
+        pending: in == Status.Pending,
+        message: in == Status.Void ? missing_message : null
+    }
+}

@@ -1,47 +1,21 @@
-import host from "lowering_host"
 import { ModuleFunctionForm } from "lowering_host"
 
 import { unnamed_parameter } from "../module/const"
 
-import type { ModuleSignatures } from "lowering_host"
+export type Input = ModuleFunctionForm
 
-export type Input = {
-    signatures: ModuleSignatures,
-    count: u64
+export type Output = {
+    native: bool,
+    regular: bool,
+    value: bool,
+    parameter_name: string
 }
 
-export type Output = void
-
 export default function (in: Input): Output {
-    const { signatures, count } = in
-
-    const processed = loop({
-        index: 0
-    }, {
-        while: state => state.index < count,
-        next: state => {
-            const form = host.openSignatureUnit(signatures, state.index)
-
-            if (form != null) {
-                if (form == ModuleFunctionForm.Native) {
-                    host.emitNativeSignature(signatures)
-                } else {
-                    host.installSignatureBody(signatures)
-
-                    if (form != ModuleFunctionForm.Value) {
-                        host.emitRegularSignature(signatures)
-                    }
-
-                    if (form != ModuleFunctionForm.Regular) {
-                        host.emitValueSignature(signatures)
-                    }
-                }
-
-                host.publishSignatureUnit(signatures, unnamed_parameter)
-            }
-
-            state.index = state.index + 1
-        },
-        return: state => state.index
-    })
+    return {
+        native: in == ModuleFunctionForm.Native,
+        regular: in != ModuleFunctionForm.Value,
+        value: in != ModuleFunctionForm.Regular,
+        parameter_name: unnamed_parameter
+    }
 }

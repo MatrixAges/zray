@@ -24,14 +24,56 @@
 
     <Call fn="index.publishLoopDeclarations" in={$in.loop_frame} />
 
-    <Call
-        fn="assignment"
-        in={{
-            loop_frame: $in.loop_frame,
-            assignment: $in.schedule.assignment,
-            value: $in.update.value
-        }}
-    />
+    <If on={$in.schedule.assignment == Step.Assignment.Projected}>
+        <Call
+            fn="index.projectLoopAssignment"
+            in={[
+                $in.loop_frame,
+                $in.update.value
+            ]}
+        />
+
+        <Call
+            fn="index.commitLoopUpdate"
+            in={[
+                $in.loop_frame,
+                $ctx.projectLoopAssignment,
+                false
+            ]}
+        />
+
+        <Else>
+            <If on={$in.schedule.assignment == Step.Assignment.State}>
+                <Call
+                    fn="index.clipLoopAssignment"
+                    in={[
+                        $in.loop_frame,
+                        $in.update.value
+                    ]}
+                />
+
+                <Call
+                    fn="index.commitLoopUpdate"
+                    in={[
+                        $in.loop_frame,
+                        $ctx.clipLoopAssignment,
+                        true
+                    ]}
+                />
+
+                <Else>
+                    <Call
+                        fn="index.commitLoopUpdate"
+                        in={[
+                            $in.loop_frame,
+                            $in.update.value,
+                            false
+                        ]}
+                    />
+                </Else>
+            </If>
+        </Else>
+    </If>
 
     <Call
         fn="index.frameLoweredLoop"

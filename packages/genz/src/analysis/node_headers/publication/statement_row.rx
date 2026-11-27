@@ -1,0 +1,24 @@
+<Module>
+    <Type from="dense_model" as="Flow" />
+    <Type from="host" as="Host" />
+
+    <Args in={Flow.StatementCursor} out={Flow.StatementCursor} />
+
+    <Call
+        fn="host.appendStatementRows"
+        in={[
+            $in.writer,
+            $in.statements[$in.row],
+            null,
+            Host.AstPayloadOwnership.Owned
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1,
+            running: $in.row + 1 < $in.statements.length
+        }}
+    />
+</Module>

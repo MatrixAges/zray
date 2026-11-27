@@ -12,24 +12,6 @@ export declare function projectListCell(
 
 export declare function columnLength(source: ReadColumn): u64
 
-export declare function writeColumnOptionalU32(
-    target: WriteColumn,
-    index: u64,
-    value: u32?
-): void throws { IndexOutOfBounds }
-
-export declare function writeColumnOptionalU8(
-    target: WriteColumn,
-    index: u64,
-    value: u8?
-): void throws { IndexOutOfBounds }
-
-export declare function writeColumnOptionalText(
-    target: WriteColumn,
-    index: u64,
-    value: string?
-): void throws { IndexOutOfBounds }
-
 export declare function readColumnU32(
     source: ReadColumn,
     index: u64
@@ -64,17 +46,6 @@ export declare function readScalarText(
     source: ReadColumn,
     index: u64
 ): string? throws { IndexOutOfBounds }
-export declare function copyScalar(
-    source: ReadColumn,
-    target: WriteColumn,
-    index: u64
-): void throws { IndexOutOfBounds }
-
-export declare function writeScalarText(
-    target: WriteColumn,
-    index: u64,
-    value: string
-): void throws { IndexOutOfBounds }
 
 export declare function readListOptionalU8(
     source: ListColumn,

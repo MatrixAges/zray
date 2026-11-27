@@ -1,6 +1,10 @@
-import host from "rx_graph_host"
-
-import type { GraphEdgeScan, GraphReferenceKind } from "rx_graph_host"
+export enum Kind {
+    Diagnostic,
+    Source,
+    Store,
+    Import,
+    Native
+}
 
 export type Site = {
     location?: u8[],
@@ -14,8 +18,7 @@ export type Selection = {
 }
 
 export type Input = {
-    target: GraphEdgeScan,
-    kind: GraphReferenceKind,
+    kind: Kind,
     site: Site,
     value?: string,
     member?: string,
@@ -23,29 +26,25 @@ export type Input = {
     selection?: Selection
 }
 
-export type Output = void
+export type ReferenceDelivery = Input.Omit("site", "selection") & Site & {
+    package_route: bool,
+    first?: u64,
+    duplicate: bool
+}
+
+export type Output = ReferenceDelivery
 
 export default function (in: Input): Output {
     const { site, selection } = in
 
-    const first: u64? = match {
-        selection == null => null,
-        _ => selection.first
+    return {
+        ...in.omit([
+            "site",
+            "selection"
+        ]),
+        ...site,
+        package_route: selection != null,
+        first: selection == null ? null : selection.first,
+        duplicate: selection != null && selection.duplicate
     }
-
-    const duplicate = selection != null && selection.duplicate
-
-    host.deliverSourceGraphReference(
-        in.target,
-        in.kind,
-        site.location,
-        site.offset,
-        site.role,
-        in.value,
-        in.path,
-        in.member,
-        selection != null,
-        first,
-        duplicate
-    )
 }

@@ -1,44 +1,19 @@
 import integers from "std:integer"
-import host from "ownership_host"
 
-import type { Layers as Input } from "./model"
+import type { MemoCursor } from "./model"
 
-export type Output = void
+export type Input = MemoCursor.Pick("order", "hits", "position")
+
+export type Output = {
+    body: u64,
+    keep: bool
+}
 
 export default function (in: Input): Output {
-    const { flow, remembered, order, ends, hits } = in
+    const body = integers.widen(in.order[in.position])
 
-    const solved = loop({
-        layer: 0,
-        first: 0
-    }, {
-        while: state => state.layer < ends.length,
-        next: state => {
-            const end = ends[state.layer]
-
-            host.solveFlowLayer(flow, state.first, end)
-
-            if (remembered) {
-                const committed = loop({
-                    position: state.first
-                }, {
-                    while: commit => commit.position < end,
-                    next: commit => {
-                        const body = integers.widen(order[commit.position])
-
-                        if (hits[body]) {
-                            host.keepFlowMemo(flow, body)
-                        } else {
-                            host.publishFlowMemo(flow, body)
-                        }
-
-                        commit.position += 1
-                    }
-                })
-            }
-
-            state.first = end
-            state.layer += 1
-        }
-    })
+    return {
+        body,
+        keep: in.hits[body]
+    }
 }

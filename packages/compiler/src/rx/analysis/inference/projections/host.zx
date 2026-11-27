@@ -1,8 +1,7 @@
 export {
     registerProjectionType,
     mergeProjection,
-    rejectProjection,
-    rejectUnsupportedProjection,
+    applyProjectionDiagnostic,
     requireProjectionList,
     readOpenLength
 } from "rx_project_host"

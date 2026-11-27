@@ -1,7 +1,8 @@
 <Module>
     <Type from="model" as="Lengths" />
+    <Type from="site" as="Projection" />
 
-    <Args in={Lengths.Replay} out={void} />
+    <Args in={Lengths.Replay} out={Projection.Diagnostic?} />
 
     <Call
         fn="scan"
@@ -16,10 +17,13 @@
         <Call
             fn="reject"
             in={{
-                graph: $in.owner,
                 spans: $in.spans,
-                row: $ctx.scan ?? 0
+                row: $ctx.scan
             }}
         />
+
+        <Return value={$ctx.reject} />
     </If>
+
+    <Return value={null} />
 </Module>

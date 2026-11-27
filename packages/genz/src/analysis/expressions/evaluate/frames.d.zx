@@ -35,8 +35,6 @@ export type FunctionBody = mutable_opaque
 
 export type ValueFunction = mutable_opaque
 
-export type RepresentedCache = mutable_opaque
-
 export type ModuleFrame = mutable_opaque
 
 export type ModuleSuffix = {
@@ -59,8 +57,6 @@ export enum ModuleRequestForm {
     FirstValue,
     Value
 }
-
-export type ModuleSignatures = mutable_opaque
 
 export type DirectAstRows = mutable_opaque
 

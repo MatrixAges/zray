@@ -16,23 +16,33 @@
     </If>
 
     <If on={$in.buffered}>
-        <Call
-            fn="transfers"
-            in={$in.pick([
-                "frame",
-                "plan",
-                "slots"
-            ])}
-        />
+        <Loop on={$in.running}>
+            <Call
+                module="transfer_row"
+                in={{
+                    frame: $in.frame,
+                    plan: $in.plan,
+                    slots: $in.slots,
+                    row: 0,
+                    running: $in.plan.transfers.length != 0
+                }}
+            />
+        </Loop>
     </If>
 
-    <Call
-        fn="reads"
-        in={$in.pick([
-            "frame",
-            "plan"
-        ])}
-    />
+    <Call fn="reads" in={$in.pick(["plan"])} />
+
+    <Loop on={$in.running}>
+        <Call
+            module="read_row"
+            in={{
+                frame: $in.frame,
+                ids: $ctx.reads,
+                row: 0,
+                running: $ctx.reads.length != 0
+            }}
+        />
+    </Loop>
 
     <If on={$in.layout}>
         <Call

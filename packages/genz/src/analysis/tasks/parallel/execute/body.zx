@@ -1,20 +1,14 @@
 import integers from "std:integer"
-import host from "ast_rows"
 
 import { word_radix } from "../../../node_headers/block/const"
 
-import type { AstSequence } from "ast_rows"
-
 export type Input = {
     start: u32,
-    target: AstSequence,
     count: u64
 }
 
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
-    const span = integers.widen(in.start) * word_radix + in.count
-
-    host.appendAstSequenceSpan(in.target, span)
+    return integers.widen(in.start) * word_radix + in.count
 }

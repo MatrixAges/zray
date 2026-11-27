@@ -26,12 +26,6 @@ export declare function writeU32(
     value: u32
 ): void throws { IndexOutOfBounds }
 
-export declare function allocateU32Buffer(
-    resource: Allocator,
-    target: U32Buffer,
-    count: u64
-): void throws { OutOfMemory }
-
 export declare function allocateFilledU32Buffer(
     resource: Allocator,
     target: U32Buffer,

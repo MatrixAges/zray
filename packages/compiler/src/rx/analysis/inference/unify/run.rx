@@ -1,18 +1,21 @@
 <Module>
     <Type from="model" as="Walk" />
 
-    <Args in={Walk.Request} out={void} />
+    <Args in={Walk.Request} out={Walk.Diagnostic?} />
 
     <Call module="push" in={$in.omit(["stack"])} />
 
-    <Loop on={$in.count != 0}>
+    <Loop on={$in.count != 0 && $in.diagnostic == null}>
         <Call
             module="advance"
             in={{
                 ...$in,
                 count: 1,
-                positions: [0]
+                positions: [0],
+                diagnostic: null
             }}
         />
     </Loop>
+
+    <Return value={$ctx.advance.diagnostic} />
 </Module>

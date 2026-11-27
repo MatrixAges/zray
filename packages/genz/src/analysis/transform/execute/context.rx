@@ -1,0 +1,68 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.ContextBinding} out={void} />
+
+    <If on={$in.initial != null}>
+        <Call
+            fn="index.lowerExpression"
+            in={[
+                $in.ast.lower,
+                $in.initial,
+                false,
+                null
+            ]}
+        />
+
+        <If on={$in.context_used}>
+            <Call
+                fn="index.lowerType"
+                in={[
+                    $in.ast.lower,
+                    $in.context_type,
+                    false
+                ]}
+            />
+
+            <Call
+                fn="bind_context"
+                in={{
+                    context_used: true,
+                    context_name: $in.context_name,
+                    type_expr: $ctx.lowerType,
+                    value: $ctx.lowerExpression
+                }}
+            />
+
+            <Call
+                fn="index.appendAstBindingRows"
+                in={[
+                    $in.ast.writer,
+                    $in.ast.body,
+                    $ctx.bind_context
+                ]}
+            />
+
+            <Else>
+                <Call
+                    fn="bind_context"
+                    in={{
+                        context_used: false,
+                        context_name: $in.context_name,
+                        type_expr: null,
+                        value: $ctx.lowerExpression
+                    }}
+                />
+
+                <Call
+                    fn="index.appendAstBindingRows"
+                    in={[
+                        $in.ast.writer,
+                        $in.ast.body,
+                        $ctx.bind_context
+                    ]}
+                />
+            </Else>
+        </If>
+    </If>
+</Module>

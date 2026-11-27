@@ -1,0 +1,40 @@
+<Module>
+    <Type from="model" as="Guard" />
+    <Type from="../../statements/rows" as="AST" />
+
+    <Args in={Guard.Publication} out={void} />
+
+    <Call fn="../../statements/rows.requireAllocation" in={$in.fragment.valid} />
+    <Call fn="../../../ast/statements/empty_variables" in={{}} />
+
+    <Call
+        fn="../../statements/rows.appendExpressionRows"
+        in={[
+            $in.writer,
+            $in.fragment.expressions,
+            $in.fragment.forms,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call
+        fn="../../statements/rows.appendStatementRows"
+        in={[
+            $in.writer,
+            $in.fragment.statements,
+            null,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call
+        fn="../../statements/rows.appendStatementSequence"
+        in={[
+            $in.writer,
+            $in.body,
+            $in.fragment.roots,
+            $ctx.empty_variables,
+            AST.AstSequenceMode.BorrowingText
+        ]}
+    />
+</Module>

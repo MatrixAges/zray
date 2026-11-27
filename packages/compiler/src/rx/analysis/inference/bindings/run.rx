@@ -1,7 +1,7 @@
 <Module>
     <Type from="workflow" as="Bindings" />
 
-    <Args in={Bindings.Replay} out={void} />
+    <Args in={Bindings.Replay} out={Bindings.Diagnostic?} />
 
     <Loop on={$in.running}>
         <Call
@@ -10,8 +10,11 @@
                 request: $in,
                 start: 0,
                 running:
-                    $in.view.values.length != 0 || $in.view.collisions.left.length != 0
+                    $in.view.values.length != 0 || $in.view.collisions.left.length != 0,
+                diagnostic: null
             }}
         />
     </Loop>
+
+    <Return value={$ctx.advance.diagnostic} />
 </Module>

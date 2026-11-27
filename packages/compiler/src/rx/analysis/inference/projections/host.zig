@@ -20,12 +20,8 @@ pub fn mergeProjection(handle: *anyopaque, spans: *const anyopaque, row: u64, le
     try graph(handle).unify(@fromBackingInt(left), @fromBackingInt(right), span(spans, row));
 }
 
-pub fn rejectProjection(handle: *anyopaque, spans: *const anyopaque, row: u64, message: []const u8) zx.Error!void {
-    return graph(handle).reporter.fail(.type_mismatch, span(spans, row), message);
-}
-
-pub fn rejectUnsupportedProjection(handle: *anyopaque, spans: *const anyopaque, row: u64, message: []const u8) zx.Error!void {
-    return graph(handle).reporter.fail(.unsupported, span(spans, row), message);
+pub fn applyProjectionDiagnostic(handle: *anyopaque, spans: *const anyopaque, row: u64, message: []const u8, unsupported: bool) zx.Error!void {
+    return graph(handle).reporter.fail(if (unsupported) .unsupported else .type_mismatch, span(spans, row), message);
 }
 
 pub fn requireProjectionList(handle: *anyopaque, spans: *const anyopaque, row: u64, target: u32) zx.Error!u32 {

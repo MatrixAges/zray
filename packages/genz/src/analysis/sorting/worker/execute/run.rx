@@ -52,7 +52,19 @@
         ]}
     />
 
-    <Call fn="prepare_operands" in={$in.frame} />
+    <Call fn="prepare_operands" in={{}} />
+
+    <Loop on={$in.running}>
+        <Call
+            module="operand"
+            in={{
+                frame: $in.frame,
+                count: $ctx.prepare_operands,
+                row: 0,
+                running: $ctx.prepare_operands != 0
+            }}
+        />
+    </Loop>
 
     <Call
         fn="index.lowerType"

@@ -1,16 +1,14 @@
-import { reportOptionalDepth } from "rx_project_host"
-
 import { depth_limit } from "../resolve/const"
 
-import type { OptionalQuery } from "rx_project_host"
+import type { Diagnostic } from "./request"
 
-export type Input = {
-    frame: OptionalQuery,
-    root: u32
-}
+export type Input = u32
 
-export type Output = void
+export type Output = Diagnostic
 
 export default function (in: Input): Output {
-    reportOptionalDepth(in.frame, in.root, depth_limit)
+    return {
+        root: in,
+        message: depth_limit
+    }
 }

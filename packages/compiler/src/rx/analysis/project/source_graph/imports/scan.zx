@@ -1,30 +1,32 @@
 import encoding from "std:encoding"
-import { GraphReferenceKind } from "rx_graph_host"
 
-import classify from "../../../../../zx/modules/project/target/classify"
-import { Route } from "../../../../../zx/modules/project/target/model"
-import select from "../../../../../zx/modules/project/target/select"
 import { role_dependency } from "../references/const"
-import publishImport from "../references/import"
-import send from "../references/send"
+import { Kind as DeliveryKind } from "../references/send"
+import classifyImport from "./classify"
 
 import type { Imports, Scan } from "../references/model"
-import type { Site } from "../references/send"
+import type { ReferenceDelivery, Site } from "../references/send"
 
 export type Input = {
     scan: Scan,
     imports: Imports
 }
 
-export type Output = void
+export type Output = ReferenceDelivery[]
 
 export default function (in: Input): Output {
     const { scan, imports } = in
 
-    const scanned = loop(0, {
-        while: index => index < imports.rows.length,
-        next: index => {
-            const item = imports.rows[index]
+    const deliveries: ReferenceDelivery[] = []
+
+    return loop({
+        index: 0,
+        done: false,
+        deliveries
+    }, {
+        while: state => state.index < imports.rows.length && !state.done,
+        next: state => {
+            const item = imports.rows[state.index]
             const span = item.path
             const reference = encoding.sliceBytes(
                 imports.source,
@@ -36,41 +38,16 @@ export default function (in: Input): Output {
                 role: role_dependency
             }
 
-            if (scan.discover) {
-                send({
-                    target: scan.target,
-                    kind: GraphReferenceKind.Import,
-                    site,
-                    value: reference
-                })
-            } else {
-                const route = classify({
-                    path: reference,
-                    intrinsic: scan.intrinsic ?? ""
-                })
+            const delivery = classifyImport({
+                scan,
+                reference,
+                site
+            })
 
-                const selected = match route {
-                    Route.Package => select({
-                        specifiers: scan.packages,
-                        name: reference,
-                        check_duplicates: true
-                    }),
-                    _ => ({
-                        first: null,
-                        duplicate: false
-                    })
-                }
-
-                publishImport({
-                    target: scan.target,
-                    reference,
-                    site,
-                    route,
-                    ...selected
-                })
-            }
-
-            index += 1
-        }
+            state.deliveries = state.deliveries.push(delivery)[0]
+            state.index += 1
+            state.done = delivery.kind == DeliveryKind.Diagnostic
+        },
+        return: state => state.deliveries
     })
 }

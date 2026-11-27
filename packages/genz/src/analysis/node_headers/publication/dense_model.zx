@@ -14,3 +14,9 @@ export type Input = {
     writer: AstWriter,
     fragment: Fragment
 }
+
+export type StatementCursor = Input.Pick("writer") & {
+    statements: StatementRows[],
+    row: u64,
+    running: bool
+}

@@ -2,17 +2,14 @@
     <Type from="model" as="Program" />
     <Type from="../topology/model" as="Graph" />
 
-    <Args in={Program.Open} out={Graph.Plan} />
+    <Args in={Graph.Input} out={Program.Open} />
 
-    <Call module="../topology/build" in={$in.omit(["queue"])} />
+    <Call module="../topology/build" in={$in} />
 
-    <Call
-        fn="../work/allocate"
-        in={{
-            ...$in.queue,
-            count: $in.callees.length
+    <Return
+        value={{
+            ...$ctx.build,
+            queue_count: $in.callees.length
         }}
     />
-
-    <Return value={$ctx.build} />
 </Module>

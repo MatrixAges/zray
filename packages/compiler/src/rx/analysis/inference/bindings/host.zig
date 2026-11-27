@@ -7,7 +7,10 @@ const Replay = std.meta.Child(@FieldType(Solve, "bindings"));
 const Topology = std.meta.Child(@FieldType(Replay, "topology"));
 const View = std.meta.Child(@FieldType(Topology, "graph"));
 const Collisions = std.meta.Child(@FieldType(Replay, "collisions"));
-const Uses = std.meta.Child(@FieldType(Replay, "uses"));
+const errors = @import("../../project/workflow/errors.zig");
+const require_rule = @import("generated_rx_require_binding_value");
+const Requirement = std.meta.Child(require_rule.Input);
+const DiagnosticSource = @import("rx_execution_abi").layouts.@"zig:rx_project_host".BindingDiagnosticSource;
 
 pub const Frame = struct {
     graph: *Graph,
@@ -16,7 +19,6 @@ pub const Frame = struct {
     nodes: View,
     parents: []u32,
     collisions: Collisions,
-    uses: Uses,
     collision_spans: []const zx.Span,
     lookup_spans: []const zx.Span,
     use_spans: []const zx.Span,
@@ -38,24 +40,16 @@ pub const Frame = struct {
         self.collisions = .{
             .left = @ptrCast(collisions.items(.left)),
             .right = @ptrCast(collisions.items(.right)),
-            .spans = @ptrCast(&self.collision_spans),
             .messages = collisions.items(.message),
-        };
-
-        self.uses = .{
-            .values = @ptrCast(uses.items(.value)),
-            .spans = @ptrCast(&self.use_spans),
         };
 
         self.view = .{
             .frame = @ptrCast(self),
-            .reporter = @ptrCast(graph.reporter),
             .topology = &self.topology,
             .collisions = &self.collisions,
             .candidates = @ptrCast(lookups.items(.candidates)),
             .values = @ptrCast(lookups.items(.value)),
-            .lookup_spans = @ptrCast(&self.lookup_spans),
-            .uses = &self.uses,
+            .uses = @ptrCast(uses.items(.value)),
         };
     }
     fn bindTopology(self: *Frame) void {
@@ -79,9 +73,30 @@ pub fn unifyBindingReplay(handle: *anyopaque, index: u64, value: u32) zx.Error!v
     try frame.graph.unify(@fromBackingInt(frame.view.values[row]), @fromBackingInt(value), frame.lookup_spans[row]);
 }
 
-pub fn reportBindingName(handle: *anyopaque, source: *const anyopaque, row: u64, message: []const u8) zx.Error!void {
-    const reporter: *zx.Reporter = @ptrCast(@alignCast(handle));
-    const spans: *const []const zx.Span = @ptrCast(@alignCast(source));
+pub fn applyBindingDiagnostic(handle: *anyopaque, source: DiagnosticSource, row: u64, message: []const u8) zx.Error!void {
+    const frame = Frame.borrow(handle);
 
-    return reporter.fail(.name, spans.*[@intCast(row)], message);
+    const spans = switch (source) {
+        .Collision => frame.collision_spans,
+        .Lookup => frame.lookup_spans,
+        .Use => frame.use_spans,
+    };
+
+    return frame.graph.reporter.fail(.name, spans[@intCast(row)], message);
+}
+
+pub fn require(graph: *Graph, value: Graph.Id, span: zx.Span) zx.Error!void {
+    var parents = graph.parents();
+    const RequireTopology = std.meta.Child(@FieldType(Requirement, "topology"));
+
+    const input: Requirement = .{
+        .topology = &.{ .graph = &rules.view(RequireTopology, graph), .parents = @ptrCast(&parents) },
+        .value = @backingInt(value),
+    };
+
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const result = zx.columns.invoke(require_rule.executeValue, empty.allocator(), &input) catch |err| return errors.errorSet(err);
+
+    if (result.message) |message| return graph.reporter.fail(.name, span, message);
+    if (result.pending) try graph.pending.value_uses.append(graph.pending.allocator, .{ .value = value, .span = span });
 }

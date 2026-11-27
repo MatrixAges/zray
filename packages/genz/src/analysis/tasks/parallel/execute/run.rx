@@ -103,10 +103,17 @@
     <Call
         fn="body"
         in={{
-            target: $in.body,
             start: $ctx.readAstOrigin.statement_base,
             count: $ctx.build.statements.tags.length
         }}
+    />
+
+    <Call
+        fn="../../rows.appendAstSequenceSpan"
+        in={[
+            $in.body,
+            $ctx.body
+        ]}
     />
 
     <Call

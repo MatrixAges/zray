@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.LayerCursor} out={Flow.LayerCursor} />
+
+    <Call
+        fn="index.solveFlowLayer"
+        in={[
+            $in.flow,
+            $in.first,
+            $in.ends[$in.layer]
+        ]}
+    />
+
+    <If on={$in.remembered && $in.first < $in.ends[$in.layer]}>
+        <Loop on={$in.running}>
+            <Call
+                module="memo_row"
+                in={{
+                    flow: $in.flow,
+                    order: $in.order,
+                    hits: $in.hits,
+                    position: $in.first,
+                    end: $in.ends[$in.layer],
+                    running: true
+                }}
+            />
+        </Loop>
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            layer: $in.layer + 1,
+            first: $in.ends[$in.layer],
+            running: $in.layer + 1 < $in.ends.length
+        }}
+    />
+</Module>

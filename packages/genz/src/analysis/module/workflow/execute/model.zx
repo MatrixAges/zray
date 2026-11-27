@@ -12,3 +12,12 @@ export type Function = {
     module_frame: ModuleFrame,
     form: ModuleFunctionForm
 }
+
+export type Module = ModuleFrame
+
+export type ComparisonCursor = {
+    frame: ModuleFrame,
+    count: u64,
+    row: u64,
+    running: bool
+}

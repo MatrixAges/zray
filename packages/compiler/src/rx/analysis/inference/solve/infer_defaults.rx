@@ -7,7 +7,15 @@
 
     <Call module="../assignment/application/update" in={$in.assignments} />
 
-    <If on={$ctx.update}>
+    <Call
+        module="../projections/apply_diagnostic"
+        in={{
+            graph: $in.assignments.owner,
+            diagnostic: $ctx.update.diagnostic
+        }}
+    />
+
+    <If on={$ctx.update.changed}>
         <Return value={true} />
     </If>
 

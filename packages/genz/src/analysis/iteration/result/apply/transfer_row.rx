@@ -1,0 +1,61 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.TransferCursor} out={Flow.TransferCursor} />
+
+    <Call
+        fn="model.projectIterationResult"
+        in={[
+            $in.frame,
+            $in.plan.transfers[$in.row]
+        ]}
+    />
+
+    <If on={$in.plan.reuse[$in.row]}>
+        <Call
+            fn="model.readU32"
+            in={[
+                $in.slots,
+                $in.plan.slots[$in.row]
+            ]}
+        />
+
+        <Call
+            fn="model.cacheIterationResult"
+            in={[
+                $in.frame,
+                $in.plan.transfers[$in.row],
+                $ctx.readU32
+            ]}
+        />
+
+        <Else>
+            <Call
+                fn="model.transferIterationResult"
+                in={[
+                    $in.frame,
+                    $in.plan.transfers[$in.row],
+                    $ctx.projectIterationResult,
+                    $in.plan.slots[$in.row]
+                ]}
+            />
+
+            <Call
+                fn="model.cacheIterationResult"
+                in={[
+                    $in.frame,
+                    $in.plan.transfers[$in.row],
+                    $ctx.transferIterationResult
+                ]}
+            />
+        </Else>
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1,
+            running: $in.row + 1 < $in.plan.transfers.length
+        }}
+    />
+</Module>

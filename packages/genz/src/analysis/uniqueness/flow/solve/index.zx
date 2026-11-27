@@ -6,5 +6,10 @@ export {
     flowLayerEnds,
     flowMemoHits,
     openFlowWorkers,
-    solveRecursiveFlow
+    solveFlowLayer,
+    keepFlowMemo,
+    publishFlowMemo,
+    openRecursiveFlow,
+    retainFlowFacts,
+    visitRecursiveFlow
 } from "ownership_host"

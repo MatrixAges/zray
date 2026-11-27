@@ -1,0 +1,30 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.ReadCursor} out={Flow.ReadCursor} />
+
+    <Call
+        fn="model.projectIterationResult"
+        in={[
+            $in.frame,
+            $in.ids[$in.row]
+        ]}
+    />
+
+    <Call
+        fn="model.cacheIterationResult"
+        in={[
+            $in.frame,
+            $in.ids[$in.row],
+            $ctx.projectIterationResult
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1,
+            running: $in.row + 1 < $in.ids.length
+        }}
+    />
+</Module>

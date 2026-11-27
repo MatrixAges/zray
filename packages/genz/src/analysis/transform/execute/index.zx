@@ -1,5 +1,6 @@
 export {
     appendStatementSequence,
+    appendAstBindingRows,
     extendStatementSequence,
     joinAstSpans,
     readAstOrigin,

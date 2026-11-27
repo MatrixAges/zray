@@ -7,10 +7,35 @@
     <Call fn="fields" in={$in} />
 
     <Call
+        fn="../../../../aggregate/execute/retire_operands"
+        in={{
+            evaluation: $in.evaluation,
+            prior: $ctx.evaluation.counts,
+            references: $ctx.evaluation.evaluated,
+            cache_reads: $in.cache_reads
+        }}
+    />
+
+    <Call
+        fn="../../../../statements/rows.requireAllocation"
+        in={$ctx.retire_operands.valid}
+    />
+
+    <If on={$ctx.retire_operands.rows != null}>
+        <Call
+            fn="../../../../statements/rows.appendAstBindingRows"
+            in={[
+                $in.writer,
+                $in.sequence,
+                $ctx.retire_operands.rows
+            ]}
+        />
+    </If>
+
+    <Call
         fn="prepare_object"
         in={{
             source: $in,
-            observed: $ctx.evaluation,
             values: $ctx.fields
         }}
     />

@@ -77,24 +77,11 @@ pub inline fn count(target: *const anyopaque, index: u64) u64 {
     return view(target)[@intCast(index)].count;
 }
 
-pub inline fn setCount(target: *anyopaque, index: u64, value: u64) void {
-    viewMut(target)[@intCast(index)].count = @intCast(value);
-}
-
 pub fn reserveOne(resource: *const anyopaque, target: *anyopaque, index: u64, uniform: ?u64, precise: bool) Error!void {
     const range = &viewMut(target)[@intCast(index)];
     const additional = if (uniform) |value| @as(usize, @intCast(value)) else range.count;
 
     if (!range.reserve(range, column_set.borrowAllocator(resource), additional, precise)) return error.OutOfMemory;
-}
-
-pub inline fn publishOne(target: *anyopaque, index: u64) void {
-    const range = &viewMut(target)[@intCast(index)];
-    const storage = range.storage;
-
-    std.debug.assert(range.count <= storage.capacity - storage.items.len);
-
-    storage.items.len += range.count;
 }
 
 pub fn Group(comptime capacity: usize) type {

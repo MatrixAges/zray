@@ -5,7 +5,7 @@
     <Args in={Transform.Collection} out={u32} />
 
     <Call
-        fn="bind_context"
+        module="context"
         in={$in.pick([
             "ast",
             "initial",

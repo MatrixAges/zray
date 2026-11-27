@@ -20,9 +20,6 @@ const Frame = struct {
     selected: Lower = undefined,
     id: ir.FunctionId = undefined,
     prototypes: signature.Prototypes = undefined,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
 pub fn lower(self: *Lower, output: *Output, names: []const []const u8, units: anytype) Module.Error!void {
@@ -34,16 +31,26 @@ pub fn lower(self: *Lower, output: *Output, names: []const []const u8, units: an
 
     var frame: Frame = .{ .lowering = self, .output = output, .names = names, .units = source };
     const entry = @import("generated_lower_module_signatures");
-    const input: std.meta.Child(entry.Input) = .{ .signatures = @ptrCast(&frame), .count = units.len };
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    try entry.executeIn(empty.allocator(), &input);
+    for (0..units.len) |row| {
+        const form = (try open(&frame, row)) orelse continue;
+        const plan = try entry.executeValue(empty.allocator(), form);
+
+        if (plan.native) {
+            try emitNative(&frame);
+        } else {
+            try frame.selected.selectFunction(frame.id);
+            if (plan.regular) frame.prototypes.regular = try frame.selected.prototype("signature", false);
+            if (plan.value) frame.prototypes.value = try frame.selected.valuePrototype("signature");
+        }
+
+        try signature.append(&frame.selected, frame.output, frame.prototypes, plan.parameter_name);
+    }
 }
 
-pub fn openSignatureUnit(handle: *anyopaque, index: u64) (Lower.Error || error{InvalidFunction})!?workflow.FunctionForm {
-    const frame = Frame.borrow(handle);
+fn open(frame: *Frame, row: usize) (Lower.Error || error{InvalidFunction})!?workflow.FunctionForm {
     const self = frame.lowering;
-    const row: usize = @intCast(index);
 
     const unit = switch (frame.units) {
         .mixed => |units| units[row],
@@ -74,34 +81,9 @@ pub fn openSignatureUnit(handle: *anyopaque, index: u64) (Lower.Error || error{I
     );
 }
 
-pub fn installSignatureBody(handle: *anyopaque) Lower.Error!void {
-    const frame = Frame.borrow(handle);
-
-    try frame.selected.selectFunction(frame.id);
-}
-
-pub fn emitNativeSignature(handle: *anyopaque) Lower.Error!void {
-    const frame = Frame.borrow(handle);
+fn emitNative(frame: *Frame) Lower.Error!void {
     const row = @backingInt(frame.id);
     const declaration = ir.SignatureTable.read(&frame.selected.program.functions, row);
 
     frame.prototypes.regular = try @import("../../external.zig").prototype(&frame.selected, &declaration, row);
-}
-
-pub fn emitRegularSignature(handle: *anyopaque) Lower.Error!void {
-    const frame = Frame.borrow(handle);
-
-    frame.prototypes.regular = try frame.selected.prototype("signature", false);
-}
-
-pub fn emitValueSignature(handle: *anyopaque) Lower.Error!void {
-    const frame = Frame.borrow(handle);
-
-    frame.prototypes.value = try frame.selected.valuePrototype("signature");
-}
-
-pub fn publishSignatureUnit(handle: *anyopaque, parameter_name: []const u8) Lower.Error!void {
-    const frame = Frame.borrow(handle);
-
-    return signature.append(&frame.selected, frame.output, frame.prototypes, parameter_name);
 }

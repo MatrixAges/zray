@@ -1,10 +1,12 @@
 import { Role } from "../../../../dependency_graph/reference/model"
 import next from "../../../../dependency_graph/reference/tree/next"
 import { role_call, role_dependency, role_type_import } from "./const"
+import { Kind as DeliveryKind } from "./send"
 import deliver from "./xml"
 
 import type { Cursor } from "../../../../dependency_graph/reference/tree/model"
 import type { Scan, Xml } from "./model"
+import type { ReferenceDelivery } from "./send"
 
 export type Input = {
     scan: Scan,
@@ -12,14 +14,17 @@ export type Input = {
     cursor: Cursor
 }
 
-export type Output = void
+export type Output = ReferenceDelivery[]
 
 export default function (in: Input): Output {
     const { cursor, scan, xml } = in
 
-    const scanned = loop({
+    const deliveries: ReferenceDelivery[] = []
+
+    return loop({
         pending: cursor.pending,
-        done: false
+        done: false,
+        deliveries
     }, {
         while: state => !state.done,
         next: state => {
@@ -44,7 +49,7 @@ export default function (in: Input): Output {
                     _ => role_dependency
                 }
 
-                deliver({
+                const delivery = deliver({
                     scan,
                     xml,
                     node: item.node,
@@ -53,7 +58,11 @@ export default function (in: Input): Output {
                     role,
                     package_allowed: item.package_allowed
                 })
+
+                state.deliveries = state.deliveries.push(delivery)[0]
+                state.done = delivery.kind == DeliveryKind.Diagnostic
             }
-        }
+        },
+        return: state => state.deliveries
     })
 }

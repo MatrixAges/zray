@@ -18,3 +18,9 @@ export type Input = {
 export type Prepared = Projection.Pick("name", "helper", "clear_plan", "type_expr")
 
 export type Output = Prepared?
+
+export type LayoutCursor = Input.Pick("frame", "layouts") & {
+    references: u32[],
+    row: u64,
+    running: bool
+}

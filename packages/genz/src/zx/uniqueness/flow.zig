@@ -166,13 +166,6 @@ pub const Layer = struct {
     remembered: ?Remembered,
     next: std.atomic.Value(usize) = .init(0),
     failed: std.atomic.Value(bool) = .init(false),
-    const Participant = struct {
-        layer: *Layer,
-        walk: *Walk,
-        fn borrow(handle: *const anyopaque) *const Participant {
-            return @ptrCast(@alignCast(handle));
-        }
-    };
     pub fn spread(self: *Layer) std.mem.Allocator.Error!void {
         @import("zx").parallel.spread(Layer, self, run, @min(self.walkers.len, self.functions.len));
 
@@ -190,15 +183,26 @@ pub const Layer = struct {
 
         if (generated_analysis) {
             const entry = @import("generated_uniqueness_flow_worker");
-            const selected: Participant = .{ .layer = self, .walk = &walker.walk.? };
+            var empty = std.heap.FixedBufferAllocator.init(&.{});
+            const walk = &walker.walk.?;
 
-            const input: std.meta.Child(entry.Input) = .{
-                .worker = @ptrCast(&selected),
-                .remembered = self.remembered != null,
-                .held = self.flow.held,
-            };
+            while (self.claim()) |index| {
+                const input: std.meta.Child(entry.Input) = .{
+                    .remembered = self.remembered != null,
+                    .held = self.flow.held[index],
+                };
 
-            @import("../expressions/evaluate.zig").execute(entry, &input) catch self.failed.store(true, .monotonic);
+                const action = entry.executeValue(empty.allocator(), &input) catch unreachable;
+
+                if (action.adopt and self.adoptMemo(walk, index)) continue;
+                if (!action.walk) continue;
+
+                _ = walk.visit(index, Body.View.at(self.table, index), null) catch {
+                    self.failed.store(true, .monotonic);
+
+                    return;
+                };
+            }
 
             return;
         }
@@ -237,29 +241,17 @@ pub const Layer = struct {
 
         _ = try walk.analyze(index, &body, self.flow.mutable.held[index], self.flow.mutable.text_held[index], self.flow.mutable.written[index]);
     }
+    fn adoptMemo(layer: *Layer, walk: *Walk, index: u32) bool {
+        const remembered = layer.remembered.?;
+        const key = remembered.key(layer.flow, layer.table.expressions[index], index);
+        remembered.keys[index] = key;
+        const adopted = if (remembered.memo.getFlowed(key)) |value| walk.adopt(index, value) else false;
+
+        remembered.found[index] = adopted;
+
+        return adopted;
+    }
 };
-
-pub fn claimFlowBody(handle: *const anyopaque) ?u32 {
-    return Layer.Participant.borrow(handle).layer.claim();
-}
-
-pub fn adoptFlowMemo(handle: *const anyopaque, index: u32) bool {
-    const worker = Layer.Participant.borrow(handle);
-    const layer = worker.layer;
-    const remembered = layer.remembered.?;
-    const key = remembered.key(layer.flow, layer.table.expressions[index], index);
-    remembered.keys[index] = key;
-    const adopted = if (remembered.memo.getFlowed(key)) |value| worker.walk.adopt(index, value) else false;
-
-    remembered.found[index] = adopted;
-
-    return adopted;
-}
-
-pub fn walkFlowBody(handle: *const anyopaque, index: u32) std.mem.Allocator.Error!void {
-    const worker = Layer.Participant.borrow(handle);
-    _ = try worker.walk.visit(index, Body.View.at(worker.layer.table, index), null);
-}
 
 /// Settles summaries over a call graph with cycles: a body is walked again whenever a callee's summary grows.
 fn settleSeed(self: Self, allocator: std.mem.Allocator, program: ir.Program, slots: Slots) std.mem.Allocator.Error!void {

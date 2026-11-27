@@ -63,12 +63,13 @@
                 <Call fn="../fields/diagnostic" in={$in.plan.route} />
 
                 <Call
-                    fn="host.rejectProjection"
+                    fn="host.applyProjectionDiagnostic"
                     in={[
                         $in.site.graph,
                         $in.site.spans,
                         $in.site.row,
-                        $ctx.diagnostic
+                        $ctx.diagnostic,
+                        false
                     ]}
                 />
 

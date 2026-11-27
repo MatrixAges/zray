@@ -230,10 +230,6 @@ fn list(comptime Item: type, storage: *anyopaque) *std.ArrayList(Item) {
     return @ptrCast(@alignCast(storage));
 }
 
-pub fn copyText(resource: *const anyopaque, source: []const u8) std.mem.Allocator.Error![]const u8 {
-    return borrowAllocator(resource).dupe(u8, source);
-}
-
 pub fn borrowAllocator(resource: *const anyopaque) std.mem.Allocator {
     const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
 

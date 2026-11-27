@@ -3,9 +3,9 @@ export declare function unifyBindingReplay(frame: BindingReplay, row: u64, value
 
 export declare function refreshBindingTopology(frame: BindingReplay): void
 
-export declare function reportBindingName(
-    reporter: BindingReporter,
-    spans: BindingSpans,
+export declare function applyBindingDiagnostic(
+    frame: BindingReplay,
+    source: BindingDiagnosticSource,
     row: u64,
     message: string
 ): void throws { OutOfMemory, InvalidSource }
@@ -35,9 +35,6 @@ export declare function registerOptionalPayload(
 export declare function refreshOptionalQuery(frame: OptionalQuery): void
 
 export declare function remainingOptionalDepth(frame: OptionalQuery): u64
-
-export declare function reportOptionalDepth(frame: OptionalQuery, root: u32, message: string): void
-    throws { OutOfMemory, InvalidSource }
 
 export declare function borrowSequenceElementSpans(owner: ProjectionGraph, row: u64): ProjectionSpans
 
@@ -78,18 +75,12 @@ export declare function readOpenLength(
     root: u32
 ): u32 throws { OutOfMemory, InvalidSource }
 
-export declare function rejectProjection(
+export declare function applyProjectionDiagnostic(
     graph: ProjectionGraph,
     spans: ProjectionSpans,
     row: u64,
-    message: string
-): void throws { OutOfMemory, InvalidSource }
-
-export declare function rejectUnsupportedProjection(
-    graph: ProjectionGraph,
-    spans: ProjectionSpans,
-    row: u64,
-    message: string
+    message: string,
+    unsupported: bool
 ): void throws { OutOfMemory, InvalidSource }
 
 export declare function appendIndexProjection(

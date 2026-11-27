@@ -1,60 +1,51 @@
 import host from "rx_graph_host"
-import { GraphReferenceKind } from "rx_graph_host"
 
 import { Route } from "../../../../../zx/modules/project/target/model"
 import { invalid_import } from "./const"
+import { Kind as DeliveryKind } from "./send"
 import send from "./send"
 
-import type { GraphEdgeScan } from "rx_graph_host"
+import type { GraphInternalModules } from "rx_graph_host"
 import type { Output as Package } from "../../../../../zx/modules/project/target/select"
-import type { Selection, Site } from "./send"
+import type { ReferenceDelivery, Selection, Site } from "./send"
 
 export type Input = Package & {
-    target: GraphEdgeScan,
+    internal?: GraphInternalModules,
     reference: string,
     site: Site,
     route: Route
 }
 
-export type Output = void
+export type Output = ReferenceDelivery
 
 export default function (in: Input): Output {
-    const { target, reference, site, route } = in
+    const { internal, reference, site, route } = in
 
     if (route == Route.Invalid) {
-        send({
-            target,
-            kind: GraphReferenceKind.Diagnostic,
+        return send({
+            kind: DeliveryKind.Diagnostic,
             site,
             value: invalid_import
         })
-
-        return
     }
 
     if (route == Route.Intrinsic || route == Route.Interface) {
-        send({
-            target,
-            kind: GraphReferenceKind.Native,
+        return send({
+            kind: DeliveryKind.Native,
             site,
             value: reference
         })
-
-        return
     }
 
-    if (route == Route.Package) {
-        const internal = host.sourceGraphInternal(target, reference)
+    if (route == Route.Package && internal != null) {
+        const name = host.sourceGraphInternal(internal, reference)
 
-        if (internal != null) {
-            send({
-                target,
-                kind: GraphReferenceKind.Native,
+        if (name != null) {
+            return send({
+                kind: DeliveryKind.Native,
                 site,
-                value: internal
+                value: name
             })
-
-            return
         }
     }
 
@@ -66,9 +57,8 @@ export default function (in: Input): Output {
         _ => null
     }
 
-    send({
-        target,
-        kind: GraphReferenceKind.Import,
+    return send({
+        kind: DeliveryKind.Import,
         site,
         value: reference,
         selection

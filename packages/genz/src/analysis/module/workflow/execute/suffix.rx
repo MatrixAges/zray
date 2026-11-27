@@ -1,0 +1,23 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.Module} out={void} />
+
+    <Call fn="index.readModuleSuffix" in={$in} />
+
+    <If on={$ctx.readModuleSuffix.uses_parallel}>
+        <Call fn="index.emitModuleParallelAllocator" in={$in} />
+    </If>
+
+    <Loop on={$in.running}>
+        <Call
+            module="comparison"
+            in={{
+                frame: $in,
+                count: $ctx.readModuleSuffix.comparisons,
+                row: 0,
+                running: $ctx.readModuleSuffix.comparisons != 0
+            }}
+        />
+    </Loop>
+</Module>

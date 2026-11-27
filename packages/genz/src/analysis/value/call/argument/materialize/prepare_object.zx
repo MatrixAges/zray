@@ -2,22 +2,11 @@ import { astFieldCount, readAstOrigin } from "ast_rows"
 import host from "lowering_host"
 import { StoredType } from "lowering_host"
 
-import retireOperands from "../../../../aggregate/execute/retire_operands"
-
 import type { Publication as Output } from "../model"
 import type { ObjectBorrow as Input } from "./model"
 
 export default function (in: Input): Output {
-    const { source, observed, values } = in
-
-    retireOperands({
-        writer: source.writer,
-        sequence: source.sequence,
-        evaluation: source.evaluation,
-        prior: observed.counts,
-        references: observed.evaluated,
-        cache_reads: source.cache_reads
-    })
+    const { source, values } = in
 
     const object_type =
         host.materializeType(source.lowering, source.type_id, StoredType.AbiLayout)

@@ -1,31 +1,26 @@
 import integers from "std:integer"
-import { appendAstBindingRows } from "ast_rows"
 import memory from "memory"
-import { requireAllocation } from "memory"
 
 import header from "../../../ast/statements/header"
 import { StatementsKind } from "../../../printer/model/statements"
 
-import type { AstSequence, AstWriter } from "ast_rows"
+import type { BindingRows } from "ast_rows"
 import type { U64Buffer } from "memory"
 
 export type Input = {
-    writer: AstWriter,
-    sequence: AstSequence,
     evaluation: u32[],
     prior: u64[],
     references: u32[],
     cache_reads: U64Buffer
 }
 
-export type Output = void
+export type Output = {
+    valid: bool,
+    rows?: BindingRows
+}
 
 export default function (in: Input): Output {
-    const { writer, sequence, evaluation, prior, references, cache_reads } = in
-
-    if (evaluation.length == 0) {
-        return
-    }
+    const { evaluation, prior, references, cache_reads } = in
 
     const tags: StatementsKind[] = []
     const offsets: u32[] = []
@@ -64,10 +59,16 @@ export default function (in: Input): Output {
         return: state => state.omit(["index"])
     })
 
-    requireAllocation(retired.valid)
+    if (retired.tags.length == 0) {
+        return {
+            valid: retired.valid,
+            rows: null
+        }
+    }
 
-    if (retired.tags.length != 0) {
-        appendAstBindingRows(writer, sequence, {
+    return {
+        valid: retired.valid,
+        rows: {
             tags: retired.tags,
             offsets: retired.offsets,
             discard: retired.discard,
@@ -81,6 +82,6 @@ export default function (in: Input): Output {
             variable_exported: [],
             break_value_label: [],
             break_value_value: []
-        })
+        }
     }
 }

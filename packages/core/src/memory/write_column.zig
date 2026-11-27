@@ -260,24 +260,8 @@ pub inline fn borrowNested(comptime T: type, comptime fields: []const []const u8
     };
 }
 
-pub inline fn writeU32(target: *anyopaque, index: u64, value: u32) IndexError!void {
-    return write(u32, target, index, value);
-}
-
 pub inline fn writeBytes(target: *anyopaque, index: u64, value: []const u8) IndexError!void {
     return write([]const u8, target, index, value);
-}
-
-pub inline fn writeOptionalU32(target: *anyopaque, index: u64, value: ?u32) IndexError!void {
-    return write(?u32, target, index, value);
-}
-
-pub inline fn writeOptionalU8(target: *anyopaque, index: u64, value: ?u8) IndexError!void {
-    return write(?u8, target, index, value);
-}
-
-pub inline fn writeOptionalText(target: *anyopaque, index: u64, value: ?[]const u8) IndexError!void {
-    return write(?[]const u8, target, index, value);
 }
 
 pub inline fn write(comptime T: type, target: *anyopaque, index: u64, value: T) IndexError!void {

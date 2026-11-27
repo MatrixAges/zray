@@ -1,7 +1,9 @@
 import { Step } from "../unification/application/model"
 import scan from "../unification/application/scan"
 
-import type { Cursor as Input, Scan as Output } from "./model"
+import type { Cursor, Scan as Output } from "./model"
+
+export type Input = Cursor.Omit("diagnostic")
 
 export default function (in: Input): Output {
     const stack = in.stack

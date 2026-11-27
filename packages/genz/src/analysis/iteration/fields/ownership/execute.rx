@@ -3,12 +3,14 @@
 
     <Args in={Projection.Input} out={u32} />
 
+    <Call fn="publish" in={$in.expressions} />
+
     <Call
-        fn="publish"
-        in={$in.pick([
-            "writer",
-            "expressions"
-        ])}
+        fn="../../../statements/rows.appendAstProjectionRows"
+        in={[
+            $in.writer,
+            $ctx.publish
+        ]}
     />
 
     <Call

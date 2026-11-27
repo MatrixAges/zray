@@ -1,33 +1,11 @@
 <Module>
-    <Type from="use_model" as="Requirement" />
-    <Type from="model" as="Bindings" />
+    <Type from="requirement" as="Requirement" />
 
-    <Args in={Requirement.Use} out={bool} />
+    <Args in={Requirement.Use} out={Requirement.Output} />
 
-    <Call
-        fn="node"
-        in={$in.pick([
-            "topology",
-            "value"
-        ])}
-    />
+    <Call fn="node" in={$in} />
 
-    <Switch on={$ctx.node}>
-        <Case value={Bindings.Status.Void}>
-            <Call
-                fn="reject_missing"
-                in={{
-                    reporter: $in.reporter,
-                    spans: $in.source,
-                    row: 0
-                }}
-            />
-        </Case>
+    <Call fn="requirement" />
 
-        <Case value={Bindings.Status.Pending}>
-            <Return value={true} />
-        </Case>
-    </Switch>
-
-    <Return value={false} />
+    <Return value={$ctx.requirement} />
 </Module>

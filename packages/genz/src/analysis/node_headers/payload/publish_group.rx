@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.PublishCursor} out={Flow.PublishCursor} />
+
+    <Call
+        fn="publish"
+        in={$in.pick([
+            "counts",
+            "index"
+        ])}
+    />
+
+    <If on={$ctx.publish != 0}>
+        <Call
+            fn="model.publishColumnGroup"
+            in={{
+                groups: $in.groups,
+                index: $in.index,
+                count: $ctx.publish
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            running: $in.index + 1 < $in.counts.length
+        }}
+    />
+</Module>

@@ -3,9 +3,11 @@ import columns from "memory/columns"
 
 import { Target } from "../../../../dependency_graph/reference/model"
 import { target_function, target_module } from "./const"
+import { Kind as DeliveryKind } from "./send"
 import deliver from "./xml"
 
 import type { References, Scan, Xml } from "./model"
+import type { ReferenceDelivery } from "./send"
 
 export type Input = {
     scan: Scan,
@@ -13,15 +15,21 @@ export type Input = {
     references: References
 }
 
-export type Output = void
+export type Output = ReferenceDelivery[]
 
 export default function (in: Input): Output {
     const { references, xml, scan } = in
 
-    const scanned = loop(references.count, {
-        while: next => next != 0,
-        next: next => {
-            const row_index = next - 1
+    const deliveries: ReferenceDelivery[] = []
+
+    return loop({
+        remaining: references.count,
+        done: false,
+        deliveries
+    }, {
+        while: state => state.remaining != 0 && !state.done,
+        next: state => {
+            const row_index = state.remaining - 1
             const start = row_index * references.width
             const row = memory.borrowU8Range(references.bytes, start, references.width)
             const attribute = columns.readBorrowedRowReference(
@@ -43,7 +51,7 @@ export default function (in: Input): Output {
                 _ => Target.Store
             }
 
-            deliver({
+            const delivery = deliver({
                 scan,
                 xml,
                 node,
@@ -53,7 +61,10 @@ export default function (in: Input): Output {
                 package_allowed: row[references.package_allowed] != 0
             })
 
-            next = row_index
-        }
+            state.deliveries = state.deliveries.push(delivery)[0]
+            state.remaining = row_index
+            state.done = delivery.kind == DeliveryKind.Diagnostic
+        },
+        return: state => state.deliveries
     })
 }

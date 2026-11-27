@@ -1,6 +1,6 @@
 import type { AstSequence, AstWriter } from "ast_rows"
 import type { IterationResourceFrame, Lowering } from "lowering_host"
-import type { Input, Output } from "./model"
+import type { Input } from "./model"
 
 export type Execute = {
     frame: Lowering,
@@ -8,12 +8,4 @@ export type Execute = {
     body: AstSequence,
     context: IterationResourceFrame,
     request: Input
-}
-
-export type PublishAst = {
-    frame: Lowering,
-    writer: AstWriter,
-    body: AstSequence,
-    context: IterationResourceFrame,
-    output: Output
 }

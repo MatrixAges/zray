@@ -15,11 +15,13 @@
     />
 
     <If on={$ctx.lookup.action == Lookup.Action.Depth}>
-        <Call
-            fn="reject_depth"
-            in={{
-                frame: $in.request.frame,
-                root: $ctx.lookup.root
+        <Call fn="reject_depth" in={$ctx.lookup.root} />
+
+        <Return
+            value={{
+                ...$in,
+                action: Lookup.Action.Depth,
+                diagnostic: $ctx.reject_depth
             }}
         />
     </If>
@@ -43,7 +45,8 @@
                 request: $in.request,
                 value: $ctx.registerOptionalPayload,
                 remaining: $ctx.remainingOptionalDepth,
-                action: Lookup.Action.Continue
+                action: Lookup.Action.Continue,
+                diagnostic: null
             }}
         />
     </If>

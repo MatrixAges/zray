@@ -1,6 +1,7 @@
 <Module>
     <Type from="model" as="Bindings" />
     <Type from="workflow" as="Replay" />
+    <Type from="host" as="Host" />
 
     <Args in={Replay.Cursor} out={Replay.Cursor} />
 
@@ -39,7 +40,8 @@
             value={{
                 request: $in.request,
                 start: $ctx.propagate.row + 1,
-                running: $ctx.propagate.row + 1 < $in.request.view.values.length
+                running: $ctx.propagate.row + 1 < $in.request.view.values.length,
+                diagnostic: null
             }}
         />
     </If>
@@ -47,23 +49,38 @@
     <Switch on={$ctx.propagate.action}>
         <Case value={Bindings.Action.Conflict}>
             <Call
-                fn="host.reportBindingName"
-                in={[
-                    $in.request.view.reporter,
-                    $in.request.view.collisions.spans,
-                    $ctx.propagate.row,
-                    $in.request.view.collisions.messages[$ctx.propagate.row]
-                ]}
+                fn="diagnostic"
+                in={{
+                    source: Host.BindingDiagnosticSource.Collision,
+                    row: $ctx.propagate.row,
+                    message:
+                        $in.request.view.collisions.messages[$ctx.propagate.row]
+                }}
+            />
+
+            <Return
+                value={{
+                    ...$in,
+                    running: false,
+                    diagnostic: $ctx.diagnostic
+                }}
             />
         </Case>
 
         <Case value={Bindings.Action.Missing}>
             <Call
-                fn="reject_missing"
+                fn="diagnostic"
                 in={{
-                    reporter: $in.request.view.reporter,
-                    spans: $in.request.view.lookup_spans,
+                    source: Host.BindingDiagnosticSource.Lookup,
                     row: $ctx.propagate.row
+                }}
+            />
+
+            <Return
+                value={{
+                    ...$in,
+                    running: false,
+                    diagnostic: $ctx.diagnostic
                 }}
             />
         </Case>

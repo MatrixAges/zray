@@ -1,15 +1,22 @@
 <Module>
     <Type from="../object_closure/replay" as="Objects" />
+    <Type from="../projections/site" as="Projection" />
 
-    <Args in={Objects.Input} out={void} />
+    <Args in={Objects.Input} out={Projection.Diagnostic?} />
 
-    <Loop on={$in.start < $in.request.view.selections.sources.length}>
+    <Loop
+        on={$in.diagnostic == null &&
+            $in.start < $in.request.view.selections.sources.length}
+    >
         <Call
             module="advance"
             in={{
                 request: $in,
-                start: 0
+                start: 0,
+                diagnostic: null
             }}
         />
     </Loop>
+
+    <Return value={$ctx.advance.diagnostic} />
 </Module>

@@ -1,7 +1,0 @@
-import type { BindingReporter, BindingSpans } from "rx_project_host"
-import type { Input as Node } from "./node"
-
-export type Use = Node & {
-    reporter: BindingReporter,
-    source: BindingSpans
-}

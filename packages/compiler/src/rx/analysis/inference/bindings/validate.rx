@@ -1,26 +1,30 @@
 <Module>
     <Type from="workflow" as="Bindings" />
+    <Type from="host" as="Host" />
 
-    <Args in={Bindings.View} out={void} />
+    <Args in={Bindings.View} out={Bindings.Diagnostic?} />
 
-    <If on={$in.uses.values.length != 0}>
+    <If on={$in.uses.length != 0}>
         <Call
             fn="uses"
             in={{
                 topology: $in.topology,
-                values: $in.uses.values
+                values: $in.uses
             }}
         />
 
         <If on={$ctx.uses != null}>
             <Call
-                fn="reject_missing"
+                fn="diagnostic"
                 in={{
-                    reporter: $in.reporter,
-                    spans: $in.uses.spans,
+                    source: Host.BindingDiagnosticSource.Use,
                     row: $ctx.uses
                 }}
             />
+
+            <Return value={$ctx.diagnostic} />
         </If>
     </If>
+
+    <Return value={null} />
 </Module>

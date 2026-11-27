@@ -1,7 +1,7 @@
 <Module>
     <Type from="round" as="Assignments" />
 
-    <Args in={Assignments.Request} out={bool} />
+    <Args in={Assignments.Request} out={Assignments.Update} />
 
     <Call fn="host.assignmentRevision" in={$in.frame} />
 
@@ -28,7 +28,12 @@
     />
 
     <If on={$ctx.propagate != $ctx.assignmentRevision}>
-        <Return value={true} />
+        <Return
+            value={{
+                changed: true,
+                diagnostic: null
+            }}
+        />
     </If>
 
     <Call
@@ -46,8 +51,8 @@
         }}
     />
 
-    <If on={$ctx.run}>
-        <Return value={true} />
+    <If on={$ctx.run.changed || $ctx.run.diagnostic != null}>
+        <Return value={$ctx.run} />
     </If>
 
     <Call

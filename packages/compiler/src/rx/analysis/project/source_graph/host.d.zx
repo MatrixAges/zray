@@ -4,15 +4,7 @@ export type GraphModuleRegistration = mutable_opaque
 
 export type GraphVisit = mutable_opaque
 
-export type GraphEdgeScan = mutable_opaque
-
-export enum GraphReferenceKind {
-    Diagnostic,
-    Source,
-    Store,
-    Import,
-    Native
-}
+export type GraphInternalModules = opaque
 
 export declare function rejectGraphModuleRegistration(
     target: GraphModuleRegistration,
@@ -66,18 +58,4 @@ export declare function publishSourceGraphDependencies(
     start: u64
 ): u64[] throws { OutOfMemory }
 
-export declare function deliverSourceGraphReference(
-    target: GraphEdgeScan,
-    kind: GraphReferenceKind,
-    location: u8[]?,
-    offset: u64,
-    role: u8,
-    value: string?,
-    path: u8[]?,
-    member: string?,
-    package_route: bool,
-    first: u64?,
-    duplicate: bool
-): void throws { OutOfMemory, InvalidGraph }
-
-export declare function sourceGraphInternal(target: GraphEdgeScan, reference: string): string?
+export declare function sourceGraphInternal(modules: GraphInternalModules, reference: string): string?

@@ -98,8 +98,9 @@ pub fn merge(graph: *Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, dept
 
     const input: Merge = .{ .target = @ptrCast(&target), .candidate = &target.candidate, .depth = depth };
     var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const result = zx.columns.invoke(merge_rule.executeValue, empty.allocator(), &input) catch |err| return errors.errorSet(err);
 
-    merge_rule.executeIn(empty.allocator(), &input) catch |err| return errors.errorSet(err);
+    if (result) |issue| return target.graph.reporter.fail(if (issue.depth) .unsupported else .type_mismatch, target.span, issue.message);
 }
 
 pub fn prepareUnificationFrame(handle: *anyopaque, left: u32, right: u32, depth: u64, rooted: bool) std.mem.Allocator.Error!void {
@@ -150,8 +151,9 @@ pub noinline fn walkUnificationFrames(handle: *anyopaque, depth: u64) zx.Error!v
     const input: Request = .{ .target = @ptrCast(handle), .candidate = &target.candidate, .stack = &state.view, .depth = depth };
     var cursor_buffer: [256]u8 = undefined;
     var cursor_memory = std.heap.BufferFirstAllocator.init(&cursor_buffer, allocator);
+    const result = zx.columns.invoke(walk_rule.executeValue, cursor_memory.allocator(), &input) catch |err| return errors.errorSet(err);
 
-    walk_rule.executeIn(cursor_memory.allocator(), &input) catch |err| return errors.errorSet(err);
+    if (result) |issue| return target.graph.reporter.fail(if (issue.depth) .unsupported else .type_mismatch, target.span, issue.message);
 }
 
 pub fn appendUnificationFrame(handle: *anyopaque) std.mem.Allocator.Error!void {
@@ -214,10 +216,4 @@ pub fn internUnificationType(handle: *anyopaque, type_id: u32) zx.Error!u32 {
     target.walk.known = target.graph.pending.known_types.borrow(Known);
 
     return @backingInt(result);
-}
-
-pub fn reportUnification(handle: *anyopaque, message: []const u8, depth: bool) zx.Error!void {
-    const target = Target.borrow(handle);
-
-    return target.graph.reporter.fail(if (depth) .unsupported else .type_mismatch, target.span, message);
 }

@@ -45,7 +45,6 @@ export type Observed = {
 
 export type ObjectBorrow = {
     source: Object,
-    observed: Observed,
     values: u32[]
 }
 

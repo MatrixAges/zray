@@ -1,0 +1,54 @@
+import classify from "../../../../../zx/modules/project/target/classify"
+import { Route } from "../../../../../zx/modules/project/target/model"
+import select from "../../../../../zx/modules/project/target/select"
+import publishImport from "../references/import"
+import { Kind as DeliveryKind } from "../references/send"
+import send from "../references/send"
+
+import type { Scan } from "../references/model"
+import type { ReferenceDelivery, Site } from "../references/send"
+
+export type Input = {
+    scan: Scan,
+    reference: string,
+    site: Site
+}
+
+export type Output = ReferenceDelivery
+
+export default function (in: Input): Output {
+    const { scan, reference, site } = in
+
+    if (scan.discover) {
+        return send({
+            kind: DeliveryKind.Import,
+            site,
+            value: reference
+        })
+    }
+
+    const route = classify({
+        path: reference,
+        intrinsic: scan.intrinsic ?? ""
+    })
+
+    const selected = match route {
+        Route.Package => select({
+            specifiers: scan.packages,
+            name: reference,
+            check_duplicates: true
+        }),
+        _ => ({
+            first: null,
+            duplicate: false
+        })
+    }
+
+    return publishImport({
+        internal: scan.internal,
+        reference,
+        site,
+        route,
+        ...selected
+    })
+}

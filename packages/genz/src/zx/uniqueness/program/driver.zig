@@ -40,8 +40,11 @@ pub fn run(ctx: *Context, preparation: Preparation) Error!Result {
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const commit = try program.executeIn(empty.allocator(), &input);
 
-    try program.executeIn(empty.allocator(), &input);
+    ctx.release();
+
+    if (commit) try ctx.commit();
 
     return frame.result;
 }
@@ -113,14 +116,6 @@ pub fn bindOwnershipMemoRows(handle: *anyopaque) void {
     const ctx = borrow(handle).ctx;
 
     ctx.rounds.?.ahead.memo_rows.init(ctx.bodies);
-}
-
-pub fn releaseOwnership(handle: *anyopaque) void {
-    borrow(handle).ctx.release();
-}
-
-pub fn commitOwnership(handle: *anyopaque) Error!void {
-    try borrow(handle).ctx.commit();
 }
 
 pub fn beginOwnershipRound(handle: *anyopaque, kind: Api.RoundKind, exhausted: bool) Error!void {

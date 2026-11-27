@@ -15,12 +15,6 @@ export type Input = {
     expression_base: u32
 }
 
-export type Declare = {
-    writer: AstWriter,
-    body: AstSequence,
-    declaration: Declaration
-}
-
 export type Tracking = {
     writer: AstWriter,
     body: AstSequence,

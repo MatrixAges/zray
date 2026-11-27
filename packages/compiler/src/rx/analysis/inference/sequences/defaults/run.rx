@@ -2,10 +2,15 @@
     <Type from="../../assignment/application/round" as="Assignments" />
     <Type from="model" as="Sequences" />
 
-    <Args in={Assignments.Execution} out={bool} />
+    <Args in={Assignments.Execution} out={Assignments.Update} />
 
     <If on={$in.sequences.sequence.values.length == 0}>
-        <Return value={false} />
+        <Return
+            value={{
+                changed: false,
+                diagnostic: null
+            }}
+        />
     </If>
 
     <Call
@@ -27,7 +32,12 @@
 
     <Switch on={$ctx.choose.route}>
         <Case value={Sequences.Route.Empty}>
-            <Return value={false} />
+            <Return
+                value={{
+                    changed: false,
+                    diagnostic: null
+                }}
+            />
         </Case>
 
         <Case value={Sequences.Route.Select}>
@@ -46,21 +56,24 @@
             <Call
                 fn="reject"
                 in={{
-                    request: $in.pick([
-                        "frame",
-                        "owner",
-                        "view",
-                        "nodes",
-                        "rows",
-                        "sequences",
-                        "indexes",
-                        "node_spans"
-                    ]),
+                    spans: $in.sequences.spans,
                     plan: $ctx.choose
+                }}
+            />
+
+            <Return
+                value={{
+                    changed: false,
+                    diagnostic: $ctx.reject
                 }}
             />
         </Default>
     </Switch>
 
-    <Return value={true} />
+    <Return
+        value={{
+            changed: true,
+            diagnostic: null
+        }}
+    />
 </Module>

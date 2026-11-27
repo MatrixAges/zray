@@ -31,7 +31,7 @@
     />
 
     <Call
-        fn="bind_context"
+        module="context"
         in={$in.pick([
             "ast",
             "initial",

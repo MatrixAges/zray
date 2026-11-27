@@ -1,0 +1,22 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.CacheCursor} out={Cache.CacheCursor} />
+
+    <Call
+        fn="model.cacheIterationType"
+        in={[
+            $in.frame,
+            $in.types[$in.row],
+            $in.values[$in.row]
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1,
+            running: $in.row + 1 < $in.types.length
+        }}
+    />
+</Module>

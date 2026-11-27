@@ -7,7 +7,21 @@
     <Call fn="index.planFlow" in={$in.flow} />
 
     <If on={$ctx.planFlow == Flow.Plan.Recursive}>
-        <Call fn="index.solveRecursiveFlow" in={$in.flow} />
+        <Call fn="index.openRecursiveFlow" in={$in.flow} />
+
+        <Loop on={$in.running}>
+            <Call
+                module="recursive"
+                in={{
+                    flow: $in.flow,
+                    queue: {
+                        ...$ctx.openRecursiveFlow,
+                        changed: null
+                    },
+                    running: true
+                }}
+            />
+        </Loop>
 
         <Else>
             <If on={$in.remembered}>
@@ -20,15 +34,20 @@
                 <Call fn="index.flowLayerEnds" in={$in.flow} />
                 <Call fn="index.flowMemoHits" in={$in.flow} />
 
-                <Call
-                    fn="layers"
-                    in={{
-                        ...$in,
-                        order: $ctx.flowLayerOrder,
-                        ends: $ctx.flowLayerEnds,
-                        hits: $ctx.flowMemoHits
-                    }}
-                />
+                <Loop on={$in.running}>
+                    <Call
+                        module="layer"
+                        in={{
+                            ...$in,
+                            order: $ctx.flowLayerOrder,
+                            ends: $ctx.flowLayerEnds,
+                            hits: $ctx.flowMemoHits,
+                            layer: 0,
+                            first: 0,
+                            running: $ctx.flowLayerEnds.length != 0
+                        }}
+                    />
+                </Loop>
             </If>
         </Else>
     </If>

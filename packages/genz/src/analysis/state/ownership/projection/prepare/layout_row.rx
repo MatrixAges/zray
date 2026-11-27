@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.LayoutCursor} out={Flow.LayoutCursor} />
+
+    <Call
+        fn="../prepare_layouts"
+        in={{
+            id: $in.references[$in.row],
+            layouts: $in.layouts
+        }}
+    />
+
+    <If on={$ctx.prepare_layouts}>
+        <Call
+            fn="model.materializeType"
+            in={[
+                $in.frame,
+                $in.references[$in.row],
+                Flow.StoredType.StateLayout
+            ]}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1,
+            running: $in.row + 1 < $in.references.length
+        }}
+    />
+</Module>

@@ -1,20 +1,9 @@
-import host from "lowering_host"
-
 import { comparator_arity } from "../../const"
 
-import type { SortWorkerFrame } from "lowering_host"
+export type Input = {}
 
-export type Input = SortWorkerFrame
-
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
-    const operands = loop(0, {
-        while: index => index < comparator_arity,
-        next: index => {
-            host.readSortOperand(in, index)
-
-            index += 1
-        }
-    })
+    return comparator_arity
 }

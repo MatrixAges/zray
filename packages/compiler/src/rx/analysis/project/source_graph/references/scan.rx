@@ -14,18 +14,20 @@
                 }}
             />
 
-            <Else>
-                <If on={$in.cursor != null}>
-                    <Call
-                        fn="scan_tree"
-                        in={{
-                            scan: $in.scan,
-                            xml: $in.xml,
-                            cursor: $in.cursor
-                        }}
-                    />
-                </If>
-            </Else>
+            <Return value={$ctx.indexed} />
+        </If>
+
+        <If on={$in.cursor != null}>
+            <Call
+                fn="scan_tree"
+                in={{
+                    scan: $in.scan,
+                    xml: $in.xml,
+                    cursor: $in.cursor
+                }}
+            />
+
+            <Return value={$ctx.scan_tree} />
         </If>
 
         <Else>
@@ -37,7 +39,11 @@
                         imports: $in.imports
                     }}
                 />
+
+                <Return value={$ctx.scan} />
             </If>
         </Else>
     </If>
+
+    <Return value={[]} />
 </Module>

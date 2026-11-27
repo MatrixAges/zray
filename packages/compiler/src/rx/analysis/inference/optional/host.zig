@@ -46,9 +46,11 @@ pub fn run(comptime mode: @FieldType(Input, "mode"), graph: *Graph, source: Grap
     };
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const result = rule.executeIn(empty.allocator(), &input) catch |err| return errors.errorSet(err);
+    const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch |err| return errors.errorSet(err);
 
-    return if (result) |id| @fromBackingInt(id) else null;
+    if (result.diagnostic) |issue| return graph.reporter.fail(.unsupported, frame.spans[issue.root], issue.message);
+
+    return if (result.value) |id| @fromBackingInt(id) else null;
 }
 
 pub fn registerOptionalPayload(handle: *anyopaque, root: u32, value: u32, remaining: u64) zx.Error!u32 {
@@ -66,10 +68,4 @@ pub fn remainingOptionalDepth(handle: *anyopaque) u64 {
 
 pub fn refreshOptionalQuery(handle: *anyopaque) void {
     Frame.borrow(handle).bind();
-}
-
-pub fn reportOptionalDepth(handle: *anyopaque, root: u32, message: []const u8) zx.Error!void {
-    const frame = Frame.borrow(handle);
-
-    return frame.graph.reporter.fail(.unsupported, frame.spans[root], message);
 }

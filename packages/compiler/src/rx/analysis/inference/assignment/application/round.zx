@@ -3,6 +3,7 @@ import type {
     ProjectionGraph,
     ProjectionSpans
 } from "rx_project_host"
+import type { Diagnostic } from "../../projections/site"
 import type { Sequences } from "../../sequences/defaults/model"
 import type { ClassLookup, Edges, Nodes, Payloads } from "../model"
 import type { View } from "./merge"
@@ -37,4 +38,9 @@ export type Request = {
 export type Execution = Request & {
     payloads: Payloads,
     classes: ClassLookup
+}
+
+export type Update = {
+    changed: bool,
+    diagnostic?: Diagnostic
 }

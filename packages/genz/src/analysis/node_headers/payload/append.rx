@@ -55,13 +55,17 @@
         />
     </If>
 
-    <Call
-        fn="publish"
-        in={$in.pick([
-            "groups",
-            "counts"
-        ])}
-    />
+    <Loop on={$in.running}>
+        <Call
+            module="publish_group"
+            in={{
+                groups: $in.groups,
+                counts: $in.counts,
+                index: 0,
+                running: $in.counts.length != 0
+            }}
+        />
+    </Loop>
 
     <Return
         value={{

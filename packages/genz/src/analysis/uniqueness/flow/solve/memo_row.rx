@@ -1,0 +1,42 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.MemoCursor} out={Flow.MemoCursor} />
+
+    <Call
+        fn="layers"
+        in={$in.pick([
+            "order",
+            "hits",
+            "position"
+        ])}
+    />
+
+    <If on={$ctx.layers.keep}>
+        <Call
+            fn="index.keepFlowMemo"
+            in={[
+                $in.flow,
+                $ctx.layers.body
+            ]}
+        />
+
+        <Else>
+            <Call
+                fn="index.publishFlowMemo"
+                in={[
+                    $in.flow,
+                    $ctx.layers.body
+                ]}
+            />
+        </Else>
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            position: $in.position + 1,
+            running: $in.position + 1 < $in.end
+        }}
+    />
+</Module>

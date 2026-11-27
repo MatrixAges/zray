@@ -16,7 +16,17 @@
         ]}
     />
 
-    <Call fn="append_statement_rows" in={$in} />
+    <Loop on={$in.running}>
+        <Call
+            module="statement_row"
+            in={{
+                writer: $in.writer,
+                statements: $in.fragment.statements,
+                row: 0,
+                running: $in.fragment.statements.length != 0
+            }}
+        />
+    </Loop>
 
     <Call
         fn="host.finishGeneratedAst"

@@ -2,7 +2,7 @@
     <Type from="request" as="Optional" />
     <Type from="lookup" as="Lookup" />
 
-    <Args in={Optional.Request} out={u32?} />
+    <Args in={Optional.Request} out={Optional.Result} />
 
     <Loop on={$in.action == Lookup.Action.Continue}>
         <Call
@@ -11,14 +11,25 @@
                 request: $in,
                 value: $in.value,
                 remaining: null,
-                action: Lookup.Action.Continue
+                action: Lookup.Action.Continue,
+                diagnostic: null
             }}
         />
     </Loop>
 
-    <If on={$ctx.advance.action == Lookup.Action.Missing}>
-        <Return value={null} />
+    <If on={$ctx.advance.action == Lookup.Action.Ready}>
+        <Return
+            value={{
+                value: $ctx.advance.value,
+                diagnostic: null
+            }}
+        />
     </If>
 
-    <Return value={$ctx.advance.value} />
+    <Return
+        value={{
+            value: null,
+            diagnostic: $ctx.advance.diagnostic
+        }}
+    />
 </Module>

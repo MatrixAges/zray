@@ -1,19 +1,51 @@
 <Module>
     <Type from="execute_model" as="Buffer" />
+    <Type from="../../statements/rows" as="AST" />
 
     <Args in={Buffer.ExecutePrepare} out={void} />
 
     <Call module="prepare" in={$in.prepare} />
 
+    <Call fn="../../statements/rows.requireAllocation" in={$ctx.prepare.valid} />
+    <Call fn="../../../ast/statements/empty_variables" in={{}} />
+
     <Call
-        fn="publish_prepare"
-        in={{
-            ...$in.pick([
-                "frame",
-                "writer",
-                "body"
-            ]),
-            output: $ctx.prepare
-        }}
+        fn="../../statements/rows.appendExpressionRows"
+        in={[
+            $in.writer,
+            $ctx.prepare.expressions,
+            $ctx.prepare.forms,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call
+        fn="../../statements/rows.appendStatementRows"
+        in={[
+            $in.writer,
+            $ctx.prepare.statements,
+            null,
+            AST.AstPayloadOwnership.BorrowingText
+        ]}
+    />
+
+    <Call
+        fn="../../statements/rows.appendStatementSequence"
+        in={[
+            $in.writer,
+            $in.body,
+            $ctx.prepare.roots,
+            $ctx.empty_variables,
+            AST.AstSequenceMode.Owned
+        ]}
+    />
+
+    <Call
+        fn="../../statements/rows.finishGeneratedAst"
+        in={[
+            $in.frame,
+            null,
+            true
+        ]}
     />
 </Module>

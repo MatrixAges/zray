@@ -1,5 +1,3 @@
-import { reportUnification } from "rx_project_host"
-
 import { Route } from "../unification/model"
 import {
     recursive_type,
@@ -15,18 +13,15 @@ import {
     tuple_requirements
 } from "./const"
 
-import type { UnificationTarget } from "rx_project_host"
 import type { Route as Admission } from "../unification/model"
+import type { Diagnostic } from "./model"
 
-export type Input = {
-    target: UnificationTarget,
-    route: Admission
-}
+export type Input = Admission
 
-export type Output = void
+export type Output = Diagnostic?
 
 export default function (in: Input): Output {
-    const message: string? = match in.route {
+    const message: string? = match in {
         Route.Depth => nesting_limit,
         Route.Recursive => recursive_type,
         Route.SequenceMismatch => sequence_shape,
@@ -39,7 +34,12 @@ export default function (in: Input): Output {
         _ => null
     }
 
-    if (message != null) {
-        reportUnification(in.target, message, in.route == Route.Depth)
+    if (message == null) {
+        return null
+    }
+
+    return {
+        message,
+        depth: in == Route.Depth
     }
 }

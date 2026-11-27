@@ -5,6 +5,7 @@ import deliver from "./deliver"
 
 import type { Target } from "../../../../dependency_graph/reference/model"
 import type { Scan, Xml } from "./model"
+import type { ReferenceDelivery } from "./send"
 
 export type Input = {
     scan: Scan,
@@ -16,7 +17,7 @@ export type Input = {
     package_allowed: bool
 }
 
-export type Output = void
+export type Output = ReferenceDelivery
 
 export default function (in: Input): Output {
     const { attribute, node, xml } = in
@@ -41,7 +42,7 @@ export default function (in: Input): Output {
         _ => columns.readBorrowedRowText(attribute, layout.attribute_value)
     }
 
-    deliver({
+    return deliver({
         scan: in.scan,
         owner: xml.owner,
         directory: xml.directory,

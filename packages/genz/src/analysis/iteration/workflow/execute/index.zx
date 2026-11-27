@@ -12,3 +12,8 @@ export {
     frameLoweredLoop,
     restoreLoopFields
 } from "lowering_host"
+export {
+    clipLoopAssignment,
+    commitLoopUpdate,
+    projectLoopAssignment
+} from "lowering_host"

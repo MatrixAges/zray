@@ -1,17 +1,21 @@
 <Module>
     <Type from="model" as="Validation" />
+    <Type from="../../projections/site" as="Projection" />
 
-    <Args in={Validation.Request} out={void} />
+    <Args in={Validation.Request} out={Projection.Diagnostic?} />
 
-    <Loop on={$in.index < $in.request.columns.left.length}>
+    <Loop on={$in.diagnostic == null && $in.index < $in.request.columns.left.length}>
         <Call
             module="advance"
             in={{
                 request: $in,
                 index: 0,
                 source_type: null,
-                resolved: null
+                resolved: null,
+                diagnostic: null
             }}
         />
     </Loop>
+
+    <Return value={$ctx.advance.diagnostic} />
 </Module>

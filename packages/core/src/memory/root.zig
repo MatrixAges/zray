@@ -25,16 +25,13 @@ pub const readLengthSlot = column_length.read;
 pub const advanceLengthSlot = column_length.advance;
 pub const shrinkLengthSlot = column_length.shrink;
 const column_range = @import("column_range.zig");
-pub const ColumnRange = column_range.Range;
 pub const ColumnRanges = column_range.Ranges;
 pub const bindColumnRanges = column_range.bind;
 pub const ColumnRangeGroup = column_range.Group;
 pub const columnRangeSlotCount = column_range.columns;
 pub const columnRangeLength = column_range.length;
 pub const columnRangeCount = column_range.count;
-pub const setColumnRangeCount = column_range.setCount;
 pub const reserveColumnRange = column_range.reserveOne;
-pub const publishColumnRange = column_range.publishOne;
 pub const columnSetSlotCount = column_set.slotCount;
 pub const columnSetFirstLength = column_set.firstLength;
 pub const functionColumnGrowth = column_set.growth;
@@ -65,7 +62,6 @@ pub const functionBodyLayout = column_set.projectedLayout;
 pub const functionNativeLayout = column_set.projectedLayout;
 pub const rowCellCount = column_set.rowCellCount;
 pub const writeColumnCell = column_set.writeCell;
-pub const copyColumnText = column_set.copyText;
 pub const column_transfer = @import("column_transfer.zig");
 pub const borrowTransferGroup = column_transfer.borrowGroup;
 pub const transferColumnCount = column_transfer.countColumns;
@@ -132,8 +128,6 @@ pub inline fn stringViews(source: *const anyopaque) []const []const u8 {
 
     return view.*;
 }
-
-pub const readStringViews = stringViews;
 
 pub inline fn u32View(source: *anyopaque, shape: anytype) std.meta.Child(@TypeOf(shape)) {
     return @ptrCast(source);
@@ -315,11 +309,7 @@ pub const rowBufferBytes = column.rowBufferBytes;
 pub const writeRowListCount = column.writeRowListCount;
 pub const copyRow = column.copyRow;
 pub const borrowWriteColumn = column.borrow;
-pub const writeColumnU32 = column.writeU32;
 pub const writeColumnBytes = column.writeBytes;
-pub const writeColumnOptionalU32 = column.writeOptionalU32;
-pub const writeColumnOptionalU8 = column.writeOptionalU8;
-pub const writeColumnOptionalText = column.writeOptionalText;
 const scalar_column = @import("scalar.zig");
 pub const Scalar = scalar_column.Value;
 pub const readScalarKind = scalar_column.readKind;
@@ -328,8 +318,6 @@ pub const readScalarFloat = scalar_column.readFloat;
 pub const readScalarBoolean = scalar_column.readBoolean;
 pub const readScalarEnumeration = scalar_column.readEnumeration;
 pub const readScalarText = scalar_column.readText;
-pub const copyScalar = scalar_column.copy;
-pub const writeScalarText = scalar_column.writeText;
 pub const borrowTextRange = borrowU8Range;
 
 pub inline fn borrowU8Range(source: []const u8, first: u64, count: u64) error{IndexOutOfBounds}![]const u8 {
@@ -374,16 +362,8 @@ inline fn borrowRange(comptime T: type, source: []const T, first: u64, count: u6
     return source[@intCast(first)..][0..@intCast(count)];
 }
 
-pub inline fn copyU8s(target: *anyopaque, source: []const u8) error{IndexOutOfBounds}!void {
-    return copySlice(u8, target, source);
-}
-
 pub inline fn copyU32s(target: *anyopaque, source: []const u32) error{IndexOutOfBounds}!void {
     return copySlice(u32, target, source);
-}
-
-pub inline fn copyStringViews(target: *anyopaque, source: []const []const u8) error{IndexOutOfBounds}!void {
-    return copySlice([]const u8, target, source);
 }
 
 inline fn copySlice(comptime T: type, target: *anyopaque, source: []const T) error{IndexOutOfBounds}!void {
@@ -396,10 +376,6 @@ inline fn copySlice(comptime T: type, target: *anyopaque, source: []const T) err
 
 pub inline fn writeU32(target: *anyopaque, index: u64, value: u32) error{IndexOutOfBounds}!void {
     return write(u32, target, index, value);
-}
-
-pub fn allocateU32Buffer(resource: *const anyopaque, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
-    return allocateFilledU32Buffer(resource, target, count, 0);
 }
 
 pub fn allocateFilledU32Buffer(resource: *const anyopaque, target: *anyopaque, count: u64, value: u32) std.mem.Allocator.Error!void {
@@ -462,24 +438,8 @@ pub inline fn bindU32Range(source: *const anyopaque, target: *anyopaque, first: 
     output.* = input.*[@intCast(first)..][0..@intCast(count)];
 }
 
-pub inline fn writeString(target: *anyopaque, index: u64, value: []const u8) error{IndexOutOfBounds}!void {
-    return write([]const u8, target, index, value);
-}
-
 pub inline fn writeOptionalString(target: *anyopaque, index: u64, value: ?[]const u8) error{IndexOutOfBounds}!void {
     return write(?[]const u8, target, index, value);
-}
-
-pub inline fn initializeU32ListSlot(target: *anyopaque, index: u64, shape: anytype) error{IndexOutOfBounds}!std.meta.Child(@TypeOf(shape)) {
-    const output: *const [][]const u32 = @ptrCast(@alignCast(target));
-
-    if (index >= output.len) return error.IndexOutOfBounds;
-
-    const slot = &output.*[@intCast(index)];
-
-    slot.* = &.{};
-
-    return @ptrCast(slot);
 }
 
 // The caller exclusively lends a descriptor for a mutable slice for the duration of the call.

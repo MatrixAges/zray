@@ -5,3 +5,13 @@ export type Site = {
     spans: ProjectionSpans,
     row: u64
 }
+
+export type Diagnostic = Site.Omit("graph") & {
+    message: string,
+    unsupported: bool
+}
+
+export type Publication = {
+    graph: ProjectionGraph,
+    diagnostic?: Diagnostic
+}

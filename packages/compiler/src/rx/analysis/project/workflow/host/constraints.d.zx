@@ -136,9 +136,3 @@ export declare function commitUnification(
 
 export declare function internUnificationType(target: UnificationTarget, type_id: u32): u32
     throws { OutOfMemory, InvalidSource }
-
-export declare function reportUnification(
-    target: UnificationTarget,
-    message: string,
-    depth: bool
-): void throws { OutOfMemory, InvalidSource }

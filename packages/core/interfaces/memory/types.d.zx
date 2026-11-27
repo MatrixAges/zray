@@ -4,14 +4,12 @@ export type StreamReader = mutable_opaque
 export type U32Buffer = mutable_opaque
 export type U32View = opaque
 export type U64View = opaque
-export type StringViews = opaque
 
 export type U64Buffer = mutable_opaque
 export type OptionalU32Buffer = mutable_opaque
 export type StringBuffer = mutable_opaque
 export type OptionalStringBuffer = mutable_opaque
 export type U8ListBuffer = mutable_opaque
-export type U32ListBuffer = mutable_opaque
 export type NamedRows = opaque
 export type NamedColumns = opaque
 export type TextColumnBuffer = mutable_opaque

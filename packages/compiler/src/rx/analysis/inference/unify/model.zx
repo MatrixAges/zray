@@ -53,7 +53,8 @@ export type Request = Merge & {
 
 export type Cursor = Request & {
     count: u64,
-    positions: u64[]
+    positions: u64[],
+    diagnostic?: Diagnostic
 }
 
 export type Scan = {
@@ -63,4 +64,9 @@ export type Scan = {
     positions: u64[]
 }
 
-export type Child = Cursor & Scan.Omit("positions")
+export type Child = Cursor.Omit("diagnostic") & Scan.Omit("positions")
+
+export type Diagnostic = {
+    message: string,
+    depth: bool
+}

@@ -19,3 +19,9 @@ export type Publication = {
     writer: AstWriter,
     fragment: WorkerOutput
 }
+
+export type OperandCursor = Input.Pick("frame") & {
+    count: u64,
+    row: u64,
+    running: bool
+}

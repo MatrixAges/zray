@@ -1,43 +1,25 @@
-import host from "ownership_host"
-import { IdentityRow } from "ownership_host"
-
-import type { IdentityWorker } from "ownership_host"
-
-export type Input = {
-    worker: IdentityWorker,
-    contents: bool,
-    native_modules: u32?[],
-    active: bool[],
-    known_count: u64
+export enum IdentityRow {
+    Zero,
+    Content,
+    Known,
+    Body
 }
 
-export type Output = void
+export type Input = {
+    contents: bool,
+    native: bool,
+    active: bool,
+    known: bool
+}
+
+export type Output = IdentityRow
 
 export default function (in: Input): Output {
-    const { worker, contents, native_modules, active, known_count } = in
-
-    const processed = loop({
-        done: false
-    }, {
-        while: state => !state.done,
-        next: state => {
-            const row = host.claimOwnershipIdentity(worker)
-
-            if (row == null) {
-                state.done = true
-            } else {
-                const action = match {
-                    contents => match {
-                        native_modules[row] == null => IdentityRow.Content,
-                        _ => IdentityRow.Zero
-                    },
-                    !active[row] => IdentityRow.Zero,
-                    row < known_count => IdentityRow.Known,
-                    _ => IdentityRow.Body
-                }
-
-                host.writeOwnershipIdentity(worker, row, action)
-            }
-        }
-    })
+    return match {
+        in.contents && in.native => IdentityRow.Zero,
+        in.contents => IdentityRow.Content,
+        !in.active => IdentityRow.Zero,
+        in.known => IdentityRow.Known,
+        _ => IdentityRow.Body
+    }
 }

@@ -1,6 +1,8 @@
 export {
     AstPayloadOwnership,
     appendAstBindingRows,
+    appendLayoutExpressions,
+    appendOwnedAstFields,
     appendAstProjectionRows,
     appendExpressionRows,
     appendStatementRows,
@@ -12,6 +14,7 @@ export {
     publishAstBasicStatements,
     readAstOrigin
 } from "ast_rows"
+export { AstSequenceMode } from "ast_rows"
 export {
     lowerCapture,
     lowerDiscardedExpression,
@@ -21,4 +24,5 @@ export {
     retainLoweringText,
     setLoweringSerial
 } from "lowering_host"
+export { finishGeneratedAst } from "lowering_host"
 export { requireAllocation } from "memory"

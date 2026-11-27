@@ -3,7 +3,16 @@
 
     <Args in={Result.Execution} out={u32} />
 
-    <Call fn="prepare_members" in={$in.preparation} />
+    <Loop on={$in.running}>
+        <Call
+            module="prepare_member"
+            in={{
+                ...$in.preparation,
+                row: 0,
+                running: $in.preparation.types.length != 0
+            }}
+        />
+    </Loop>
 
     <Call
         fn="refresh_bases"

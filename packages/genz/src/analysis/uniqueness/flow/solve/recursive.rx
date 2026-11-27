@@ -1,0 +1,50 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.RecursiveCursor} out={Flow.RecursiveCursor} />
+
+    <Call fn="../fixpoint/run" in={$in.queue} />
+
+    <If on={$ctx.run.index != null}>
+        <If on={$ctx.run.retain}>
+            <Call
+                fn="index.retainFlowFacts"
+                in={[
+                    $in.flow,
+                    $ctx.run.index
+                ]}
+            />
+        </If>
+
+        <Call
+            fn="index.visitRecursiveFlow"
+            in={[
+                $in.flow,
+                $ctx.run.index,
+                $ctx.run.retain
+            ]}
+        />
+
+        <Return
+            value={{
+                flow: $in.flow,
+                queue: {
+                    first: $in.queue.first,
+                    items: $in.queue.items,
+                    indices: $ctx.run.indices,
+                    queued: $ctx.run.queued,
+                    count: $ctx.run.count,
+                    changed: $ctx.visitRecursiveFlow ? $ctx.run.index : null
+                },
+                running: true
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            running: false
+        }}
+    />
+</Module>

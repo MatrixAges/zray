@@ -1,22 +1,63 @@
 <Module>
     <Type from="execute_model" as="Types" />
+    <Type from="../../../statements/rows" as="AST" />
 
     <Args in={Types.Execute} out={u32} />
 
     <Call module="build" in={$in.request} />
 
+    <Call fn="../../../statements/rows.requireAllocation" in={$ctx.build.valid} />
+    <Call fn="../../../../ast/statements/empty_variables" in={{}} />
+
     <Call
-        fn="publish_ast"
-        in={{
-            ...$in.pick([
-                "frame",
-                "writer",
-                "body",
-                "context"
-            ]),
-            output: $ctx.build
-        }}
+        fn="../../../statements/rows.appendLayoutExpressions"
+        in={[
+            $in.writer,
+            $ctx.build.expressions,
+            $ctx.build.layouts
+        ]}
     />
 
-    <Return value={$ctx.publish_ast} />
+    <Call
+        fn="../../../statements/rows.appendOwnedAstFields"
+        in={[
+            $in.writer,
+            $ctx.build.fields
+        ]}
+    />
+
+    <Call
+        fn="../../../statements/rows.appendStatementSequence"
+        in={[
+            $in.writer,
+            $in.body,
+            $ctx.build.statements,
+            $ctx.empty_variables,
+            AST.AstSequenceMode.Owned
+        ]}
+    />
+
+    <Loop on={$in.running}>
+        <Call
+            module="../../resources/cache_row"
+            in={{
+                frame: $in.context,
+                types: $ctx.build.cache_types,
+                values: $ctx.build.cache_values,
+                row: 0,
+                running: $ctx.build.cache_types.length != 0
+            }}
+        />
+    </Loop>
+
+    <Call
+        fn="../../../statements/rows.finishGeneratedAst"
+        in={[
+            $in.frame,
+            $ctx.build.serial,
+            false
+        ]}
+    />
+
+    <Return value={$ctx.build.root} />
 </Module>

@@ -62,28 +62,6 @@ export declare function emitRequestedBody(owner: ModuleFrame, value: bool): void
 
 export declare function publishRequestedFunction(owner: ModuleFrame): void
 
-export declare function openSignatureUnit(
-    signatures: ModuleSignatures,
-    index: u64
-): ModuleFunctionForm? throws { OutOfMemory, InvalidFunction }
-
-export declare function installSignatureBody(signatures: ModuleSignatures): void
-    throws { OutOfMemory }
-
-export declare function emitNativeSignature(signatures: ModuleSignatures): void
-    throws { OutOfMemory }
-
-export declare function emitRegularSignature(signatures: ModuleSignatures): void
-    throws { OutOfMemory }
-
-export declare function emitValueSignature(signatures: ModuleSignatures): void
-    throws { OutOfMemory }
-
-export declare function publishSignatureUnit(
-    signatures: ModuleSignatures,
-    parameter_name: string
-): void throws { OutOfMemory }
-
 export declare function appendModuleAuxiliary(owner: ModuleFrame): void throws { OutOfMemory }
 
 export declare function appendModuleSuffix(owner: ModuleFrame): void throws { OutOfMemory }

@@ -1,0 +1,17 @@
+import { missing_message } from "./const"
+
+import type { Diagnostic } from "./workflow"
+
+export type Input = Diagnostic.Omit("message") & {
+    message?: string
+}
+
+export type Output = Diagnostic
+
+export default function (in: Input): Output {
+    return {
+        source: in.source,
+        row: in.row,
+        message: in.message ?? missing_message
+    }
+}

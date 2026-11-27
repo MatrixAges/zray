@@ -3,7 +3,23 @@
 
     <Args in={Call.Iteration} out={Call.Output} />
 
-    <Call fn="iteration_input" in={$in} />
+    <Call
+        fn="index.lowerExpression"
+        in={[
+            $in.frame,
+            $in.operand,
+            false,
+            null
+        ]}
+    />
+
+    <Call
+        fn="index.openIterationCall"
+        in={[
+            $in.call,
+            $ctx.lowerExpression
+        ]}
+    />
 
     <If on={$in.value_call}>
         <Call

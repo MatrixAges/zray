@@ -1,5 +1,7 @@
 import integers from "std:integer"
+import { appendAstBindingRows } from "ast_rows"
 import host from "lowering_host"
+import { requireAllocation } from "memory"
 
 import finishBlock from "../../../aggregate/execute/finish_block"
 import objectLiteral from "../../../aggregate/execute/object_literal"
@@ -59,14 +61,18 @@ export default function (in: Input): Output {
         })
     }
 
-    retireOperands({
-        writer,
-        sequence,
+    const retired = retireOperands({
         evaluation: in.evaluation,
         prior: observed.prior,
         references: observed.references,
         cache_reads: in.cache_reads
     })
+
+    requireAllocation(retired.valid)
+
+    if (retired.rows != null) {
+        appendAstBindingRows(writer, sequence, retired.rows)
+    }
 
     const result = updated ?? objectLiteral({
         writer,

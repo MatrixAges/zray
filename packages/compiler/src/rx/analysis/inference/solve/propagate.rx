@@ -11,6 +11,18 @@
 
     <Call module="../bindings/validate" in={$in.bindings} />
 
+    <If on={$ctx.validate != null}>
+        <Call
+            fn="../bindings/host.applyBindingDiagnostic"
+            in={[
+                $in.bindings.frame,
+                $ctx.validate.source,
+                $ctx.validate.row,
+                $ctx.validate.message
+            ]}
+        />
+    </If>
+
     <Call
         module="../bindings/run"
         in={{
@@ -18,6 +30,18 @@
             final: false
         }}
     />
+
+    <If on={$ctx.run != null}>
+        <Call
+            fn="../bindings/host.applyBindingDiagnostic"
+            in={[
+                $in.bindings.frame,
+                $ctx.run.source,
+                $ctx.run.row,
+                $ctx.run.message
+            ]}
+        />
+    </If>
 
     <Call fn="host.refreshSolverNonNull" in={$in.frame} />
 
@@ -32,6 +56,14 @@
     <Call fn="host.refreshSolverSequences" in={$in.frame} />
 
     <Call module="../sequences/replay_sequences" in={$in.sequences} />
+
+    <Call
+        module="../projections/apply_diagnostic"
+        in={{
+            graph: $in.sequences.owner,
+            diagnostic: $ctx.replay_sequences
+        }}
+    />
 
     <Call fn="host.refreshSolverObjects" in={$in.frame} />
 
@@ -48,6 +80,14 @@
         in={{
             view: $in.objects,
             final: false
+        }}
+    />
+
+    <Call
+        module="../projections/apply_diagnostic"
+        in={{
+            graph: $in.objects.selections.owner,
+            diagnostic: $ctx.select
         }}
     />
 
