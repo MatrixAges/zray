@@ -129,10 +129,6 @@ pub inline fn writeOptionalTextSlot(target: *anyopaque, index: u64, value: ?[]co
     text_storage.write(?[]const u8, target, index, value);
 }
 
-pub inline fn readTextSlot(source: *const anyopaque, index: u64) []const u8 {
-    return text_storage.read([]const u8, source, index);
-}
-
 pub inline fn borrowTextSlots(source: *const anyopaque, count: u64) []const []const u8 {
     return text_storage.borrow([]const u8, source, count);
 }
@@ -412,7 +408,6 @@ pub const writeColumnOptionalU8 = column.writeOptionalU8;
 pub const writeColumnOptionalText = column.writeOptionalText;
 pub const writeColumnTextList = column.writeTextList;
 pub const writeColumnRowReference = column.writeRowReference;
-pub const writeListReference = column.writeListReference;
 pub const copyColumnValue = column.copyValue;
 const scalar_column = @import("scalar.zig");
 pub const Scalar = scalar_column.Value;

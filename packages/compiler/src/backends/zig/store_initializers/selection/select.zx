@@ -5,9 +5,12 @@ import columns from "memory/columns"
 import { Mode } from "./model"
 import needed from "./needed"
 
-import type { Input as Selection, Selected as Output } from "./model"
+import type { Candidates, MarkedSearch, Selected as Output } from "./model"
 
-export type Input = Selection.Pick("candidates", "search")
+export type Input = {
+    candidates: Candidates,
+    search: MarkedSearch
+}
 
 export default function (in: Input): Output {
     const { candidates, search } = in

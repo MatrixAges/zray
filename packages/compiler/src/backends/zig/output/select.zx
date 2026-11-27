@@ -43,11 +43,7 @@ export default function (in: Input): Output {
                     current.aligned = false
 
                     if (!current.indexed) {
-                        const prepared = index({
-                            keys: in.previous_paths,
-                            values: in.index_values,
-                            buckets: in.index_buckets
-                        })
+                        const prepared = index(in.previous_paths)
 
                         current.keys = prepared.keys
                         current.values = prepared.values

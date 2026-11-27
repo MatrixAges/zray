@@ -1,5 +1,5 @@
 import type { GenerationFileCache } from "generation_host"
-import type { TextColumn, WriteColumn } from "memory"
+import type { TextColumn } from "memory"
 import type { Pair } from "./model"
 
 export type SourceRows = {
@@ -22,15 +22,9 @@ export type OutputParts = {
     templates: u8[]
 }
 
-export type DigestOutput = {
-    paths: WriteColumn,
-    digests: WriteColumn
-}
-
 export type ModuleRows = {
     cache: GenerationFileCache,
-    rows: SourceRows,
-    target: DigestOutput
+    rows: SourceRows
 }
 
 export type Frame = {

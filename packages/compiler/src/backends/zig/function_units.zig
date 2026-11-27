@@ -19,20 +19,26 @@ pub fn create(allocator: std.mem.Allocator, graph: @import("genz").zx.references
         return units;
     }
 
+    var buffer: [2048]u8 align(@alignOf(u64)) = undefined;
+    var backing = std.heap.BufferFirstAllocator.init(&buffer, allocator);
+    var scratch = std.heap.ArenaAllocator.init(backing.allocator());
+
+    defer scratch.deinit();
+
     const plan = @import("generated_function_unit_plan");
     const Input = std.meta.Child(plan.Input);
-    const Target = std.meta.Child(@FieldType(Input, "target"));
-    var output: zx.memory.RowOutput(Function, Target, .{ .ids = &.{"id"}, .regular = &.{"regular"} }) = undefined;
+    const input: Input = .{ .count = graph.count, .needed = needed, .regular = regular };
 
-    output.init();
-    errdefer allocator.free(output.rows());
-
-    const input: Input = .{ .count = graph.count, .needed = needed, .regular = regular, .storage = @ptrCast(&output.buffer), .target = &output.view };
-
-    zx.columns.invoke(plan.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
+    const planned = zx.columns.invoke(plan.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
 
-    return output.rows();
+    const units = try allocator.alloc(Function, planned.len);
+
+    for (planned, units) |item, *unit| {
+        unit.* = .{ .id = @fromBackingInt(item.id), .regular = item.regular };
+    }
+
+    return units;
 }

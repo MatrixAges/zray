@@ -395,16 +395,6 @@ pub inline fn writeRowReference(target: *anyopaque, index: u64, storage: []const
     try write(?[*]const u8, target, index, address);
 }
 
-pub inline fn writeListReference(target: *anyopaque, index: u64, source: *const anyopaque, row: u64, member: u64) IndexError!void {
-    const column = try @import("rows.zig").listColumn(source, row);
-
-    if (member >= column.count) return error.IndexOutOfBounds;
-
-    const address = column.bytes.ptr + column.offset + @as(usize, @intCast(member)) * column.stride;
-
-    try write(?[*]const u8, target, index, address);
-}
-
 /// Transfers a single cell's representation between compatible, disjoint borrowed fields.
 pub inline fn copyValue(target: *anyopaque, index: u64, value: []const u8) IndexError!void {
     const column: *Column = @ptrCast(@alignCast(target));

@@ -1,31 +1,32 @@
-import { allocateRows } from "core/row_buffer"
 import memory from "memory"
 
 import sameRow from "./same_row"
 import start from "./start"
 
-import type { Snapshot, Target } from "./model"
+import type { Snapshot } from "./model"
 
 export type Input = {
     snapshot: Snapshot,
-    target: Target,
-    prefix: u64
+    prefix: u64,
+    active: bool
 }
 
-export type Output = void
+export type Output = u64[]
 
 export default function (in: Input): Output {
+    if (!in.active) {
+        return []
+    }
+
     const { prior, current } = in.snapshot
-    const { prefix, target } = in
+    const { prefix } = in
 
-    allocateRows({
-        target: target.buffer,
-        count: current.count - prefix
-    })
+    const empty: u64[] = []
 
-    const selected = loop({
+    return loop({
         row: prefix,
-        first: prefix == 0 ? 0 : prefix - 1
+        first: prefix == 0 ? 0 : prefix - 1,
+        tail: empty
     }, {
         while: state => state.row < current.count,
         next: state => {
@@ -50,8 +51,9 @@ export default function (in: Input): Output {
                 _ => 0
             }
 
-            memory.writeColumnU64(target.rows, row - prefix, position)
+            state.tail = state.tail.push(position)[0]
             state.row += 1
-        }
+        },
+        return: state => state.tail
     })
 }

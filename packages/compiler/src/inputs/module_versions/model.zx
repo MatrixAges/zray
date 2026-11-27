@@ -1,5 +1,5 @@
-import type { TextColumn, WriteColumn } from "memory"
-import type { IndirectTextColumn, RowBuffer } from "memory/columns"
+import type { TextColumn } from "memory"
+import type { IndirectTextColumn } from "memory/columns"
 
 export type Prior = {
     paths: IndirectTextColumn,
@@ -23,19 +23,15 @@ export type Probe = Snapshot & {
     packages: u8[]
 }
 
-export type Target = {
-    buffer: RowBuffer,
-    rows: WriteColumn
-}
+export type Input = Probe
 
-export type Input = {
-    probe: Probe,
-    target: Target
-}
-
-export type Output = {
+export type Prefix = {
     whole: bool,
     prefix: u64
+}
+
+export type Output = Prefix & {
+    tail: u64[]
 }
 
 export type Cursor = {

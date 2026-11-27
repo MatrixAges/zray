@@ -27,62 +27,41 @@ pub fn copy(allocator: std.mem.Allocator, modules: ir.NativeModuleTable) std.mem
 
 pub fn storage(allocator: std.mem.Allocator, modules: ir.NativeModuleTable) std.mem.Allocator.Error!ir.NativeModuleStorage {
     if (comptime !generated) return storageSeed(allocator, modules);
-    if (modules.count() == 0) return .{};
+
+    const count = modules.count();
+
+    if (count == 0) return .{};
 
     var result: ir.NativeModuleStorage = .{};
 
+    try result.reserve(allocator, count);
+
     errdefer result.deinit(allocator);
 
-    inline for (@typeInfo(ir.NativeModuleStorage).@"struct".field_names) |name| {
-        const column = &@field(result, name);
-
-        try column.ensureTotalCapacityPrecise(allocator, modules.count());
-        try column.resize(allocator, modules.count());
-
-        @memset(column.items, if (comptime @typeInfo(std.meta.Elem(@TypeOf(column.items))) == .optional) null else &.{});
-    }
-
-    errdefer release(allocator, result.view());
-
     const entry = @import("generated_native_context_copy");
-    const Parameter = @typeInfo(@TypeOf(entry.executeValue)).@"fn".param_types[1].?;
+    const Parameter = @typeInfo(@TypeOf(entry.executeIn)).@"fn".param_types[1].?;
     const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
-    const Source = std.meta.Child(@FieldType(Input, "source"));
-    const Destination = std.meta.Child(@FieldType(Input, "destination"));
-    const source = zx.columns.columns(Source, modules);
+    const source = zx.columns.columns(Input, modules);
 
-    const destination: Destination = .{
-        .identities = @ptrCast(&result.identities.items),
-        .import_names = @ptrCast(&result.import_names.items),
-        .specifiers = @ptrCast(&result.specifiers.items),
-        .type_ids = @ptrCast(&result.type_ids.items),
-        .type_names = @ptrCast(&result.type_names.items),
-        .type_namespaces = @ptrCast(&result.type_namespaces.items),
-    };
-
-    const input: Input = .{ .source = &source, .destination = &destination };
-
-    zx.columns.invoke(entry.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+    const copied = entry.executeIn(allocator, if (@typeInfo(Parameter) == .pointer) &source else source) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
 
+    result.identities.appendSliceAssumeCapacity(copied.identities);
+    result.import_names.appendSliceAssumeCapacity(copied.import_names);
+    result.specifiers.appendSliceAssumeCapacity(copied.specifiers);
+    result.type_ids.appendSliceAssumeCapacity(copied.type_ids);
+    result.type_names.appendSliceAssumeCapacity(copied.type_names);
+    result.type_namespaces.appendSliceAssumeCapacity(copied.type_namespaces);
+    allocator.free(copied.identities);
+    allocator.free(copied.import_names);
+    allocator.free(copied.specifiers);
+    allocator.free(copied.type_ids);
+    allocator.free(copied.type_names);
+    allocator.free(copied.type_namespaces);
+
     return result;
-}
-
-fn release(allocator: std.mem.Allocator, table: ir.NativeModuleTable) void {
-    for (table.identities) |identity| if (identity) |value| allocator.free(value);
-    for (table.specifiers) |value| allocator.free(value);
-    for (table.import_names) |value| allocator.free(value);
-    for (table.type_ids) |ids| allocator.free(ids);
-
-    for ([2][]const []const []const u8{ table.type_namespaces, table.type_names }) |column| {
-        for (column) |names| {
-            for (names) |name| allocator.free(name);
-
-            allocator.free(names);
-        }
-    }
 }
 
 fn storageSeed(allocator: std.mem.Allocator, modules: ir.NativeModuleTable) std.mem.Allocator.Error!ir.NativeModuleStorage {

@@ -42,16 +42,10 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Alloca
         defer scratch.deinit();
 
         const resource = scratch.allocator();
-        var values: []u32 = &.{};
-        var buckets: []?u32 = &.{};
 
         const input: std.meta.Child(entry.Input) = .{
             .target = @ptrCast(&frame),
-            .cleanup = &.{
-                .paths = @ptrCast(&frame.hashing.paths),
-                .values = @ptrCast(&values),
-                .buckets = @ptrCast(&buckets),
-            },
+            .paths = @ptrCast(&frame.hashing.paths),
         };
 
         entry.executeIn(resource, &input) catch |err| {

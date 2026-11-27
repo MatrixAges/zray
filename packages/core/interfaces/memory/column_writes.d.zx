@@ -72,14 +72,6 @@ export declare function copyColumnValue(
     value: u8[]
 ): void throws { IndexOutOfBounds }
 
-export declare function writeListReference(
-    target: WriteColumn,
-    index: u64,
-    source: ListColumn,
-    row: u64,
-    member: u64
-): void throws { IndexOutOfBounds }
-
 export declare function borrowTransferGroup(
     groups: ColumnTransfers,
     group: u64,

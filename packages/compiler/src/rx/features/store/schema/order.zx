@@ -11,7 +11,7 @@ import type { Cursor } from "../../../schema/tree/model"
 import type { Declaration as Output, Input } from "./model"
 
 export default function (in: Input): Output {
-    const { tree, workspace, count } = in
+    const { tree, count } = in
 
     const missing: Cursor? = null
 
@@ -46,7 +46,6 @@ export default function (in: Input): Output {
                 if (alias != null) {
                     const entered = claim({
                         seen: state.keys,
-                        workspace,
                         key: alias.value,
                         secondary: false,
                         row: state.row,

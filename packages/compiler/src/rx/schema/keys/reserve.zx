@@ -1,11 +1,9 @@
 import { bucket_ratio, capacity_growth } from "core/bytes/index/const"
-import memory from "memory"
 
-import type { Keys, Workspace } from "./model"
+import type { Keys } from "./model"
 
 export type Input = {
     seen: Keys,
-    workspace: Workspace,
     count: u64
 }
 
@@ -21,20 +19,39 @@ export default function (in: Input): Output {
         }
     })
 
-    const { allocator, buckets } = in.workspace
+    const zero: u64 = 0
+    const empty_buckets: u64[] = []
 
-    memory.allocateU64Buffer(allocator, buckets, capacity)
-    memory.clearU64Buffer(buckets)
+    const buckets = loop({
+        index: 0,
+        items: empty_buckets
+    }, {
+        while: state => state.index < capacity,
+        next: state => {
+            state.items = state.items.push(zero)[0]
+            state.index += 1
+        },
+        return: state => state.items
+    })
+
+    const empty_text: string[] = []
+
+    const text = loop({
+        index: 0,
+        items: empty_text
+    }, {
+        while: state => state.index < in.count,
+        next: state => {
+            state.items = state.items.push("")[0]
+            state.index += 1
+        },
+        return: state => state.items
+    })
 
     return {
         ...in.seen,
         capacity,
-        text: memory.requireTextSlots(
-            memory.allocateTextSlots(
-                allocator,
-                in.count,
-                null
-            )
-        )
+        text,
+        buckets
     }
 }

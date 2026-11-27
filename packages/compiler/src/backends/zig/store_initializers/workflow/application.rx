@@ -5,11 +5,17 @@
 
     <Call fn="emit" in={$in} />
 
-    <If on={$ctx.emit != Application.Status.Ready}>
-        <Return value={$ctx.emit} />
+    <If on={$ctx.emit.status != Application.Status.Ready}>
+        <Return value={$ctx.emit.status} />
     </If>
 
-    <Call fn="coverage" in={$in} />
+    <Call
+        fn="coverage"
+        in={{
+            ...$in,
+            values: $ctx.emit.values
+        }}
+    />
 
     <Return value={$ctx.coverage} />
 </Module>

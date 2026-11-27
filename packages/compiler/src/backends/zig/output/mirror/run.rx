@@ -16,7 +16,7 @@
             fn="trim"
             in={{
                 plan: $ctx.compareBootstrapFiles,
-                cleanup: $in.cleanup
+                paths: $in.paths
             }}
         />
     </If>

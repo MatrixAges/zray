@@ -144,13 +144,15 @@ const Generation = struct {
             const Input = std.meta.Child(rule.Input);
             const fields = .{ .specifiers = "specifier", .entries = "entry" };
             const source = memory.borrowReadFields(fields, self.project.packages);
-            var destination = memory.borrowWriteFields(fields, packages);
 
-            try rule.executeIn(self.owned, &.{
+            const result = try rule.executeIn(self.owned, &.{
                 .fields = &source.bind(std.meta.Child(@FieldType(Input, "fields"))),
-                .target = &destination.bind(std.meta.Child(@FieldType(Input, "target"))),
                 .retain = self.resident.request != null,
             });
+
+            for (result, packages) |item, *slot| {
+                slot.* = .{ .specifier = item.specifier, .entry = item.entry };
+            }
         } else {
             for (self.project.packages, packages) |package, *slot| {
                 slot.* = .{
@@ -194,7 +196,6 @@ const Generation = struct {
         const Input = std.meta.Child(rule.Input);
         const Modules = std.meta.Child(@FieldType(Input, "modules"));
         const rows = memory.borrowReadFields(source_fields, self.inputs.modules);
-        var destination = memory.borrowWriteFields(.{ .paths = "path", .digests = "digest" }, digests);
         const interfaces = memory.borrowTextColumn("source", self.interfaces.bindings);
         var cache = FileDigest{ .files = &self.resident.files };
         var arena = std.heap.ArenaAllocator.init(self.allocator);
@@ -207,11 +208,16 @@ const Generation = struct {
             .modules = &.{
                 .cache = @ptrCast(&cache),
                 .rows = &rows.bind(std.meta.Child(@FieldType(Modules, "rows"))),
-                .target = &destination.bind(std.meta.Child(@FieldType(Modules, "target"))),
             },
             .interfaces = @ptrCast(&interfaces),
             .interface_count = self.interfaces.bindings.len,
         });
+
+        for (result.digests, digests) |row, *item| {
+            std.debug.assert(row.digest.len == @sizeOf(fingerprint.Digest));
+
+            item.* = .{ .path = row.path, .digest = row.digest[0..@sizeOf(fingerprint.Digest)].* };
+        }
 
         std.debug.assert(result.content.len == @sizeOf(fingerprint.Digest));
         std.debug.assert(result.shape.len == @sizeOf(fingerprint.Digest));

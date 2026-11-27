@@ -1,11 +1,10 @@
 import lookup from "core/bytes/index/column"
-import memory from "memory"
 
 import { Mode } from "./model"
 
-import type { Search } from "./model"
+import type { MarkedSearch } from "./model"
 
-export type Input = Search & {
+export type Input = MarkedSearch & {
     identity: string
 }
 
@@ -35,5 +34,5 @@ export default function (in: Input): Output {
         return false
     }
 
-    return in.mode == Mode.Paths || memory.readU8(in.marks, row) != 0
+    return in.mode == Mode.Paths || in.marks[row] != 0
 }

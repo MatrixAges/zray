@@ -1,4 +1,3 @@
-import type { Workspace } from "../../../schema/keys/model"
 import type { Cursor, Input as Children } from "../../../schema/tree/model"
 
 export enum Issue {
@@ -9,9 +8,7 @@ export enum Issue {
     DuplicateField
 }
 
-export type Input = Children & {
-    workspace: Workspace
-}
+export type Input = Children
 
 export type Declaration = {
     issue: Issue,

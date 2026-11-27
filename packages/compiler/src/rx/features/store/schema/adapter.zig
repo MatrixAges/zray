@@ -26,11 +26,7 @@ pub fn validate(allocator: std.mem.Allocator, children: anytype, node: anytype, 
 
     const temporary = arena.allocator();
     const rule = @import("generated_rx_store_schema");
-    var buckets: []u64 = &.{};
     var input: std.meta.Child(rule.Input) = undefined;
-
-    input.workspace = &.{ .allocator = @ptrCast(&temporary), .buckets = @ptrCast(&buckets) };
-
     const result = try tree.invoke(rule, temporary, node, &input);
 
     switch (result.issue) {

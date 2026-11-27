@@ -17,8 +17,8 @@ pub fn collect(allocator: std.mem.Allocator, definitions: []const Store.Definiti
 
     defer scratch.deinit();
 
-    const memory = local.allocator();
-    const members = try memory.alloc(u32, exported.len);
+    const temp = local.allocator();
+    const members = try temp.alloc(u32, exported.len);
     var length: usize = 0;
 
     for (exported) |member| {
@@ -28,7 +28,7 @@ pub fn collect(allocator: std.mem.Allocator, definitions: []const Store.Definiti
         length += 1;
     }
 
-    if (comptime generated) return select(allocator, definitions, program, members[0..length]);
+    if (comptime generated) return select(allocator, temp, definitions, program, members[0..length]);
 
     var initializers: std.ArrayList(Initializer) = .empty;
 
@@ -39,42 +39,35 @@ pub fn collect(allocator: std.mem.Allocator, definitions: []const Store.Definiti
     return initializers.items;
 }
 
-fn select(allocator: std.mem.Allocator, definitions: []const Store.Definition, program: *const zx.ir.Program, ids: []const u32) Error![]const Initializer {
+fn select(allocator: std.mem.Allocator, scratch: std.mem.Allocator, definitions: []const Store.Definition, program: *const zx.ir.Program, ids: []const u32) Error![]const Initializer {
     const Input = std.meta.Child(rule.Input);
     const Members = std.meta.Child(@FieldType(Input, "members"));
-    const Fields = std.meta.Child(@FieldType(Input, "columns"));
     const memory = zx.memory;
     const identities = memory.borrowListPath([]const u8, &.{"objects"}, &.{"identity"}, definitions);
-    const programs = memory.borrowListPath(zx.ir.Program, &.{"objects"}, &.{"initial"}, definitions);
-    const versions = memory.borrowReadColumn(u32, "version", definitions);
-    var output: memory.RowOutput(Initializer, Fields, .{}) = undefined;
-    const batch_size = 32;
-    var batch: [batch_size]u32 = undefined;
-    var selected: []u32 = &batch;
-
-    output.init();
-    errdefer allocator.free(output.rows());
 
     const input: Input = .{
         .entry = program.stores.paths,
         .members = &.{ .ids = ids, .stores = zx.columns.slice(@FieldType(Members, "stores"), program.functions.stores) },
         .identities = @ptrCast(&identities),
-        .programs = @ptrCast(&programs),
-        .versions = @ptrCast(&versions),
-        .selected = @ptrCast(&selected),
-        .capacity = selected.len,
-        .buffer = @ptrCast(&output.buffer),
-        .columns = &output.view,
+        .count = definitions.len,
     };
 
-    const result = rule.executeValue(allocator, &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
+    const result = rule.executeValue(scratch, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
 
-    const written = result orelse return error.InvalidAnalysis;
+    if (!result.valid) return error.InvalidAnalysis;
 
-    return output.rows()[0..@intCast(written)];
+    const initializers = try allocator.alloc(Initializer, result.items.len);
+
+    for (result.items, initializers) |item, *slot| {
+        const definition = &definitions[@intCast(item.definition)];
+
+        slot.* = borrow(definition, &definition.objects[@intCast(item.object)]);
+    }
+
+    return initializers;
 }
 
 fn borrow(definition: *const Store.Definition, object: *const Store.Object) Initializer {

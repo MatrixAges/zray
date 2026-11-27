@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Access" />
 
-    <Args in={Access.FieldBindings} out={void} />
+    <Args in={Access.FieldBindings} out={Access.Binding[]} />
 
     <Call
         module="read"
@@ -13,14 +13,17 @@
         }}
     />
 
-    <If on={$ctx.read.length != 0}>
-        <Call
-            fn="publish"
-            in={{
-                scope: $in.scope,
-                output: $in.output,
-                positions: $ctx.read
-            }}
-        />
+    <If on={$ctx.read.length == 0}>
+        <Return value={[]} />
     </If>
+
+    <Call
+        fn="publish"
+        in={{
+            scope: $in.scope,
+            positions: $ctx.read
+        }}
+    />
+
+    <Return value={$ctx.publish} />
 </Module>

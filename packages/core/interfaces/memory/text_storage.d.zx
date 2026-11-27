@@ -22,8 +22,6 @@ export declare function writeOptionalTextSlot(
     value: string?
 ): void
 
-export declare function readTextSlot(source: TextSlots, index: u64): string
-
 export declare function borrowTextSlots(target: TextSlots, count: u64): string[]
 
 export declare function borrowOptionalTextSlots(

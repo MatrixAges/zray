@@ -3,7 +3,6 @@ const zx = @import("zx");
 const Indexed = @import("frontend").ExpressionInput.Indexed;
 const Binding = @import("../store.zig").Binding;
 const Scope = @import("references.zig").Scope;
-const memory = @import("zx").memory;
 
 pub const Setter = union(enum) {
     setter: @import("../call/target.zig").Setter,
@@ -19,23 +18,22 @@ pub fn reads(allocator: std.mem.Allocator, backing: std.mem.Allocator, parsed: I
 
     const rule = @import("generated_rx_store_reads");
     const Input = std.meta.Child(rule.Input);
-    const Destination = std.meta.Child(@FieldType(Input, "output"));
-    var bindings: memory.RowOutput(Binding, std.meta.Child(@FieldType(Destination, "fields")), .{}) = undefined;
-
-    bindings.init();
-    errdefer allocator.free(bindings.rows());
 
     const input: Input = .{
         .source = parsed.source,
         .tree = parsed.output.expressions,
         .root = parsed.output.result,
         .scope = zx.columns.pointer(@FieldType(Input, "scope"), &scope),
-        .output = &.{ .owner = @ptrCast(&allocator), .rows = @ptrCast(&bindings.buffer), .fields = &bindings.view },
     };
 
-    try invoke(rule.executeIn, scratch.allocator(), input);
+    const rows = try invoke(rule.executeIn, scratch.allocator(), input);
+    const bindings = try allocator.alloc(Binding, rows.len);
 
-    return bindings.rows();
+    for (rows, bindings) |row, *item| {
+        item.* = .{ .name = row.name, .path = row.path, .type_id = @fromBackingInt(row.type_id) };
+    }
+
+    return bindings;
 }
 
 pub fn setter(backing: std.mem.Allocator, parsed: Indexed, scope: Scope) std.mem.Allocator.Error!Setter {

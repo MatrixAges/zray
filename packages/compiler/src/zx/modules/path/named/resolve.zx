@@ -5,17 +5,16 @@ import memory from "memory"
 import select from "../alias/select"
 import { module_extension } from "../const"
 
-import type { TextSlots } from "memory"
 import type { Input as Lookup } from "../alias/model"
 
 export type Input = Lookup & {
-    member_width: u64,
-    output: TextSlots
+    member_width: u64
 }
 
 export type Output = {
     row?: u64,
-    named: bool
+    named: bool,
+    owned?: string
 }
 
 export default function (in: Input): Output {
@@ -28,15 +27,10 @@ export default function (in: Input): Output {
     ]))
 
     if (full.row != null) {
-        const indexed = full.fallback
-
-        if (indexed != null) {
-            memory.writeTextSlot(in.output, 0, indexed)
-        }
-
         return {
             row: full.row,
-            named: false
+            named: false,
+            owned: full.fallback
         }
     }
 
@@ -47,8 +41,6 @@ export default function (in: Input): Output {
         module_extension
     ])
 
-    memory.writeTextSlot(in.output, 0, owner)
-
     const selected = select({
         path: owner,
         index,
@@ -58,12 +50,18 @@ export default function (in: Input): Output {
     const indexed = selected.fallback
 
     if (indexed != null) {
-        memory.writeTextSlot(in.output, 0, indexed)
         memory.freeOwnedText(release, owner)
+
+        return {
+            row: selected.row,
+            named: true,
+            owned: indexed
+        }
     }
 
     return {
         row: selected.row,
-        named: true
+        named: true,
+        owned: owner
     }
 }

@@ -2,34 +2,40 @@ import memory from "memory"
 
 import select from "./definition"
 
-import type { Collection as Input } from "./model"
-
-export type Output = u64?
+import type { Collection as Input, Result as Output, Selected } from "./model"
 
 export default function (in: Input): Output {
-    if (in.entry.length == 0 && in.members.ids.length == 0) {
-        return 0
-    }
+    const empty: Selected[] = []
 
-    const count = memory.columnLength(in.versions)
+    if (in.entry.length == 0 && in.members.ids.length == 0) {
+        return {
+            valid: true,
+            items: empty
+        }
+    }
 
     return loop({
         definition: 0,
-        written: 0,
+        items: empty,
         valid: true
     }, {
-        while: state => state.valid && state.definition < count,
+        while: state => state.valid && state.definition < in.count,
         next: state => {
             const result = select({
-                ...in,
+                entry: in.entry,
+                members: in.members,
+                identities: in.identities,
                 definition: state.definition,
-                written: state.written
+                items: state.items
             })
 
-            state.written = result.written
+            state.items = result.items
             state.valid = result.valid
             state.definition += 1
         },
-        return: state => state.valid ? state.written : null
+        return: state => ({
+            valid: state.valid,
+            items: state.items
+        })
     })
 }

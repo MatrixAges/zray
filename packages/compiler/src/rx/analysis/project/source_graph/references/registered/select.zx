@@ -1,15 +1,15 @@
 import bytes from "std:bytes"
-import memory from "memory"
 
 import { module_extension } from "../../../../../../zx/modules/path/const"
 import selectSource from "../../../../../../zx/modules/path/select_source"
 import resolve from "../../../../../../zx/modules/project/target/package/path"
 
-import type { PathStorage, Source } from "./model"
+import type { Allocator } from "memory"
+import type { Source } from "./model"
 
 export type Input = {
     source: Source,
-    owned: PathStorage
+    release: Allocator
 }
 
 export type Output = {
@@ -19,7 +19,7 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { source, owned } = in
+    const { source, release } = in
     const { root, member_width, selection_index } = source
 
     if (root == null) {
@@ -34,8 +34,6 @@ export default function (in: Input): Output {
         root,
         path: source.path
     })
-
-    memory.writeTextSlot(owned.resolved, 0, absolute)
 
     const suffix = match {
         absolute.length < module_extension.length => absolute.length,
@@ -55,15 +53,12 @@ export default function (in: Input): Output {
     const selected = selectSource({
         path: absolute,
         index: selection_index ?? source.index,
-        release: owned.allocator,
-        member_width,
-        output: owned.selected
+        release,
+        member_width
     })
 
-    const path = memory.readTextSlot(owned.selected, 0)
-
     return {
-        path: path.length == 0 ? absolute : path,
+        path: selected.owned ?? absolute,
         matched: selection_index == null ? selected.row : null,
         named: selected.named
     }

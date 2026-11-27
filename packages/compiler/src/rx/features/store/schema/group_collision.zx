@@ -20,7 +20,7 @@ export type Output = Collision?
 
 export default function (in: Input): Output {
     const { fragments } = in
-    const { workspace, tree } = fragments.request
+    const { tree } = fragments.request
 
     const links = fragments.grouped.next
 
@@ -79,7 +79,6 @@ export default function (in: Input): Output {
                         if (key != null) {
                             const entered = claim({
                                 seen: part.keys,
-                                workspace,
                                 key: key.value,
                                 secondary: false,
                                 row: part.field,

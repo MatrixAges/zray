@@ -13,22 +13,25 @@
         />
     </If>
 
-    <If on={$in.search.mode == Selection.Mode.Candidates}>
-        <Call
-            fn="mark"
-            in={{
-                ...$in.search.omit(["mode"]),
-                count: $in.indexed
-            }}
-        />
-    </If>
+    <Call
+        fn="mark"
+        in={{
+            paths: $in.search.paths,
+            index: $in.search.index,
+            count: $in.indexed,
+            active: $in.search.mode == Selection.Mode.Candidates
+        }}
+    />
 
     <Call
         fn="select"
-        in={$in.pick([
-            "candidates",
-            "search"
-        ])}
+        in={{
+            candidates: $in.candidates,
+            search: {
+                ...$in.search,
+                marks: $ctx.mark
+            }
+        }}
     />
 
     <Call

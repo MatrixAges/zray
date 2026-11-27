@@ -1,4 +1,4 @@
-import type { TextColumn, U32Buffer, U64Buffer } from "memory"
+import type { TextColumn, U64Buffer } from "memory"
 import type { ApplicationInitializers } from "output_host"
 
 export enum Status {
@@ -16,8 +16,7 @@ export type Plan = {
     expected: u8[][],
     keys: TextColumn,
     buckets: U64Buffer,
-    capacity: u64,
-    values: U32Buffer
+    capacity: u64
 }
 
 export type Input = {
@@ -25,4 +24,13 @@ export type Input = {
     plan: Plan,
     paths: string[],
     types: u32[]
+}
+
+export type Emitted = {
+    status: Status,
+    values: u32[]
+}
+
+export type Coverage = Input & {
+    values: u32[]
 }

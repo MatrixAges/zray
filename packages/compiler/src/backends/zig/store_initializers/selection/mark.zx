@@ -1,14 +1,33 @@
 import lookup from "core/bytes/index/column"
-import memory from "memory"
 
 import type { Mark as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const result = loop({
+    if (!in.active || in.count == 0) {
+        return []
+    }
+
+    const zero: u8 = 0
+    const empty: u8[] = []
+
+    const blank = loop({
+        position: 0,
+        items: empty
+    }, {
+        while: state => state.position < in.count,
+        next: state => {
+            state.items = state.items.push(zero)[0]
+            state.position += 1
+        },
+        return: state => state.items
+    })
+
+    return loop({
         row: 0,
-        found: 0
+        found: 0,
+        marks: blank
     }, {
         while: state => state.row < in.paths.length && state.found < in.count,
         next: state => {
@@ -17,12 +36,13 @@ export default function (in: Input): Output {
                 key: in.paths[state.row]
             })
 
-            if (entry != null && memory.readU8(in.marks, entry) == 0) {
-                memory.writeU8(in.marks, entry, 1)
+            if (entry != null && state.marks[entry] == 0) {
+                state.marks[entry] = 1
                 state.found += 1
             }
 
             state.row += 1
-        }
+        },
+        return: state => state.marks
     })
 }

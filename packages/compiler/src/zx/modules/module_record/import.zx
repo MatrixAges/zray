@@ -1,10 +1,8 @@
 import strings from "std:string"
-import memory from "memory"
 
 import hasAlias from "./names/alias"
 import own from "./names/own"
 
-import type { Allocator, TextSlots } from "memory"
 import type { Names } from "./names/model"
 
 export type Target = {
@@ -18,8 +16,7 @@ export type Input = {
     specifier: string,
     identity?: string,
     target: Target,
-    compiled: bool,
-    release: Allocator
+    compiled: bool
 }
 
 export type Output = Target & {
@@ -33,31 +30,12 @@ export default function (in: Input): Output {
     const count = in.names.locals.length
     const aliased = count != 0 && hasAlias(in.names)
 
-    const locals = memory.requireTextSlots(
-        memory.allocateTextSlots(in.release, count, null)
-    )
-
-    const originals: TextSlots? = match {
-        aliased => memory.requireTextSlots(
-            memory.allocateTextSlots(in.release, count, null)
-        ),
-        _ => null
-    }
-
     const owned = own({
         names: in.names,
-        locals,
-        originals,
+        aliased,
         specifier: in.specifier,
         identity: in.identity
     })
-
-    const borrowed_locals = memory.borrowTextSlots(locals, count)
-
-    const borrowed_originals: string[] = match {
-        originals != null => memory.borrowTextSlots(originals, count),
-        _ => []
-    }
 
     if (in.compiled) {
         const instance = strings.copy(in.target.instance)
@@ -66,8 +44,6 @@ export default function (in: Input): Output {
 
         return {
             ...owned,
-            locals: borrowed_locals,
-            originals: borrowed_originals,
             instance,
             path,
             member
@@ -76,8 +52,6 @@ export default function (in: Input): Output {
 
     return {
         ...owned,
-        locals: borrowed_locals,
-        originals: borrowed_originals,
         ...in.target
     }
 }

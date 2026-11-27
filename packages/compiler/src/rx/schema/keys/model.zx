@@ -1,15 +1,9 @@
-import type { Allocator, TextSlots, U64Buffer } from "memory"
-
 export type Keys = {
     first?: string,
     second?: string,
     first_row: u64,
     second_row: u64,
-    text?: TextSlots,
+    text: string[],
+    buckets: u64[],
     capacity: u64
-}
-
-export type Workspace = {
-    allocator: Allocator,
-    buckets: U64Buffer
 }

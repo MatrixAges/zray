@@ -1,11 +1,11 @@
 import crypto from "std:crypto"
 
-import type { FrameDigest as Output } from "./model"
+import type { Pair as Output } from "./model"
 import type { FrameParts as Input } from "./output_shape"
 
 export default function (in: Input): Output {
     return {
-        content: crypto.sha256Parts([
+        frame: crypto.sha256Parts([
             in.header.frame,
             in.modules.frame,
             in.interfaces

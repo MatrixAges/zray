@@ -7,13 +7,10 @@ import name from "../tree/name"
 import next from "../tree/next"
 import { Issue } from "./model"
 
-import type { Workspace } from "../keys/model"
 import type { Input as Children } from "../tree/model"
 import type { Finding, Output } from "./model"
 
-export type Input = Children & {
-    workspace: Workspace
-}
+export type Input = Children
 
 export default function (in: Input): Output {
     const { tree, count } = in
@@ -53,7 +50,6 @@ export default function (in: Input): Output {
                 if (key != null) {
                     const entered = claim({
                         seen: state.keys,
-                        workspace: in.workspace,
                         key: key.value,
                         secondary: key.expression,
                         row: state.index,

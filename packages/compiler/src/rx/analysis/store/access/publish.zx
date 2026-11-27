@@ -1,43 +1,33 @@
-import bytes from "std:bytes"
-import { allocateRows } from "core/row_buffer"
-import columns from "memory/columns"
+import type { Binding, Scope } from "./model"
 
-import type { FieldBindings } from "./model"
-
-export type Input = FieldBindings.Pick("scope", "output") & {
+export type Input = {
+    scope: Scope,
     positions: u64[]
 }
 
-export type Output = void
+export type Output = Binding[]
 
 export default function (in: Input): Output {
-    const { scope, positions, output } = in
-    const { fields } = output
+    const { scope, positions } = in
 
-    allocateRows({
-        target: output.rows,
-        count: positions.length,
-        owner: output.owner
-    })
+    const empty: Binding[] = []
 
-    const written = loop(0, {
-        while: row => row < positions.length,
-        next: row => {
-            const index = positions[row]
+    return loop({
+        row: 0,
+        bindings: empty
+    }, {
+        while: state => state.row < positions.length,
+        next: state => {
+            const index = positions[state.row]
 
-            columns.writeColumnBytes(
-                fields.name,
-                row,
-                bytes.fromText(scope.names[index])
-            )
-            columns.writeColumnBytes(
-                fields.path,
-                row,
-                bytes.fromText(scope.paths[index])
-            )
-            columns.writeColumnU32(fields.type_id, row, scope.types[index])
+            state.bindings = state.bindings.push({
+                name: scope.names[index],
+                path: scope.paths[index],
+                type_id: scope.types[index]
+            })[0]
 
-            row += 1
-        }
+            state.row += 1
+        },
+        return: state => state.bindings
     })
 }

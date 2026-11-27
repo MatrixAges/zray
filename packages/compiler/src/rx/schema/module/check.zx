@@ -7,13 +7,10 @@ import name from "../tree/name"
 import next from "../tree/next"
 import { Issue } from "./model"
 
-import type { Workspace } from "../keys/model"
 import type { Input as Children } from "../tree/model"
 import type { Output, Finding } from "./model"
 
-export type Input = Children & {
-    workspace: Workspace
-}
+export type Input = Children
 
 export default function (in: Input): Output {
     const { tree, count } = in
@@ -47,7 +44,6 @@ export default function (in: Input): Output {
                     if (alias != null) {
                         const entry = claim({
                             seen: state.keys,
-                            workspace: in.workspace,
                             key: alias.value,
                             secondary: false,
                             row: state.index,
@@ -102,7 +98,6 @@ export default function (in: Input): Output {
                         if (alias != null) {
                             const entry = claim({
                                 seen: state.keys,
-                                workspace: in.workspace,
                                 key: alias.value,
                                 secondary: true,
                                 row: state.index,

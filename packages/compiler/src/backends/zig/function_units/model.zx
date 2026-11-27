@@ -1,17 +1,14 @@
-import type { ReadColumn, WriteColumn } from "memory"
-import type { RowBuffer } from "memory/columns"
+import type { ReadColumn } from "memory"
 
-export type Target = {
-    ids: WriteColumn,
-    regular: WriteColumn
+export type Unit = {
+    id: u32,
+    regular: bool
 }
 
 export type Input = {
     needed: bool[],
     count: u64,
-    regular: u8[],
-    storage: RowBuffer,
-    target: Target
+    regular: u8[]
 }
 
 export type View = {

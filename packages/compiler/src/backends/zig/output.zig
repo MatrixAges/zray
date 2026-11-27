@@ -38,8 +38,6 @@ pub fn changes(workspace: std.mem.Allocator, input: Input) std.mem.Allocator.Err
 
     const entry = @import("generated_output_changes");
     const Fields = std.meta.Child(entry.Input);
-    var index_values: []u32 = &.{};
-    var index_buckets: []?u32 = &.{};
 
     const fields: Fields = .{
         .paths = input.paths,
@@ -47,8 +45,6 @@ pub fn changes(workspace: std.mem.Allocator, input: Input) std.mem.Allocator.Err
         .previous_paths = input.previous_paths,
         .previous_hashes = input.previous_hashes,
         .present = input.present,
-        .index_values = @ptrCast(&index_values),
-        .index_buckets = @ptrCast(&index_buckets),
     };
 
     const result = zx.columns.invoke(entry.executeValue, allocator, &fields) catch |err| return failure(err);

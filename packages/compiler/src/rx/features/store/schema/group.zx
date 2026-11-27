@@ -18,7 +18,7 @@ export type Input = {
 
 export default function (in: Input): Output {
     const { request, objects } = in
-    const { tree, workspace } = request
+    const { tree } = request
 
     const empty_u32: u32[] = []
     const empty_next: u32?[] = []
@@ -65,7 +65,6 @@ export default function (in: Input): Output {
             if (name != null) {
                 const entered = claim({
                     seen: state.keys,
-                    workspace,
                     key: name.value,
                     secondary: false,
                     row,

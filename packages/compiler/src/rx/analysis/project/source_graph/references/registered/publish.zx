@@ -33,7 +33,7 @@ export default function (in: Input): Output {
 
     const selected = select({
         source,
-        owned: in.owned
+        release: in.release
     })
 
     const row = position({

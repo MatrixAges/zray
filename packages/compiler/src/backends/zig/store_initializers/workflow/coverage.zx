@@ -3,10 +3,10 @@ import memory from "memory"
 
 import { Status } from "./model"
 
-import type { Input, Status as Output } from "./model"
+import type { Coverage as Input, Status as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { plan, paths, types } = in
+    const { plan, paths, types, values } = in
 
     return loop({
         row: 0,
@@ -31,7 +31,7 @@ export default function (in: Input): Output {
 
             if (found == null) {
                 state.status = Status.MissingInitializer
-            } else if (memory.readU32(plan.values, found) != types[state.row]) {
+            } else if (values[found] != types[state.row]) {
                 state.status = Status.InvalidInitializer
             }
 

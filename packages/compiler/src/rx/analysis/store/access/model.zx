@@ -1,4 +1,3 @@
-import type { ColumnAllocator, RowBuffer, WriteColumn } from "memory/columns"
 import type { ExprTree } from "../../../../zx/frontend/parser/expressions/state/model"
 
 export type Expression = {
@@ -23,19 +22,6 @@ export type Binding = {
     type_id: u32
 }
 
-export type Fields = {
-    name: WriteColumn,
-    path: WriteColumn,
-    type_id: WriteColumn
-}
-
-export type Destination = {
-    owner: ColumnAllocator,
-    rows: RowBuffer,
-    fields: Fields
-}
-
 export type FieldBindings = Expression & {
-    scope: Scope,
-    output: Destination
+    scope: Scope
 }

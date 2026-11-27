@@ -4,17 +4,14 @@ import emptyKeys from "../../../schema/keys/empty"
 import attribute from "../../../schema/tree/attribute"
 import next from "../../../schema/tree/next"
 
-import type { Workspace } from "../../../schema/keys/model"
 import type { Cursor, Input as Children } from "../../../schema/tree/model"
 
-export type Input = Children & {
-    workspace: Workspace
-}
+export type Input = Children
 
 export type Output = Cursor?
 
 export default function (in: Input): Output {
-    const { tree, count, workspace } = in
+    const { tree, count } = in
 
     const finding: Output = null
 
@@ -39,7 +36,6 @@ export default function (in: Input): Output {
             if (name != null) {
                 const entered = claim({
                     seen: state.keys,
-                    workspace,
                     key: name.value,
                     secondary: false,
                     row: state.row,

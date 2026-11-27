@@ -1,34 +1,37 @@
-import bytes from "std:bytes"
-import memory from "memory"
-
-import type { WriteColumn } from "memory"
+export type Object = {
+    module_name: string,
+    writable: u8,
+    independent: u8
+}
 
 export type Input = {
     modules: string[],
     writable: bool[],
-    independent: bool,
-    names: WriteColumn,
-    access: WriteColumn,
-    ownership: WriteColumn
+    independent: bool
 }
 
-export type Output = void
+export type Output = Object[]
 
 export default function (in: Input): Output {
     const independent: u8 = in.independent ? 1 : 0
+    const empty: Object[] = []
 
-    const count = loop(0, {
-        while: row => row < in.modules.length,
-        next: row => {
-            memory.writeColumnBytes(
-                in.names,
-                row,
-                bytes.fromText(in.modules[row])
-            )
-            memory.writeColumnU8(in.access, row, in.writable[row] ? 1 : 0)
-            memory.writeColumnU8(in.ownership, row, independent)
+    return loop({
+        row: 0,
+        objects: empty
+    }, {
+        while: state => state.row < in.modules.length,
+        next: state => {
+            const row = state.row
+            const writable: u8 = in.writable[row] ? 1 : 0
 
-            row += 1
-        }
+            state.objects = state.objects.push({
+                module_name: in.modules[row],
+                writable,
+                independent
+            })[0]
+            state.row += 1
+        },
+        return: state => state.objects
     })
 }

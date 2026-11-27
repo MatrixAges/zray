@@ -14,13 +14,13 @@ pub fn prepare(allocator: std.mem.Allocator, before: anytype, sources: anytype, 
 
     if (before.len == 0) return .{ .whole = false, .prefix = 0, .tail = &.{} };
 
-    const tail = try allocator.alloc(versions.Position, sources.len - prefix);
+    const tail = try allocator.alloc(u64, sources.len - prefix);
     var first = prefix -| 1;
 
     for (sources[prefix..], tail) |source, *position| {
         while (first < before.len and std.mem.order(u8, before[first].path, source.path) == .lt) first += 1;
 
-        position.previous = if (first < before.len and same(before[first], source)) first + 1 else 0;
+        position.* = if (first < before.len and same(before[first], source)) first + 1 else 0;
     }
 
     return .{ .whole = false, .prefix = prefix, .tail = tail };

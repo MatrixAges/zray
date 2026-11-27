@@ -57,13 +57,7 @@ pub fn run(comptime Rule: type, allocator: std.mem.Allocator, node: anytype) std
     defer arena.deinit();
 
     const temporary = arena.allocator();
-    const Workspace = if (@hasField(Input, "workspace")) std.meta.Child(@FieldType(Input, "workspace")) else void;
-    var buckets: []u64 = &.{};
-    const workspace: Workspace = if (Workspace == void) {} else .{ .allocator = @ptrCast(&temporary), .buckets = @ptrCast(&buckets) };
     var input: Input = undefined;
-
-    if (comptime Workspace != void) input.workspace = &workspace;
-
     const result = (try invoke(Rule, temporary, node, &input)) orelse return null;
 
     return if (@typeInfo(@TypeOf(result)) == .pointer) result.* else result;

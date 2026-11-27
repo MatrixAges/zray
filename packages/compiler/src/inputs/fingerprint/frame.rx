@@ -26,10 +26,19 @@
         fn="frame_digest"
         in={{
             header: $ctx.frame_header,
-            modules: $ctx.module_pair,
+            modules: $ctx.module_pair.pick([
+                "frame",
+                "shape"
+            ]),
             interfaces: $ctx.interface_pair
         }}
     />
 
-    <Return value={$ctx.frame_digest} />
+    <Return
+        value={{
+            content: $ctx.frame_digest.frame,
+            shape: $ctx.frame_digest.shape,
+            digests: $ctx.module_pair.digests
+        }}
+    />
 </Module>

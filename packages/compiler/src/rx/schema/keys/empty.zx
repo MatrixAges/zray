@@ -10,7 +10,8 @@ export default function (in: Input): Output {
         second: null,
         first_row: 0,
         second_row: 0,
-        text: null,
+        text: [],
+        buckets: [],
         capacity: 0
     }
 }

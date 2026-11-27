@@ -49,7 +49,7 @@ pub fn infer(graph: *Graph, scope: *Scope.Storage, allocator: std.mem.Allocator,
     var next: usize = 0;
 
     while (next < getters.len) {
-        const end = write(&columns, graph, next, names, values);
+        const end = try write(allocator, &columns, graph, next, names, values);
 
         @memset(spans[next..end], .{ .start = 0, .end = 0 });
 
@@ -79,16 +79,20 @@ pub fn typed(scope: *Typed, allocator: std.mem.Allocator, getters: []const Bindi
 
     rows.len = first + getters.len;
 
-    const written = write(&Columns.init(getters), null, 0, rows.items(.name)[first..], @ptrCast(rows.items(.type_id)[first..]));
+    const written = try write(allocator, &Columns.init(getters), null, 0, rows.items(.name)[first..], @ptrCast(rows.items(.type_id)[first..]));
 
     std.debug.assert(written == getters.len);
 
     scope.len = rows.len;
 }
 
-fn write(columns: *const Columns, graph: ?*Graph, first: usize, names_arg: [][]const u8, values_arg: []u32) usize {
-    var names = names_arg;
-    var values = values_arg;
+fn write(allocator: std.mem.Allocator, columns: *const Columns, graph: ?*Graph, first: usize, names: [][]const u8, values: []u32) std.mem.Allocator.Error!usize {
+    var buffer: [1024]u8 align(@alignOf(u64)) = undefined;
+    var backing = std.heap.BufferFirstAllocator.init(&buffer, allocator);
+    var arena = std.heap.ArenaAllocator.init(backing.allocator());
+
+    defer arena.deinit();
+
     const rule = @import("generated_rx_store_scope_bindings");
     const Input = std.meta.Child(rule.Input);
     const Known = std.meta.Child(@typeInfo(@FieldType(Input, "known")).optional.child);
@@ -98,11 +102,17 @@ fn write(columns: *const Columns, graph: ?*Graph, first: usize, names_arg: [][]c
         .getters = &columns.view(std.meta.Child(@FieldType(Input, "getters"))),
         .known = if (graph != null) &known else null,
         .first = first,
-        .names = @ptrCast(&names),
-        .values = @ptrCast(&values),
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const result = zx.columns.invoke(rule.executeValue, arena.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
+        else => unreachable,
+    };
 
-    return @intCast(zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable);
+    for (result.rows, 0..) |row, offset| {
+        names[first + offset] = row.name;
+        values[first + offset] = row.value;
+    }
+
+    return @intCast(result.next);
 }

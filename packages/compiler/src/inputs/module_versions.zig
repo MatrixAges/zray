@@ -3,16 +3,15 @@ const zx = @import("zx");
 const memory = zx.memory;
 const generated = @import("parser_options").generated_parser;
 const seed = @import("module_versions/seed.zig");
-pub const Position = struct { previous: u64 };
 
 pub const Plan = struct {
     whole: bool,
     prefix: usize,
-    tail: []const Position,
+    tail: []const u64,
     pub fn at(self: Plan, row: usize) u64 {
         if (row < self.prefix) return row + 1;
 
-        return if (self.tail.len == 0) 0 else self.tail[row - self.prefix].previous;
+        return if (self.tail.len == 0) 0 else self.tail[row - self.prefix];
     }
 };
 
@@ -21,28 +20,21 @@ pub fn prepare(allocator: std.mem.Allocator, before: anytype, sources: anytype, 
 
     const rule = @import("generated_input_module_versions");
     const Input = std.meta.Child(rule.Input);
-    const Target = std.meta.Child(@FieldType(Input, "target"));
     const previous_paths = memory.borrowReferencedTextColumn("path", before);
     const previous_texts = memory.borrowReferencedTextPath(&.{ "parsed", "xml", "source" }, before);
     const paths = memory.borrowTextColumn("path", sources);
     const texts = memory.borrowTextColumn("source", sources);
-    var positions: memory.RowOutput(Position, struct { rows: @FieldType(Target, "rows") }, .{ .rows = &.{"previous"} }) = undefined;
-
-    positions.init();
 
     const input: Input = .{
-        .probe = &.{
-            .prior = &.{ .paths = @ptrCast(&previous_paths), .texts = @ptrCast(&previous_texts), .count = before.len },
-            .current = &.{ .paths = @ptrCast(&paths), .texts = @ptrCast(&texts), .count = sources.len },
-            .before = if (previous_packages) |hash| hash else null,
-            .packages = packages,
-        },
-        .target = &.{ .buffer = @ptrCast(&positions.buffer), .rows = positions.view.rows },
+        .prior = &.{ .paths = @ptrCast(&previous_paths), .texts = @ptrCast(&previous_texts), .count = before.len },
+        .current = &.{ .paths = @ptrCast(&paths), .texts = @ptrCast(&texts), .count = sources.len },
+        .before = if (previous_packages) |hash| hash else null,
+        .packages = packages,
     };
 
     const result = try zx.columns.invoke(rule.executeValue, allocator, &input);
 
-    return .{ .whole = result.whole, .prefix = @intCast(result.prefix), .tail = positions.rows() };
+    return .{ .whole = result.whole, .prefix = @intCast(result.prefix), .tail = result.tail };
 }
 
 pub const Operation = enum { Publish, Discard, Restore };

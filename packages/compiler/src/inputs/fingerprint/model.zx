@@ -11,7 +11,17 @@ export type Pair = {
     shape: u8[]
 }
 
+export type DigestRow = {
+    path: string,
+    digest: u8[]
+}
+
+export type ModulePair = Pair & {
+    digests: DigestRow[]
+}
+
 export type FrameDigest = {
     content: u8[],
-    shape: u8[]
+    shape: u8[],
+    digests: DigestRow[]
 }

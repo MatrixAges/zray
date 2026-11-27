@@ -6,23 +6,20 @@ import pathIndex from "../../path_index"
 import staleRows from "../stale_rows"
 import unrecorded from "./unrecorded"
 
-import type { Plan, Cleanup } from "./model"
+import type { U8ListBuffer } from "memory"
+import type { Plan } from "./model"
 
 export type Input = {
     plan: Plan,
-    cleanup: Cleanup
+    paths: U8ListBuffer
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { plan, cleanup } = in
+    const { plan, paths } = in
 
-    const index = pathIndex({
-        keys: memory.u8ListViews(cleanup.paths),
-        values: cleanup.values,
-        buckets: cleanup.buckets
-    })
+    const index = pathIndex(memory.u8ListViews(paths))
 
     const { previous_paths, target } = plan
 

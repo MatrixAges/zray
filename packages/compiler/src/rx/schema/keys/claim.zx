@@ -1,15 +1,13 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
-import memory from "memory"
 
 import { first_family, key_families, second_family } from "./const"
 import reserve from "./reserve"
 
-import type { Keys, Workspace } from "./model"
+import type { Keys } from "./model"
 
 export type Input = {
     seen: Keys,
-    workspace: Workspace,
     key: string,
     secondary: bool,
     row: u64,
@@ -22,7 +20,7 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { seen, key, secondary, row, workspace } = in
+    const { seen, key, secondary, row } = in
 
     const first = secondary ? seen.second : seen.first
 
@@ -56,7 +54,6 @@ export default function (in: Input): Output {
     const table = match seen.capacity {
         0 => reserve({
             seen,
-            workspace,
             count: in.count
         }),
         _ => seen
@@ -65,39 +62,28 @@ export default function (in: Input): Output {
     const family = secondary ? second_family : first_family
     const hash = bytes.hashSeeded(family, bytes.fromText(key))
     const mask = table.capacity - 1
-    const buckets = workspace.buckets
-    const slots = table.text
     const absent: u64? = null
 
-    if (slots == null) {
-        return {
-            seen: table,
-            previous: absent
-        }
-    }
-
-    const previous = loop({
+    return loop({
         slot: integers.andBits(hash, mask),
         done: false,
-        previous: absent
+        previous: absent,
+        buckets: table.buckets,
+        text: table.text
     }, {
         while: state => !state.done,
         next: state => {
-            const stored = memory.readU64(buckets, state.slot)
+            const stored = state.buckets[state.slot]
 
             if (stored == 0) {
-                memory.writeTextSlot(slots, row, key)
-                memory.writeU64(
-                    buckets,
-                    state.slot,
-                    row * key_families + family + 1
-                )
+                state.text[row] = key
+                state.buckets[state.slot] = row * key_families + family + 1
                 state.done = true
             } else {
                 const entry = stored - 1
                 const same_family = entry % key_families == family
                 const matched =
-                    same_family && memory.readTextSlot(slots, entry / key_families) == key
+                    same_family && state.text[entry / key_families] == key
 
                 if (matched) {
                     state.done = true
@@ -107,11 +93,13 @@ export default function (in: Input): Output {
                 }
             }
         },
-        return: state => state.previous
+        return: state => ({
+            seen: {
+                ...table,
+                buckets: state.buckets,
+                text: state.text
+            },
+            previous: state.previous
+        })
     })
-
-    return {
-        seen: table,
-        previous
-    }
 }

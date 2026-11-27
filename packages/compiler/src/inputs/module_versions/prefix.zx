@@ -2,7 +2,7 @@ import bytes from "std:bytes"
 
 import sameRow from "./same_row"
 
-import type { Probe as Input, Output } from "./model"
+import type { Prefix as Output, Probe as Input } from "./model"
 
 export default function (in: Input): Output {
     const { prior, current, before, packages } = in

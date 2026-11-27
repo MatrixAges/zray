@@ -1,7 +1,7 @@
-import bytes from "std:bytes"
+import strings from "std:string"
 import memory from "memory"
 
-import type { TextColumn, WriteColumn } from "memory"
+import type { TextColumn } from "memory"
 
 export type Fields = {
     specifiers: TextColumn,
@@ -9,38 +9,40 @@ export type Fields = {
     count: u64
 }
 
-export type Destination = {
-    specifiers: WriteColumn,
-    entries: WriteColumn
+export type Package = {
+    specifier: string,
+    entry: string
 }
 
 export type Input = {
     fields: Fields,
-    target: Destination,
     retain: bool
 }
 
-export type Output = void
+export type Output = Package[]
 
 export default function (in: Input): Output {
-    const { fields, target, retain } = in
+    const { fields, retain } = in
 
-    const copied = loop(0, {
-        while: row => row < fields.count,
-        next: row => {
+    const empty: Package[] = []
+
+    return loop({
+        row: 0,
+        items: empty
+    }, {
+        while: state => state.row < fields.count,
+        next: state => {
+            const row = state.row
             const name = memory.readTextColumn(fields.specifiers, row)
             const entry = memory.readTextColumn(fields.entries, row)
-            const specifier = retain ? memory.copyText(name) : name
-            const path = retain ? memory.copyText(entry) : entry
 
-            memory.writeColumnBytes(
-                target.specifiers,
-                row,
-                bytes.fromText(specifier)
-            )
-            memory.writeColumnBytes(target.entries, row, bytes.fromText(path))
+            state.items = state.items.push({
+                specifier: retain ? strings.copy(name) : name,
+                entry: retain ? strings.copy(entry) : entry
+            })[0]
 
-            row += 1
-        }
+            state.row += 1
+        },
+        return: state => state.items
     })
 }

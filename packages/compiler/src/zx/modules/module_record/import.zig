@@ -22,7 +22,6 @@ pub fn copy(allocator: std.mem.Allocator, item: anytype, target: Record.Target, 
         .identity = identity,
         .target = &.{ .path = target.path, .instance = target.instance, .member = target.member },
         .compiled = target.kind == .compiled,
-        .release = @ptrCast(&allocator),
     };
 
     const result = zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {

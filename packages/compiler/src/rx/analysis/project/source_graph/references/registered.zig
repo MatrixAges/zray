@@ -25,12 +25,6 @@ const Publication = struct {
         const collector = self.collector;
         const temporary = collector.temporary.allocator();
         var flag: []bool = collector.modules.items(.compiled_dependency)[collector.owner..][0..1];
-        var paths = [_][]const u8{ "", "" };
-
-        defer {
-            temporary.free(paths[1]);
-            temporary.free(paths[0]);
-        }
 
         const input: Input = .{
             .target = @ptrCast(self),
@@ -40,7 +34,7 @@ const Publication = struct {
                 .targets = @ptrCast(&collector.targets),
                 .compiled = if (compiled) @ptrCast(&flag) else null,
             },
-            .owned = &.{ .allocator = @ptrCast(&temporary), .resolved = @ptrCast(&paths[0]), .selected = @ptrCast(&paths[1]) },
+            .release = @ptrCast(&temporary),
         };
 
         zx.columns.invoke(rule.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {

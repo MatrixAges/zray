@@ -1,31 +1,27 @@
-import memory from "memory"
-
 import alias from "./alias/select"
 import named from "./named/resolve"
 
-import type { TextSlots } from "memory"
 import type { Input as Lookup } from "./alias/model"
 
 export type Input = Lookup & {
-    member_width?: u64,
-    output: TextSlots
+    member_width?: u64
 }
 
 export type Output = {
     row?: u64,
-    named: bool
+    named: bool,
+    owned?: string
 }
 
 export default function (in: Input): Output {
-    const { member_width, output } = in
+    const { member_width } = in
 
     if (member_width != null) {
         return named({
             path: in.path,
             index: in.index,
             release: in.release,
-            member_width,
-            output
+            member_width
         })
     }
 
@@ -35,14 +31,9 @@ export default function (in: Input): Output {
         "release"
     ]))
 
-    const fallback = selected.fallback
-
-    if (fallback != null) {
-        memory.writeTextSlot(output, 0, fallback)
-    }
-
     return {
         row: selected.row,
-        named: false
+        named: false,
+        owned: selected.fallback
     }
 }

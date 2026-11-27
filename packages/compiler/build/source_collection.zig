@@ -199,7 +199,13 @@ const DocumentReader = struct {
     fn read(self: *DocumentReader, relative: []const u8, path: []const u8, retain: bool) ![]const u8 {
         return self.files.read(self.io, self.directory, relative, path, retain);
     }
-    fn publish(self: *DocumentReader, entries: []const Entry, target: []Document) !void {
+    fn publish(self: *DocumentReader, scratch: std.mem.Allocator, entries: []const Entry, target: []Document) !void {
+        var buffer: [2048]u8 align(@alignOf(u64)) = undefined;
+        var backing = std.heap.BufferFirstAllocator.init(&buffer, scratch);
+        var arena = std.heap.ArenaAllocator.init(backing.allocator());
+
+        defer arena.deinit();
+
         const rule = @import("generated_load_input_documents");
         const Input = std.meta.Child(rule.Input);
 
@@ -211,14 +217,14 @@ const DocumentReader = struct {
             .retained = "retain",
         }, entries);
 
-        var output = memory.borrowWriteFields(.{ .paths = "path", .texts = "text", .kinds = "kind" }, target);
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        rule.executeIn(empty.allocator(), &.{
+        const documents = rule.executeIn(arena.allocator(), &.{
             .reader = @ptrCast(self),
             .entries = &source.bind(std.meta.Child(@FieldType(Input, "entries"))),
-            .output = &output.bind(std.meta.Child(@FieldType(Input, "output"))),
         }) catch |err| return self.failure orelse err;
+
+        for (documents, target) |doc, *out| {
+            out.* = .{ .path = doc.path, .text = doc.text, .kind = doc.kind };
+        }
     }
 };
 
@@ -243,7 +249,7 @@ pub fn load(io: std.Io, scratch: std.mem.Allocator, files: *Files, root: []const
     const target = documents.unusedCapacitySlice()[0..entries.len];
 
     if (comptime generated) {
-        try reader.publish(entries, target);
+        try reader.publish(scratch, entries, target);
     } else {
         for (entries, target) |file, *out| {
             const text = file.text orelse try reader.read(file.relative, file.path, file.retain);

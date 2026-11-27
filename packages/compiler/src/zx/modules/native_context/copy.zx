@@ -1,71 +1,21 @@
 import strings from "std:string"
-import memory from "memory"
 
 import copyNames from "../copy_names"
 import copyOptionalName from "../copy_optional_name"
 
 import type { Modules } from "core/native_module_table/model"
-import type {
-    OptionalStringBuffer,
-    StringBuffer,
-    StringListBuffer,
-    U32ListBuffer
-} from "memory"
 
-export type Destination = {
-    identities: OptionalStringBuffer,
-    import_names: StringBuffer,
-    specifiers: StringBuffer,
-    type_ids: U32ListBuffer,
-    type_names: StringListBuffer,
-    type_namespaces: StringListBuffer
-}
+export type Input = Modules
 
-export type Input = {
-    source: Modules,
-    destination: Destination
-}
-
-export type Output = void
+export type Output = Modules
 
 export default function (in: Input): Output {
-    const { source, destination } = in
-
-    const copied = loop(0, {
-        while: index => index < source.specifiers.length,
-        next: index => {
-            memory.writeString(
-                destination.specifiers,
-                index,
-                strings.copy(source.specifiers[index])
-            )
-            memory.writeOptionalString(
-                destination.identities,
-                index,
-                copyOptionalName(source.identities[index])
-            )
-            memory.writeString(
-                destination.import_names,
-                index,
-                strings.copy(source.import_names[index])
-            )
-            memory.writeStringList(
-                destination.type_namespaces,
-                index,
-                copyNames(source.type_namespaces[index])
-            )
-            memory.writeU32List(
-                destination.type_ids,
-                index,
-                source.type_ids[index].slice()
-            )
-            memory.writeStringList(
-                destination.type_names,
-                index,
-                copyNames(source.type_names[index])
-            )
-
-            index += 1
-        }
-    })
+    return {
+        identities: in.identities.map(value => copyOptionalName(value))[0],
+        import_names: in.import_names.map(value => strings.copy(value))[0],
+        specifiers: in.specifiers.map(value => strings.copy(value))[0],
+        type_ids: in.type_ids.map(ids => ids.slice())[0],
+        type_names: in.type_names.map(names => copyNames(names))[0],
+        type_namespaces: in.type_namespaces.map(names => copyNames(names))[0]
+    }
 }

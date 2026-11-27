@@ -1,9 +1,8 @@
-import bytes from "std:bytes"
 import { readGenerationDocument } from "generation_host"
 import memory from "memory"
 
 import type { DocumentReader } from "generation_host"
-import type { ReadColumn, TextColumn, WriteColumn } from "memory"
+import type { ReadColumn, TextColumn } from "memory"
 
 export type Entries = {
     paths: TextColumn,
@@ -14,26 +13,31 @@ export type Entries = {
     count: u64
 }
 
-export type Documents = {
-    paths: WriteColumn,
-    texts: WriteColumn,
-    kinds: WriteColumn
+export type Document = {
+    path: string,
+    text: string,
+    kind: u8
 }
 
 export type Input = {
     reader: DocumentReader,
-    entries: Entries,
-    output: Documents
+    entries: Entries
 }
 
-export type Output = void
+export type Output = Document[]
 
 export default function (in: Input): Output {
-    const { reader, entries, output } = in
+    const { reader, entries } = in
 
-    const loaded = loop(0, {
-        while: row => row < entries.count,
-        next: row => {
+    const empty: Document[] = []
+
+    return loop({
+        row: 0,
+        documents: empty
+    }, {
+        while: state => state.row < entries.count,
+        next: state => {
+            const row = state.row
             const path = memory.readTextColumn(entries.paths, row)
             const cached = memory.readOptionalTextColumn(entries.texts, row)
             const text = cached ?? readGenerationDocument(
@@ -43,15 +47,14 @@ export default function (in: Input): Output {
                 memory.readColumnBool(entries.retained, row)
             )
 
-            memory.writeColumnBytes(output.paths, row, bytes.fromText(path))
-            memory.writeColumnBytes(output.texts, row, bytes.fromText(text))
-            memory.writeColumnU8(
-                output.kinds,
-                row,
-                memory.readColumnU8(entries.kinds, row)
-            )
+            state.documents = state.documents.push({
+                path,
+                text,
+                kind: memory.readColumnU8(entries.kinds, row)
+            })[0]
 
-            row += 1
-        }
+            state.row += 1
+        },
+        return: state => state.documents
     })
 }

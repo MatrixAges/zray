@@ -1,5 +1,4 @@
 import indexSlot from "core/bytes/index/column"
-import memory from "memory"
 import host from "output_host"
 import { InitializerOrigin } from "output_host"
 
@@ -7,13 +6,19 @@ import compatible from "../validation/names"
 import { invalid_candidate, duplicate_identity } from "./const"
 import { Status } from "./model"
 
-import type { Input, Status as Output } from "./model"
+import type { Emitted as Output, Input } from "./model"
 
 export default function (in: Input): Output {
-    return loop(0, {
-        while: row => row < in.plan.count,
-        next: row => {
+    const empty: u32[] = []
+
+    return loop({
+        row: 0,
+        values: empty
+    }, {
+        while: state => state.row < in.plan.count,
+        next: state => {
             const { target, plan } = in
+            const row = state.row
             const origin = match {
                 row < plan.owned => InitializerOrigin.Owned,
                 row < plan.source_end => InitializerOrigin.Borrowed,
@@ -27,12 +32,12 @@ export default function (in: Input): Output {
             const candidate = host.readApplicationInitializer(target, origin, index)
 
             if (candidate == null) {
-                row = invalid_candidate
+                state.row = invalid_candidate
             } else if (!compatible({
                 actual: candidate.names,
                 expected: plan.expected
             })) {
-                row = invalid_candidate
+                state.row = invalid_candidate
             } else {
                 const { identity, type_id } = candidate
                 const previous = match {
@@ -49,18 +54,21 @@ export default function (in: Input): Output {
                 }
 
                 if (previous == null) {
-                    memory.writeU32(plan.values, row, type_id)
+                    state.values = state.values.push(type_id)[0]
                     host.emitApplicationInitializer(target, row)
-                    row += 1
+                    state.row += 1
                 } else {
-                    row = duplicate_identity
+                    state.row = duplicate_identity
                 }
             }
         },
-        return: row => match row {
-            invalid_candidate => Status.InvalidInitializer,
-            duplicate_identity => Status.DuplicateInitializer,
-            _ => Status.Ready
-        }
+        return: state => ({
+            status: match state.row {
+                invalid_candidate => Status.InvalidInitializer,
+                duplicate_identity => Status.DuplicateInitializer,
+                _ => Status.Ready
+            },
+            values: state.values
+        })
     })
 }

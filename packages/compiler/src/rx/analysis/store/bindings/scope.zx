@@ -3,25 +3,33 @@ import memory from "memory"
 import find from "../../inference/known/find"
 
 import type { State as Known } from "core/integer/map/model"
-import type { StringBuffer, U32Buffer } from "memory"
 import type { Getters } from "./model"
 
 export type Input = {
     getters: Getters,
     known?: Known,
-    first: u64,
-    names: StringBuffer,
-    values: U32Buffer
+    first: u64
 }
 
-export type Output = u64
+export type Row = {
+    name: string,
+    value: u32
+}
+
+export type Output = {
+    next: u64,
+    rows: Row[]
+}
 
 export default function (in: Input): Output {
     const { getters, known } = in
 
+    const empty: Row[] = []
+
     return loop({
         next: in.first,
-        missing: false
+        missing: false,
+        rows: empty
     }, {
         while: state => state.next < getters.count && !state.missing,
         next: state => {
@@ -38,15 +46,16 @@ export default function (in: Input): Output {
             if (value == null) {
                 state.missing = true
             } else {
-                memory.writeString(
-                    in.names,
-                    row,
-                    memory.readTextColumn(getters.names, row)
-                )
-                memory.writeU32(in.values, row, value)
+                state.rows = state.rows.push({
+                    name: memory.readTextColumn(getters.names, row),
+                    value
+                })[0]
                 state.next += 1
             }
         },
-        return: state => state.next
+        return: state => ({
+            next: state.next,
+            rows: state.rows
+        })
     })
 }

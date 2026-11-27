@@ -2,19 +2,21 @@ import bytes from "std:bytes"
 import { readGenerationFileDigest } from "generation_host"
 import memory from "memory"
 
-import type { Pair as Output } from "./model"
+import type { DigestRow, ModulePair as Output } from "./model"
 import type { ModuleRows as Input } from "./output_shape"
 
 export default function (in: Input): Output {
-    const { cache, rows, target } = in
+    const { cache, rows } = in
 
     const frame_parts: u8[][] = []
     const shape_parts: u8[][] = []
+    const digests: DigestRow[] = []
 
     const collected = loop({
         position: 0,
         frame_parts,
-        shape_parts
+        shape_parts,
+        digests
     }, {
         while: state => state.position < rows.count,
         next: state => {
@@ -37,9 +39,10 @@ export default function (in: Input): Output {
 
             state.frame_parts = state.frame_parts.push(frame_row)[0]
             state.shape_parts = state.shape_parts.push(shape_row)[0]
-
-            memory.writeColumnBytes(target.paths, position, path_bytes)
-            memory.copyColumnValue(target.digests, position, digest)
+            state.digests = state.digests.push({
+                path,
+                digest
+            })[0]
 
             state.position += 1
         },
@@ -48,6 +51,7 @@ export default function (in: Input): Output {
 
     return {
         frame: bytes.join(bytes.fromText(""), collected.frame_parts),
-        shape: bytes.join(bytes.fromText(""), collected.shape_parts)
+        shape: bytes.join(bytes.fromText(""), collected.shape_parts),
+        digests: collected.digests
     }
 }

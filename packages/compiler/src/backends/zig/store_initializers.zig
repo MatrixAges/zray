@@ -74,7 +74,6 @@ const Application = struct {
     entries: []modules.StoreInitializer = undefined,
     keys: zx.memory.TextColumn = undefined,
     buckets: []u64 = &.{},
-    values: []u32 = &.{},
     plan: Plan = undefined,
     candidate: Candidate = undefined,
     linked_source: Initializer = undefined,
@@ -98,8 +97,6 @@ const Application = struct {
 
         if (count > 1) self.buckets = try frontend.project.source_index.Map.bucketsFor(self.scratch, count);
 
-        self.values = try self.scratch.alloc(u32, count);
-
         self.plan = .{
             .count = count,
             .owned = options.initializers.len,
@@ -109,7 +106,6 @@ const Application = struct {
             .keys = @ptrCast(&self.keys),
             .buckets = @ptrCast(&self.buckets),
             .capacity = self.buckets.len,
-            .values = @ptrCast(&self.values),
         };
     }
 };

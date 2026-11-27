@@ -1,19 +1,18 @@
 import encoding from "std:encoding"
 import strings from "std:string"
-import memory from "memory"
 
-import type { TextSlots } from "memory"
 import type { Names } from "./model"
 
 export type Input = {
     names: Names,
-    locals: TextSlots,
-    originals?: TextSlots,
+    aliased: bool,
     specifier: string,
     identity?: string
 }
 
 export type Output = {
+    locals: string[],
+    originals: string[],
     specifier: string,
     identity?: string
 }
@@ -21,10 +20,13 @@ export type Output = {
 export default function (in: Input): Output {
     const { source, locals, originals } = in.names
 
-    const output = in.originals
+    const empty_locals: string[] = []
+    const empty_originals: string[] = []
 
-    const result = loop({
-        index: 0
+    const copied = loop({
+        index: 0,
+        locals: empty_locals,
+        originals: empty_originals
     }, {
         while: state => state.index < locals.length,
         next: state => {
@@ -33,13 +35,14 @@ export default function (in: Input): Output {
             const local = encoding.sliceBytes(source, span.start, span.end)
             const owned = strings.copy(local)
 
-            memory.writeTextSlot(in.locals, index, owned)
+            state.locals = state.locals.push(owned)[0]
 
-            if (output != null) {
+            if (in.aliased) {
                 const original = originals[index]
                 const same_span = original.start == span.start && original.end == span.end
+
                 if (same_span) {
-                    memory.writeTextSlot(output, index, owned)
+                    state.originals = state.originals.push(owned)[0]
                 } else {
                     const text =
                         encoding.sliceBytes(source, original.start, original.end)
@@ -48,17 +51,20 @@ export default function (in: Input): Output {
                         _ => strings.copy(text)
                     }
 
-                    memory.writeTextSlot(output, index, value)
+                    state.originals = state.originals.push(value)[0]
                 }
             }
 
             state.index += 1
-        }
+        },
+        return: state => state
     })
 
     const identity = in.identity
 
     return {
+        locals: copied.locals,
+        originals: copied.originals,
         specifier: strings.copy(in.specifier),
         identity: identity == null ? null : strings.copy(identity)
     }
