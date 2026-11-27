@@ -2,7 +2,7 @@ import memory from "memory"
 
 import probe from "../history/prefix/probe"
 
-import type { ReadColumn, U64Buffer } from "memory"
+import type { ReadColumn } from "memory"
 import type { History } from "../history/prefix/model"
 
 export type Input = {
@@ -14,18 +14,19 @@ export type Input = {
     local_calls: bool[],
     compiled_dependencies: bool[],
     history?: History,
-    positions: U64Buffer,
     capacity: u64
 }
 
 export type Output = {
     next: u64,
-    count: u64
+    positions: u64[]
 }
 
 export default function (in: Input): Output {
     const { order, end, entry, signatures, local_calls } = in
-    const { compiled_dependencies, positions, capacity } = in
+    const { compiled_dependencies, capacity } = in
+
+    const positions: u64[] = []
 
     const zx_count = signatures.length
     const rx_end = zx_count + local_calls.length
@@ -37,9 +38,9 @@ export default function (in: Input): Output {
 
     return loop({
         next: in.start,
-        count: 0
+        positions
     }, {
-        while: state => state.next < end && state.count < capacity,
+        while: state => state.next < end && state.positions.length < capacity,
         next: state => {
             const index = memory.readColumnIndex(order, state.next)
 
@@ -60,18 +61,12 @@ export default function (in: Input): Output {
                     })
 
                     if (!reusable) {
-                        memory.writeU64(positions, state.count, state.next)
-
-                        state.count += 1
+                        state.positions = state.positions.push(state.next)[0]
                     }
                 }
             }
 
             state.next += 1
-        },
-        return: state => ({
-            next: state.next,
-            count: state.count
-        })
+        }
     })
 }

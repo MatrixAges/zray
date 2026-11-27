@@ -7,13 +7,20 @@
 
     <Call
         fn="loading/install/initialize"
-        in={$in.pick([
-            "plan",
-            "temporary"
+        in={$in.plan.pick([
+            "graph",
+            "selection",
+            "index_capacity"
         ])}
     />
 
-    <Call module="plan" in={$in.plan} />
+    <Call
+        module="plan"
+        in={{
+            ...$in.plan,
+            index_capacity: $ctx.initialize
+        }}
+    />
 
     <If on={$ctx.plan.status != Link.Status.Ready}>
         <Return value={$ctx.plan} />

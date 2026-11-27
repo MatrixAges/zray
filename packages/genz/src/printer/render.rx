@@ -1,15 +1,9 @@
 <Module>
     <Type from="model" as="Printer" />
 
-    <Args in={Printer.Render} out={void} />
+    <Args in={Printer.Render} out={u8[][]} />
 
     <Call fn="chunks" in={$in.source} />
 
-    <Call
-        fn="walk"
-        in={{
-            output: $in.output,
-            chunks: $ctx.chunks
-        }}
-    />
+    <Return value={$ctx.chunks} />
 </Module>

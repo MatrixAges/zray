@@ -13,10 +13,9 @@ pub fn adopt(owner: std.mem.Allocator, plan: *const Function.Plan, memo: ?*Memo)
     var stored: record.Frame(.planned, rows.Target(Input, "memo")) = undefined;
     var host: publication.StoreHost(entry) = .{};
 
-    if (memo) |cache| stored.open(cache, {});
+    if (memo) |cache| stored.open(cache);
 
     host.init(if (memo != null) stored.table.initial_used else 0, 0, false);
-    defer if (memo != null) stored.table.finish(host.state.*);
 
     const Source = rows.Target(Input, "source");
 
@@ -34,8 +33,16 @@ pub fn adopt(owner: std.mem.Allocator, plan: *const Function.Plan, memo: ?*Memo)
         else => std.debug.panic("plan adoption failed: {s}", .{@errorName(err)}),
     };
 
+    const value = Memo.Planned.fromPlan(Function.Plan.fromColumns(retained.plan));
+
+    if (memo != null) {
+        stored.value = value;
+
+        try stored.table.finish(host.state.*);
+    }
+
     return .{
-        .record = if (memo != null) stored.value else Memo.Planned.fromPlan(Function.Plan.fromColumns(retained.plan)),
+        .record = value,
         .row = if (retained.row) |row| @intCast(row) else null,
     };
 }

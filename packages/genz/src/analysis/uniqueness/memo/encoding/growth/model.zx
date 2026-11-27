@@ -1,7 +1,6 @@
-import type { RecordColumns, State } from "../model"
+import type { RecordColumns } from "../model"
 
 export type Group = {
-    state: State,
     rows: RecordColumns,
     count: u64,
     wide: bool
@@ -24,6 +23,5 @@ export type Heap = {
 }
 
 export type Emit = Rows & {
-    state: State,
     order?: u32[]
 }

@@ -1,33 +1,28 @@
-import memory from "memory"
-
-import type { U32Buffer } from "memory"
-
 export type Input = {
-    starts: U32Buffer,
-    counts: U32Buffer,
-    base: u64,
-    cursor: u64,
+    row: u64,
     start: u32,
     count: u32,
     consumed_previous: bool
 }
 
-export type Output = u64
+export type Write = {
+    row: u64,
+    start: u32,
+    count: u32,
+    previous?: u64
+}
+
+export type Output = Write & {
+    cursor: u64
+}
 
 export default function (in: Input): Output {
-    const row = in.cursor - 1
+    const cursor = in.consumed_previous ? in.row - 1 : in.row
+    const previous: u64? = in.consumed_previous ? cursor : null
 
-    memory.writeU32(in.starts, in.base + row, in.start)
-    memory.writeU32(in.counts, in.base + row, in.count)
-
-    if (!in.consumed_previous) {
-        return row
+    return {
+        ...in.omit(["consumed_previous"]),
+        previous,
+        cursor
     }
-
-    const previous = row - 1
-
-    memory.writeU32(in.starts, in.base + previous, 0)
-    memory.writeU32(in.counts, in.base + previous, 0)
-
-    return previous
 }

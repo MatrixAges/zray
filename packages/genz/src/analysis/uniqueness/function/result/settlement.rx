@@ -1,36 +1,34 @@
 <Module>
     <Type from="model" as="Result" />
 
-    <Args in={Result.Settlement} out={u8[]} />
+    <Args in={Result.PublishSettlement} out={Result.SettlementResult} />
 
-    <Call
-        fn="contributions"
-        in={{
-            passed: $in.passed,
-            target: $in.contributions,
-            owner: $in.owner
-        }}
-    />
+    <Call fn="levels" in={$in.result.levels} />
 
-    <If on={$in.read_target != null}>
+    <If on={$in.deferred}>
         <Call
             fn="reads"
             in={{
+                enabled: true,
                 before: [],
-                after: $in.reads,
-                target: $in.read_target,
-                owner: $in.owner
+                after: $in.result.reads
+            }}
+        />
+
+        <Return
+            value={{
+                passed: $in.result.passed,
+                levels: $ctx.levels,
+                reads: $ctx.reads
             }}
         />
     </If>
 
-    <Call
-        fn="levels"
-        in={{
-            levels: $in.levels,
-            owner: $in.owner
+    <Return
+        value={{
+            passed: $in.result.passed,
+            levels: $ctx.levels,
+            reads: []
         }}
     />
-
-    <Return value={$ctx.levels} />
 </Module>

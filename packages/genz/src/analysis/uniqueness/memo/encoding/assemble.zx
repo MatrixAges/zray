@@ -1,0 +1,36 @@
+import tag from "./tag"
+import word from "./word"
+
+import type { Kind, State as Output } from "./model"
+
+export type Input = {
+    identity: u8[],
+    index: u64,
+    summary: u8[],
+    normalized: u8[],
+    renewed: u8[],
+    demand: u8[],
+    kind: Kind
+}
+
+export default function (in: Input): Output {
+    const suffix = tag(in.kind)
+    const index = word(in.index)
+
+    const state_end = in.identity.length + index.length + in.summary.length +
+        in.normalized.length + in.renewed.length + in.demand.length
+
+    return {
+        chunks: [
+            in.identity,
+            index,
+            in.summary,
+            in.normalized,
+            in.renewed,
+            in.demand,
+            suffix
+        ],
+        state_end,
+        size: state_end + suffix.length
+    }
+}

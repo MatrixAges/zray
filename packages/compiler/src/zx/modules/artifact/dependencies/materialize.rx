@@ -1,0 +1,15 @@
+<Module>
+    <Type from="publish" as="Dependency" />
+
+    <Args in={Dependency.Source} out={void} />
+
+    <Loop on={$in.row < $in.source.header.count}>
+        <Call
+            module="next"
+            in={{
+                source: $in,
+                row: 0
+            }}
+        />
+    </Loop>
+</Module>

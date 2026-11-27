@@ -44,8 +44,8 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     const capacity: usize = @intCast(plan.capacity);
     const depth: usize = @intCast(plan.depth);
     const spans = try scratch.alloc(u32, std.math.mul(usize, capacity, 2) catch return error.OutOfMemory);
-    var starts: []u32 = spans[0..capacity];
-    var counts: []u32 = spans[capacity..];
+    const starts: []u32 = spans[0..capacity];
+    const counts: []u32 = spans[capacity..];
     const selection_depth: usize = if (plan.flat) 0 else @intCast(plan.selection_depth);
     var flat_scope: [1]Scope = undefined;
     const scopes: []Scope = if (plan.flat) &flat_scope else try scratch.alloc(Scope, depth);
@@ -90,7 +90,6 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     const Schedule = std.meta.Child(@FieldType(Execution, "plan"));
     const Context = std.meta.Child(@FieldType(Execution, "context"));
     const Control = std.meta.Child(@FieldType(Context, "control"));
-    const Buffers = std.meta.Child(@FieldType(Execution, "buffers"));
     const Expressions = std.meta.Child(@FieldType(Context, "expressions"));
     const Types = std.meta.Child(@FieldType(Context, "types"));
     const control = zx.columns.borrow(Control, values.control);
@@ -118,15 +117,9 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
         .public_value_output = self.public_value_output,
     };
 
-    const buffers: Buffers = .{
-        .starts = @ptrCast(&starts),
-        .counts = @ptrCast(&counts),
-    };
-
     const request: Execution = .{
         .traversal = @ptrCast(&reference),
         .context = &context,
-        .buffers = &buffers,
         .plan = &schedule,
         .first = @intCast(values.first),
         .count = @intCast(values.len),
@@ -154,9 +147,15 @@ pub fn openStatementScope(handle: *const anyopaque, slot: u64, first: u32, count
     return true;
 }
 
-pub fn finishStatementScope(handle: *const anyopaque, slot: u64) ?u64 {
+pub fn finishStatementScope(handle: *const anyopaque, slot: u64, rows_to_store: []const u64, starts: []const u32, counts: []const u32, previous: []const ?u64) ?u64 {
     const frame = Frame.borrow(handle);
     const scope = &frame.scopes[@intCast(slot)];
+
+    for (rows_to_store, starts, counts, previous) |row, start, count, prior| {
+        scope.put(@intCast(row), .{ .start = start, .len = count });
+
+        if (prior) |index| scope.put(@intCast(index), .{});
+    }
 
     frame.child = scope.finish(frame.lowering) catch return null;
 

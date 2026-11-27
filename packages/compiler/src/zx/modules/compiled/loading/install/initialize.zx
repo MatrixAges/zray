@@ -1,37 +1,21 @@
 import capacity from "core/bytes/index/fixed_capacity"
-import memory from "memory"
 
-import type { Request } from "./model"
+import type { Input as Plan } from "../../model"
 
-export type Input = Request.Pick("plan", "temporary")
+export type Input = Plan.Pick("graph", "selection", "index_capacity")
 
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
-    const { plan, temporary } = in
-    const { program, exports } = plan.graph
+    const { graph, selection, index_capacity } = in
 
-    memory.allocateFilledU32Buffer(
-        temporary,
-        plan.type_mapping,
-        program.context.table.kinds.length,
-        0
-    )
-
-    const { selection, export_index } = plan
-
-    if (selection == null || export_index == null) {
-        return
+    if (index_capacity != 0 || selection == null) {
+        return index_capacity
     }
 
-    if (selection.count < 2 || exports.count < 2) {
-        return
+    if (selection.count < 2 || graph.exports.count < 2) {
+        return 0
     }
 
-    if (memory.u64Views(export_index).length != 0) {
-        return
-    }
-
-    memory.allocateU64Buffer(temporary, export_index, capacity(exports.count))
-    memory.clearU64Buffer(export_index)
+    return capacity(graph.exports.count)
 }

@@ -1,18 +1,31 @@
 <Module>
     <Type from="model" as="Table" />
 
-    <Args in={Table.Reserve} out={u64} />
+    <Args in={Table.Reserve} out={Table.Reserved} />
 
-    <Call fn="allocate" in={$in} />
+    <Call
+        fn="allocate"
+        in={$in.pick([
+            "current",
+            "additional"
+        ])}
+    />
 
     <If on={$in.current != 0}>
         <Call
             fn="rehash"
-            in={$in.pick([
-                "keys",
-                "buckets",
-                "current"
-            ])}
+            in={{
+                keys: $in.keys,
+                current: $in.current,
+                buckets: $ctx.allocate.buckets
+            }}
+        />
+
+        <Return
+            value={{
+                limit: $ctx.allocate.limit,
+                buckets: $ctx.rehash
+            }}
         />
     </If>
 

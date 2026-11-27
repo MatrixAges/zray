@@ -1,20 +1,7 @@
 <Module>
-    <Type from="../model" as="Encoding" />
     <Type from="model" as="Growth" />
 
-    <Args in={Growth.Group} out={Encoding.State} />
-
-    <Call
-        fn="../word"
-        in={{
-            state: $in.state,
-            value: $in.count
-        }}
-    />
-
-    <If on={$in.count == 0}>
-        <Return value={$ctx.word} />
-    </If>
+    <Args in={Growth.Group} out={u8[]} />
 
     <Call
         fn="ordered"
@@ -29,7 +16,6 @@
         <Call
             fn="write"
             in={{
-                state: $ctx.word,
                 columns: $in.rows,
                 count: $in.count,
                 wide: $in.wide
@@ -51,7 +37,6 @@
     <Call
         fn="write"
         in={{
-            state: $ctx.word,
             columns: $in.rows,
             count: $in.count,
             wide: $in.wide,

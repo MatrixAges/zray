@@ -22,6 +22,7 @@ scratch: std.mem.Allocator,
 buckets: []u64,
 workspace: std.meta.Child(@FieldType(Input, "workspace")),
 input: Input,
+bound: bool,
 pub fn bind(self: *Self, program: *const ir.Program, frame: *const project.LoadFrame, entry: ?ir.FunctionId) void {
     self.type_rows = self.types.borrow(program.exports, frame.export_aliases.items, false);
     self.constant_rows = self.constants.borrow(program.constant_exports, frame.export_constants.items, false);
@@ -35,7 +36,7 @@ pub fn bind(self: *Self, program: *const ir.Program, frame: *const project.LoadF
     self.member_rows = self.members.borrow(own, frame.export_functions.items, entry != null);
     self.exports = .{ .types = &self.type_rows, .constants = &self.constant_rows };
     self.buckets = &.{};
-    self.workspace = .{ .scratch = @ptrCast(&self.scratch), .buckets = @ptrCast(&self.buckets) };
+    self.workspace = .{ .buckets = @ptrCast(&self.buckets) };
 
     self.input = .{
         .exports = &self.exports,
@@ -44,4 +45,28 @@ pub fn bind(self: *Self, program: *const ir.Program, frame: *const project.LoadF
         .ids = @ptrCast(self.members.column("id")),
         .entry = if (entry) |id| @backingInt(id) else null,
     };
+
+    self.bound = true;
+}
+
+pub fn commit(self: *Self, allocator: std.mem.Allocator, pending: anytype) std.mem.Allocator.Error!void {
+    if (pending.store_0) |row| switch (row.kind) {
+        .Types => try self.types.merge(allocator, row.own, row.forwarded),
+        .Constants => try self.constants.merge(allocator, row.own, row.forwarded),
+        .Members => try self.members.merge(allocator, row.own, row.forwarded),
+    };
+
+    if (pending.store_1) |index| {
+        self.buckets = try self.scratch.alloc(u64, @intCast(index.capacity));
+
+        @memset(self.buckets, 0);
+    }
+}
+
+pub fn release(self: *const Self, allocator: std.mem.Allocator) void {
+    if (!self.bound) return;
+
+    allocator.free(self.types.storage.rows());
+    allocator.free(self.constants.storage.rows());
+    allocator.free(self.members.storage.rows());
 }

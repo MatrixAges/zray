@@ -1,4 +1,4 @@
-const memory = @import("zx").memory;
+const Plan = @import("../root.zig").Plan;
 const Level = @import("../level.zig").Level;
 
 pub const Phase = if (@import("genz_options").generated_analysis)
@@ -37,8 +37,8 @@ pub const Frame = struct {
 };
 
 pub const PlanTarget = struct {
-    functions: memory.WriteColumn,
-    entry: memory.WriteColumn,
+    functions: []Plan,
+    entry: *Plan,
 };
 
 pub const Feedback = struct {

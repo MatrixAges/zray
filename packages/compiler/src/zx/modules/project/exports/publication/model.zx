@@ -1,6 +1,17 @@
-import type { Allocator, ReadColumn, TextColumn, U64Buffer, U8Buffer } from "memory"
-import type { RowBuffer, RowGrowth } from "memory/columns"
+import type { ReadColumn, TextColumn, U64Buffer } from "memory"
+import type { RowBuffer } from "memory/columns"
 import type { Signature } from "../model"
+
+export enum Kind {
+    Types,
+    Constants,
+    Members
+}
+
+export type Request = {
+    rows: Merge,
+    kind: Kind
+}
 
 export type Merge = {
     own: u8[],
@@ -8,8 +19,6 @@ export type Merge = {
     stride: u64,
     copy_own: bool,
     storage: RowBuffer,
-    buffer: U8Buffer,
-    reads: RowGrowth,
     names: TextColumn
 }
 
@@ -24,7 +33,6 @@ export type Merged = {
 }
 
 export type Workspace = {
-    scratch: Allocator,
     buckets: U64Buffer
 }
 

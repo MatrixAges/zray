@@ -3,11 +3,10 @@ import slots from "./service_slots"
 import type { Traversal as Input, Visit as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { bound, writer, bases, index } = in
+    const { bound, bases, index } = in
 
     if (bound != null) {
         return {
-            writer,
             bases,
             index,
             slots: slots({
@@ -25,7 +24,6 @@ export default function (in: Input): Output {
 
     return {
         ...in.services[index],
-        writer,
         bases,
         index
     }

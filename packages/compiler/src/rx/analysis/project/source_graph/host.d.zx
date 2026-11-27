@@ -29,7 +29,7 @@ export declare function validateRegisteredGraphModule(
 export declare function rejectSourceGraphPath(
     target: GraphConstruction,
     row: u64,
-    normalized: bool,
+    normalized: string?,
     message: string
 ): void throws { OutOfMemory, InvalidGraph }
 
@@ -39,7 +39,11 @@ export declare function rejectSourceGraphRoot(
     missing: string
 ): u64 throws { OutOfMemory, InvalidGraph }
 
-export declare function openSourceGraphScanner(target: GraphVisit): void
+export declare function openSourceGraphScanner(
+    target: GraphVisit,
+    paths: string[],
+    buckets: u64[]
+): void
     throws { OutOfMemory }
 
 export declare function finishSourceGraphScan(target: GraphVisit, retain_parses: bool): u64[]

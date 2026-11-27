@@ -192,6 +192,8 @@ export type MixedImports = mutable_opaque
 export type MixedImportRows = {
     named: u8[],
     fallback: u8[],
+    stride: u64,
+    prefix: u64,
     exported: bool
 }
 

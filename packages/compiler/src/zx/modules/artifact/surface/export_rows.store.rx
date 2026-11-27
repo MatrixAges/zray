@@ -1,0 +1,8 @@
+<Store name="artifact_export_rows" version={1}>
+    <Object name="pending">
+        <Field name="name" type={string} value={""} />
+        <Field name="id" type={u32} value={0} />
+        <Field name="row" type={u64} value={0} />
+        <Field name="imported" type={bool} value={false} />
+    </Object>
+</Store>

@@ -106,7 +106,6 @@ fn importsBorrowed(allocator: std.mem.Allocator, workspace: std.mem.Allocator, e
         .names = names,
         .members = @as([*]const u32, @ptrCast(members.ptr))[0..members.len],
         .native = native,
-        .destination = null,
     };
 
     const output = generated.executeIn(temporary, &input) catch |err| switch (err) {

@@ -1,7 +1,6 @@
 import type { Index } from "core/bytes/index/model"
 import type { Modules } from "core/native_module_table/model"
 import type { Table } from "core/signature_table/model"
-import type { OptionalU32Buffer } from "memory"
 import type {
     ColumnSet,
     ColumnView,
@@ -41,8 +40,7 @@ export type Binding = {
 export type Native = {
     storage: ColumnSet,
     shape?: NativeModuleColumns,
-    snapshot: ColumnView,
-    ids: OptionalU32Buffer
+    snapshot: ColumnView
 }
 
 export type Batch = Request.Omit(
@@ -55,7 +53,6 @@ export type Batch = Request.Omit(
     "linked"
 ) & {
     signatures: Table,
-    target: OptionalU32Buffer,
     native: Native,
     destination: Destination,
     read_columns: ColumnSet,
@@ -68,6 +65,7 @@ export type Traversal = {
     source: Batch,
     modules: Modules,
     native_ids: u32?[],
+    ids: u32?[],
     linked: LinkedSignatureColumns,
     index: u64,
     status: Status,
@@ -75,7 +73,16 @@ export type Traversal = {
 }
 
 export type Reuse = {
-    target: OptionalU32Buffer,
-    index: u64,
+    ids: u32?[],
     row: u64
+}
+
+export type Start = {
+    source: Batch,
+    native_ids: u32?[]
+}
+
+export type Linked = {
+    status: Status,
+    ids: u32?[]
 }

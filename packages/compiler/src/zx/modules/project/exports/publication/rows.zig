@@ -31,10 +31,18 @@ pub fn Rows(comptime Row: type, comptime Shape: type, comptime Layout: type) typ
                 .stride = @sizeOf(Row),
                 .copy_own = copy_own,
                 .storage = @ptrCast(&self.storage.buffer),
-                .buffer = @ptrCast(&self.storage.buffer.bytes),
-                .reads = @ptrCast(&self.reads),
                 .names = @ptrCast(self.column("name")),
             };
+        }
+        pub fn merge(self: *Self, allocator: std.mem.Allocator, own: []const u8, forwarded: []const u8) std.mem.Allocator.Error!void {
+            const first = typedRows(Row, own);
+            const second = typedRows(Row, forwarded);
+            const target = try allocator.alloc(Row, first.len + second.len);
+
+            @memcpy(target[0..first.len], first);
+            @memcpy(target[first.len..], second);
+            self.storage.bind(target);
+            inline for (0..fields.len) |slot| self.reads.refreshCell(slot, target.len);
         }
     };
 }

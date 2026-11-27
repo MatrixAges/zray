@@ -1,30 +1,52 @@
-import invalidate from "./invalidate"
+import insert from "../function/demand/seen/insert"
+import { clear_flag } from "./const"
+import push from "./push"
 
-import type { Cursor as Output, Enqueue as Input } from "./model"
+import type { Seen } from "../function/demand/seen/model"
+import type { Enqueue as Input, Slot } from "./model"
 
-export type { Enqueue as Input, Cursor as Output } from "./model"
+export type Output = Slot[]
 
 export default function (in: Input): Output {
-    const { dirty, indices } = in
+    const { indices, state } = in
+    const { cursor, capacity, queued } = state
 
-    const start: u64 = 0
+    const planned: Slot[] = []
+
+    const seen: Seen = {
+        keys: [],
+        count: 0
+    }
 
     return loop({
-        index: start,
-        cursor: in.state.cursor
+        index: 0,
+        planned,
+        seen
     }, {
         while: current => current.index < indices.length,
         next: current => {
-            current.cursor = invalidate({
-                state: {
-                    ...in.state,
-                    cursor: current.cursor
-                },
-                dirty,
-                index: indices[current.index]
-            })
+            const body = indices[current.index]
+
+            if (queued[body] == clear_flag) {
+                const checked = insert({
+                    seen: current.seen,
+                    key: body + 1
+                })
+
+                if (!checked.found) {
+                    current.planned = current.planned.push(push({
+                        head: cursor.head,
+                        count: cursor.count + current.planned.length,
+                        capacity,
+                        body
+                    }))[0]
+                }
+
+                current.seen = checked.seen
+            }
+
             current.index += 1
         },
-        return: current => current.cursor
+        return: current => current.planned
     })
 }

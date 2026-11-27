@@ -1,16 +1,12 @@
 <Module>
     <Type from="../../tree/ast" as="Tree" />
 
-    <Args in={Tree.Render} out={bool} />
+    <Args in={Tree.Input} out={u8[][]?} />
 
-    <Call module="build" in={$in.omit(["writer"])} />
+    <Call module="build" in={$in} />
 
     <Call
         module="../../../../printer/render_checked"
-        in={{
-            module: $ctx.build,
-            writer: $in.writer
-        }}
     />
 
     <Return value={$ctx.render_checked} />

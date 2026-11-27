@@ -1,30 +1,26 @@
 import integers from "std:integer"
-import { publish as publishLengths } from "core/column_lengths"
-import memory from "memory"
 
 import type { Rebase as Input } from "./model"
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
     const { bases, tags, offsets, mask } = in
 
-    const written = loop(0, {
-        while: index => index < tags.length,
-        next: index => {
-            const byte = integers.widenByte(tags[index])
+    const rebased: u32[] = tags.map(tag => 0)[0]
+
+    return loop({
+        index: 0,
+        offsets: rebased
+    }, {
+        while: state => state.index < tags.length,
+        next: state => {
+            const byte = integers.widenByte(tags[state.index])
             const tag = integers.andBits(byte, mask)
-            const offset = bases[tag] + offsets[index]
 
-            memory.writeU32(in.target_offsets, index, offset)
-            index += 1
-        }
-    })
-
-    const copied = memory.copyBytes(in.target_tags, 0, tags, 0, tags.length)
-
-    publishLengths({
-        target: in.lengths,
-        count: tags.length
+            state.offsets[state.index] = bases[tag] + offsets[state.index]
+            state.index += 1
+        },
+        return: state => state.offsets
     })
 }

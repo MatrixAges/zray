@@ -1,19 +1,18 @@
 <Module>
     <Type from="model" as="Printer" />
 
-    <Args in={Printer.Publication} out={bool} />
+    <Args in={Printer.Published} out={u8[][]?} />
 
-    <If on={!$in.module.valid}>
-        <Return value={false} />
+    <If on={!$in.valid}>
+        <Return value={null} />
     </If>
 
     <Call
         module="render"
         in={{
-            source: $in.module.omit(["valid"]),
-            output: $in.writer
+            source: $in.omit(["valid"])
         }}
     />
 
-    <Return value={true} />
+    <Return value={$ctx.render} />
 </Module>

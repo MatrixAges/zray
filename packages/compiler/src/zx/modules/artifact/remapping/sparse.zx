@@ -1,11 +1,8 @@
-import memory from "memory"
-
 import { Kind } from "./model"
 
-import type { OptionalU32Buffer } from "memory"
 import type { Mapping } from "./model"
 
-export type Input = OptionalU32Buffer
+export type Input = u32?[]
 
 export type Output = Mapping
 
@@ -13,7 +10,7 @@ export default function (in: Input): Output {
     return {
         kind: Kind.Sparse,
         dense: [],
-        sparse: memory.optionalU32Views(in),
+        sparse: in,
         planned: [],
         first: 0,
         prefix: 0,

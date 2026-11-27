@@ -1,11 +1,10 @@
-import type { Check } from "../../node_headers/model"
-import type { Bound } from "../../node_headers/payload/model"
+import type { Bound, Published } from "../../node_headers/payload/model"
 
 export type Input = {
     payload: Bound
 }
 
 export type Output = {
-    check: Check,
+    payload: Published,
     span: u64
 }

@@ -1,0 +1,22 @@
+import type { Section, Traversal } from "./model"
+
+export type Input = {
+    traversal: Traversal,
+    service: Section
+}
+
+export type Output = Traversal
+
+export default function (in: Input): Output {
+    const { traversal, service } = in
+
+    const index = traversal.index + 1
+
+    return {
+        ...traversal,
+        groups: traversal.groups.push(service.chunks)[0],
+        index,
+        valid: service.valid,
+        running: service.valid && index < traversal.count
+    }
+}

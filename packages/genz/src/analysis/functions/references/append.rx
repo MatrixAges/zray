@@ -6,12 +6,12 @@
 
     <Call module="../../node_headers/payload/validated" in={$in.payload} />
 
-    <If on={$ctx.validated == Headers.Check.Valid}>
+    <If on={$ctx.validated.check == Headers.Check.Valid}>
         <Call fn="publish" in={$in} />
 
         <Return
             value={{
-                check: $ctx.validated,
+                payload: $ctx.validated,
                 span: $ctx.publish
             }}
         />
@@ -19,7 +19,7 @@
 
     <Return
         value={{
-            check: $ctx.validated,
+            payload: $ctx.validated,
             span: 0
         }}
     />

@@ -1,0 +1,12 @@
+<Store name="artifact_binding_rows" version={1}>
+    <Object name="pending">
+        <Field name="row" type={u64} value={0} />
+        <Field name="member" type={bool} value={false} />
+        <Field name="name" type={string} value={""} />
+        <Field name="namespace" type={string?} value={null} />
+        <Field name="id" type={u32?} value={null} />
+        <Field name="input_type" type={u32?} value={null} />
+        <Field name="output_type" type={u32?} value={null} />
+        <Field name="intrinsic" type={u8?} value={null} />
+    </Object>
+</Store>

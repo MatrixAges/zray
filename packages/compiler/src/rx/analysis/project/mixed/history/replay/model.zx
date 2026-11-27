@@ -1,13 +1,9 @@
-import type { Allocator, TransferGroup } from "memory"
 import type { Input as Window, Boundaries } from "../prefix/model"
-import type { Input as Publication } from "../publish/model"
+import type { Output as Publication } from "../publish/model"
+import type { Input as Modules } from "../publish/modules"
 
-export type Transfer = {
-    allocator: Allocator,
-    group: TransferGroup
-}
-
-export type Restore = Transfer & {
+export type Restore = {
+    column_count: u64,
     boundaries: Boundaries,
     first: u64,
     end: u64
@@ -15,6 +11,21 @@ export type Restore = Transfer & {
 
 export type Input = {
     window: Window,
-    transfer: Transfer,
-    publication: Publication.Omit("first", "end", "verified_end")
+    column_count: u64,
+    publication: Modules.Omit("first", "end") & {
+        checkpoints: u64,
+        reused_before: u64
+    }
+}
+
+export type Range = {
+    column: u64,
+    first: u64,
+    count: u64
+}
+
+export type Output = {
+    position: u64,
+    ranges: Range[],
+    publication?: Publication
 }

@@ -8,7 +8,6 @@
     <Call
         module="prelude"
         in={{
-            writer: $in.writer,
             config: {
                 bases: $ctx.bases,
                 declaration_base: 0,
@@ -21,13 +20,18 @@
     />
 
     <If on={!$ctx.prelude.valid}>
-        <Return value={$ctx.prelude} />
+        <Return
+            value={{
+                valid: $ctx.prelude.valid,
+                invalid_route: $ctx.prelude.invalid_route,
+                groups: []
+            }}
+        />
     </If>
 
     <Call
         module="dispatch"
         in={{
-            writer: $in.writer,
             config: {
                 bases: $ctx.bases,
                 declaration_base: 0,
@@ -37,13 +41,18 @@
     />
 
     <If on={!$ctx.dispatch.valid || $ctx.dispatch.invalid_route}>
-        <Return value={$ctx.dispatch} />
+        <Return
+            value={{
+                valid: $ctx.dispatch.valid,
+                invalid_route: $ctx.dispatch.invalid_route,
+                groups: []
+            }}
+        />
     </If>
 
     <Call
         module="services"
         in={{
-            writer: $in.writer,
             bases: $ctx.bases,
             services: $in.services,
             bound: $in.bound
@@ -57,10 +66,25 @@
     <Call
         module="http"
         in={{
-            writer: $in.writer,
             bases: $ctx.bases
         }}
     />
 
-    <Return value={$ctx.http} />
+    <Call
+        fn="sections"
+        in={{
+            prelude: $ctx.prelude.chunks,
+            dispatch: $ctx.dispatch.chunks,
+            services: $ctx.services.groups,
+            http: $ctx.http.chunks
+        }}
+    />
+
+    <Return
+        value={{
+            valid: $ctx.http.valid,
+            invalid_route: $ctx.http.invalid_route,
+            groups: $ctx.sections
+        }}
+    />
 </Module>

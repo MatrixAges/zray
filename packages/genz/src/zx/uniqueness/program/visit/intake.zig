@@ -31,18 +31,13 @@ pub fn run(comptime kind: Memo.Kind, comptime persistent: bool, ctx: *Context, s
     const selection = if (history != null) visit.input(target(Input, "history")) else undefined;
     const Body = target(Probe, "rows");
     var views: BodyRows.Views(Body) = undefined;
-    var bytes: []u8 = &memo.key;
-    var marked = table.useColumn();
-    const encoding = memo.encoding.binding(target(Probe, "state"));
 
     const probe: Probe = if (persistent) .{
-        .state = &encoding,
         .rows = &ahead.memo_rows.view(Body, &views),
         .summaries = &BodyRows.summaries(target(Probe, "summaries"), ctx.summaries),
         .index = index,
         .kind = @fromBackingInt(@backingInt(kind)),
-        .digest = @ptrCast(&bytes),
-        .table = &table.probe(target(Probe, "table"), &marked),
+        .table = &table.probe(target(Probe, "table")),
     } else undefined;
 
     const worker = ahead.pool.count() != 0;
@@ -55,21 +50,20 @@ pub fn run(comptime kind: Memo.Kind, comptime persistent: bool, ctx: *Context, s
     const input: Input = .{
         .memo = if (persistent) &probe else null,
         .history = if (history != null) &selection else null,
-        .state_end = encoding.state_end,
         .ahead_ready = ahead_ready,
         .ahead_reads = if (ahead_ready and kind != .planned) &reads.bind(slot.?, ctx) else null,
     };
 
-    const result = zx.columns.invoke(entry.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
+    const result = zx.columns.invoke(entry.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => std.debug.panic("ownership visit intake failed: {s}", .{@errorName(err)}),
     };
 
+    if (result.encoded) |encoded| try memo.encoding.capture(encoded);
+    if (result.digest) |digest| @memcpy(&memo.key, digest);
+    if (result.memo_row) |row| table.values.items[row].used = true;
     if (history != null) try visit.advance(temporary, result.next);
     if (kind == .planned and result.origin == .Analyze) _ = scratch.reset(.retain_capacity);
-
-    memo.encoding.state_end = result.state_end;
-
     if (!result.following) ctx.replay.trace = null;
 
     const cached = if (persistent) lookup: {

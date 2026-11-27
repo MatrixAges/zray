@@ -1,8 +1,7 @@
 <Module>
     <Type from="model" as="Round" />
-    <Type from="../model" as="Work" />
 
-    <Args in={Round.Advance} out={Work.Cursor} />
+    <Args in={Round.Advance} out={Round.PreparedFeedback} />
 
     <If on={$in.previous != null}>
         <Call
@@ -14,13 +13,29 @@
         />
 
         <If on={$in.previous.grew}>
-            <Call fn="record_growth" in={$ctx.phase_feedback} />
+            <Call fn="record_growth" in={$in.state.cursor} />
 
-            <Return value={$ctx.record_growth} />
+            <Return
+                value={{
+                    ...$ctx.phase_feedback,
+                    cursor: $ctx.record_growth
+                }}
+            />
         </If>
 
-        <Return value={$ctx.phase_feedback} />
+        <Return
+            value={{
+                ...$ctx.phase_feedback,
+                cursor: $in.state.cursor
+            }}
+        />
     </If>
 
-    <Return value={$in.state.cursor} />
+    <Return
+        value={{
+            cursor: $in.state.cursor,
+            dirty: [],
+            plan: null
+        }}
+    />
 </Module>

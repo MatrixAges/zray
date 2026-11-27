@@ -60,21 +60,11 @@ pub fn publish(types: *Types, scratch: std.mem.Allocator, functions: *ir.Functio
         .native_modules = .{ .indexed = &.{} },
     };
 
-    var writer: Registry.Writer(std.meta.Child(@FieldType(Registration, "registry"))) = undefined;
-    var committed_count = registry.rows.items.len;
-
-    writer.init(registry, true);
-    defer writer.finish(registry, committed_count);
-
     try publication.append(&nodes, functions, initial.program, temporary, &.{
-        .registry = &writer.input,
         .identity = initial.identity,
         .version = initial.schema_version,
-        .slot = selected.slot,
         .function = selected.function,
     }, registry);
-
-    committed_count += 1;
 }
 
 fn prepare(types: *Types, temporary: std.mem.Allocator, functions: usize, registry: *Registry, initial: Initializer.Borrowed, origins: Origins.Table, mapping: *[]u32) Error!std.meta.Child(plan.Output) {

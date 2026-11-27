@@ -27,28 +27,28 @@
             ...$in.pick([
                 "traversal",
                 "context",
-                "buffers",
                 "first",
                 "count"
             ]),
             scope: 0,
+            writes: [],
             routes: $ctx.open_scope.routes,
-            scope_first: $in.first,
-            scope_placement: 0
+            scope_first: $in.first
         }}
     />
 
-    <If on={!$ctx.scope}>
+    <If on={!$ctx.scope.valid}>
         <Return value={false} />
     </If>
 
     <Call
-        fn="host.finishStatementScope"
-        in={[
-            $in.traversal,
-            0
-        ]}
+        fn="host"
+        in={{
+            traversal: $in.traversal,
+            scope: 0,
+            writes: $ctx.scope.writes
+        }}
     />
 
-    <Return value={$ctx.finishStatementScope != null} />
+    <Return value={$ctx.host != null} />
 </Module>

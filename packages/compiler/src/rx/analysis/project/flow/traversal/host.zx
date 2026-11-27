@@ -1,4 +1,4 @@
-export { advanceLengthSlot, readLengthSlot, shrinkLengthSlot } from "memory"
+export { readLengthSlot } from "memory"
 export {
     FlowKind,
     refreshFlowCursor,

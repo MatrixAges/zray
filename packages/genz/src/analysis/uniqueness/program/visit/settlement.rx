@@ -1,21 +1,22 @@
 <Module>
     <Type from="model" as="Visit" />
 
-    <Args in={Visit.Settlement} out={u64[]} />
+    <Args in={Visit.Settlement} out={Visit.AdoptedSettlement} />
 
     <If on={$in.save != null}>
         <Call fn="../../function/result/retain" in={$in.save.retain} />
 
+        <Call module="../../memo/table/store" in={$in.save.memo} />
+
         <Call
-            module="../../memo/record/write"
-            in={{
-                target: $in.save.memo,
-                result: {
-                    levels: $ctx.retain,
-                    changed: [],
-                    grew: false,
-                    plan: null
-                }
+            fn="../../function/updates/contributions"
+            in={$in.omit(["save"])}
+        />
+
+        <Return
+            value={{
+                changed: $ctx.contributions,
+                retained: $ctx.retain
             }}
         />
     </If>
@@ -25,5 +26,10 @@
         in={$in.omit(["save"])}
     />
 
-    <Return value={$ctx.contributions} />
+    <Return
+        value={{
+            changed: $ctx.contributions,
+            retained: null
+        }}
+    />
 </Module>

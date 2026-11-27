@@ -1,4 +1,3 @@
-import type { ByteWriter } from "memory"
 import type { Input as Bases, State as Context } from "../../../ast/context/model"
 import type {
     Columns as Declarations,
@@ -7,7 +6,6 @@ import type {
 import type { Columns as Fields } from "../../../ast/fields/model"
 
 export type Render = {
-    writer: ByteWriter,
     modules: string[]
 }
 

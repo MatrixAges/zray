@@ -39,12 +39,18 @@ pub fn publish(lower: *Lower, comptime Output: type, output: anytype, comptime b
         .state = if (state) output.entries else null,
     };
 
-    const result = zx.columns.invoke(entry.executeValue, fallback.allocator(), &input) catch |err| switch (payloads.failure(err)) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidAst => unreachable,
+    const result = zx.columns.invoke(entry.executeValue, fallback.allocator(), &input) catch |err| {
+        binding.rollback(&lower.allocator);
+
+        return switch (payloads.failure(err)) {
+            error.OutOfMemory => error.OutOfMemory,
+            error.InvalidAst => unreachable,
+        };
     };
 
-    switch (result.check) {
+    payloads.appendHeaders(target, expressions.tags, result.ast);
+
+    switch (result.ast.check) {
         .Valid => {},
         .Invalid => unreachable,
         .Exhausted => return error.OutOfMemory,

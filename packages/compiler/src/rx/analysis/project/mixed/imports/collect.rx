@@ -1,9 +1,12 @@
 <Module>
     <Type from="model" as="Imports" />
+    <Type from="publish" as="Publish" />
 
-    <Args in={Imports.Input} out={void} />
+    <Args in={Imports.Input} out={Publish.Output?} />
 
     <Loop on={$in.row < $in.count}>
         <Call module="step" in={$in} />
     </Loop>
+
+    <Return value={$ctx.step.pending} />
 </Module>

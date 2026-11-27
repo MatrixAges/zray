@@ -2,19 +2,42 @@ import memory from "memory"
 
 import copySpan from "./span"
 
-import type { Input as Publication } from "./model"
+import type { ReadColumn } from "memory"
+import type { Output as Span } from "./span"
 
-export type Input = Publication.Pick("rows", "modules", "first", "end")
+export type Input = {
+    rows: ReadColumn,
+    modules: {
+        surfaces: u64,
+        functions: u64,
+        present: u64,
+        available: bool[]
+    },
+    first: u64,
+    end: u64
+}
 
-export type Output = void
+export type Spans = {
+    present: Span,
+    surfaces?: Span,
+    functions?: Span
+}
+
+export type Output = Spans[]
 
 export default function (in: Input): Output {
     const { rows, modules, end } = in
     const { surfaces, functions, present, available } = modules
 
-    const copied = loop(in.first, {
-        while: position => position < end,
-        next: position => {
+    const spans: Output = []
+
+    return loop({
+        position: in.first,
+        spans
+    }, {
+        while: current => current.position < end,
+        next: current => {
+            const { position } = current
             const first = memory.readColumnIndex(rows, position)
             const loaded = available[first]
             const next = loop({
@@ -33,26 +56,34 @@ export default function (in: Input): Output {
             })
             const limit = first + (next - position)
 
-            copySpan({
-                column: present,
+            const present_span = copySpan({
+                width: present,
                 first,
                 end: limit
             })
 
             if (loaded) {
-                copySpan({
-                    column: surfaces,
-                    first,
-                    end: limit
-                })
-                copySpan({
-                    column: functions,
-                    first,
-                    end: limit
-                })
+                current.spans = current.spans.push({
+                    present: present_span,
+                    surfaces: copySpan({
+                        width: surfaces,
+                        first,
+                        end: limit
+                    }),
+                    functions: copySpan({
+                        width: functions,
+                        first,
+                        end: limit
+                    })
+                })[0]
+            } else {
+                current.spans = current.spans.push({
+                    present: present_span
+                })[0]
             }
 
-            position = next
-        }
+            current.position = next
+        },
+        return: current => current.spans
     })
 }

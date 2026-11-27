@@ -1,14 +1,10 @@
+import bytes from "std:bytes"
 import integers from "std:integer"
 
-import { word_width } from "./const"
-import integer from "./integer"
+export type Input = u64
 
-import type { Word as Input, State as Output } from "./model"
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    return integer({
-        state: in.state,
-        value: integers.widen(integers.narrow(in.value)),
-        width: word_width
-    })
+    return bytes.encodeU32Le(integers.narrow(in))
 }

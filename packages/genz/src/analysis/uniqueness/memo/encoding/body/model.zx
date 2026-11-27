@@ -29,7 +29,7 @@ export type Body = {
     index: u64
 }
 
-export type Probe = Body & Target & Key.Pick("state", "kind")
+export type Probe = Body & Target & Key.Pick("kind")
 
 export type Fields = Key.Pick(
     "identity",

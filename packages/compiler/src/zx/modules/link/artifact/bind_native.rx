@@ -1,0 +1,26 @@
+<Module>
+    <Type from="binding" as="Binding" />
+    <Type from="../native/plan" as="Plan" />
+
+    <Args in={Binding.Native?} out={Plan.Selection} />
+
+    <If on={$in != null}>
+        <Call fn="../native/current" in={$in} />
+
+        <Call
+            module="../native/link"
+            in={{
+                plan: $ctx.current,
+                publication: $in.publication
+            }}
+        />
+
+        <Return value={$ctx.link} />
+    </If>
+
+    <Return
+        value={{
+            ids: []
+        }}
+    />
+</Module>

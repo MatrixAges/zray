@@ -12,7 +12,6 @@
             in={{
                 walk: $in.walk,
                 ...$in.frame.pick([
-                    "marks",
                     "row",
                     "depth"
                 ])

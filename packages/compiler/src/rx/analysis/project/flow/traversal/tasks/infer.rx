@@ -12,25 +12,23 @@
     />
 
     <If on={$in.parallel && $in.returns != null}>
-        <Call fn="../host.requestParallelTaskOutput" in={$in.frame} />
-        <Call fn="../restore_return" in={$in.returns} />
+        <Call
+            fn="../host.requestParallelTaskOutput"
+            in={[
+                $in.frame,
+                $in.returns.output,
+                $in.returns.returned
+            ]}
+        />
     </If>
-
-    <Call
-        fn="../host.shrinkLengthSlot"
-        in={[
-            $in.lengths,
-            0,
-            $in.saved_bindings
-        ]}
-    />
 
     <Call
         fn="../host.bindFlowTaskOutput"
         in={[
             $in.frame,
             $in.parallel,
-            $ctx.inferFlowTaskOutput
+            $ctx.inferFlowTaskOutput,
+            $in.saved_bindings
         ]}
     />
 </Module>

@@ -1,5 +1,3 @@
-import strings from "std:string"
-
 import remap from "../remapping/id"
 
 import type { Mapping } from "../remapping/model"
@@ -17,22 +15,14 @@ export type Input = {
 export type Output = Input.Omit("types", "functions")
 
 export default function (in: Input): Output {
-    const name = strings.copy(in.name)
-    const namespace = in.namespace
-
-    const owned_namespace: string? = match {
-        namespace != null => strings.copy(namespace),
-        _ => null
-    }
-
-    const { id, input_type, output_type } = in
+    const { name, namespace, id, input_type, output_type } = in
 
     const missing_port = id == null || input_type == null || output_type == null
 
     if (missing_port) {
         return {
             name,
-            namespace: owned_namespace,
+            namespace,
             id: null,
             input_type: null,
             output_type: null
@@ -41,7 +31,7 @@ export default function (in: Input): Output {
 
     return {
         name,
-        namespace: owned_namespace,
+        namespace,
         id: remap({
             id,
             mapping: in.functions

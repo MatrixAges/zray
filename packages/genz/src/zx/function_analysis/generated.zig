@@ -71,7 +71,6 @@ pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
 
     const allocators: Allocators = .{
         .owned = @ptrCast(&allocator),
-        .names = @ptrCast(&allocator),
     };
 
     const input: Input = .{
@@ -85,6 +84,14 @@ pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
+
+    const groups = try temporary.alloc([]const []const u8, output.groups.len);
+
+    for (groups, output.groups) |*target, group| target.* = try allocator.dupe([]const u8, group);
+
+    const errors = try allocator.alloc(?[]const []const u8, output.error_groups.len);
+
+    for (errors, output.error_groups) |*target, group| target.* = if (group) |index| groups[index] else null;
 
     return .{
         .value = .{
@@ -106,7 +113,7 @@ pub fn analyze(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progr
         .fresh_outputs = try allocator.dupe(bool, output.fresh_outputs),
         .constructed_outputs = try allocator.dupe(bool, output.constructed_outputs),
         .identity_free = try allocator.dupe(bool, output.identity_free),
-        .errors = try allocator.dupe(std.meta.Elem(@TypeOf(output.errors)), output.errors),
+        .errors = errors,
         .return_allocations = try allocator.dupe(bool, output.return_allocations),
         .layout_types = try allocator.dupe(std.meta.Elem(@TypeOf(output.layout_types)), output.layout_types),
     };

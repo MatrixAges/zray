@@ -8,7 +8,10 @@
     <Call
         module="publish_demand"
         in={{
-            ...$in.omit(["analysis"]),
+            restored_growth: $in.restored_growth,
+            deferred:
+                $in.analysis.source.exchange != null &&
+                $in.analysis.source.exchange.deferred,
             result: $ctx.visit
         }}
     />

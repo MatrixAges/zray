@@ -14,8 +14,7 @@ pub const Storage = struct {
     types: memory.ColumnLengths,
     origins: memory.ColumnLengths,
     extent: Extent,
-    target: memory.WriteColumn,
-    pub fn bind(self: *Storage, state: *State, target: *Checkpoint) Input {
+    pub fn bind(self: *Storage, state: *State) Input {
         self.type_slots = memory.borrowColumnLengths(&state.types.items);
         self.origin_slots = memory.borrowColumnLengths(&state.types.origins.items);
         self.types = &self.type_slots;
@@ -28,9 +27,7 @@ pub const Storage = struct {
             .libraries = state.libraries.count(),
         };
 
-        self.target = columns.wordTarget(std.mem.asBytes(target));
-
-        return .{ .types = @ptrCast(&self.types), .origins = @ptrCast(&self.origins), .extent = &self.extent, .target = @ptrCast(&self.target) };
+        return .{ .types = @ptrCast(&self.types), .origins = @ptrCast(&self.origins), .extent = &self.extent };
     }
 };
 
@@ -43,4 +40,10 @@ pub fn writeSeed(state: *const State, target: *Checkpoint) void {
         .initializers = state.initializers.items.len,
         .libraries = state.libraries.count(),
     };
+}
+
+pub fn commit(target: *Checkpoint, words: []const u64) void {
+    const destination = std.mem.bytesAsSlice(usize, std.mem.asBytes(target));
+
+    for (destination, words) |*slot, value| slot.* = @intCast(value);
 }

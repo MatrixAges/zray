@@ -1,8 +1,8 @@
-import type { U8Buffer, U64View } from "memory"
+import type { U64View } from "memory"
 import type { Import as Interface, Selection } from "../interface/model"
 import type { Route } from "../target/model"
 import type { Rows } from "../target/select"
-import type { Input as Claim } from "./imports/claim"
+import type { Request as Claim } from "./imports/claim"
 
 export enum Admission {
     Push,
@@ -13,13 +13,11 @@ export enum Admission {
 
 export type Frame = {
     states: u8[],
-    marks: U8Buffer,
     row: u64,
     depth: u64
 }
 
 export type Completed = {
-    marks: U8Buffer,
     row: u64,
     depth: u64
 }
@@ -46,8 +44,7 @@ export type Source = {
     keys: u8[][],
     buckets: U64View,
     capacity: u64,
-    states: u8[],
-    marks: U8Buffer
+    states: u8[]
 }
 
 export type SourcePlan = {
@@ -75,5 +72,6 @@ export type Import = {
 }
 
 export type ImportRoute = TargetRoute & {
+    slots: u64[],
     duplicate?: u64
 }

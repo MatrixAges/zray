@@ -8,7 +8,7 @@
     <Call
         module="publish_settlement"
         in={{
-            ...$in.omit(["analysis"]),
+            deferred: $in.analysis.deferred,
             result: $ctx.settle
         }}
     />

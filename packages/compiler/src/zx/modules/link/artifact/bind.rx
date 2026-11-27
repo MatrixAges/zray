@@ -17,67 +17,67 @@
         />
     </If>
 
-    <If on={$in.native != null}>
-        <Call fn="../native/current" in={$in.native} />
+    <Call module="bind_native" in={$in.native} />
 
-        <Call
-            module="../native/link"
-            in={{
-                plan: $ctx.current,
-                publication: $in.native.publication
+    <If on={$ctx.bind_native.failure != null}>
+        <Switch on={$ctx.bind_native.failure}>
+            <Case value={Native.Status.Conflict}>
+                <Return
+                    value={{
+                        status: Binding.Status.Conflict
+                    }}
+                />
+            </Case>
+
+            <Case value={Native.Status.Full}>
+                <Return
+                    value={{
+                        status: Binding.Status.Full
+                    }}
+                />
+            </Case>
+
+            <Default>
+                <Return
+                    value={{
+                        status: Binding.Status.Invalid
+                    }}
+                />
+            </Default>
+        </Switch>
+    </If>
+
+    <Call
+        module="../signature/batch"
+        in={{
+            source: $in.signatures,
+            native_ids: $ctx.bind_native.ids
+        }}
+    />
+
+    <If on={$ctx.batch.status == Signature.Status.Conflict}>
+        <Return
+            value={{
+                status: Binding.Status.Conflict
             }}
         />
-
-        <If on={$ctx.link != null}>
-            <Switch on={$ctx.link}>
-                <Case value={Native.Status.Conflict}>
-                    <Return
-                        value={{
-                            status: Binding.Status.Conflict
-                        }}
-                    />
-                </Case>
-
-                <Case value={Native.Status.Full}>
-                    <Return
-                        value={{
-                            status: Binding.Status.Full
-                        }}
-                    />
-                </Case>
-
-                <Default>
-                    <Return
-                        value={{
-                            status: Binding.Status.Invalid
-                        }}
-                    />
-                </Default>
-            </Switch>
-        </If>
     </If>
 
-    <If on={$in.signatures != null}>
-        <Call module="../signature/batch" in={$in.signatures} />
-
-        <If on={$ctx.batch == Signature.Status.Conflict}>
-            <Return
-                value={{
-                    status: Binding.Status.Conflict
-                }}
-            />
-        </If>
-
-        <If on={$ctx.batch != Signature.Status.Reuse}>
-            <Return
-                value={{
-                    status: Binding.Status.Invalid
-                }}
-            />
-        </If>
+    <If on={$ctx.batch.status != Signature.Status.Reuse}>
+        <Return
+            value={{
+                status: Binding.Status.Invalid
+            }}
+        />
     </If>
 
-    <Call module="../dependencies/traversal/walk" in={$in.dependencies} />
+    <Call
+        module="../dependencies/traversal/walk"
+        in={{
+            ...$in.dependencies,
+            functions: $ctx.batch.ids
+        }}
+    />
 
     <If on={$ctx.walk == Dependencies.Status.Conflict}>
         <Return
@@ -120,6 +120,8 @@
                 fn="body/request"
                 in={{
                     ...$in.source,
+                    functions: $ctx.batch.ids,
+                    natives: $ctx.bind_native.ids,
                     first: $in.dependencies.walk.checks.linked.files.length,
                     append: $ctx.prepare == Body.Placement.Append
                 }}

@@ -12,10 +12,10 @@ pub fn render(allocator: std.mem.Allocator) std.mem.Allocator.Error![]u8 {
 
     const entry = @import("generated_gateway_host");
     const Input = std.meta.Child(entry.Input);
-    const input: Input = .{ .writer = @ptrCast(&writer) };
-    const valid = zx.columns.invoke(entry.executeValue, arena.allocator(), &input) catch |err| return failure(err);
+    const input: Input = .{};
+    const result = zx.columns.invoke(entry.executeValue, arena.allocator(), &input) catch |err| return failure(err);
 
-    if (!valid) return error.OutOfMemory;
+    try @import("../../printer/module.zig").writeChunks(&writer, result orelse return error.OutOfMemory);
 
     return writer.finish();
 }

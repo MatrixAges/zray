@@ -2,7 +2,7 @@
     <Type from="model" as="Payload" />
     <Type from="../model" as="Headers" />
 
-    <Args in={Payload.Bound} out={Headers.Check} />
+    <Args in={Payload.Bound} out={Payload.Published} />
 
     <Call
         module="validate"
@@ -19,12 +19,24 @@
         }}
     />
 
-    <If on={$ctx.validate.check != Headers.Check.Valid}>
-        <Return value={$ctx.validate.check} />
+    <If on={$ctx.validate.check != Headers.Check.Valid || $in.tags.length == 0}>
+        <Return
+            value={{
+                check: $ctx.validate.check,
+                count: 0,
+                offsets: []
+            }}
+        />
     </If>
 
-    <If on={$in.tags.length == 0}>
-        <Return value={Headers.Check.Valid} />
+    <If on={!$in.reserved}>
+        <Return
+            value={{
+                check: Headers.Check.Exhausted,
+                count: 0,
+                offsets: []
+            }}
+        />
     </If>
 
     <Call
@@ -32,15 +44,26 @@
         in={{
             ...$in.omit([
                 "complete",
-                "existing"
+                "existing",
+                "reserved"
             ]),
             counts: $ctx.validate.counts
         }}
     />
 
-    <If on={$ctx.append}>
-        <Return value={Headers.Check.Valid} />
+    <If on={$ctx.append.count == $in.tags.length}>
+        <Return
+            value={{
+                ...$ctx.append,
+                check: Headers.Check.Valid
+            }}
+        />
     </If>
 
-    <Return value={Headers.Check.Exhausted} />
+    <Return
+        value={{
+            ...$ctx.append,
+            check: Headers.Check.Exhausted
+        }}
+    />
 </Module>

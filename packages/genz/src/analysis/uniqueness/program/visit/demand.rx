@@ -1,11 +1,7 @@
 <Module>
     <Type from="model" as="Visit" />
 
-    <Args in={Visit.Demand} out={u64[]} />
-
-    <If on={$in.origin == Visit.Origin.Ahead}>
-        <Call fn="growth" in={$in.growth} />
-    </If>
+    <Args in={Visit.Demand} out={Visit.AdoptedDemand} />
 
     <Call
         fn="../../function/updates/marks"
@@ -16,26 +12,27 @@
         ])}
     />
 
-    <If on={$in.origin == Visit.Origin.Cached}>
-        <Call fn="growth" in={$in.growth} />
-    </If>
-
     <If on={$in.save != null}>
         <Call fn="../../retain/rows" in={$in.save.marks} />
 
-        <Call
-            module="../../memo/record/write"
-            in={{
-                target: $in.save.memo,
-                result: {
-                    levels: [],
-                    changed: $ctx.marks,
-                    grew: $in.save.grew,
-                    plan: null
-                }
+        <Call module="../../memo/table/store" in={$in.save.memo} />
+
+        <Return
+            value={{
+                changed: $ctx.marks,
+                marks: $ctx.rows,
+                retain_growth: $in.origin == Visit.Origin.Ahead && $in.grew,
+                install_growth: $in.origin != Visit.Origin.Analyze
             }}
         />
     </If>
 
-    <Return value={$ctx.marks} />
+    <Return
+        value={{
+            changed: $ctx.marks,
+            marks: null,
+            retain_growth: $in.origin == Visit.Origin.Ahead && $in.grew,
+            install_growth: $in.origin != Visit.Origin.Analyze
+        }}
+    />
 </Module>

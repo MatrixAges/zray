@@ -1,24 +1,18 @@
-import bytes from "std:bytes"
-import memory from "memory"
+import { ChangeKind } from "./model"
 
-import type { Declaration, Target } from "./model"
+import type { Change as Output, Value } from "./model"
 
-export type Input = Declaration & {
-    target: Target,
+export type Input = Value & {
     name: string,
-    kind: u8,
-    row: u64
+    row: u64,
+    own_name: bool
 }
 
-export type Output = void
-
 export default function (in: Input): Output {
-    const { target, row } = in
-
-    memory.writeColumnBytes(target.name, row, bytes.fromText(in.name))
-    memory.writeColumnU8(target.kind, row, in.kind)
-    memory.writeColumnU32(target.input_type, row, in.input_type)
-    memory.writeColumnU32(target.output_type, row, in.output_type)
-    memory.writeColumnBytes(target.source, row, [])
-    memory.writeColumnU8(target.has_store, row, in.has_store ? 1 : 0)
+    return {
+        ...in,
+        action: ChangeKind.Value,
+        rows: [],
+        source_row: 0
+    }
 }

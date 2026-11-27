@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import { done, max_dependency_depth, visiting } from "./const"
 import { Admission } from "./model"
 
@@ -10,17 +8,11 @@ export type Input = Frame
 export type Output = Admission
 
 export default function (in: Input): Output {
-    const { states, marks, row, depth } = in
+    const { states, row, depth } = in
 
-    const decision = match states[row] {
+    return match states[row] {
         done => Admission.Skip,
         visiting => Admission.Cycle,
         _ => depth < max_dependency_depth ? Admission.Push : Admission.Depth
     }
-
-    if (decision == Admission.Push) {
-        memory.writeU8(marks, row, visiting)
-    }
-
-    return decision
 }

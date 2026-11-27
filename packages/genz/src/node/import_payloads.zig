@@ -7,9 +7,11 @@ const Layout = enum { dense, selected };
 pub const Plain = struct {
     slice: [1][]const transfer.Column = undefined,
     groups: transfer.Groups = undefined,
+    initial: usize = undefined,
     pub fn bind(self: *Plain, comptime Input: type, allocator: *const std.mem.Allocator, columns: []const transfer.Column, count: usize, existing: usize, borrowed: bool) Input {
         self.slice = .{columns};
         self.groups = &self.slice;
+        self.initial = existing;
 
         return .{
             .allocator = @ptrCast(allocator),
@@ -18,6 +20,10 @@ pub const Plain = struct {
             .existing = existing,
             .borrowed = borrowed,
         };
+    }
+
+    pub fn rollback(self: *const Plain, allocator: *const std.mem.Allocator) void {
+        rollbackGroups(allocator, &self.groups, &.{self.initial});
     }
 
     pub fn append(allocator: std.mem.Allocator, columns: []const transfer.Column, count: usize, existing: usize, borrowed: bool) headers.Error!void {
@@ -78,9 +84,7 @@ pub fn Binding(comptime Target: type, comptime View: type, comptime layout: Layo
         buffers: [width]transfer.Column = undefined,
         slices: [names.len][]const transfer.Column = undefined,
         groups: transfer.Groups = undefined,
-        views: headers.Views = .{},
-        length_slots: [2]*usize = undefined,
-        lengths: zx.memory.ColumnLengths = undefined,
+        initial: [names.len]usize = undefined,
         pub fn bind(self: *Self, comptime Input: type, allocator: *const std.mem.Allocator, target: Target, source: *const View, comptime copy_payloads: bool, comptime borrow_text: bool) Input {
             @setEvalBranchQuota(100_000);
 
@@ -90,28 +94,29 @@ pub fn Binding(comptime Target: type, comptime View: type, comptime layout: Layo
 
             comptime var first: usize = 0;
 
-            inline for (names, &self.slices) |name, *group| {
+            inline for (names, &self.slices, &self.initial) |name, *group, *count| {
                 const column = &@field(target.payloads, name);
                 const end = first + comptime widthOf(std.meta.Child(@TypeOf(column)), View, name);
 
                 attach(column, source, name, self.buffers[first..end], copy_payloads, borrow_text);
 
                 group.* = self.buffers[first..end];
+                count.* = if (group.len == 0) 0 else group.*[0].storage.items.len;
                 first = end;
             }
 
             self.groups = &self.slices;
 
-            var input: Input = if (@hasField(Input, "allocator")) storage: {
-                self.length_slots = .{ &target.tags.items.len, &target.offsets.items.len };
-                self.lengths = &self.length_slots;
+            var input: Input = undefined;
 
-                var tail = self.views.bind(Input, allocator, target, &self.lengths);
+            if (@hasField(Input, "allocator")) {
+                input.allocator = @ptrCast(allocator);
+                input.layout = if (layout == .selected) .Selected else .Dense;
 
-                tail.layout = if (layout == .selected) .Selected else .Dense;
-
-                break :storage tail;
-            } else undefined;
+                input.reserved = target.tags.items.len <= std.math.maxInt(u32) and
+                    source.tags.len <= std.math.maxInt(u32) - target.tags.items.len and
+                    reserveHeaders(allocator.*, target, source.tags.len);
+            }
 
             input.tags = std.mem.sliceAsBytes(source.tags);
             input.offsets = source.offsets;
@@ -126,7 +131,24 @@ pub fn Binding(comptime Target: type, comptime View: type, comptime layout: Layo
 
             return input;
         }
+
+        pub fn rollback(self: *const Self, allocator: *const std.mem.Allocator) void {
+            rollbackGroups(allocator, &self.groups, &self.initial);
+        }
     };
+}
+
+fn rollbackGroups(allocator: *const std.mem.Allocator, groups: *const transfer.Groups, initial: []const usize) void {
+    for (groups.*, initial, 0..) |group, count, index| {
+        if (group.len == 0) continue;
+
+        const added = group[0].storage.items.len - count;
+
+        if (added == 0) continue;
+        for (group) |column| column.storage.items.len = count;
+
+        transfer.discard(allocator, @ptrCast(groups), index, added);
+    }
 }
 
 const Shape = struct { present: usize, complete: bool };
@@ -160,8 +182,45 @@ pub fn append(allocator: std.mem.Allocator, target: anytype, source: anytype, co
     const entry = @import("generated_node_payload_import");
     var binding: Binding(@TypeOf(target), std.meta.Child(@TypeOf(source)), layout) = .{};
     const input = binding.bind(std.meta.Child(entry.Input), &allocator, target, source, copy_payloads, borrow_text);
+    var scratch_buf: [2048]u8 = undefined;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
 
-    return invoke(entry.executeValue, &input);
+    defer arena.deinit();
+
+    var fallback = std.heap.BufferFirstAllocator.init(&scratch_buf, arena.allocator());
+
+    const result = zx.columns.invoke(entry.executeValue, fallback.allocator(), &input) catch |err| {
+        binding.rollback(&allocator);
+
+        return failure(err);
+    };
+
+    appendHeaders(target, source.tags, result);
+
+    return switch (result.check) {
+        .Valid => {},
+        .Invalid => error.InvalidAst,
+        .Exhausted => error.OutOfMemory,
+    };
+}
+
+pub fn appendHeaders(target: anytype, tags: anytype, result: anytype) void {
+    const count: usize = @intCast(result.count);
+
+    if (count == 0) return;
+
+    const Tag = std.meta.Elem(@TypeOf(target.tags.items));
+    const selected: []const Tag = @ptrCast(tags[0..count]);
+
+    target.tags.appendSliceAssumeCapacity(selected);
+    target.offsets.appendSliceAssumeCapacity(result.offsets[0..count]);
+}
+
+fn reserveHeaders(allocator: std.mem.Allocator, target: anytype, count: usize) bool {
+    target.tags.ensureUnusedCapacity(allocator, count) catch return false;
+    target.offsets.ensureUnusedCapacity(allocator, count) catch return false;
+
+    return true;
 }
 
 pub fn check(target: anytype, source: anytype, comptime layout: Layout) headers.Error!headers.Counts(@TypeOf(target)) {

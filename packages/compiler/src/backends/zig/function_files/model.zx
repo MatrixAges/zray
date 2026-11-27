@@ -1,4 +1,4 @@
-import type { Destination, Functions } from "genz/reference_model"
+import type { Functions } from "genz/reference_model"
 import type { ReadColumn, TextColumn } from "memory"
 
 export type File = {
@@ -39,8 +39,7 @@ export type Assembly = {
     functions: Functions,
     names: string[],
     native_ids: u32?[],
-    native_names: string[],
-    destination: Destination
+    native_names: string[]
 }
 
 export type Publication = Assembly & {

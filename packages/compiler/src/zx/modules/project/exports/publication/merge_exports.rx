@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Publication" />
+
+    <Args in={Publication.Exports} out={Publication.Merged} />
+
+    <Task name="types" out={$ctx.merge}>
+        <Call
+            module="merge"
+            in={{
+                rows: $in.types,
+                kind: Publication.Kind.Types
+            }}
+        />
+    </Task>
+
+    <Task name="constants" out={$ctx.merge}>
+        <Call
+            module="merge"
+            in={{
+                rows: $in.constants,
+                kind: Publication.Kind.Constants
+            }}
+        />
+    </Task>
+
+    <Return
+        value={{
+            exports: $ctx.task.types,
+            constant_exports: $ctx.task.constants
+        }}
+    />
+</Module>

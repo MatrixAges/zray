@@ -1,0 +1,11 @@
+import type { Output as Input } from "./bindings"
+
+export type Output = u64
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.rows.pending = in
+
+    return in.row + 1
+}

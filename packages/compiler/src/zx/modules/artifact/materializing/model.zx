@@ -6,7 +6,7 @@ import type { Bindings } from "core/type_table/nominal"
 import type {
     Output as Origins
 } from "../../../analysis/semantic/extracting/materializing/nominal"
-import type { Input as Dependencies } from "../dependencies/publish"
+import type { Source as Dependencies } from "../dependencies/publish"
 import type { Plan } from "../planning/functions/model"
 import type { Extraction } from "../surface/model"
 import type { Input as Content } from "./content_model"

@@ -1,29 +1,16 @@
 import integers from "std:integer"
-import memory from "memory"
-import columns from "memory/columns"
 
 import claim from "./claim"
 
-import type { Publication as Input, Published as Output } from "./model"
+import type { Published as Output, Publication as Input } from "./model"
 
 export default function (in: Input): Output {
-    const { keys, buckets, digest, values, value, current } = in
+    const { keys, buckets, digest, current } = in
 
-    const used = integers.narrow(current)
-
-    const row = claim({
-        keys: columns.rowBufferBytes(keys),
-        capacity: memory.u32BufferLength(buckets),
-        rows: keys,
+    return claim({
+        keys,
         buckets,
-        digest,
-        used
+        key: digest,
+        used: integers.narrow(current)
     })
-
-    columns.writeRow(values, row, value)
-
-    return {
-        row,
-        used: row == current ? used + 1 : used
-    }
 }

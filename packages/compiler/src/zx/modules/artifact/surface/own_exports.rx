@@ -1,17 +1,15 @@
 <Module>
     <Type from="exports" as="Exports" />
 
-    <Args in={Exports.Input} out={void} />
+    <Args in={Exports.Request} out={void} />
 
-    <If on={$in.source.length != 0}>
+    <Loop on={$in.row < $in.source.length}>
         <Call
-            fn="allocate_exports"
+            module="next_export"
             in={{
-                target: $in.target,
-                count: $in.source.length
+                ...$in,
+                row: 0
             }}
         />
-
-        <Call fn="exports" in={$in} />
-    </If>
+    </Loop>
 </Module>

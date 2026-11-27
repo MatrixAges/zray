@@ -8,13 +8,12 @@ export default function (in: Input): Output {
     return {
         traversal: in.traversal,
         context: in.context,
-        buffers: in.buffers,
         scope: in.scope,
         routes: in.routes,
+        writes: in.writes,
         first,
         cursor: first + integers.widen(in.count),
         scope_first: integers.widen(in.scope_first),
-        scope_placement: in.scope_placement,
         valid: true,
         running: in.count != 0
     }

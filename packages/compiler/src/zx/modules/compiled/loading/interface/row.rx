@@ -3,11 +3,12 @@
 
     <Args in={Interface.Row} out={void} />
 
+    <Store from="rows" as="rows" />
+
     <Call
         fn="write_header"
         in={$in.pick([
             "exports",
-            "targets",
             "first",
             "instance",
             "row",
@@ -15,35 +16,35 @@
         ])}
     />
 
+    <Call fn="stage" setter={[$store.rows.pending]} />
+
     <Call
-        fn="types"
+        module="type_rows"
         in={{
             ...$in.pick([
                 "row",
-                "output",
                 "mapping"
             ]),
+            output: $ctx.stage,
             names: $in.exports.type_names,
             ids: $in.exports.type_ids,
             column: $in.targets.exports.types,
-            buffer: $in.buffers.types,
-            target: $in.targets.types
+            buffer: $in.buffers.types
         }}
     />
 
     <Call
-        fn="members"
+        module="member_rows"
         in={{
             ...$in.pick([
                 "row",
-                "output",
                 "mapping",
                 "first"
             ]),
+            output: $ctx.stage,
             source: $in.exports.members,
             column: $in.targets.exports.members,
-            buffer: $in.buffers.members,
-            target: $in.targets.members
+            buffer: $in.buffers.members
         }}
     />
 
@@ -52,9 +53,9 @@
         in={{
             ...$in.pick([
                 "row",
-                "output",
                 "mapping"
             ]),
+            output: $ctx.stage,
             source: $in.exports.constants,
             column: $in.targets.exports.constants,
             buffer: $in.buffers.constants,

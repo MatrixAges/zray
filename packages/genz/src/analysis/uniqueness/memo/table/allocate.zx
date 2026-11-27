@@ -1,32 +1,17 @@
+import bytes from "std:bytes"
 import integers from "std:integer"
 import capacity from "core/bytes/map/capacity"
-import { reserveRows } from "core/row_buffer"
-import memory from "memory"
 
-import type { Reserve as Input } from "./model"
-
-export type Output = u64
+import type { Resize as Input, Reserved as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { keys, values, buckets, owner, owner_rows, current, additional } = in
+    const { current, additional } = in
 
     const size = capacity(integers.narrow(current + integers.widen(additional)))
+    const buckets: u32[] = bytes.repeat(size.capacity, 0).map(byte => 0)[0]
 
-    reserveRows([
-        keys,
-        current,
-        size.limit,
-        owner_rows
-    ])
-
-    reserveRows([
-        values,
-        current,
-        size.limit,
-        owner_rows
-    ])
-
-    memory.allocateU32Buffer(owner, buckets, size.capacity)
-
-    return size.limit
+    return {
+        limit: size.limit,
+        buckets
+    }
 }

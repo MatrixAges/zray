@@ -53,7 +53,7 @@ pub const Window = struct {
         for (builder.plan.registration[first..][0..count]) |index| {
             self.view.borrow(builder, @intCast(index), &self.providers, &self.target.input);
 
-            const bound = abi.bind.executeIn(self.scratch.allocator(), &self.view.input) catch |err| switch (@as(anyerror, err)) {
+            const bound = abi.bind.executeIn(self.scratch.allocator(), &self.view.input, &self.view.native_view) catch |err| switch (@as(anyerror, err)) {
                 error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
                 else => return error.InvalidModule,
             };
@@ -68,9 +68,7 @@ pub const Window = struct {
             if (bound.body) |body| {
                 const publish_input: abi.PublishInput = .{
                     .request = try zx.columns.bridge(@FieldType(abi.PublishInput, "request"), self.scratch.allocator(), body),
-                    .module = index,
                     .storage = self.target.input.storage,
-                    .linked = @ptrCast(&builder.module_functions),
                     .empty = &empty,
                 };
 
@@ -82,6 +80,7 @@ pub const Window = struct {
                 const outcome = published orelse return error.InvalidModule;
 
                 if (outcome.entry) |retained| self.entry = retained;
+                if (outcome.linked) |id| builder.module_functions[index] = @fromBackingInt(id);
             }
 
             if (!self.view.body.entry) {
@@ -93,7 +92,6 @@ pub const Window = struct {
 
 const View = struct {
     input: abi.Binding,
-    mappings: admission.Mappings,
     admission_view: admission.View,
     native_view: native.View,
     native_binding: NativeBinding,
@@ -110,14 +108,12 @@ const View = struct {
         const types: []const u32 = @ptrCast(builder.type_mappings[index]);
         const entry = index == builder.plan.entry;
 
-        self.mappings = .{ .functions = &.{}, .modules = &.{} };
-
-        self.admission_view.init(module, types.len, &self.mappings);
+        self.admission_view.init(module, types.len);
 
         const has_natives = module.native_modules.count() != 0;
 
         if (has_natives) {
-            self.native_view.init(&builder.allocator, &builder.native_modules, module.native_modules, types, &self.mappings.modules);
+            self.native_view.init(&builder.allocator, &builder.native_modules, module.native_modules, types, true);
 
             self.native_binding = .{
                 .plan = zx.columns.pointer(@FieldType(NativeBinding, "plan"), self.native_view.input.plan.?),
@@ -163,8 +159,6 @@ const View = struct {
             self.request = .{
                 .source = &self.source,
                 .types = types,
-                .functions = @ptrCast(&self.mappings.functions),
-                .natives = @ptrCast(&self.mappings.modules),
                 .max_offset = std.math.maxInt(usize),
             };
         }
@@ -173,15 +167,13 @@ const View = struct {
             .body = if (module.function != null) &self.header else null,
             .entry = entry,
             .stores = module.stores.count(),
-            .slot = module.functions.count(),
-            .target = @ptrCast(&self.mappings.functions),
             .destination = if (linked) target else null,
             .control = if (module.function != null) &self.control else null,
         };
 
         if (module.functions.count() != 0) self.signatures.init(builder, index, self, providers, target);
 
-        self.dependency_view.init(builder, index, &self.mappings, providers);
+        self.dependency_view.init(builder, index, providers);
 
         self.input = .{
             .admission = &self.admission_view.input,
@@ -220,7 +212,6 @@ const SignatureView = struct {
             .storage = @ptrCast(&self.native_columns),
             .shape = null,
             .snapshot = @ptrCast(&self.modules),
-            .ids = @ptrCast(&view.mappings.modules),
         };
 
         self.read_slots = memory.bindColumnSet(Linked, false, &builder.functions);
@@ -235,7 +226,6 @@ const SignatureView = struct {
             .edges = &self.edges,
             .providers = &self.providers,
             .functions = @ptrCast(builder.module_functions),
-            .target = @ptrCast(&view.mappings.functions),
             .destination = destination,
             .read_columns = @ptrCast(&self.readable),
             .snapshot = @ptrCast(&self.snapshot),

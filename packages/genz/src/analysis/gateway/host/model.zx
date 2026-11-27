@@ -5,7 +5,7 @@ import type {
 import type { Table as Declarations } from "../../../ast/declarations/table/model"
 import type { Columns as Fields } from "../../../ast/fields/model"
 import type { State as Statements, Scope } from "../../../ast/statements/builder/model"
-import type { Destination, Published } from "../../../printer/model"
+import type { Published } from "../../../printer/model"
 
 export type Input = Bases
 
@@ -76,7 +76,7 @@ export type Node = {
     id: u32
 }
 
-export type Render = Destination
+export type Render = {}
 
 export type Output = Published
 

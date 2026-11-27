@@ -39,12 +39,17 @@ independent verification, and completion accounting.
 - **Concurrency cap**: max **3 concurrent executor sessions** (`MAX_CONCURRENT=3`),
   enforced via slot/topic/session/ownership `flock` locks.
 - **No long background / waiting tasks**: Orchestrator must **not** delegate
-  tasks requiring long background waiting (long builds/bootstraps/benchmarks,
-  daemons/dev servers, file watchers, `sleep`/polling loops, waiting on async
-  CI/external jobs, or nested background subagents) to Codex executors—run those
-  on the Orchestrator side so executor slots never block overall progress.
-  `run_codex.sh` disables `sleep_tool`, `goals`, and `multi_agent` at the CLI
-  level and prepends a foreground-only policy preamble on new sessions.
+  tasks requiring long background waiting (full builds like `zig build`, full
+  test suites like `zig build test`, 3-stage bootstraps, cold benchmarks,
+  long-running compilation/verification, daemons/dev servers, file watchers,
+  `sleep`/polling loops, waiting on async CI/external jobs, or nested background
+  subagents) to Codex executors—all full builds, full test suites, and
+  long-running verifications MUST run directly on the Orchestrator side so
+  executor slots never block overall progress. Codex workers may only run fast,
+  narrowly-scoped checks (e.g. `zxc fmt`, `zxc lint`, `zig fmt`,
+  `zig ast-check`). `run_codex.sh` disables `sleep_tool`, `goals`, and
+  `multi_agent` at the CLI level and prepends a foreground-only policy preamble
+  on new sessions.
 - **No `--worktree`**: creating Git worktrees or passing `--worktree` is
   **forbidden** (rejected with exit code `2`). Workers operate directly in
   `WORKDIR` under disjoint `--owns` scopes.

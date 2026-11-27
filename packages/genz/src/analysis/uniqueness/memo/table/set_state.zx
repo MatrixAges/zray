@@ -1,6 +1,8 @@
-export type Input = {
-    used: u32,
+import type { Published } from "./model"
+
+export type Input = Published & {
     limit: u64,
+    buckets: u32[],
     changed: bool
 }
 
@@ -9,9 +11,5 @@ export type Output = void
 export default function (in: Input, {
     $store
 }): Output {
-    $store.memo.state = {
-        used: in.used,
-        limit: in.limit,
-        changed: in.changed
-    }
+    $store.memo.state = in
 }

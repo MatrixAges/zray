@@ -99,7 +99,38 @@ pub fn appendColumns(allocator: std.mem.Allocator, target: *Storage, source: any
         .declarations = if (@TypeOf(declarations) != void) &declaration_view else null,
     };
 
-    return payloads.invoke(entry.executeValue, &input);
+    var scratch_buf: [2048]u8 = undefined;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+
+    defer arena.deinit();
+
+    var fallback = std.heap.BufferFirstAllocator.init(&scratch_buf, arena.allocator());
+
+    const result = zx.columns.invoke(entry.executeValue, fallback.allocator(), &input) catch |err| {
+        if (@TypeOf(declarations) != void) declaration_binding.rollback(&allocator);
+        if (has_fields) field_binding.rollback(&allocator);
+        if (@TypeOf(statements) != void) statement_binding.rollback(&allocator);
+
+        expression_binding.rollback(&allocator);
+
+        return payloads.failure(err);
+    };
+
+    payloads.appendHeaders(&target.expressions, expressions.tags, result.expressions);
+
+    if (@TypeOf(statements) != void) {
+        if (result.statements) |plan| payloads.appendHeaders(&target.statements, statements.tags, plan);
+    }
+
+    if (@TypeOf(declarations) != void) {
+        if (result.declarations) |plan| payloads.appendHeaders(&target.declaration_rows, declarations.tags, plan);
+    }
+
+    return switch (result.check) {
+        .Valid => {},
+        .Invalid => error.InvalidAst,
+        .Exhausted => error.OutOfMemory,
+    };
 }
 
 fn expressionColumns(comptime Module: type, source: anytype) ExpressionView(Module) {

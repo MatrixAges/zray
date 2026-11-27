@@ -15,7 +15,7 @@ export type Input = Batch.Pick("action", "item", "position") & Cursor.Pick(
     labels: ReadColumn,
     fallback: u8,
     inference: bool
-} & Request.Pick("cursor", "returns", "results", "coverage")
+} & Request.Pick("cursor", "returns", "results")
 
 export type CaseCoverage = Input.Pick(
     "frame",
@@ -24,8 +24,7 @@ export type CaseCoverage = Input.Pick(
     "fallback",
     "end",
     "case_remaining",
-    "case_stopped",
-    "coverage"
+    "case_stopped"
 )
 
 export type Row = CaseCoverage & Input.Pick("lengths", "inference")

@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="State" />
 
-    <Args in={State.Input} out={bool} />
+    <Args in={State.Input} out={u8[][][]?} />
 
     <Call fn="initialize" in={$in} />
 
@@ -11,14 +11,13 @@
         <Call
             module="render_part"
             in={{
-                snapshot: $ctx.build,
-                writer: $in.writer
+                snapshot: $ctx.build
             }}
         />
     </Task>
 
-    <If on={!$ctx.task.storage}>
-        <Return value={false} />
+    <If on={$ctx.task.storage == null}>
+        <Return value={null} />
     </If>
 
     <Task name="lifecycle" out={$ctx.render_part}>
@@ -33,14 +32,13 @@
         <Call
             module="render_part"
             in={{
-                snapshot: $ctx.build,
-                writer: $in.writer
+                snapshot: $ctx.build
             }}
         />
     </Task>
 
-    <If on={!$ctx.task.lifecycle}>
-        <Return value={false} />
+    <If on={$ctx.task.lifecycle == null}>
+        <Return value={null} />
     </If>
 
     <Task name="regions" out={$ctx.render_part}>
@@ -56,14 +54,13 @@
         <Call
             module="render_part"
             in={{
-                snapshot: $ctx.build,
-                writer: $in.writer
+                snapshot: $ctx.build
             }}
         />
     </Task>
 
-    <If on={!$ctx.task.regions}>
-        <Return value={false} />
+    <If on={$ctx.task.regions == null}>
+        <Return value={null} />
     </If>
 
     <Task name="request" out={$ctx.render_part}>
@@ -82,11 +79,21 @@
         <Call
             module="render_part"
             in={{
-                snapshot: $ctx.build,
-                writer: $in.writer
+                snapshot: $ctx.build
             }}
         />
     </Task>
 
-    <Return value={$ctx.task.request} />
+    <If on={$ctx.task.request == null}>
+        <Return value={null} />
+    </If>
+
+    <Return
+        value={[
+            ($ctx.task.storage ?? []),
+            ($ctx.task.lifecycle ?? []),
+            ($ctx.task.regions ?? []),
+            ($ctx.task.request ?? [])
+        ]}
+    />
 </Module>

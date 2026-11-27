@@ -1,39 +1,15 @@
-import { allocateRows } from "core/row_buffer"
-import memory from "memory"
-
-import { false_byte, true_byte } from "../../memo/disk/const"
 import encode from "../levels/encode"
 
-import type { Marks as Input } from "./model"
+import type { Mark } from "../demand/model"
+import type { EncodedMark } from "./columns"
 
-export type Output = void
+export type Input = Mark[]
+
+export type Output = EncodedMark[]
 
 export default function (in: Input): Output {
-    const { marks, target } = in
-    const { output, functions, slots, wants } = target.columns
-
-    allocateRows({
-        target: target.storage,
-        count: marks.length,
-        owner: in.owner
-    })
-
-    const first: u64 = 0
-
-    const written = loop(first, {
-        while: index => index < marks.length,
-        next: index => {
-            const mark = marks[index]
-
-            memory.writeColumnU8(
-                output,
-                index,
-                mark.output ? true_byte : false_byte
-            )
-            memory.writeColumnU32(functions, index, mark.function_index)
-            memory.writeColumnU32(slots, index, mark.slot)
-            memory.writeColumnU8(wants, index, encode(mark.want))
-            index += 1
-        }
-    })
+    return in.map(mark => ({
+        ...mark.omit(["want"]),
+        want: encode(mark.want)
+    }))[0]
 }

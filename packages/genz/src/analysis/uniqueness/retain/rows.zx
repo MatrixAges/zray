@@ -1,23 +1,13 @@
-import { allocateRows } from "core/row_buffer"
-import columns from "memory/columns"
-
-import type { ColumnAllocator, RowBuffer } from "memory/columns"
+import memory from "memory"
 
 export type Input = {
     source: u8[],
-    target: RowBuffer,
     count: u64,
-    owner: ColumnAllocator
+    width: u64
 }
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    allocateRows({
-        target: in.target,
-        count: in.count,
-        owner: in.owner
-    })
-
-    columns.copyRowPrefix(in.target, in.source, in.count)
+    return memory.borrowU8Range(in.source, 0, in.count * in.width)
 }

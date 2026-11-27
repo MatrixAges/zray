@@ -1,0 +1,18 @@
+<Module>
+    <Type from="native" as="Signature" />
+
+    <Args in={Signature.Input} out={Signature.Input} />
+
+    <Store from="rows" as="rows" />
+
+    <Call fn="native" in={$in} />
+
+    <Call fn="commit" setter={[$store.rows.pending]} />
+
+    <Return
+        value={{
+            ...$in,
+            index: $ctx.commit - $in.start
+        }}
+    />
+</Module>

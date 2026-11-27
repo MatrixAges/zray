@@ -3,22 +3,11 @@
 
     <Args in={Result.PublishSettlement} out={Result.PublishedSettlement} />
 
-    <Call
-        module="settlement"
-        in={{
-            ...$in.result.pick([
-                "passed",
-                "levels",
-                "reads"
-            ]),
-            ...$in.targets,
-            owner: $in.owner
-        }}
-    />
+    <Call module="settlement" in={$in} />
 
     <Return
         value={{
-            levels: $ctx.settlement,
+            ...$ctx.settlement,
             changed: $in.result.changed
         }}
     />

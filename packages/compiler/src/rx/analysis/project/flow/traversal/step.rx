@@ -4,7 +4,13 @@
 
     <Args in={Traversal.Iteration} out={Traversal.Iteration} />
 
-    <Call fn="host.refreshFlowCursor" in={$in.request.frame} />
+    <Call
+        fn="host.refreshFlowCursor"
+        in={[
+            $in.request.frame,
+            null
+        ]}
+    />
 
     <Call
         fn="advance"
@@ -16,11 +22,10 @@
     />
 
     <Call
-        fn="host.advanceLengthSlot"
+        fn="host.refreshFlowCursor"
         in={[
-            $in.request.cursor_length,
-            0,
-            $ctx.advance.next - $in.request.cursor.first
+            $in.request.frame,
+            $ctx.advance.next
         ]}
     />
 
@@ -46,7 +51,6 @@
             lengths: $in.request.lengths,
             labels: $in.request.labels,
             fallback: $in.request.fallback,
-            coverage: $in.request.coverage,
             inference: $in.request.returns != null,
             cursor: $in.request.cursor,
             returns: $in.request.returns,

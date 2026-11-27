@@ -2,15 +2,59 @@
     <Type from="model" as="Module" />
     <Type from="../model" as="Headers" />
 
-    <Args in={Module.Input} out={Headers.Check} />
+    <Args in={Module.Input} out={Module.Output} />
 
     <Call module="../payload/validated" in={$in.expressions} />
 
-    <If on={$ctx.validated != Headers.Check.Valid}>
-        <Return value={$ctx.validated} />
+    <If on={$ctx.validated.check != Headers.Check.Valid}>
+        <Return
+            value={{
+                check: $ctx.validated.check,
+                expressions: $ctx.validated,
+                statements: null,
+                declarations: null
+            }}
+        />
     </If>
 
-    <Call module="members" in={$in} />
+    <Task name="statements" out={$ctx.optional_payload}>
+        <Call module="optional_payload" in={$in.statements} />
+    </Task>
 
-    <Return value={$ctx.members} />
+    <If on={$ctx.task.statements.check != Headers.Check.Valid}>
+        <Return
+            value={{
+                check: $ctx.task.statements.check,
+                expressions: $ctx.validated,
+                statements: $ctx.task.statements,
+                declarations: null
+            }}
+        />
+    </If>
+
+    <If on={$in.fields != null}>
+        <Call module="../plain/append" in={$in.fields} />
+
+        <If on={$ctx.append != Headers.Check.Valid}>
+            <Return
+                value={{
+                    check: $ctx.append,
+                    expressions: $ctx.validated,
+                    statements: $ctx.task.statements,
+                    declarations: null
+                }}
+            />
+        </If>
+    </If>
+
+    <Call module="optional_payload" in={$in.declarations} />
+
+    <Return
+        value={{
+            check: $ctx.optional_payload.check,
+            expressions: $ctx.validated,
+            statements: $ctx.task.statements,
+            declarations: $ctx.optional_payload
+        }}
+    />
 </Module>

@@ -3,6 +3,8 @@
 
     <Args in={Members.Input} out={u64} />
 
+    <Store from="rows" as="rows" />
+
     <Call fn="allocate" in={$in} />
 
     <If on={$in.declared}>
@@ -10,36 +12,39 @@
             fn="write"
             in={{
                 ...$in.callable,
-                target: $in.target,
                 name: "",
                 kind: $in.kinds.callable,
-                row: 0
+                row: 0,
+                own_name: false
             }}
         />
+
+        <Call fn="commit" setter={[$store.rows.pending]} />
     </If>
 
     <If on={$in.forwarded.length != 0}>
         <Call
             fn="forward"
             in={{
-                target: $in.buffer,
                 rows: $in.forwarded,
-                offset: $in.declared ? $in.stride : 0
+                row: $in.declared ? 1 : 0
             }}
         />
+
+        <Call fn="commit" setter={[$store.rows.pending]} />
     </If>
 
-    <If on={$in.bindings.count != 0}>
+    <Loop on={$in.index < $in.bindings.count}>
         <Call
-            fn="native"
+            module="next_native"
             in={{
-                target: $in.target,
                 kinds: $in.kinds,
                 bindings: $in.bindings,
-                start: $ctx.allocate - $in.bindings.count
+                start: $ctx.allocate - $in.bindings.count,
+                index: 0
             }}
         />
-    </If>
+    </Loop>
 
     <Return value={$ctx.allocate} />
 </Module>

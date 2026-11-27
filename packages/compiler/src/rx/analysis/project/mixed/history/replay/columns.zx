@@ -1,48 +1,38 @@
 import memory from "memory"
 
-import type { Restore as Input } from "./model"
+import type { Range, Restore as Input } from "./model"
 
-export type Output = void
+export type Output = Range[]
 
 export default function (in: Input): Output {
-    const { boundaries, group, allocator } = in
+    const { boundaries, column_count } = in
     const { words, stride, functions_offset } = boundaries
 
     const first = in.first * stride
     const end = in.end * stride
-    const columns = memory.transferColumnCount(group)
+    const ranges: Output = []
 
-    const reserved = loop(0, {
-        while: column => column < columns,
-        next: column => {
+    return loop({
+        column: 0,
+        ranges
+    }, {
+        while: state => state.column < column_count,
+        next: state => {
+            const { column } = state
             const slot = column < functions_offset ? column : functions_offset
             const from = memory.readColumnIndex(words, first + slot)
             const to = memory.readColumnIndex(words, end + slot)
 
             if (from != to) {
-                const length =
-                    memory.reserveTransferColumn(allocator, group, column, to - from)
+                state.ranges = state.ranges.push({
+                    column,
+                    first: from,
+                    count: to - from
+                })[0]
             }
 
-            column += 1
-        }
-    })
-
-    const restored = loop(0, {
-        while: column => column < columns,
-        next: column => {
-            const slot = column < functions_offset ? column : functions_offset
-            const from = memory.readColumnIndex(words, first + slot)
-            const to = memory.readColumnIndex(words, end + slot)
-
-            if (from != to) {
-                const count = to - from
-
-                memory.copyTransferRange(group, column, from, count)
-                memory.publishTransferColumn(group, column, count)
-            }
-
-            column += 1
-        }
+            state.column += 1
+        },
+        return: state => state.ranges
     })
 }

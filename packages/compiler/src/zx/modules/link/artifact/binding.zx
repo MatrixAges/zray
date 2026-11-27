@@ -24,9 +24,9 @@ export type Input = {
     admission: Admission,
     native?: Native,
     signatures?: Batch
-    dependencies: Dependencies,
+    dependencies: Dependencies.Omit("functions"),
     body: Body.Omit("first"),
-    source?: PrepareBody.Omit("first", "append")
+    source?: PrepareBody.Omit("first", "append", "functions", "natives")
 }
 
 export type Output = {

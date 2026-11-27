@@ -36,7 +36,6 @@
             fn="admit"
             in={{
                 states: $in.states,
-                marks: $in.marks,
                 row: $ctx.lookup,
                 depth: $in.depth
             }}

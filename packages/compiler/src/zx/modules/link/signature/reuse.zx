@@ -1,10 +1,11 @@
-import integers from "std:integer"
-import memory from "memory"
+import slot from "../artifact/body/slot"
 
 import type { Reuse as Input } from "./model"
 
-export type Output = void
+export type Output = u32?[]
 
 export default function (in: Input): Output {
-    memory.writeOptionalU32(in.target, in.index, integers.narrow(in.row))
+    const id: u32? = slot(in.row)
+
+    return in.ids.push(id)[0]
 }

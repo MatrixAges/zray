@@ -8,7 +8,7 @@
     <Args
         in={{
             base: TypeDelta.Output,
-            input: Model.Input,
+            input: Model.LoadInput,
             merged: Merge.State,
             native: NativeModel.State
         }}
@@ -49,7 +49,8 @@
                 types: $in.native.type_ids,
                 natives: $in.native.mapping
             },
-            selection: $ctx.plan.selection
+            selection: $ctx.plan.selection,
+            export_index: $in.input.export_index
         }}
     />
 </Module>

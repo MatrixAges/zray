@@ -1,21 +1,18 @@
 <Module>
     <Type from="model" as="Scan" />
     <Type from="../model" as="Trace" />
+    <Type from="../../../memo/restore/model" as="Memo" />
 
-    <Args in={Scan.Restore} out={bool} />
+    <Args in={Scan.Restore} out={Memo.Restored?} />
 
     <Call
         module="../../../memo/restore/run"
         in={{
-            normalized: $in.normalized,
-            renewed: $in.renewed,
-            state: {
-                ...$in.summaries,
-                source: $in.source,
-                body: $in.cursor.body,
-                callees: $in.callees[$in.cursor.body],
-                demanded: $in.cursor.phase == Trace.Phase.Demanded
-            }
+            ...$in.summaries,
+            source: $in.source,
+            body: $in.cursor.body,
+            callees: $in.callees[$in.cursor.body],
+            demanded: $in.cursor.phase == Trace.Phase.Demanded
         }}
     />
 

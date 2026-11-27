@@ -43,8 +43,7 @@ pub const View = struct {
     exports: Rows,
     imports: Rows,
     constants: @import("../../../../analysis/constants/columns.zig").Pair(Constants),
-    mappings: std.meta.Child(@FieldType(Input, "mappings")),
-    pub fn init(self: *View, module: *const Module, type_count: usize, mappings: *Mappings) void {
+    pub fn init(self: *View, module: *const Module, type_count: usize) void {
         self.natives = zx.columns.columns(Natives, module.native_modules);
         self.signatures = zx.columns.columns(Signatures, module.functions);
         self.layout = .{ .native_modules = &self.natives, .signatures = &self.signatures };
@@ -58,18 +57,10 @@ pub const View = struct {
 
         if (has_constants) self.constants.init(module.types, module.constant_exports, module.constant_imports);
 
-        self.mappings = .{
-            .functions = @ptrCast(&mappings.functions),
-            .modules = @ptrCast(&mappings.modules),
-            .function_count = module.functions.count() + @intFromBool(module.function != null),
-            .module_count = module.native_modules.count(),
-        };
-
         self.input = .{
             .layout = &self.layout,
             .surface = &self.surface,
             .constants = if (has_constants) &self.constants.input else null,
-            .mappings = &self.mappings,
         };
     }
 };

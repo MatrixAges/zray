@@ -6,7 +6,7 @@
 
     <Call module="../../../node_headers/payload/validated" in={$in.ast} />
 
-    <If on={$ctx.validated == Headers.Check.Valid}>
+    <If on={$ctx.validated.check == Headers.Check.Valid}>
         <If on={$in.abi != null}>
             <Call
                 fn="../publish_abi"
@@ -18,7 +18,7 @@
 
             <Return
                 value={{
-                    check: $ctx.validated,
+                    ast: $ctx.validated,
                     touched: $ctx.publish_abi
                 }}
             />
@@ -35,7 +35,7 @@
 
             <Return
                 value={{
-                    check: $ctx.validated,
+                    ast: $ctx.validated,
                     touched: $ctx.publish_shared
                 }}
             />
@@ -44,7 +44,7 @@
 
     <Return
         value={{
-            check: $ctx.validated,
+            ast: $ctx.validated,
             touched: []
         }}
     />

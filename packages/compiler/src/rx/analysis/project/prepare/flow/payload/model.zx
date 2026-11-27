@@ -1,8 +1,33 @@
-import type { Output, Payload } from "../model"
+import type { Publication as Selection } from "../../selection/model"
+import type { Output } from "../model"
 import type { Tree } from "../tree"
 
 export type Input = {
     tree: Tree,
-    payload: Payload,
     event: Output
+}
+
+export type Unit = {
+    row: u32,
+    first: u32,
+    count: u32
+}
+
+export type Task = Unit & {
+    id?: u32,
+    node: u8[],
+    output?: u8[]
+}
+
+export type Result = {
+    row: u32,
+    attribute: u8[]
+}
+
+export type Payload = {
+    node?: u8[],
+    result?: Result,
+    task?: Task,
+    group?: Unit,
+    selection?: Selection
 }

@@ -3,126 +3,45 @@
 
     <Args in={Flow.Apply} out={void} />
 
-    <If on={$in.event.route == Flow.Route.Switch || $in.event.route == Flow.Route.If}>
+    <If on={$in.event.header == null}>
+        <Call fn="diagnostic" in={$in.event.route} />
+
         <Call
-            module="../selection/publish"
-            in={{
-                tree: $in.tree,
-                rows: $in.payload.selections,
-                units: $in.index.pick([
-                    "unit_firsts",
-                    "unit_counts"
-                ]),
-                facts: $in.index.facts,
-                slot: $in.event.slot,
-                row: $in.event.item,
-                conditional: $in.event.route == Flow.Route.If,
-                has_else: $in.event.else_branch
-            }}
+            fn="tree"
+            in={[
+                $in.tree,
+                $in.event.slot
+            ]}
+        />
+
+        <Call
+            fn="host.rejectPreparedFlow"
+            in={[
+                $in.invocation.state,
+                $ctx.tree,
+                $ctx.diagnostic.at_output,
+                $ctx.diagnostic.code,
+                $ctx.diagnostic.message
+            ]}
         />
 
         <Else>
-            <Switch on={$in.event.route}>
-                <Case value={Flow.Route.Call}>
-                    <Call
-                        fn="tree"
-                        in={[
-                            $in.tree,
-                            $in.event.slot
-                        ]}
-                    />
+            <Call module="payload/plan" in={$in} />
 
-                    <Call
-                        fn="host.beginPreparedCall"
-                        in={[
-                            $in.invocation.state,
-                            $ctx.tree,
-                            $in.event.item,
-                            $in.event.previous_end
-                        ]}
-                    />
+            <Call
+                fn="host.beginPreparedCall"
+                in={[
+                    $in.invocation.state,
+                    $in.event.header,
+                    $in.event.implicit_header,
+                    $ctx.plan,
+                    $in.event.previous_end
+                ]}
+            />
 
-                    <Call module="../invocation/run" in={$in.invocation} />
-                </Case>
-
-                <Case value={Flow.Route.Result}>
-                    <Call
-                        fn="payload/result"
-                        in={$in.pick([
-                            "tree",
-                            "payload",
-                            "event"
-                        ])}
-                    />
-                </Case>
-
-                <Case value={Flow.Route.Task}>
-                    <Call
-                        fn="payload/write_task"
-                        in={$in.pick([
-                            "tree",
-                            "payload",
-                            "event"
-                        ])}
-                    />
-                </Case>
-
-                <Case value={Flow.Route.ParallelTask}>
-                    <If on={$in.event.implicit_item != null}>
-                        <Call
-                            fn="payload/result"
-                            in={$in.pick([
-                                "tree",
-                                "payload",
-                                "event"
-                            ])}
-                        />
-                    </If>
-
-                    <Call
-                        fn="payload/write_task"
-                        in={$in.pick([
-                            "tree",
-                            "payload",
-                            "event"
-                        ])}
-                    />
-                </Case>
-
-                <Case value={Flow.Route.Parallel}>
-                    <Call
-                        fn="payload/parallel"
-                        in={$in.pick([
-                            "tree",
-                            "payload",
-                            "event"
-                        ])}
-                    />
-                </Case>
-
-                <Default>
-                    <Call fn="diagnostic" in={$in.event.route} />
-
-                    <Call
-                        fn="tree"
-                        in={[
-                            $in.tree,
-                            $in.event.slot
-                        ]}
-                    />
-
-                    <Call
-                        fn="host.rejectPreparedFlow"
-                        in={[
-                            $in.invocation.state,
-                            $ctx.tree,
-                            $ctx.diagnostic.at_output,
-                            $ctx.diagnostic.code,
-                            $ctx.diagnostic.message
-                        ]}
-                    />
-                </Default>
-            </Switch>
+            <If on={$in.event.route == Flow.Route.Call}>
+                <Call module="../invocation/run" in={$in.invocation} />
+            </If>
         </Else>
     </If>
 </Module>

@@ -1,5 +1,5 @@
 import integers from "std:integer"
-import { load_numerator, load_denominator } from "core/bytes/index/const"
+import empty from "core/integer/wide_index/empty"
 import memory from "memory"
 import columns from "memory/columns"
 
@@ -8,20 +8,18 @@ import append from "./append"
 import { Action, Status } from "./model"
 import select from "./select"
 
-import type { Input, Output } from "./model"
+import type { Input, Output, Pending } from "./model"
 
 export default function (in: Input): Output {
     const { source, registry, range } = in
-    const { published, buckets } = registry
 
-    const initial_buckets: u32[]? = null
+    const pending: Pending = {
+        rows: [],
+        slots: empty({})
+    }
 
     return loop({
-        count: registry.count,
-        space: registry.space,
-        capacity: registry.capacity,
-        limit: registry.capacity * load_numerator / load_denominator,
-        buckets: initial_buckets,
+        pending,
         next: 0,
         status: Status.Done
     }, {
@@ -32,35 +30,25 @@ export default function (in: Input): Output {
             const version = columns.readColumnU32(source.schema_version, row)
 
             const selected = select({
-                published,
-                buckets,
+                registry,
+                pending: state.pending,
                 range,
-                capacity: state.capacity,
-                rebuilt: state.buckets,
                 identity,
                 version,
                 id: columns.readColumnU32(source.function, row)
             })
 
             if (selected.action == Action.Append) {
-                const cursor = append({
+                state.pending = append({
                     registry,
-                    count: state.count,
-                    space: state.space,
-                    capacity: state.capacity,
-                    limit: state.limit,
-                    buckets: state.buckets,
-                    identity,
-                    version,
-                    slot: selected.slot,
-                    function: selected.function
+                    pending: state.pending,
+                    entry: {
+                        identity,
+                        version,
+                        slot: selected.slot,
+                        function: selected.function
+                    }
                 })
-
-                state.count = cursor.count
-                state.space = cursor.space
-                state.capacity = cursor.capacity
-                state.limit = cursor.limit
-                state.buckets = cursor.buckets
             } else if (selected.action == Action.Compare) {
                 const equivalent = compare({
                     functions: in.functions,
@@ -84,8 +72,8 @@ export default function (in: Input): Output {
         },
         return: state => {
             status: state.status,
-            buckets: state.buckets,
-            count: state.count
+            buckets: state.pending.buckets,
+            rows: state.pending.rows
         }
     })
 }

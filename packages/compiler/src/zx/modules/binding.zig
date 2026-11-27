@@ -27,18 +27,18 @@ pub fn deliver(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item:
 
     publisher.init(lists.types, lists.functions);
 
-    if (lists.reexports) |list| reexports.init(list);
+    if (lists.reexports) |list| reexports.init(list, allocator);
 
-    defer if (lists.reexports != null) reexports.commit();
+    defer if (lists.reexports != null) reexports.settle();
+    errdefer if (lists.reexports != null) reexports.discard();
 
     const input: Input = .{
         .request = storage.init(item, symbols),
         .destinations = &publisher.destinations,
         .reexports = if (lists.reexports != null) &reexports.input else null,
-        .owner = @ptrCast(&allocator),
     };
 
-    const result = zx.columns.invoke(rule.executeValue, temporary, &input) catch |err|
+    const result = rule.executeIn(temporary, &input, &reexports) catch |err|
         return bindingFailure(allocator, item.span, reporter, err);
 
     if (result.message.len != 0) return reporter.fail(

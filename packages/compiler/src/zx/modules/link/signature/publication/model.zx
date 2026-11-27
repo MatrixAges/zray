@@ -1,5 +1,5 @@
 import type { Table } from "core/signature_table/model"
-import type { Allocator, OptionalU32Buffer } from "memory"
+import type { Allocator } from "memory"
 import type {
     ColumnAllocator,
     ColumnSet,
@@ -31,7 +31,5 @@ export type Destination = {
 
 export type Input = Record & {
     destination: Destination,
-    empty: BodyColumns,
-    mapping: OptionalU32Buffer,
-    id: u64
+    empty: BodyColumns
 }

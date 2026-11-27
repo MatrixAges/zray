@@ -1,52 +1,21 @@
-import bytes from "std:bytes"
 import integers from "std:integer"
-import strings from "std:string"
-import { allocateRowList } from "core/row_buffer"
 import memory from "memory"
 
-import type { ListColumn } from "memory"
-import type { RowBuffer, WriteColumn } from "memory/columns"
-import type { TypeFields } from "./model"
+import { Kind } from "./publication"
 
-export type Input = {
-    names: ListColumn,
-    ids: ListColumn,
-    row: u64,
-    output: u64,
-    mapping: u32[],
-    column: WriteColumn,
-    buffer: RowBuffer,
-    target: TypeFields
-}
+import type { Pending as Output, TypeStep } from "./publication"
 
-export type Output = void
+export type Input = TypeStep.Omit("count")
 
 export default function (in: Input): Output {
-    const { names, ids, row, mapping, target } = in
+    const { names, ids, row, index, mapping } = in
 
-    const count = memory.listLength(names, row)
+    const id = memory.readListU32(ids, row, index)
 
-    allocateRowList([
-        in.column,
-        in.output,
-        in.buffer,
-        count
-    ])
-
-    const published = loop(0, {
-        while: index => index < count,
-        next: index => {
-            const name = strings.copy(memory.readListText(names, row, index))
-            const id = memory.readListU32(ids, row, index)
-
-            memory.writeColumnBytes(target.names, index, bytes.fromText(name))
-            memory.writeColumnU32(
-                target.ids,
-                index,
-                mapping[integers.widen(id)]
-            )
-
-            index += 1
-        }
-    })
+    return {
+        kind: Kind.Type,
+        row: index,
+        text: memory.readListText(names, row, index),
+        id: mapping[integers.widen(id)]
+    }
 }

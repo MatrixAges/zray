@@ -23,7 +23,6 @@
             contracts: $in.source.functions.contracts[$in.selected.id],
             names: $in.source.names,
             members: [],
-            destination: $in.source.destination,
             native: null
         }}
     />

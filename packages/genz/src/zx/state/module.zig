@@ -18,16 +18,15 @@ pub fn render(allocator: std.mem.Allocator, objects: state.ObjectColumns, requir
     const view = objects.bind(std.meta.Child(@FieldType(Input, "objects")));
 
     const input: Input = .{
-        .writer = @ptrCast(&writer),
         .objects = &view,
         .execute = execute,
         .io = requirements.io,
         .process = requirements.process,
     };
 
-    const valid = entry.executeValue(arena.allocator(), if (indirect) &input else input) catch |err| return failure(err);
+    const result = entry.executeValue(arena.allocator(), if (indirect) &input else input) catch |err| return failure(err);
 
-    if (!valid) return error.OutOfMemory;
+    try @import("../../printer/module.zig").writeGroups(&writer, result orelse return error.OutOfMemory);
 
     return writer.finish();
 }

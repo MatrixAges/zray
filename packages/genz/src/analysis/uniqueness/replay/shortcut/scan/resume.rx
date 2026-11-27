@@ -23,7 +23,10 @@
         value={{
             cursor: $ctx.advance.cursor,
             replacements: $ctx.consume.replacements,
-            cleared: $ctx.advance.cleared
+            cleared: $ctx.advance.cleared,
+            restored: null,
+            digest: null,
+            hits: []
         }}
     />
 </Module>

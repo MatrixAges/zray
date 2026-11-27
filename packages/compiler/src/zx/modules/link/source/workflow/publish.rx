@@ -15,8 +15,7 @@
 
     <Return
         value={{
-            status: Source.Status.Ready,
-            buckets: []
+            status: Source.Status.Ready
         }}
     />
 </Module>

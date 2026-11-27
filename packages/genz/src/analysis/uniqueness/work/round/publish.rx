@@ -1,16 +1,15 @@
 <Module>
     <Type from="model" as="Round" />
-    <Type from="../model" as="Work" />
 
-    <Args in={Round.Settlement} out={Work.Cursor} />
+    <Args in={Round.Settlement} out={u64[]} />
 
     <Call
         fn="../notify"
         in={{
-            ...$in.omit([
-                "body",
-                "levels",
-                "outputs"
+            ...$in.pick([
+                "changed",
+                "active",
+                "callers"
             ]),
             demand_body: null
         }}
@@ -19,19 +18,21 @@
     <If on={$in.body + 1 < $in.active.length}>
         <Call
             fn="publish_output"
+            in={$in.omit([
+                "changed",
+                "active"
+            ])}
+        />
+
+        <Call
+            fn="join_indices"
             in={{
-                ...$in.omit([
-                    "changed",
-                    "active"
-                ]),
-                state: {
-                    ...$in.state,
-                    cursor: $ctx.notify
-                }
+                first: $ctx.notify,
+                second: $ctx.publish_output
             }}
         />
 
-        <Return value={$ctx.publish_output} />
+        <Return value={$ctx.join_indices} />
     </If>
 
     <Return value={$ctx.notify} />

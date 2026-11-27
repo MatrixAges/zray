@@ -29,18 +29,11 @@
                 }}
             />
 
-            <Call
-                fn="slot"
-                in={{
-                    first: $in.request.append,
-                    slot: $in.module,
-                    target: $in.linked
-                }}
-            />
+            <Call fn="slot" in={$in.request.append} />
 
             <Return
                 value={{
-                    entry: null
+                    linked: $ctx.slot
                 }}
             />
         </If>

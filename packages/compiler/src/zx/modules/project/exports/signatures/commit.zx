@@ -1,0 +1,21 @@
+import columns from "memory/columns"
+
+import type { Change } from "./model"
+
+export type Input = Change?
+
+export type Output = u64
+
+export default function (in: Input, {
+    $store
+}): Output {
+    if (in == null) {
+        columns.requireColumnBounds(false)
+
+        return 0
+    }
+
+    $store.rows.pending = in
+
+    return in.row + 1
+}

@@ -28,7 +28,7 @@
                 <Return
                     value={{
                         status: Source.Status.Ready,
-                        buckets: $ctx.insert
+                        initializer: $ctx.insert
                     }}
                 />
             </If>
@@ -44,8 +44,7 @@
 
             <Return
                 value={{
-                    status: Source.Status.Ready,
-                    buckets: []
+                    status: Source.Status.Ready
                 }}
             />
         </If>
@@ -61,8 +60,7 @@
 
         <Return
             value={{
-                status: Source.Status.Invalid,
-                buckets: []
+                status: Source.Status.Invalid
             }}
         />
     </If>
@@ -85,8 +83,7 @@
         <If on={$ctx.source == Rows.PublicationStatus.Complete}>
             <Return
                 value={{
-                    status: Source.Status.Ready,
-                    buckets: []
+                    status: Source.Status.Ready
                 }}
             />
         </If>
@@ -94,8 +91,7 @@
 
     <Return
         value={{
-            status: Source.Status.Invalid,
-            buckets: []
+            status: Source.Status.Invalid
         }}
     />
 </Module>

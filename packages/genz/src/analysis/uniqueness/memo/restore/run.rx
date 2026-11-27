@@ -1,42 +1,45 @@
 <Module>
     <Type from="model" as="Restore" />
 
-    <Args in={Restore.Restore} out={bool} />
+    <Args in={Restore.Input} out={Restore.Restored?} />
 
-    <Call module="inspect" in={$in.state} />
+    <Call module="inspect" in={$in} />
 
     <If on={$ctx.inspect != null}>
         <Call
-            fn="../disk/load/normalized"
+            fn="../disk/load/normalized_rows"
             in={{
-                source: $in.state.source,
+                source: $in.source,
                 start: $ctx.inspect.normalized_start,
-                count: $ctx.inspect.normalized_count,
-                target: $in.normalized
+                count: $ctx.inspect.normalized_count
             }}
         />
 
         <Call
-            fn="../disk/load/renewed"
+            fn="../disk/load/renewed_rows"
             in={{
-                source: $in.state.source,
+                source: $in.source,
                 start: $ctx.inspect.renewed_start,
-                count: $ctx.inspect.renewed_count,
-                target: $in.renewed
+                count: $ctx.inspect.renewed_count
             }}
         />
 
         <Call
             module="publish"
             in={{
-                input: $in.state,
+                input: $in,
                 facts_start: $ctx.inspect.facts_start,
                 wants_start: $ctx.inspect.wants_start
             }}
         />
 
-        <Return value={true} />
+        <Return
+            value={{
+                normalized: $ctx.normalized_rows,
+                renewed: $ctx.renewed_rows
+            }}
+        />
     </If>
 
-    <Return value={false} />
+    <Return value={null} />
 </Module>

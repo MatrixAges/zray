@@ -23,12 +23,6 @@ pub fn words(bytes: []const u8) zx.memory.ReadColumn {
     return .{ .bytes = bytes, .count = bytes.len / width, .stride = width, .offset = 0 };
 }
 
-pub fn wordTarget(bytes: []u8) zx.memory.WriteColumn {
-    const width = @sizeOf(usize);
-
-    return .{ .items = bytes.ptr, .count = bytes.len / width, .stride = width, .width = width };
-}
-
 pub fn bindTransfers(columns: []zx.memory.column_transfer.Column, storage: anytype, source: anytype) void {
     inline for (@typeInfo(@TypeOf(storage.*)).@"struct".field_names, 0..) |name, index| {
         columns[index] = zx.memory.column_transfer.bind(&@field(storage, name), @field(source, name), false, true);

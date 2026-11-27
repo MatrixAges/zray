@@ -23,17 +23,16 @@ export default function (in: Input): Output {
 
     const state = memory.borrowListBytes(index.states, cursor.visit)
 
-    const row = probe({
+    const result = probe({
         kind,
         identity:
             memory.readFixedBytes(tables.identities, cursor.body, tables.digest_width),
         state,
-        digest: tables.digest,
         table: index.table
     })
 
     return {
-        row,
+        ...result,
         state
     }
 }

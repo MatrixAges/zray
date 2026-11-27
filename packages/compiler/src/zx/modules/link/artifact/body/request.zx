@@ -2,8 +2,8 @@ import integers from "std:integer"
 
 import { Kind } from "../../../artifact/remapping/model"
 import sparse from "../../../artifact/remapping/sparse"
+import reuse from "../../signature/reuse"
 
-import type { OptionalU32Buffer } from "memory"
 import type {
     Input as Materialize
 } from "../../../artifact/materializing/function_model"
@@ -12,8 +12,8 @@ import type { Root } from "../../../artifact/materializing/publication/source_mo
 export type Input = {
     source: Root.Omit("external", "native_module"),
     types: u32[],
-    functions: OptionalU32Buffer,
-    natives: OptionalU32Buffer,
+    functions: u32?[],
+    natives: u32?[],
     max_offset: u64,
     first: u64,
     append: bool
@@ -51,7 +51,10 @@ export default function (in: Input): Output {
                         prefix: 0,
                         count: 0
                     },
-                    functions: sparse(functions),
+                    functions: sparse(reuse({
+                        ids: functions,
+                        row: first
+                    })),
                     natives: sparse(natives),
                     candidate: append ? null : integers.narrow(first)
                 },

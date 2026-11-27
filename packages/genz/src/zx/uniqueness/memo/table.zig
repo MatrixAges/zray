@@ -15,7 +15,6 @@ pub fn Table(comptime Value: type) type {
     return struct {
         const Self = @This();
         pub const empty: Self = .{};
-        pub const Publication = publication.Frame;
 
         keys: std.ArrayList(Digest) = .empty,
         values: std.ArrayList(Value) = .empty,
@@ -56,38 +55,23 @@ pub fn Table(comptime Value: type) type {
             return columns.invoke(unused.executeValue, scratch.allocator(), &input) catch unreachable;
         }
         fn touch(self: *Self, key: Digest) ?u32 {
-            var used = self.useColumn();
+            const row = self.rowFor(&key) orelse return null;
 
-            const input: std.meta.Child(touching.Input) = .{
-                .keys = std.mem.sliceAsBytes(self.keys.items),
-                .buckets = @ptrCast(&self.buckets),
-                .capacity = self.buckets.len,
-                .key = &key,
-                .used = @ptrCast(&used),
-            };
+            self.values.items[row].used = true;
 
-            var scratch = std.heap.FixedBufferAllocator.init(&.{});
-
-            return columns.invoke(touching.executeValue, scratch.allocator(), &input) catch unreachable;
+            return row;
         }
-        pub fn useColumn(self: *Self) zx.memory.WriteColumn {
-            return publication.writeColumn(self.values.items, "used");
-        }
-        pub fn probe(self: *const Self, comptime View: type, used: ?*zx.memory.WriteColumn) View {
+        pub fn probe(self: *const Self, comptime View: type) View {
             return .{
                 .keys = std.mem.sliceAsBytes(self.keys.items),
-                .buckets = @ptrCast(&self.buckets),
-                .capacity = self.buckets.len,
-                .used = if (used) |column| @ptrCast(column) else null,
+                .buckets = self.buckets,
             };
         }
         fn rowFor(self: *const Self, key: *const Digest) ?u32 {
             const input: std.meta.Child(touching.Input) = .{
                 .keys = std.mem.sliceAsBytes(self.keys.items),
-                .buckets = @ptrCast(&self.buckets),
-                .capacity = self.buckets.len,
+                .buckets = self.buckets,
                 .key = key,
-                .used = null,
             };
 
             var scratch = std.heap.FixedBufferAllocator.init(&.{});

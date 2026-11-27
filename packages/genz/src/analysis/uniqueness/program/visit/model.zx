@@ -1,11 +1,9 @@
-import type { WriteColumn } from "memory"
-import type { WriteColumn as Column } from "memory/columns"
+import type { SettlementRecord } from "../../function/result/model"
 import type { Input as RetainSettlement } from "../../function/result/retain"
 import type { Input as Contributions } from "../../function/updates/contributions"
 import type { Input as Marks } from "../../function/updates/marks"
-import type { Target as MemoTarget } from "../../memo/record/model"
+import type { Store as MemoTarget } from "../../memo/table/model"
 import type { Planned } from "../../replay/ordered/model"
-import type { Growth as GrowthRetention } from "../../retain/model"
 import type { Input as RetainRows } from "../../retain/rows"
 
 export enum Origin {
@@ -19,33 +17,31 @@ export type Available = {
     ahead: bool
 }
 
-export type Growth = {
-    target: WriteColumn,
-    rows: u8[],
-    snapshot?: GrowthSnapshot
-}
-
-export type GrowthSnapshot = {
-    grew: bool,
-    rows: GrowthRetention,
-    normalized: Column,
-    renewed: Column
-}
-
 export type Demand = Marks & {
     origin: Origin,
-    growth: Growth,
+    grew: bool,
     save?: DemandSave
 }
 
 export type DemandSave = {
     memo: MemoTarget,
-    marks: RetainRows,
-    grew: bool
+    marks: RetainRows
+}
+
+export type AdoptedDemand = {
+    changed: u64[],
+    marks?: u8[],
+    retain_growth: bool,
+    install_growth: bool
 }
 
 export type Settlement = Contributions & {
     save?: SettlementSave
+}
+
+export type AdoptedSettlement = {
+    changed: u64[],
+    retained?: SettlementRecord
 }
 
 export type SettlementSave = {

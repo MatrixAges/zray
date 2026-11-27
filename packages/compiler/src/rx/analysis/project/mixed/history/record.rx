@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="History" />
 
-    <Args in={History.Record} out={History.Recorded} />
+    <Args in={History.Record} out={History.RecordResult} />
 
     <Call fn="snapshot" in={$in.capture} />
 
@@ -16,7 +16,12 @@
             }}
         />
 
-        <Return value={$ctx.record_assessment} />
+        <Return
+            value={{
+                checkpoint: $ctx.snapshot,
+                recorded: $ctx.record_assessment
+            }}
+        />
     </If>
 
     <Call
@@ -27,5 +32,10 @@
         }}
     />
 
-    <Return value={$ctx.record_assessment} />
+    <Return
+        value={{
+            checkpoint: $ctx.snapshot,
+            recorded: $ctx.record_assessment
+        }}
+    />
 </Module>

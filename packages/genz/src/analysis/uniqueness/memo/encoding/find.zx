@@ -1,22 +1,23 @@
-import memory from "memory"
+import crypto from "std:crypto"
 
 import touch from "../table/touch"
 
-import type { ByteWriter } from "memory"
-import type { Target } from "./model"
+import type { Match as Output, Target } from "./model"
 
 export type Input = Target & {
-    buffer: ByteWriter
+    chunks: u8[][]
 }
 
-export type Output = u32?
-
 export default function (in: Input): Output {
-    const encoded = memory.borrowByteWriterBytes(in.buffer)
-    const key = memory.sha256Into(in.digest, encoded)
+    const digest = crypto.sha256Parts(in.chunks)
 
-    return touch({
+    const row = touch({
         ...in.table,
-        key
+        key: digest
     })
+
+    return {
+        row,
+        digest
+    }
 }

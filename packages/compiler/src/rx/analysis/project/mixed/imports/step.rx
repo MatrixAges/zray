@@ -1,60 +1,56 @@
 <Module>
     <Type from="model" as="Imports" />
-    <Type from="../../../../../zx/frontend/parser/imports/model" as="Syntax" />
 
     <Args in={Imports.Input} out={Imports.Input} />
 
-    <If
-        on={$in.imports.length == 0 ||
-            $in.imports[$in.row].kind != Syntax.ImportKind.TypeOnly}
-    >
-        <Call
-            fn="host.openMixedImport"
-            in={[
-                $in.binding,
-                $in.row
-            ]}
-        />
+    <Call
+        fn="host.openMixedImport"
+        in={[
+            $in.binding,
+            $in.row,
+            $in.pending
+        ]}
+    />
 
-        <If on={$ctx.openMixedImport != null}>
-            <Call module="../../../../../zx/modules/binding/bind" in={$in.symbols[0]} />
+    <If on={$ctx.openMixedImport != null}>
+        <Call module="../../../../../zx/modules/binding/bind" in={$in.symbols[0]} />
 
-            <If on={$ctx.bind.message != ""}>
-                <Call
-                    fn="host.rejectMixedImport"
-                    in={[
-                        $in.binding,
-                        $in.row,
-                        $ctx.bind.message
-                    ]}
-                />
-            </If>
+        <If on={$ctx.bind.message != ""}>
+            <Call
+                fn="host.rejectMixedImport"
+                in={[
+                    $in.binding,
+                    $in.row,
+                    $ctx.bind.message
+                ]}
+            />
+        </If>
 
-            <If on={$ctx.bind.function_names.length != 0}>
-                <Call
-                    fn="publish"
-                    in={{
-                        names: $ctx.bind.function_names,
-                        indices: $ctx.bind.function_indices,
-                        rows: $ctx.openMixedImport,
-                        exported: $ctx.openMixedImport.exported,
-                        ...$in.pick([
-                            "owner",
-                            "owner_rows",
-                            "functions",
-                            "published",
-                            "layout"
-                        ])
-                    }}
-                />
-            </If>
+        <If on={$ctx.bind.function_names.length != 0}>
+            <Call
+                fn="publish"
+                in={{
+                    names: $ctx.bind.function_names,
+                    indices: $ctx.bind.function_indices,
+                    rows: $ctx.openMixedImport
+                }}
+            />
+
+            <Return
+                value={{
+                    ...$in,
+                    row: $in.row + 1,
+                    pending: $ctx.publish
+                }}
+            />
         </If>
     </If>
 
     <Return
         value={{
             ...$in,
-            row: $in.row + 1
+            row: $in.row + 1,
+            pending: null
         }}
     />
 </Module>

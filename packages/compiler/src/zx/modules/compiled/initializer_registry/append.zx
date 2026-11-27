@@ -1,90 +1,55 @@
-import bytes from "std:bytes"
 import integers from "std:integer"
-import strings from "std:string"
-import lookup from "core/bytes/index/borrowed/lookup"
-import refresh from "core/bytes/index/borrowed/refresh"
 import { load_numerator, load_denominator } from "core/bytes/index/const"
-import { growRows } from "core/row_buffer"
-import memory from "memory"
+import insert from "core/integer/wide_index/insert"
 
-import type { Cursor as Output, Storage } from "./model"
+import rebuild from "./rebuild"
 
-export type Entry = {
-    identity: string,
-    version: u32,
-    slot: u64,
-    function: u32
-}
+import type { Entry, Pending as Output, Storage } from "./model"
 
-export type Input = Output & Entry & {
-    registry: Storage
+export type Input = {
+    registry: Storage,
+    pending: Output,
+    entry: Entry
 }
 
 export default function (in: Input): Output {
-    const { registry, identity, version } = in
-    const { buckets, published, target } = registry
+    const { registry, pending, entry } = in
+    const { buckets } = pending
 
-    const index = in.count
+    const capacity = buckets == null ? registry.capacity : buckets.length
+    const count = registry.count + pending.rows.length + 1
+    const rows = pending.rows.push(entry)[0]
 
-    const space = match {
-        index == in.space => growRows([
-            registry.growth,
-            index
-        ]),
-        _ => in.space
-    }
-
-    const refreshed = match {
-        index == in.limit => refresh({
-            keys: published.identity,
-            buckets,
-            rebuilt: in.buckets,
-            capacity: in.capacity,
-            indexed: index,
-            count: index,
-            required: index + 1
-        }),
-        _ => {
-            capacity: in.capacity,
-            buckets: in.buckets
+    if (count > capacity * load_numerator / load_denominator) {
+        return {
+            ...pending,
+            rows,
+            buckets: rebuild({
+                registry,
+                pending: {
+                    ...pending,
+                    rows
+                }
+            })
         }
     }
 
-    const slot = match {
-        refreshed.capacity == in.capacity => in.slot,
-        _ => lookup({
-            keys: published.identity,
-            buckets: memory.u32View(buckets, null),
-            rebuilt: refreshed.buckets,
-            capacity: refreshed.capacity,
-            text: identity
-        }).slot
+    if (buckets != null) {
+        return {
+            ...pending,
+            rows,
+            buckets: buckets.with(entry.slot, integers.narrow(count))
+        }
     }
 
-    const name = registry.own ? strings.copy(identity) : identity
-
-    memory.writeColumnBytes(target.identity, index, bytes.fromText(name))
-    memory.writeColumnU32(target.schema_version, index, version)
-    memory.writeColumnU32(target.function, index, in.function)
-
-    const active = refreshed.buckets
-    const entry = integers.narrow(index + 1)
-    const empty: u32[]? = null
-
-    if (active == null) {
-        memory.writeU32(buckets, slot, entry)
-    }
-
-    const next_buckets = match {
-        active != null => active.with(slot, entry),
-        _ => empty
-    }
+    const slots = insert({
+        index: pending.slots,
+        key: entry.slot
+    })
 
     return {
-        count: index + 1,
-        space,
-        capacity: refreshed.capacity,
-        limit: refreshed.capacity * load_numerator / load_denominator,
-        buckets: next_buckets
+        ...pending,
+        rows,
+        slots: slots.index
     }
 }

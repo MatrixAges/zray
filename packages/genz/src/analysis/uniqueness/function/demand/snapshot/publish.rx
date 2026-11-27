@@ -1,25 +1,30 @@
 <Module>
     <Type from="model" as="Growth" />
 
-    <Args in={Growth.Input} out={void} />
+    <Args in={Growth.Input} out={Growth.Snapshot} />
 
-    <Call
-        fn="write"
-        in={{
-            rows: $in.normalized,
-            target: $in.targets.normalized,
-            wide: false,
-            owner: $in.owner
-        }}
-    />
+    <Task name="normalized" out={$ctx.write}>
+        <Call
+            fn="write"
+            in={{
+                rows: $in.normalized,
+                wide: false
+            }}
+        />
+    </Task>
 
     <Call
         fn="write"
         in={{
             rows: $in.renewed,
-            target: $in.targets.renewed,
-            wide: true,
-            owner: $in.owner
+            wide: true
+        }}
+    />
+
+    <Return
+        value={{
+            normalized: $ctx.task.normalized,
+            renewed: $ctx.write
         }}
     />
 </Module>

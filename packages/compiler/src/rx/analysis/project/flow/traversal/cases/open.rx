@@ -19,26 +19,24 @@
         ]}
     />
 
-    <If on={$in.inference}>
-        <Call
-            fn="coverage"
-            in={{
-                ...$in.omit([
-                    "inference",
-                    "lengths"
-                ]),
-                truth: $ctx.evaluateFlowCaseLabel
-            }}
-        />
-    </If>
+    <Call
+        fn="coverage"
+        in={{
+            ...$in.omit(["lengths"]),
+            truth: $ctx.evaluateFlowCaseLabel
+        }}
+    />
 
     <Call
         fn="refine"
-        in={$in.pick([
-            "frame",
-            "position",
-            "lengths"
-        ])}
+        in={{
+            ...$in.pick([
+                "frame",
+                "position",
+                "lengths"
+            ]),
+            coverage: $ctx.coverage
+        }}
     />
 
     <Call

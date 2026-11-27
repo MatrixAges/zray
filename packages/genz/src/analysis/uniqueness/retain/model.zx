@@ -1,6 +1,0 @@
-import type { Input as Rows } from "./rows"
-
-export type Growth = {
-    normalized: Rows,
-    renewed: Rows
-}

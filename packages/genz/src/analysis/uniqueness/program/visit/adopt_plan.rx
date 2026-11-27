@@ -6,23 +6,12 @@
     <Call module="../../retain/plan" in={$in.source} />
 
     <If on={$in.memo != null}>
-        <Call
-            module="../../memo/record/write"
-            in={{
-                target: $in.memo,
-                result: {
-                    levels: [],
-                    changed: [],
-                    grew: false,
-                    plan: $ctx.plan
-                }
-            }}
-        />
+        <Call module="../../memo/table/store" in={$in.memo} />
 
         <Return
             value={{
                 plan: $ctx.plan,
-                row: $ctx.write
+                row: $ctx.store
             }}
         />
     </If>

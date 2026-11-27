@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Entry" />
 
-    <Args in={Entry.Visit} out={Entry.Output} />
+    <Args in={Entry.Visit} out={Entry.Section} />
 
     <Call module="context" in={$in} />
 
@@ -14,7 +14,6 @@
     <Call
         module="invoke"
         in={{
-            writer: $in.writer,
             config: {
                 bases: $in.bases,
                 declaration_base: 0,
@@ -30,5 +29,13 @@
         }}
     />
 
-    <Return value={$ctx.invoke} />
+    <Call
+        fn="combine_service"
+        in={{
+            context: $ctx.context,
+            invoke: $ctx.invoke
+        }}
+    />
+
+    <Return value={$ctx.combine_service} />
 </Module>

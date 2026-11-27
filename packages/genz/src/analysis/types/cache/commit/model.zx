@@ -1,5 +1,4 @@
-import type { Check } from "../../../node_headers/model"
-import type { Bound } from "../../../node_headers/payload/model"
+import type { Bound, Published } from "../../../node_headers/payload/model"
 import type { Output as Abi } from "../../abi/model"
 import type { Entry } from "../../shared/model"
 import type { Columns } from "../model"
@@ -12,6 +11,6 @@ export type Input = {
 }
 
 export type Result = {
-    check: Check,
+    ast: Published,
     touched: u32[]
 }

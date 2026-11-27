@@ -12,7 +12,8 @@
                 next: null,
                 memo_row: $ctx.probe.row,
                 following: $in.following,
-                state_end: $ctx.probe.state.state_end
+                encoded: $ctx.probe.state,
+                digest: $ctx.probe.digest
             }}
         />
     </If>
@@ -23,7 +24,8 @@
             next: null,
             memo_row: null,
             following: $in.following,
-            state_end: $in.state_end
+            encoded: null,
+            digest: null
         }}
     />
 </Module>

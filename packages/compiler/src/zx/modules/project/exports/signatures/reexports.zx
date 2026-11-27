@@ -1,69 +1,56 @@
-import bytes from "std:bytes"
-import memory from "memory"
-import columns from "memory/columns"
-
 import fromBinding from "./from_binding"
+import { ChangeKind } from "./model"
 import write from "./write"
 
-import type { Reexports as Input } from "./model"
+import type { Change, Reexports } from "./model"
 
-export type Output = u64
+export type Input = Reexports & {
+    offset: u64
+}
+
+export type Output = Change?
 
 export default function (in: Input): Output {
-    const { names, indices, rows, first, owner } = in
-    const { signatures, stride, buffer, target, kinds, facts } = rows
+    const { names, indices, rows, first, offset } = in
+    const { signatures, stride, kinds, facts } = rows
 
-    const valid = loop({
-        row: 0,
-        valid: true
-    }, {
-        while: state => state.valid && state.row < names.length,
-        next: state => {
-            const row = state.row
-            const index = indices[row]
-            const destination = first + row
+    const index = indices[offset]
+    const row = first + offset
+    const name = names[offset]
 
-            if (signatures.length != 0) {
-                const name = memory.copyColumnText(owner, names[row])
-                const start = stride * index
-                const copied = memory.copyBytes(
-                    buffer,
-                    stride * destination,
-                    signatures,
-                    start,
-                    start + stride
-                )
+    if (signatures.length != 0) {
+        if (index >= signatures.length / stride) {
+            return null
+        }
 
-                memory.writeColumnBytes(
-                    target.name,
-                    destination,
-                    bytes.fromText(name)
-                )
-            } else {
-                const signature = fromBinding({
-                    kinds,
-                    facts,
-                    index
-                })
+        return {
+            action: ChangeKind.Reexport,
+            row,
+            name,
+            rows: signatures,
+            source_row: index,
+            kind: 0,
+            input_type: 0,
+            output_type: 0,
+            has_store: false,
+            own_name: true
+        }
+    }
 
-                state.valid = signature != null
-
-                if (signature != null) {
-                    write({
-                        ...signature,
-                        name: memory.copyColumnText(owner, names[row]),
-                        target,
-                        row: destination
-                    })
-                }
-            }
-
-            state.row += 1
-        },
-        return: state => state.valid
+    const signature = fromBinding({
+        kinds,
+        facts,
+        index
     })
 
-    columns.requireColumnBounds(valid)
+    if (signature == null) {
+        return null
+    }
 
-    return first + names.length
+    return write({
+        ...signature,
+        name,
+        row,
+        own_name: true
+    })
 }

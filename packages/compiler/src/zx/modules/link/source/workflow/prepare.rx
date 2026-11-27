@@ -11,7 +11,12 @@
         <Call module="../../../../ir/canonical/validation/validate" in={$in.validation} />
 
         <If on={$ctx.validate == null}>
-            <Return value={Source.Status.InvalidIr} />
+            <Return
+                value={{
+                    status: Source.Status.InvalidIr,
+                    native_ids: []
+                }}
+            />
         </If>
 
         <Call
@@ -25,31 +30,48 @@
 
     <Switch on={$ctx.register}>
         <Case value={Types.Status.MissingOrigin}>
-            <Return value={Source.Status.MissingOrigin} />
+            <Return
+                value={{
+                    status: Source.Status.MissingOrigin,
+                    native_ids: []
+                }}
+            />
         </Case>
 
         <Case value={Types.Status.Conflict}>
-            <Return value={Source.Status.ConflictingType} />
+            <Return
+                value={{
+                    status: Source.Status.ConflictingType,
+                    native_ids: []
+                }}
+            />
         </Case>
 
         <Case value={Types.Status.Invalid}>
-            <Return value={Source.Status.Invalid} />
+            <Return
+                value={{
+                    status: Source.Status.Invalid,
+                    native_ids: []
+                }}
+            />
         </Case>
     </Switch>
 
     <Call fn="../../function_range/valid" in={$in.range} />
 
     <If on={!$ctx.valid}>
-        <Return value={Source.Status.Exhausted} />
+        <Return
+            value={{
+                status: Source.Status.Exhausted,
+                native_ids: []
+            }}
+        />
     </If>
 
     <If on={$in.natives != null}>
         <Call
             fn="native_mapping"
-            in={{
-                natives: $in.natives,
-                types: $in.types.preparation.request.mapping
-            }}
+            in={$in.types.preparation.request.mapping}
         />
 
         <Call
@@ -58,8 +80,7 @@
                 plan: {
                     source: $in.natives.source,
                     base: $in.natives.base,
-                    types: $ctx.native_mapping,
-                    target: $in.natives.mapping
+                    types: $ctx.native_mapping
                 },
                 publication: {
                     source: $in.natives.source,
@@ -69,22 +90,49 @@
             }}
         />
 
-        <If on={$ctx.link != null}>
-            <Switch on={$ctx.link}>
+        <If on={$ctx.link.failure != null}>
+            <Switch on={$ctx.link.failure}>
                 <Case value={Native.Status.Conflict}>
-                    <Return value={Source.Status.ConflictingInterface} />
+                    <Return
+                        value={{
+                            status: Source.Status.ConflictingInterface,
+                            native_ids: []
+                        }}
+                    />
                 </Case>
 
                 <Case value={Native.Status.Full}>
-                    <Return value={Source.Status.Exhausted} />
+                    <Return
+                        value={{
+                            status: Source.Status.Exhausted,
+                            native_ids: []
+                        }}
+                    />
                 </Case>
 
                 <Default>
-                    <Return value={Source.Status.Invalid} />
+                    <Return
+                        value={{
+                            status: Source.Status.Invalid,
+                            native_ids: []
+                        }}
+                    />
                 </Default>
             </Switch>
         </If>
+
+        <Return
+            value={{
+                status: Source.Status.Ready,
+                native_ids: $ctx.link.ids
+            }}
+        />
     </If>
 
-    <Return value={Source.Status.Ready} />
+    <Return
+        value={{
+            status: Source.Status.Ready,
+            native_ids: []
+        }}
+    />
 </Module>

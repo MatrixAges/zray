@@ -2,7 +2,7 @@ import { calls, groups, results, selections, tasks } from "./const"
 import { Route } from "./model"
 import write from "./write"
 
-import type { Layout, Output, Rows } from "./model"
+import type { Header, Layout, Output, Rows } from "./model"
 
 export type Input = {
     rows: Rows,
@@ -59,14 +59,14 @@ export default function (in: Input): Output {
         }
     }
 
-    const item = write({
+    const header = write({
         rows,
         lane: slot.lane,
         row: layout.row,
         code: slot.code
     })
 
-    const implicit_item: u32? = match {
+    const implicit_header: Header? = match {
         layout.route == Route.ParallelTask && layout.task_output => write({
             rows,
             lane: results,
@@ -76,9 +76,16 @@ export default function (in: Input): Output {
         _ => null
     }
 
+    const implicit_item: u32? = match {
+        implicit_header != null => implicit_header.item,
+        _ => null
+    }
+
     return {
         ...layout,
-        item,
-        implicit_item
+        item: header.item,
+        implicit_item,
+        header,
+        implicit_header
     }
 }

@@ -7,7 +7,6 @@ const Constants = @import("../../../analysis/constants/columns.zig").Rows;
 const member_fields = @import("../../function_import.zig").member_fields;
 const BindingColumns = memory.ReadFields(member_fields);
 const Edges = @import("traversal/view.zig").Columns;
-const admission = @import("../artifact/admission/host.zig");
 pub const Binding = @import("../artifact/binding/abi.zig").Binding;
 const Input = std.meta.Child(@FieldType(Binding, "dependencies"));
 const Walk = std.meta.Child(@FieldType(Input, "walk"));
@@ -44,7 +43,7 @@ pub const View = struct {
     edge_columns: Edges,
     edges: std.meta.Child(@FieldType(Imports, "edges")),
     dependency_columns: memory.ReadFields(import_fields),
-    pub fn init(self: *View, builder: *Builder, index: usize, mappings: *admission.Mappings, sources: *const Providers) void {
+    pub fn init(self: *View, builder: *Builder, index: usize, sources: *const Providers) void {
         comptime std.debug.assert(@sizeOf(Ownership) == @sizeOf(u8));
 
         const module = &builder.modules[index];
@@ -79,8 +78,6 @@ pub const View = struct {
         };
 
         self.views = .{
-            .mapping = @ptrCast(&mappings.functions),
-            .functions = @ptrCast(&self.checks.functions),
             .linked_columns = @ptrCast(&self.linked_columns),
             .linked_view = @ptrCast(&self.linked),
             .linked_shape = null,

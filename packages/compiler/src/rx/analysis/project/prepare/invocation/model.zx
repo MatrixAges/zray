@@ -1,4 +1,3 @@
-import type { U64Buffer } from "memory"
 import type { CallAdmission, InvocationPreparation } from "rx_project_host"
 import type {
     Input as ExportLookup
@@ -35,6 +34,6 @@ export type CompiledView = {
 }
 
 export type CompiledCheck = {
-    words: U64Buffer,
+    words: u64[],
     function: u64
 }

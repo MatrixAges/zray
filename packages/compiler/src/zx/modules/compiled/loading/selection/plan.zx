@@ -3,12 +3,11 @@ import memory from "memory"
 import { Status } from "../../status"
 import lookup from "./lookup"
 
-import type { U64Buffer } from "memory"
 import type { Exports, Selection, SelectionPlan } from "../../model"
 
 export type Input = {
     source: Exports,
-    export_index?: U64Buffer,
+    export_index: u64[],
     selection?: Selection
 }
 

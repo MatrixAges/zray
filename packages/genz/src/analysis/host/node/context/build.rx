@@ -1,9 +1,9 @@
 <Module>
     <Type from="../../tree/ast" as="Context" />
 
-    <Args in={Context.Render} out={bool} />
+    <Args in={Context.Input} out={u8[][]?} />
 
-    <Call fn="../../tree/initialize_ast" in={$in.omit(["writer"])} />
+    <Call fn="../../tree/initialize_ast" in={$in} />
 
     <Call fn="prelude" />
     <Call fn="fields" />
@@ -15,10 +15,6 @@
 
     <Call
         module="../../../../printer/render_checked"
-        in={{
-            module: $ctx.publish,
-            writer: $in.writer
-        }}
     />
 
     <Return value={$ctx.render_checked} />

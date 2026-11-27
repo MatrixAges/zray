@@ -1,9 +1,0 @@
-import memory from "memory"
-
-import type { Append as Input, State as Output } from "./model"
-
-export default function (in: Input): Output {
-    memory.appendBytes(in.state.buffer, in.bytes)
-
-    return in.state
-}

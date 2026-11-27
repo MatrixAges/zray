@@ -1,0 +1,18 @@
+<Module>
+    <Type from="bindings" as="Binding" />
+
+    <Args in={Binding.Input} out={Binding.Input} />
+
+    <Store from="binding_rows" as="rows" />
+
+    <Call fn="bindings" in={$in} />
+
+    <Call fn="commit_binding" setter={[$store.rows.pending]} />
+
+    <Return
+        value={{
+            ...$in,
+            row: $ctx.commit_binding
+        }}
+    />
+</Module>

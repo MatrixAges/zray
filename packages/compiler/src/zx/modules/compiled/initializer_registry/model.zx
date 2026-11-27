@@ -1,7 +1,7 @@
-import type { U32Buffer } from "memory"
-import type { RowGrowth } from "memory/columns"
+import type { Index } from "core/integer/wide_index/model"
+import type { U32View } from "memory"
 import type { Functions } from "../../../ir/compare/linked/model"
-import type { Source, Target } from "../../link/source/initializers/model"
+import type { Source } from "../../link/source/initializers/model"
 
 export enum Action {
     Append,
@@ -26,13 +26,22 @@ export type Range = {
 
 export type Storage = {
     published: Source,
-    target: Target,
-    growth: RowGrowth,
-    buckets: U32Buffer,
+    buckets: U32View,
     capacity: u64,
-    own: bool,
-    count: u64,
-    space: u64
+    count: u64
+}
+
+export type Entry = {
+    identity: string,
+    version: u32,
+    slot: u64,
+    function: u32
+}
+
+export type Pending = {
+    rows: Entry[],
+    slots: Index,
+    buckets?: u32[]
 }
 
 export type Input = {
@@ -52,14 +61,6 @@ export type Selection = {
 
 export type Output = {
     status: Status,
-    buckets?: u32[],
-    count: u64
-}
-
-export type Cursor = {
-    count: u64,
-    space: u64,
-    capacity: u64,
-    limit: u64,
+    rows: Entry[],
     buckets?: u32[]
 }

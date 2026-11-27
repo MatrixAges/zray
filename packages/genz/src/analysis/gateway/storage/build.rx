@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Storage" />
 
-    <Args in={Storage.Render} out={bool} />
+    <Args in={Storage.Render} out={u8[][]?} />
 
     <Call fn="../entry/bases" in={{}} />
 
@@ -17,7 +17,7 @@
     <Call fn="structure" />
 
     <If on={!$ctx.structure.valid}>
-        <Return value={false} />
+        <Return value={null} />
     </If>
 
     <Call fn="snapshot" in={$ctx.structure} />
@@ -25,10 +25,9 @@
     <Call
         module="../../../printer/render"
         in={{
-            source: $ctx.snapshot,
-            output: $in.writer
+            source: $ctx.snapshot
         }}
     />
 
-    <Return value={true} />
+    <Return value={$ctx.render} />
 </Module>

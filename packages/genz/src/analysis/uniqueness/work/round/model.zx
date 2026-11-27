@@ -1,7 +1,7 @@
-import type { AtomicRows, WriteColumn } from "memory"
+import type { AtomicRows } from "memory"
 import type { Phase } from "../../program/model"
 import type { Facts } from "../../summaries/model"
-import type { Cursor, Fill, Notify, State } from "../model"
+import type { Cursor, Fill, Filled, Notify, Slot, State } from "../model"
 
 export type Input = {
     queue: Fill,
@@ -12,23 +12,28 @@ export type Input = {
 
 export type PrepareSummaries = Input.Omit("queue")
 
-export type Prepared = {
-    cursor: Cursor,
+export type Prepared = Filled & {
     guarantees?: u8[]
 }
 
-export type Take = {
+export type Request = {
     state: State,
     slots: u64[],
     phase: Phase,
     following: bool
 }
 
+export type Take = Request & {
+    additions: Slot[]
+}
+
 export type Visit = {
     body?: u64,
+    dequeued?: u64,
     exhausted: bool,
-    first: u64[],
-    second: u64[],
+    pending_start: u64,
+    pending_first: u64,
+    pending_second: u64,
     grew: bool,
     prefetch: bool,
     cursor: Cursor
@@ -49,14 +54,12 @@ export type Feedback = {
 }
 
 export type Plan = {
-    plans: WriteColumn,
-    entry: WriteColumn,
     count: u64,
     body: u64,
     fields: u8[]
 }
 
-export type Advance = Take & Notify.Pick("dirty", "active") & {
+export type Advance = Request & Notify.Pick("active") & {
     outputs: AtomicRows,
     callers: u64[][],
     previous?: Feedback
@@ -64,4 +67,23 @@ export type Advance = Take & Notify.Pick("dirty", "active") & {
 
 export type PhaseFeedback = Advance.Omit("previous") & {
     previous: Feedback
+}
+
+export type PlanWrite = {
+    entry: bool,
+    index: u64,
+    fields: u8[]
+}
+
+export type Actions = {
+    dirty: u64[],
+    plan?: PlanWrite
+}
+
+export type PreparedFeedback = Actions & {
+    cursor: Cursor
+}
+
+export type Dispatch = Visit & Actions & {
+    additions: Slot[]
 }

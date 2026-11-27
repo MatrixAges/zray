@@ -1,32 +1,32 @@
 import { moduleView, signatureView } from "core/column_set"
-import memory from "memory"
 
 import { Status } from "./decision"
 
-import type { Batch as Input, Traversal as Output } from "./model"
+import type { Start as Input, Traversal as Output } from "./model"
 
 export default function (in: Input): Output {
+    const { source, native_ids } = in
+
     const modules = moduleView({
-        storage: in.native.storage,
-        view: in.native.snapshot,
-        shape: in.native.shape
+        storage: source.native.storage,
+        view: source.native.snapshot,
+        shape: source.native.shape
     })
 
-    const native_ids = memory.optionalU32Views(in.native.ids)
-
     const linked = signatureView({
-        storage: in.read_columns,
-        view: in.snapshot,
-        shape: in.linked_shape
+        storage: source.read_columns,
+        view: source.snapshot,
+        shape: source.linked_shape
     })
 
     return {
-        source: in,
+        source,
         modules,
         native_ids,
+        ids: [],
         linked,
         index: 0,
         status: Status.Reuse,
-        running: in.signatures.files.length != 0
+        running: source.signatures.files.length != 0
     }
 }

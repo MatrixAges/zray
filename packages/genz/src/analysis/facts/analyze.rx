@@ -13,7 +13,8 @@
             program: Model.Program
         }}
         out={{
-            errors: string[]?[],
+            groups: string[][],
+            error_groups: u32?[],
             return_allocations: bool[],
             fresh_outputs: bool[],
             constructed_outputs: bool[],
@@ -136,7 +137,6 @@
         fn="function_errors"
         in={{
             source: $ctx.functions,
-            names: $in.allocators.names,
             native_modules: $in.program.functions.native_modules
         }}
     />

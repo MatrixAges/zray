@@ -11,15 +11,20 @@ const PublishStoreState = std.meta.Child(@FieldType(generated_publish.zx_pending
 
 const StoreHost = struct {
     store_0: *StoreState,
-    pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
+    natives: *@import("../../link/native/host.zig").View,
+    pub fn commit(self: *StoreHost, pending: anytype) std.mem.Allocator.Error!void {
         if (pending.store_0) |next| self.store_0.* = next;
+        if (pending.store_1) |row| try self.natives.publish(row);
     }
 };
 
 const PublishStoreHost = struct {
     store_0: *PublishStoreState,
-    pub fn commit(self: *PublishStoreHost, pending: anytype) error{}!void {
+    interface: *@import("interface.zig").View,
+    allocator: std.mem.Allocator,
+    pub fn commit(self: *PublishStoreHost, pending: anytype) std.mem.Allocator.Error!void {
         if (pending.store_0) |next| self.store_0.* = next;
+        if (pending.store_1) |row| try self.interface.commit(self.allocator, row);
     }
 };
 
@@ -65,20 +70,22 @@ pub fn load(allocator: std.mem.Allocator, library: model.Library, destination: D
     var installation: Installation = undefined;
     var state_value: std.meta.Child(StoreState) = .{ .preparing = false };
     var state_ptr: StoreState = &state_value;
-    var host: StoreHost = .{ .store_0 = &state_ptr };
     var publish_value: std.meta.Child(PublishStoreState) = .{ .completed = 0 };
     var publish_ptr: PublishStoreState = &publish_value;
-    var publish_host: PublishStoreHost = .{ .store_0 = &publish_ptr };
 
-    input.init(temporary, &graph, library.instance, library.artifact, destination, options.seed, options.selected, options.export_buckets);
+    try input.init(temporary, &graph, library.instance, library.artifact, destination, options.seed, options.selected, options.export_buckets);
+
     installation.init(&allocator, &input, &library, destination, options.call_scratch, options.initializer_tail);
+
+    var host: StoreHost = .{ .store_0 = &state_ptr, .natives = &installation.natives };
+    var publish_host: PublishStoreHost = .{ .store_0 = &publish_ptr, .interface = &installation.public, .allocator = installation.owner };
+
     defer @import("../../column_lengths.zig").publish(&installation.functions.lengths, publish_ptr.completed);
     errdefer installation.types.release();
 
     const request: std.meta.Child(generated.Input) = .{
         .plan = &input.input,
         .installation = &installation.input,
-        .temporary = @ptrCast(&temporary),
     };
 
     const plan = generated.executeIn(temporary, &request, &host) catch |err| switch (@as(anyerror, err)) {
@@ -103,10 +110,16 @@ pub fn load(allocator: std.mem.Allocator, library: model.Library, destination: D
         .plan = if (@typeInfo(@TypeOf(plan)) == .pointer) plan else &plan,
     };
 
+    errdefer if (installation.needs_interface) installation.public.release(installation.owner, plan.selection);
+
     generated_publish.executeIn(installation.owner, &publication, &publish_host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
+
+    if (options.export_buckets) |buckets| {
+        if (buckets.len != 0) @memcpy(buckets, plan.export_index);
+    }
 
     return installation.result(destination, library.program.functions.count());
 }

@@ -8,6 +8,7 @@ const Origins = @import("../../nominal_origins.zig");
 const generated = @import("generated_artifact_extract");
 const Preparation = @import("run.zig");
 const Materialization = @import("materialize.zig");
+const Rows = @import("rows.zig");
 
 const Frame = struct {
     program: *const zx.ir.Program,
@@ -15,6 +16,18 @@ const Frame = struct {
     allocator: std.mem.Allocator,
     scope: *zx.memory.ArenaScope,
     materialization: Materialization = undefined,
+    bound: bool = false,
+    rows: Rows = .{},
+    pub fn commit(self: *Frame, pending: anytype) std.mem.Allocator.Error!void {
+        if (pending.store_0) |entry| {
+            if (entry.imported) {
+                try self.materialization.imported.publishExport(self.allocator, entry);
+            } else try self.materialization.exported.publishExport(self.allocator, entry);
+        }
+
+        if (pending.store_1) |entry| try self.rows.bindings(self.allocator, self.record, entry);
+        if (pending.store_2) |entry| try self.rows.dependency(self.allocator, self.record.imports, entry);
+    }
 };
 
 pub fn extract(allocator: std.mem.Allocator, scratch: std.mem.Allocator, analysis: *const Analysis.Result, record: Record) model.Error!model.Module {
@@ -31,7 +44,14 @@ pub fn extract(allocator: std.mem.Allocator, scratch: std.mem.Allocator, analysi
         .frame = @ptrCast(&frame),
     };
 
-    const result = zx.columns.invoke(generated.executeValue, scope.allocator(), &input) catch |err| switch (err) {
+    errdefer frame.rows.release(allocator, record.imports);
+
+    errdefer if (frame.bound) {
+        frame.materialization.exported.release(allocator);
+        frame.materialization.imported.release(allocator);
+    };
+
+    const result = generated.executeIn(scope.allocator(), &input, &frame) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
@@ -53,12 +73,12 @@ pub fn extract(allocator: std.mem.Allocator, scratch: std.mem.Allocator, analysi
         null;
 
     const stores: zx.ir.StoreTable = if (materialized.stores) |value| zx.columns.view(zx.ir.StoreTable, value) else .{};
-    const surface = frame.materialization.publishedSurface();
+    const surface = frame.materialization.publishedSurface(frame.rows.function_imports, frame.rows.members);
 
     return .{
         .path = materialized.path,
         .source_digest = record.source_digest,
-        .dependencies = frame.materialization.publishedDependencies(),
+        .dependencies = frame.rows.dependencies,
         .types = types,
         .nominal_types = origins,
         .exports = surface.exports,
@@ -95,4 +115,6 @@ pub fn bindArtifactMaterialization(handle: *anyopaque, function: ?u32, use_entry
     };
 
     frame.materialization.bind(&nodes, program, if (source) |*value| value else null, copy_entry_stores, frame.record);
+
+    frame.bound = true;
 }

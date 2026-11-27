@@ -20,7 +20,7 @@ export default function (in: Input): Output {
         capacity: minimum
     })
 
-    if (initial.count < minimum) {
+    if (initial.positions.length < minimum) {
         return null
     }
 

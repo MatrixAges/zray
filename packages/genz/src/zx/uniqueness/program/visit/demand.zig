@@ -4,7 +4,7 @@ const Function = @import("../../function.zig");
 const Growth = @import("../../growth.zig");
 const Summaries = @import("../../summaries.zig");
 const Level = @import("../../level.zig").Level;
-const rowInput = @import("../../retain.zig").rowInput;
+const retention = @import("../../retain.zig");
 const rows = @import("../../row_output.zig");
 const Memo = @import("../../memo.zig");
 const record = @import("../../memo/record.zig");
@@ -12,38 +12,21 @@ const publication = @import("../../memo/table/publication.zig");
 const entry = @import("generated_uniqueness_visit_demand");
 const Input = std.meta.Child(entry.Input);
 const Origin = @FieldType(Input, "origin");
+const Save = rows.Target(Input, "save");
+
 pub const Adopted = struct { changed: []const u64, stored: ?Memo.Demanded };
 
 pub fn apply(allocator: std.mem.Allocator, owner: std.mem.Allocator, summaries: *Summaries, target: *Growth.Store, growth: Growth.Rows, marks: []const Function.Mark, comptime origin: Origin, grew: bool, memo: ?*Memo) std.mem.Allocator.Error!Adopted {
-    const Binding = std.meta.Child(@FieldType(Input, "growth"));
-    const Snapshot = std.meta.Child(@typeInfo(@FieldType(Binding, "snapshot")).optional.child);
-    const Retention = std.meta.Child(@FieldType(Snapshot, "rows"));
-    const Save = rows.Target(Input, "save");
-    var retained_marks = zx.memory.RowBuffer.empty(Function.Mark);
     var stored: record.Frame(.demanded, rows.Target(Save, "memo")) = undefined;
     var host: publication.StoreHost(entry) = .{};
-    var normalized = zx.memory.RowBuffer.empty(Growth.Normalized);
-    var renewed = zx.memory.RowBuffer.empty(Growth.Renewed);
-    const output_rows: []Growth.Rows = @as(*[1]Growth.Rows, @ptrCast(target));
-    var result_normalized = zx.memory.borrowWriteColumn([]const Growth.Normalized, "normalized", output_rows);
-    var result_renewed = zx.memory.borrowWriteColumn([]const Growth.Renewed, "renewed", output_rows);
-
-    var column: zx.memory.WriteColumn = .{
-        .items = @ptrCast(target),
-        .count = 1,
-        .stride = @sizeOf(Growth.Rows),
-        .width = @sizeOf(Growth.Rows),
-    };
-
     const output = zx.memory.borrowReadColumn(bool, "output", marks);
     const functions = zx.memory.borrowReadColumn(u32, "function", marks);
     const slots = zx.memory.borrowReadColumn(u32, "slot", marks);
     const wants = zx.memory.borrowReadColumn(Level, "want", marks);
 
-    if (memo) |cache| stored.open(cache, .{ .marks = &retained_marks, .growth = target });
+    if (memo) |cache| stored.open(cache);
 
     host.init(if (memo != null) stored.table.initial_used else 0, 0, false);
-    defer if (memo != null) stored.table.finish(host.state.*);
 
     const input: Input = .{
         .inputs = @ptrCast(&summaries.inputs),
@@ -56,30 +39,41 @@ pub fn apply(allocator: std.mem.Allocator, owner: std.mem.Allocator, summaries: 
             .count = marks.len,
         },
         .origin = origin,
-        .growth = &.{
-            .target = @ptrCast(&column),
-            .rows = std.mem.asBytes(&growth),
-            .snapshot = if (origin == .Ahead) &.{
-                .grew = grew,
-                .rows = &.{
-                    .normalized = &rowInput(std.meta.Child(@FieldType(Retention, "normalized")), &normalized, growth.normalized, &owner),
-                    .renewed = &rowInput(std.meta.Child(@FieldType(Retention, "renewed")), &renewed, growth.renewed, &owner),
-                },
-                .normalized = @ptrCast(&result_normalized),
-                .renewed = @ptrCast(&result_renewed),
-            } else null,
-        },
+        .grew = grew,
         .save = if (memo != null) &.{
             .memo = &stored.target,
-            .marks = &rowInput(rows.Target(Save, "marks"), &retained_marks, marks, &owner),
-            .grew = grew,
+            .marks = &retention.rowInput(rows.Target(Save, "marks"), marks),
         } else null,
     };
 
-    const changed = entry.executeIn(allocator, &input, &host) catch |err| switch (@as(anyerror, err)) {
+    const result = entry.executeIn(allocator, &input, &host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => std.debug.panic("demand visitation failed: {s}", .{@errorName(err)}),
     };
 
-    return .{ .changed = changed, .stored = if (memo != null) stored.value else null };
+    if (result.retain_growth) {
+        const normalized = try owner.dupe(Growth.Normalized, growth.normalized);
+
+        errdefer owner.free(normalized);
+
+        target.* = .{
+            .normalized = normalized,
+            .renewed = try owner.dupe(Growth.Renewed, growth.renewed),
+        };
+    } else if (result.install_growth) {
+        target.* = growth;
+    }
+
+    if (result.marks) |retained| {
+        stored.value = .{
+            .marks = try retention.copyRows(Function.Mark, owner, retained),
+            .normalized = target.normalized,
+            .renewed = target.renewed,
+            .grew = grew,
+        };
+
+        try stored.table.finish(host.state.*);
+    }
+
+    return .{ .changed = result.changed, .stored = if (memo != null) stored.value else null };
 }

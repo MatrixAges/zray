@@ -1,15 +1,15 @@
 import integers from "std:integer"
 
 import merge from "../../function/updates/merge"
-import enqueue from "../enqueue"
 
-import type { Cursor as Output } from "../model"
 import type { Settlement } from "./model"
 
 export type Input = Settlement.Omit("changed", "active")
 
+export type Output = u64[]
+
 export default function (in: Input): Output {
-    const { state, body, levels, outputs, dirty, callers } = in
+    const { body, levels, outputs, callers } = in
 
     const weakened = merge({
         rows: outputs,
@@ -19,13 +19,9 @@ export default function (in: Input): Output {
         joining: false
     })
 
-    if (weakened != 0) {
-        return enqueue({
-            state,
-            dirty,
-            indices: callers
-        })
+    if (weakened == 0) {
+        return []
     }
 
-    return state.cursor
+    return callers
 }

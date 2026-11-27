@@ -3,7 +3,7 @@
     <Type from="status" as="Link" />
     <Type from="../../analysis/semantic/merging/model" as="Merge" />
 
-    <Args in={Model.Input} out={Model.Result} />
+    <Args in={Model.LoadInput} out={Model.Result} />
 
     <Call
         fn="loading/type_base"

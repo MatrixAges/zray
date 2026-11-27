@@ -1,5 +1,4 @@
 import bytes from "std:bytes"
-import fixed from "core/bytes/index/fixed"
 import lexical from "lexical_path"
 import memory from "memory"
 import host from "rx_graph_host"
@@ -7,18 +6,26 @@ import host from "rx_graph_host"
 import { store_suffix } from "../../../../../const"
 import { Kind } from "../../../../path_kind/model"
 import normalize from "../../../../path_segments/normalize"
+import zeroes from "../zeroes"
 import { duplicate_path, duplicate_store, invalid_registration } from "./const"
+import probe from "./probe"
 
-import type { Registration as Input } from "./model"
+import type { Index, Registration as Input } from "./model"
 
-export type Output = void
+export type Output = Index
 
 export default function (in: Input): Output {
-    const { target, ranges, paths, index, normalized, root, path_allocator } = in
+    const { target, ranges, paths, root, path_allocator } = in
 
-    const registered = loop(0, {
-        while: row => row < ranges.end,
-        next: row => {
+    const keys: string[] = []
+
+    return loop({
+        keys,
+        buckets: zeroes(in.capacity)
+    }, {
+        while: index => index.keys.length < ranges.end,
+        next: index => {
+            const row = index.keys.length
             const is_store = row >= ranges.rx_end
             const path = match {
                 row < ranges.zx_count => memory.readTextColumn(paths.zx, row),
@@ -38,7 +45,7 @@ export default function (in: Input): Output {
                     host.rejectSourceGraphPath(
                         target,
                         row,
-                        false,
+                        null,
                         invalid_registration
                     )
                 }
@@ -49,20 +56,23 @@ export default function (in: Input): Output {
                 path
             ])
 
-            memory.writeTextSlot(normalized, row, absolute)
-
-            const duplicate = fixed({
-                ...index,
-                key: bytes.fromText(absolute),
-                insert: row
+            const slot = probe({
+                index,
+                key: bytes.fromText(absolute)
             })
 
-            if (duplicate != null) {
+            if (index.buckets[slot] != 0) {
                 const message = is_store ? duplicate_store : duplicate_path
-                host.rejectSourceGraphPath(target, row, !is_store, message)
+                host.rejectSourceGraphPath(
+                    target,
+                    row,
+                    is_store ? null : absolute,
+                    message
+                )
             }
 
-            row += 1
+            index.keys = index.keys.push(absolute)[0]
+            index.buckets = index.buckets.with(slot, row + 1)
         }
     })
 }

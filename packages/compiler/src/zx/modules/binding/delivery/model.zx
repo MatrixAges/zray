@@ -1,4 +1,3 @@
-import type { Allocator } from "memory"
 import type { ReexportRows } from "../../project/exports/signatures/model"
 import type { Request, Result } from "../model"
 import type { Destinations, Outcome as Published } from "../publication/model"
@@ -6,8 +5,7 @@ import type { Destinations, Outcome as Published } from "../publication/model"
 export type Input = {
     request: Request,
     destinations: Destinations,
-    reexports?: ReexportRows,
-    owner: Allocator
+    reexports?: ReexportRows
 }
 
 export type Outcome = Result.Pick("message", "start", "end") &

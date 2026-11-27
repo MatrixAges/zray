@@ -1,0 +1,10 @@
+import type { Statement as Input, ScopeWalk as Output } from "./model"
+
+export default function (in: Input): Output {
+    return {
+        ...in.current,
+        writes: in.current.writes.push(in.write)[0],
+        cursor: in.cursor,
+        running: in.cursor > in.current.first
+    }
+}

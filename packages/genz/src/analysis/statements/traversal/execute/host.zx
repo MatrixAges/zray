@@ -1,1 +1,25 @@
-export { finishStatementScope } from "lowering_host"
+import { finishStatementScope } from "lowering_host"
+
+import type { StatementTraversal } from "lowering_host"
+import type { Write } from "../commit"
+
+export type Input = {
+    traversal: StatementTraversal,
+    scope: u64,
+    writes: Write[]
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { traversal, scope, writes } = in
+
+    return finishStatementScope(
+        traversal,
+        scope,
+        writes.map(write => write.row)[0],
+        writes.map(write => write.start)[0],
+        writes.map(write => write.count)[0],
+        writes.map(write => write.previous)[0]
+    )
+}

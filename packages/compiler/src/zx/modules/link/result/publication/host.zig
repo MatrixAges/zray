@@ -41,7 +41,8 @@ pub fn finish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, module
         .retained = if (function) |value| zx.columns.pointer(Entry, value) else null,
     };
 
-    const outcome = rule.executeIn(allocator, &request) catch |err| return verification.publicationError(err);
+    var host = surface.host(allocator);
+    const outcome = rule.executeIn(allocator, &request, &host) catch |err| return verification.publicationError(err);
     const published = outcome orelse return error.InvalidModule;
     var validation: verification.View = undefined;
 

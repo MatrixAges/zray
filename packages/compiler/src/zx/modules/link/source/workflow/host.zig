@@ -17,8 +17,10 @@ const PublicationStoreState = std.meta.Child(@FieldType(generated.zx_pending, "s
 
 const StoreHost = struct {
     store_0: *StoreState,
-    pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
+    natives: *@import("../../native/host.zig").View,
+    pub fn commit(self: *StoreHost, pending: anytype) std.mem.Allocator.Error!void {
         if (pending.store_0) |next| self.store_0.* = next;
+        if (pending.store_1) |row| try self.natives.publish(row);
     }
 };
 
@@ -109,20 +111,18 @@ pub fn merge(comptime form: source.Form, program: *const ir.Program, origins: Or
     var bindings: Native = undefined;
 
     if (has_natives) {
-        native_view.init(&destination.allocator, destination.native_modules, program.native_modules, &.{}, natives);
+        native_view.init(&destination.allocator, destination.native_modules, program.native_modules, &.{}, true);
 
         bindings = .{
             .source = borrow(@FieldType(Native, "source"), &native_view.rows),
             .base = borrow(@FieldType(Native, "base"), &native_view.base),
             .destination = borrow(@FieldType(Native, "destination"), &native_view.destination),
-            .mapping = @ptrCast(natives),
-            .resource = @ptrCast(&destination.temporary),
         };
     }
 
     var state_value: std.meta.Child(StoreState) = .{ .started = false };
     var state_ptr: StoreState = &state_value;
-    var host: StoreHost = .{ .store_0 = &state_ptr };
+    var host: StoreHost = .{ .store_0 = &state_ptr, .natives = &native_view };
     const registration_view = view.bind(Types);
     const range: std.meta.Child(@FieldType(Check, "range")) = .{ .first = first, .count = count, .prefix = base, .types = source_first + source_types.count(), .native_modules = native_count };
 
@@ -138,7 +138,13 @@ pub fn merge(comptime form: source.Form, program: *const ir.Program, origins: Or
         else => return if (complete and !state_ptr.started) error.InvalidIr else error.InvalidModule,
     };
 
-    try requireReady(prepared);
+    try requireReady(prepared.status);
+
+    if (has_natives) {
+        const mapping: []const ?ir.NativeModuleId = @ptrCast(prepared.native_ids);
+
+        natives.* = try destination.temporary.dupe(?ir.NativeModuleId, mapping);
+    }
 
     arena.deinit();
 
@@ -175,7 +181,20 @@ pub fn append(nodes: *const Nodes, storage: *ir.FunctionStorage, value: anytype,
         else => error.InvalidModule,
     };
 
-    if (result.buckets.len != 0) try registry.?.adoptBuckets(result.buckets);
+    if (result.initializer) |entry| {
+        const row: @import("../../../compiled.zig").StoreInitializer = .{
+            .identity = entry.identity,
+            .schema_version = entry.schema_version,
+            .function = @fromBackingInt(entry.function),
+        };
+
+        const count = storage.count();
+
+        registry.?.merge(nodes.allocator, &.{row}, .{ .count = count, .prefix = count }, &.{ .local = storage }, true) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => return error.InvalidModule,
+        };
+    }
 
     return switch (result.status) {
         .Ready => {},

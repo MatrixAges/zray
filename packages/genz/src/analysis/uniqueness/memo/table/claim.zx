@@ -1,34 +1,33 @@
 import integers from "std:integer"
-import exchange from "core/bytes/index/digest/exchange"
-import columns from "memory/columns"
 
-import type { Index } from "./model"
+import position from "./position"
 
-export type Input = Index & {
-    digest: u8[],
+import type { Probe } from "./model"
+
+export type Input = Probe & {
+    key: u8[],
     used: u32
 }
 
-export type Output = u64
+export type Output = {
+    row: u64,
+    bucket?: u64,
+    used: u32
+}
 
 export default function (in: Input): Output {
-    const { keys, buckets, capacity, rows, digest, used } = in
+    const located = position(in.omit(["used"]))
 
-    const previous = exchange({
-        keys,
-        buckets,
-        capacity,
-        key: digest,
-        insert: used
-    })
-
-    if (previous != null) {
-        return integers.widen(previous)
+    if (located.found != null) {
+        return {
+            row: integers.widen(located.found),
+            used: in.used
+        }
     }
 
-    const row = integers.widen(used)
-
-    columns.writeRow(rows, row, digest)
-
-    return row
+    return {
+        row: integers.widen(in.used),
+        bucket: located.slot,
+        used: in.used + 1
+    }
 }

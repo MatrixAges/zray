@@ -15,15 +15,15 @@
                     deferred: $in.deferred,
                     results: $in.facts.results,
                     count: $in.view.count
-                },
-                targets: $in.settlement.targets,
-                owner: $in.owner_rows
+                }
             }}
         />
 
         <Return
             value={{
                 ...$ctx.settle_visit,
+                marks: [],
+                growth: null,
                 grew: false,
                 plan: null
             }}
@@ -45,17 +45,15 @@
                         results: $in.facts.results
                     }
                 },
-                targets: $in.demand.targets,
-                owner: $in.owner_rows,
                 restored_growth: $in.demand.restored_growth
             }}
         />
 
         <Return
             value={{
+                ...$ctx.demand_visit,
                 levels: [],
-                changed: $ctx.demand_visit.changed,
-                grew: $ctx.demand_visit.grew,
+                passed: [],
                 plan: null
             }}
         />
@@ -77,6 +75,10 @@
     <Return
         value={{
             levels: [],
+            passed: [],
+            reads: [],
+            marks: [],
+            growth: null,
             changed: [],
             grew: false,
             plan: $ctx.visit

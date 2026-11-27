@@ -1,38 +1,43 @@
 import memory from "memory"
 
-import type { ColumnLengths, WriteColumn } from "memory"
+import type { ColumnLengths } from "memory"
 import type { Extent } from "./extent"
 
 export type Input = {
     types: ColumnLengths,
     origins: ColumnLengths,
-    extent: Extent,
-    target: WriteColumn
+    extent: Extent
 }
 
-export type Output = void
+export type Output = u64[]
 
 export default function (in: Input): Output {
-    const { types, origins, extent, target } = in
+    const { types, origins, extent } = in
+
+    const words: u64[] = []
 
     const type_count = memory.lengthSlotCount(types)
     const total = type_count + memory.lengthSlotCount(origins)
 
-    const captured = loop(0, {
-        while: slot => slot < total,
-        next: slot => {
+    const captured = loop(words, {
+        while: values => values.length < total,
+        next: values => {
+            const slot = values.length
             const count = match {
                 slot < type_count => memory.readLengthSlot(types, slot),
                 _ => memory.readLengthSlot(origins, slot - type_count)
             }
 
-            memory.writeColumnIndex(target, slot, count)
-            slot += 1
+            values = values.push(count)[0]
         }
     })
 
-    memory.writeColumnIndex(target, total, extent.functions)
-    memory.writeColumnIndex(target, total + 1, extent.native_modules)
-    memory.writeColumnIndex(target, total + 2, extent.initializers)
-    memory.writeColumnIndex(target, total + 3, extent.libraries)
+    const extent_words = [
+        extent.functions,
+        extent.native_modules,
+        extent.initializers,
+        extent.libraries
+    ]
+
+    return captured.concat(extent_words)[0]
 }

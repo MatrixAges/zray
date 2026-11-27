@@ -1,5 +1,4 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import { first_member_bit, prefix_bit, word_bits } from "./const"
 
@@ -17,7 +16,7 @@ export default function (in: Input): Output {
     const bit = in.function + first_member_bit
     const index = bit / word_bits
     const mask = integers.bitMask(bit % word_bits)
-    const word = memory.readU64(in.words, index)
+    const word = in.words[index]
 
     if (integers.andBits(word, mask) != 0) {
         return State.Checked
@@ -25,7 +24,7 @@ export default function (in: Input): Output {
 
     const first = match index {
         0 => word,
-        _ => memory.readU64(in.words, 0)
+        _ => in.words[0]
     }
 
     const verified = integers.andBits(first, prefix_bit) != 0

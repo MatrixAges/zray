@@ -1,6 +1,5 @@
 <Module>
     <Type from="plan" as="Plan" />
-    <Type from="model" as="Link" />
     <Type from="publication/model" as="Publication" />
 
     <Args
@@ -8,13 +7,13 @@
             plan?: Plan.Input,
             publication: Publication.Input
         }}
-        out={Link.Status?}
+        out={Plan.Selection}
     />
 
     <Call module="select" in={$in.plan} />
 
     <If on={$ctx.select.failure != null}>
-        <Return value={$ctx.select.failure} />
+        <Return value={$ctx.select} />
     </If>
 
     <Call
@@ -25,5 +24,5 @@
         }}
     />
 
-    <Return value={null} />
+    <Return value={$ctx.select} />
 </Module>

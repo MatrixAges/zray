@@ -1,21 +1,12 @@
-import integers from "std:integer"
-import columns from "memory/columns"
-
 import find from "../../../../../schema/tree/attribute_row"
 import { task_out } from "../const"
 import { Route } from "../model"
 import node from "../tree"
-import reference from "../write_reference"
 
-import type { Input } from "./model"
-
-export type Output = void
+import type { Input, Task as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { tree, payload, event } = in
-    const { tasks } = payload
-
-    const row = integers.widen(event.item)
+    const { tree, event } = in
 
     const source = node([
         tree,
@@ -33,21 +24,12 @@ export default function (in: Input): Output {
         _ => null
     }
 
-    reference([
-        tasks.node,
-        row,
-        source,
-        tree.layout.node_width
-    ])
-
-    reference([
-        tasks.output,
-        row,
-        output,
-        tree.layout.attribute_width
-    ])
-
-    columns.writeColumnOptionalU32(tasks.id, row, event.task_id)
-    columns.writeColumnU32(tasks.first, row, event.first)
-    columns.writeColumnU32(tasks.count, row, event.count)
+    return {
+        row: event.item,
+        first: event.first,
+        count: event.count,
+        node: source,
+        id: event.task_id,
+        output
+    }
 }

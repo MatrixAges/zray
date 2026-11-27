@@ -1,0 +1,14 @@
+<Store name="compiled_interface_rows" version={1}>
+    <Type from="publication" as="Publication" />
+
+    <Object name="pending">
+        <Field name="kind" type={Publication.Kind} value={Publication.Kind.Name} />
+        <Field name="row" type={u64} value={0} />
+        <Field name="text" type={string} value={""} />
+        <Field name="id" type={u32?} value={null} />
+        <Field name="input" type={u32?} value={null} />
+        <Field name="output" type={u32?} value={null} />
+        <Field name="intrinsic" type={u8?} value={null} />
+        <Field name="version" type={u32?} value={null} />
+    </Object>
+</Store>

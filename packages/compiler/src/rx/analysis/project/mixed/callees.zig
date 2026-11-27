@@ -13,12 +13,15 @@ const not_executable_rx = "Call.module requires an executable source module";
 const not_executable_zx = "Call requires an executable source module";
 
 pub fn load(state: *State, allocator: std.mem.Allocator, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, module: Prepared.Module) State.Error![]const ir.FunctionId {
-    var ids = try allocator.alloc(ir.FunctionId, module.calls.len);
+    if (module.calls.len == 0) return &.{};
 
-    errdefer allocator.free(ids);
+    if (comptime !Prepared.batch_callees) {
+        const ids = try allocator.alloc(ir.FunctionId, module.calls.len);
 
-    if (comptime !Prepared.batch_callees) return try loadSeed(state, cache, sources, module.calls, ids);
-    if (ids.len == 0) return ids;
+        errdefer allocator.free(ids);
+
+        return try loadSeed(state, cache, sources, module.calls, ids);
+    }
 
     const rule = @import("generated_rx_mixed_callees");
     const Input = std.meta.Child(rule.Input);
@@ -36,19 +39,20 @@ pub fn load(state: *State, allocator: std.mem.Allocator, cache: *frontend.projec
         .published = &.{ .present = state.finished.present, .functions = state.finished.functions, .members = &members.view(std.meta.Child(@FieldType(Published, "members"))) },
         .zx_count = graph.sources.zx_count,
         .rx_end = graph.sources.rx_end,
-        .ids = @ptrCast(&ids),
         .binding = @ptrCast(&binding),
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var scratch = std.heap.ArenaAllocator.init(state.scratch.child_allocator);
 
-    rule.executeIn(empty.allocator(), &request) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
+    defer scratch.deinit();
+
+    const ids = rule.executeIn(scratch.allocator(), &request) catch |err| switch (err) {
+        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         error.InvalidSourceGraph => return error.InvalidSourceGraph,
         else => unreachable,
     };
 
-    return ids;
+    return try allocator.dupe(ir.FunctionId, @ptrCast(ids));
 }
 
 const Binding = struct {

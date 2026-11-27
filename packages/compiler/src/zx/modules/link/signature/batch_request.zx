@@ -29,7 +29,6 @@ export default function (in: Input): Output {
     return {
         ...source.omit([
             "signatures",
-            "target",
             "destination",
             "read_columns",
             "linked_shape",

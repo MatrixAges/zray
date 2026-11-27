@@ -1,25 +1,25 @@
 import integers from "std:integer"
-import lookup from "core/bytes/index/borrowed/lookup"
-import memory from "memory"
 import columns from "memory/columns"
 
 import decide from "../../../ir/compare/initializer/linked_action"
 import { Output as Decision } from "../../../ir/compare/initializer/linked_action"
 import { Action } from "./model"
+import probe from "./probe"
 
-import type { Range, Selection as Output, Storage } from "./model"
+import type { Pending, Range, Selection as Output, Storage } from "./model"
 
-export type Input = Storage.Pick("published", "buckets") & {
+export type Input = {
+    registry: Storage,
+    pending: Pending,
     range: Range,
-    capacity: u64,
-    rebuilt?: u32[],
     identity: string,
     version: u32,
     id: u32
 }
 
 export default function (in: Input): Output {
-    const { range, published, id } = in
+    const { range, registry, pending, id } = in
+    const { published } = registry
 
     const index = integers.widen(id)
 
@@ -39,11 +39,9 @@ export default function (in: Input): Output {
 
     const function_id = integers.narrow(mapped)
 
-    const found = lookup({
-        keys: published.identity,
-        buckets: memory.u32View(in.buckets, null),
-        rebuilt: in.rebuilt,
-        capacity: in.capacity,
+    const found = probe({
+        registry,
+        pending,
         text: in.identity
     })
 
@@ -58,10 +56,20 @@ export default function (in: Input): Output {
 
     const previous = found.entry - 1
 
-    const previous_function = columns.readColumnU32(published.function, previous)
+    const previous_function = match {
+        previous < registry.count =>
+            columns.readColumnU32(published.function, previous),
+        _ => pending.rows[previous - registry.count].function
+    }
+
+    const previous_version = match {
+        previous < registry.count =>
+            columns.readColumnU32(published.schema_version, previous),
+        _ => pending.rows[previous - registry.count].version
+    }
 
     const decision = decide({
-        previous_version: columns.readColumnU32(published.schema_version, previous),
+        previous_version,
         previous_function,
         version: in.version,
         function: function_id

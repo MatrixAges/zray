@@ -1,33 +1,11 @@
-import type { Allocator, U8Buffer, U64Buffer } from "memory"
-import type { ColumnAllocator, RowBuffer } from "memory/columns"
 import type { MixedImports } from "rx_project_host"
-import type { Import } from "../../../../../zx/frontend/parser/imports/model"
 import type { Request as Symbols } from "../../../../../zx/modules/binding/model"
+import type { Output as Publication } from "./publish"
 
-export type Target = {
-    storage: RowBuffer,
-    bytes: U8Buffer,
-    prefix: u8[],
-    used: U64Buffer
-}
-
-export type Layout = {
-    stride: u64,
-    name_offset: u64
-}
-
-export type Input = Request & {
-    row: u64
-}
-
-export type Request = {
+export type Input = {
     binding: MixedImports,
-    imports: Import[],
     count: u64,
     symbols: Symbols[],
-    owner: Allocator,
-    owner_rows: ColumnAllocator,
-    functions: Target,
-    published: Target,
-    layout: Layout
+    row: u64,
+    pending?: Publication
 }

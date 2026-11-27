@@ -1,4 +1,3 @@
-import memory from "memory"
 import host from "rx_project_host"
 
 import admit from "../../../call/compiled_admission"
@@ -15,7 +14,6 @@ import {
 import lookup from "./lookup"
 import { Action } from "./model"
 
-import type { U32Buffer } from "memory"
 import type { MixedCallees } from "rx_project_host"
 import type { Published, Targets } from "./model"
 
@@ -24,29 +22,33 @@ export type Input = {
     published: Published,
     zx_count: u64,
     rx_end: u64,
-    ids: U32Buffer,
     binding: MixedCallees
 }
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    const first: u64 = 0
+    const ids: u32[] = []
 
-    const bound = loop(first, {
-        while: position => position < in.calls.rows.length,
-        next: position => {
-            const { calls, published, zx_count, rx_end, ids, binding } = in
+    return loop({
+        position: 0,
+        ids
+    }, {
+        while: state => state.position < in.calls.rows.length,
+        next: state => {
+            const { position } = state
+            const { calls, published, zx_count, rx_end, binding } = in
             const target = calls.rows[position]
-            const action = lookup({
+            const selected = lookup({
                 calls,
                 published,
                 zx_count,
                 rx_end,
                 position,
-                target,
-                ids
+                target
             })
+
+            const { action } = selected
 
             if (action == Action.LoadLibrary) {
                 const imported = host.importMixedCallee(binding, position, target)
@@ -76,7 +78,7 @@ export default function (in: Input): Output {
                         )
                     }
 
-                    memory.writeU32(ids, position, function_id)
+                    state.ids = state.ids.push(function_id)[0]
                 }
             } else if (action == Action.CompileSetter) {
                 const id = host.compileMixedSetter(binding, position, target)
@@ -91,9 +93,11 @@ export default function (in: Input): Output {
                         not_executable_zx
                     )
                 } else {
-                    memory.writeU32(ids, position, id)
+                    state.ids = state.ids.push(id)[0]
                 }
-            } else if (action != Action.Bind) {
+            } else if (selected.id != null) {
+                state.ids = state.ids.push(selected.id)[0]
+            } else {
                 const message = match action {
                     Action.MissingMember => missing_member,
                     Action.MissingRX => missing_rx,
@@ -110,7 +114,8 @@ export default function (in: Input): Output {
                 )
             }
 
-            position += 1
-        }
+            state.position += 1
+        },
+        return: state => state.ids
     })
 }

@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Entry" />
 
-    <Args in={Entry.Dispatch} out={Entry.Output} />
+    <Args in={Entry.Dispatch} out={Entry.Section} />
 
     <Call module="../dispatch/build" in={$in.config} />
 
@@ -9,7 +9,8 @@
         <Return
             value={{
                 valid: $ctx.build.valid,
-                invalid_route: $ctx.build.invalid_route
+                invalid_route: $ctx.build.invalid_route,
+                chunks: []
             }}
         />
     </If>
@@ -19,15 +20,15 @@
     <Call
         module="../../../printer/render"
         in={{
-            source: $ctx.dispatch,
-            output: $in.writer
+            source: $ctx.dispatch
         }}
     />
 
     <Return
         value={{
             valid: true,
-            invalid_route: false
+            invalid_route: false,
+            chunks: $ctx.render
         }}
     />
 </Module>

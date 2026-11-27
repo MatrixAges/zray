@@ -71,7 +71,7 @@ pub fn begin(state: *State, cache: *const project.ParseCache, record: ?*history.
     self.previous = previous;
 
     if (comptime generated) {
-        self.aligned = @import("history/start.zig").begin(state, previous, &owner.shape, &self.boundaries[0]);
+        self.aligned = try @import("history/start.zig").begin(state, previous, &owner.shape, &self.boundaries[0]);
 
         if (self.aligned) {
             prefix.init(state, &derived, previous.?, self.digests, self.redone);
@@ -137,7 +137,7 @@ pub fn reusableSeed(self: *const Self, state: *const State, index: usize, positi
 }
 
 /// Records that `index` was analyzed, and whether the tables still match the earlier analysis after it.
-pub fn analyzed(self: *Self, state: *State, index: usize, position: usize) void {
+pub fn analyzed(self: *Self, state: *State, index: usize, position: usize) std.mem.Allocator.Error!void {
     const owner = self.record orelse return;
 
     if (comptime generated) return @import("history/record.zig").analyzed(self, state, owner, index, position);

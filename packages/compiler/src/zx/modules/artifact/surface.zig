@@ -73,9 +73,9 @@ pub fn Publication(comptime Input: type) type {
         const Self = @This();
         export_rows: names.Rows,
         export_source: Exports,
-        export_target: []memory.NamedId,
-        progress: []u64,
-        written: [1]u64,
+        export_target: []ir.Export,
+        export_count: usize,
+        written: usize,
         constant_rows: ConstantRows,
         constant_source: Constants,
         constant_output: constantOutput(Target),
@@ -85,8 +85,8 @@ pub fn Publication(comptime Input: type) type {
             self.export_rows = names.borrow(export_rows);
             self.export_source = names.view(Exports, &self.export_rows);
             self.export_target = &.{};
-            self.written = .{0};
-            self.progress = &self.written;
+            self.export_count = export_rows.len;
+            self.written = 0;
             self.constant_rows = ConstantRows.borrow(constant_rows);
             self.constant_source = self.constant_rows.view(Constants);
 
@@ -97,22 +97,38 @@ pub fn Publication(comptime Input: type) type {
             self.input = .{
                 .types = &self.mapping,
                 .exports = &self.export_source,
-                .export_target = @ptrCast(&self.export_target),
-                .export_progress = @ptrCast(&self.progress),
                 .constants = &self.constant_source,
                 .constant_target = &self.constant_output.view,
                 .constant_storage = @ptrCast(&self.constant_output.buffer),
             };
         }
+        pub fn publishExport(self: *Self, allocator: std.mem.Allocator, entry: anytype) std.mem.Allocator.Error!void {
+            if (self.export_target.len == 0) self.export_target = try allocator.alloc(ir.Export, self.export_count);
+
+            self.export_target[@intCast(entry.row)] = .{ .name = try allocator.dupe(u8, entry.name), .type_id = @fromBackingInt(entry.id) };
+
+            self.written += 1;
+        }
+
+        const Host = struct {
+            surface: *Self,
+            allocator: std.mem.Allocator,
+            pub fn commit(self: *Host, pending: anytype) std.mem.Allocator.Error!void {
+                if (pending.store_0) |row| try self.surface.publishExport(self.allocator, row);
+            }
+        };
+        pub fn host(self: *Self, allocator: std.mem.Allocator) Host {
+            return .{ .surface = self, .allocator = allocator };
+        }
         pub fn release(self: *const Self, allocator: std.mem.Allocator) void {
-            for (self.export_target[0..@intCast(self.written[0])]) |item| allocator.free(item.name);
+            for (self.export_target[0..self.written]) |item| allocator.free(item.name);
 
             allocator.free(self.export_target);
             allocator.free(self.constant_output.rows());
         }
 
         pub fn exports(self: *const Self) []const ir.Export {
-            return @ptrCast(self.export_target);
+            return self.export_target;
         }
         pub fn constants(self: *const Self) []const ir.Constant {
             return self.constant_output.rows();
@@ -122,14 +138,12 @@ pub fn Publication(comptime Input: type) type {
 
 pub fn BindingPublication(comptime Input: type) type {
     const Source = std.meta.Child(@FieldType(Input, "source"));
-    const Target = std.meta.Child(@FieldType(Input, "target"));
     const Map = std.meta.Child(@FieldType(Input, "types"));
 
     return struct {
         const Self = @This();
         source: Source,
         columns: Binding.Columns,
-        output: memory.RowOutput(Binding, Target, .{}),
         types: Map,
         functions: Map,
         input: Input,
@@ -137,15 +151,10 @@ pub fn BindingPublication(comptime Input: type) type {
             self.columns = Binding.borrowColumns(source);
             self.types = remap.typeMapping(Map, nodes.types);
             self.functions = remap.idMapping(Map, nodes.functions);
-
-            self.output.init();
-
             self.source = self.columns.bind(Source);
 
             self.input = .{
                 .source = &self.source,
-                .target = &self.output.view,
-                .storage = @ptrCast(&self.output.buffer),
                 .types = &self.types,
                 .functions = &self.functions,
             };

@@ -1,0 +1,59 @@
+import integers from "std:integer"
+import capacityFor from "core/bytes/map/capacity"
+import memory from "memory"
+
+import probe from "./probe"
+
+import type { Pending, Storage } from "./model"
+
+export type Input = {
+    registry: Storage,
+    pending: Pending
+}
+
+export type Output = u32[]
+
+export default function (in: Input): Output {
+    const { registry, pending } = in
+
+    const count = registry.count + pending.rows.length
+
+    const { capacity } = capacityFor(integers.narrow(count))
+
+    const empty: u32[] = []
+
+    const buckets = loop(empty, {
+        while: values => values.length < capacity,
+        next: values => {
+            values = values.push(0)[0]
+        }
+    })
+
+    return loop({
+        row: 0,
+        buckets
+    }, {
+        while: state => state.row < count,
+        next: state => {
+            const row = state.row
+            const text = match {
+                row < registry.count =>
+                    memory.readTextColumn(registry.published.identity, row),
+                _ => pending.rows[row - registry.count].identity
+            }
+
+            const found = probe({
+                registry,
+                pending: {
+                    ...pending,
+                    buckets: state.buckets
+                },
+                text
+            })
+
+            state.buckets = state.buckets.with(found.slot, integers.narrow(row + 1))
+            state.row += 1
+        },
+        return: state => state.buckets
+    })
+}

@@ -1,18 +1,18 @@
 import copySpan from "./span"
 
-import type { Column } from "./model"
+import type { Output as Span } from "./span"
 
 export type Input = {
     first: u64,
     end: u64,
-    checkpoints: Column
+    checkpoints: u64
 }
 
-export type Output = void
+export type Output = Span
 
 export default function (in: Input): Output {
-    copySpan({
-        column: in.checkpoints,
+    return copySpan({
+        width: in.checkpoints,
         first: in.first + 1,
         end: in.end + 1
     })

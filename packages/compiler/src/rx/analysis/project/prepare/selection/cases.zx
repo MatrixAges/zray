@@ -6,24 +6,29 @@ import { result_value } from "../flow/const"
 import node from "../flow/tree"
 import write from "./write"
 
-import type { Branches, Input as Selection } from "./model"
+import type { Branches, Cases as Output, Input as Selection } from "./model"
 
-export type Input = Selection.Pick("tree", "units", "rows", "facts") & {
+export type Input = Selection.Pick("tree", "units", "labels", "facts") & {
     branches: Branches
 }
 
-export type Output = void
-
 export default function (in: Input): Output {
-    const { tree, units, rows, facts, branches } = in
+    const { tree, units, labels, facts, branches } = in
     const { layout } = tree
-    const { labels } = rows
+
+    const cases: Output = {
+        firsts: [],
+        counts: [],
+        kinds: [],
+        sources: []
+    }
 
     const mask = integers.widen(alternate)
 
-    const written = loop(0, {
-        while: row => row < branches.child_count,
-        next: row => {
+    return loop(cases, {
+        while: values => values.kinds.length < branches.child_count,
+        next: values => {
+            const row = values.kinds.length
             const slot = branches.first_child + row
             const flags = integers.widen(facts[slot])
             const fallback = integers.andBits(flags, mask) != 0
@@ -39,17 +44,13 @@ export default function (in: Input): Output {
                 })
             }
 
-            write({
-                rows: rows.body,
+            values = write({
+                cases: values,
                 units,
                 slot,
-                row,
                 tag: fallback ? labels.fallback : labels.ordinary,
-                attribute,
-                attribute_width: layout.attribute_width
+                attribute
             })
-
-            row += 1
         }
     })
 }

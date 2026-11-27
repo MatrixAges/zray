@@ -6,16 +6,16 @@ const State = @import("../state.zig");
 const alignment = @import("alignment.zig");
 const compare = @import("frontend").compare_ir;
 const linked = @import("linked.zig");
-const Snapshot = @import("snapshot.zig").Storage;
+const snapshot = @import("snapshot.zig");
 
-pub fn analyzed(reuse: *Reuse, state: *State, owner: *History.History, index: usize, position: usize) void {
+pub fn analyzed(reuse: *Reuse, state: *State, owner: *History.History, index: usize, position: usize) std.mem.Allocator.Error!void {
     const rule = @import("generated_rx_mixed_history_record");
     const Input = std.meta.Child(rule.Input);
     const Analysis = std.meta.Child(@typeInfo(@FieldType(Input, "analysis")).optional.child);
     const before = &reuse.boundaries[position];
     const after = &reuse.boundaries[position + 1];
-    var storage: Snapshot = undefined;
-    const capture = storage.bind(state, after);
+    var storage: snapshot.Storage = undefined;
+    const capture = storage.bind(state);
     var borrowed: alignment.Borrowed = undefined;
     var types: std.meta.Child(@FieldType(Analysis, "alignment")) = undefined;
     var edges_input: std.meta.Child(@FieldType(Analysis, "dependencies")) = undefined;
@@ -68,8 +68,21 @@ pub fn analyzed(reuse: *Reuse, state: *State, owner: *History.History, index: us
         .analysis = if (prior != null) &analysis else null,
     };
 
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
-    const recorded = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
+    var arena = std.heap.ArenaAllocator.init(state.scratch.child_allocator);
+
+    defer arena.deinit();
+
+    var buffer: [1024]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+
+    const result = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch |err| switch (err) {
+        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    snapshot.commit(after, result.checkpoint);
+
+    const recorded = result.recorded;
     owner.analyzed = @intCast(recorded.analyzed);
     reuse.redone[index] = recorded.redone;
     reuse.aligned = recorded.aligned;

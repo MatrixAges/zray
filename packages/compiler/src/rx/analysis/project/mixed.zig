@@ -126,7 +126,7 @@ const Transaction = struct {
                 .LowerRX => if (!try self.linkPreparedRX(next)) try self.lowerAtTurn(next),
             }
 
-            self.reuse.analyzed(state, next.index, next.position);
+            try self.reuse.analyzed(state, next.index, next.position);
 
             position = next.following;
         }
@@ -305,11 +305,11 @@ pub fn skipMixedBody(handle: *anyopaque) u64 {
     return borrow(handle).pending.following;
 }
 
-pub fn recordMixedBody(handle: *anyopaque) void {
+pub fn recordMixedBody(handle: *anyopaque) std.mem.Allocator.Error!void {
     const self = borrow(handle);
     const next = self.pending;
 
-    self.reuse.analyzed(self.state, next.index, next.position);
+    return self.reuse.analyzed(self.state, next.index, next.position);
 }
 
 pub fn materializeMixedModule(handle: *anyopaque) State.Error!void {

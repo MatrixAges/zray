@@ -1,15 +1,11 @@
-import type {
-    ListColumn,
-    ReadColumn,
-    U8Buffer
-} from "memory"
+import type { ListColumn, ReadColumn } from "memory"
 import type {
     Input as RecordedState,
-    Restore as StateRestore
+    Restored
 } from "../../../memo/restore/model"
 import type { Probe } from "../../../memo/table/model"
 import type { Demand, Settlement } from "../../ordered/columns"
-import type { Advance, Cursor } from "../model"
+import type { Advance, Cursor, Phase } from "../model"
 
 export type Index = {
     table: Probe,
@@ -33,12 +29,16 @@ export type Tables = {
     demanded: Demands,
     planned: Index,
     identities: ReadColumn,
-    digest: U8Buffer,
     digest_width: u64
 }
 
 export type Replacement = {
     visit: u32,
+    row: u32
+}
+
+export type Hit = {
+    phase: Phase,
     row: u32
 }
 
@@ -52,7 +52,10 @@ export type Input = {
 export type Output = {
     cursor: Cursor,
     replacements: Replacement[],
-    cleared?: u8[]
+    cleared?: u8[],
+    restored?: Restored,
+    digest?: u8[],
+    hits: Hit[]
 }
 
 export type Resume =
@@ -60,7 +63,7 @@ export type Resume =
         row: u64
     }
 
-export type Recovery = StateRestore.Omit("state") & {
+export type Recovery = {
     summaries: RecordedState.Pick("input", "output", "inputs", "outputs"),
     callees: u32[][]
 }
@@ -77,6 +80,7 @@ export type Lookup = {
 
 export type Found = {
     row?: u32,
+    digest: u8[],
     state: u8[]
 }
 
@@ -96,5 +100,6 @@ export type Traversal = Input.Omit("recovered") & Output & {
 
 export type Miss = {
     scan: Traversal,
+    digest: u8[],
     source: u8[]
 }

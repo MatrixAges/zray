@@ -15,13 +15,12 @@ pub fn render(allocator: std.mem.Allocator, stateful: bool) std.mem.Allocator.Er
     const Input = std.meta.Child(entry.Input);
 
     const input: Input = .{
-        .writer = @ptrCast(&writer),
         .stateful = stateful,
     };
 
     const result = zx.columns.invoke(entry.executeValue, workspace, &input) catch |err| return failure(err);
 
-    if (!result) return error.OutOfMemory;
+    try @import("../../printer/module.zig").writeChunks(&writer, result orelse return error.OutOfMemory);
 
     return writer.finish();
 }

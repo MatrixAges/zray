@@ -1,0 +1,15 @@
+import type { Write } from "../commit"
+import type { State as Output } from "./model"
+
+export type Input = {
+    state: Output,
+    scope: u64,
+    writes: Write[]
+}
+
+export default function (in: Input): Output {
+    return {
+        ...in.state,
+        scope_writes: in.state.scope_writes.with(in.scope, in.writes)
+    }
+}

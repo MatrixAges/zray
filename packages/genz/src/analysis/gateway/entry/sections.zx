@@ -1,0 +1,19 @@
+export type Input = {
+    prelude: u8[][],
+    dispatch: u8[][],
+    services: u8[][][],
+    http: u8[][]
+}
+
+export type Output = u8[][][]
+
+export default function (in: Input): Output {
+    const first: u8[][][] = [
+        in.prelude,
+        in.dispatch
+    ]
+
+    const groups = first.concat(in.services)[0]
+
+    return groups.push(in.http)[0]
+}

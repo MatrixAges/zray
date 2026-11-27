@@ -1,5 +1,5 @@
 import type { Symbols } from "core/symbol_table/model"
-import type { ColumnLengths, ReadColumn, U8Buffer } from "memory"
+import type { ColumnLengths, ReadColumn } from "memory"
 import type { FunctionBodyRow } from "memory/columns"
 import type { ProgramEntry, ProjectBody, ProjectEntry, ProjectWalk } from "project_host"
 import type { FunctionColumns } from "../../entry_body/model"
@@ -15,7 +15,6 @@ export type Load = {
 
 export type Walk = {
     walk: ProjectWalk,
-    marks: U8Buffer,
     row: u64,
     depth: u64
 }
@@ -36,7 +35,7 @@ export type BodyResult = {
     duplicate?: string,
     cache_root?: u64,
     records_used?: u64,
-    cache_used?: u64
+    cache_record?: u64
 }
 
 export type Entry = {

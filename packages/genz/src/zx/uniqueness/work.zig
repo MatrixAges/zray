@@ -58,8 +58,7 @@ const QueueCursor = std.meta.Child(@FieldType(Queue, "cursor"));
 
 fn queue(self: *Self, cursor: *const QueueCursor) Queue {
     return .{
-        .slots = @ptrCast(&self.slots),
-        .queued = @ptrCast(&self.queued),
+        .queued = self.queued,
         .cursor = cursor,
         .capacity = self.slots.len,
     };
@@ -76,11 +75,9 @@ fn queueCursor(self: *const Self) QueueCursor {
 
 pub fn prepare(self: *Self, summaries: *const Summaries, active: []const bool, known: []const bool, phase: Round.Phase, exhausted: bool) std.mem.Allocator.Error!void {
     const state = SummaryState.Borrowed.init(summaries);
-    const cursor = self.queueCursor();
-    const state_view = self.queue(&cursor);
 
     const fill_view: std.meta.Child(@FieldType(std.meta.Child(preparing.Input), "queue")) = .{
-        .state = &state_view,
+        .capacity = self.slots.len,
         .active = active,
     };
 
@@ -104,6 +101,10 @@ pub fn prepare(self: *Self, summaries: *const Summaries, active: []const bool, k
 
     var fallback = std.heap.BufferFirstAllocator.init(&scratch_buf, arena.allocator());
     const prepared = try invoke(preparing, fallback.allocator(), &input);
+    const count: usize = @intCast(prepared.cursor.count);
+
+    @memcpy(self.queued, prepared.queued);
+    @memcpy(self.slots[0..count], prepared.slots[0..count]);
 
     self.cursor = .{
         .head = prepared.cursor.head,
@@ -116,19 +117,16 @@ pub fn prepare(self: *Self, summaries: *const Summaries, active: []const bool, k
 }
 
 pub fn advance(self: *Self, comptime kind: Memo.Kind, phase: Round.Phase, frame: *Round.Frame, previous: ?Round.Feedback, following: bool, ahead: *Ahead, memo: *Memo) std.mem.Allocator.Error!Round.Claim {
-    var flags = std.mem.sliceAsBytes(frame.dirty);
     const Input = dispatch.Advance;
     const Feedback = std.meta.Child(@typeInfo(@FieldType(Input, "previous")).optional.child);
     const Plan = std.meta.Child(@typeInfo(@FieldType(Feedback, "plan")).optional.child);
     const fields = if (previous) |value| value.plan else null;
 
     const plan: Plan = if (fields) |bytes| planned: {
-        var target = if (frame.plans) |*value| value else unreachable;
+        const target = frame.plans.?;
 
         break :planned .{
-            .plans = @ptrCast(&target.functions),
-            .entry = @ptrCast(&target.entry),
-            .count = target.functions.count,
+            .count = target.functions.len,
             .body = previous.?.body,
             .fields = bytes,
         };
@@ -152,12 +150,11 @@ pub fn advance(self: *Self, comptime kind: Memo.Kind, phase: Round.Phase, frame:
         .following = following,
         .outputs = @ptrCast(&frame.outputs),
         .active = frame.active,
-        .dirty = @ptrCast(&flags),
         .callers = frame.callers,
         .previous = if (previous != null) &feedback else null,
     };
 
-    return dispatch.run(ahead, memo, kind, &input, &self.cursor);
+    return dispatch.run(ahead, memo, kind, &input, self, frame);
 }
 
 inline fn invoke(comptime entry: type, allocator: std.mem.Allocator, input: entry.Input) std.mem.Allocator.Error!@typeInfo(@typeInfo(@TypeOf(entry.executeValue)).@"fn".return_type.?).error_union.payload {

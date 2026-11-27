@@ -1,4 +1,3 @@
-import type { Allocator, U64Buffer } from "memory"
 import type { ColumnAllocator, RowBuffer } from "memory/columns"
 import type { CompiledImport } from "project_host"
 import type { Input as Search } from "./find"
@@ -13,9 +12,7 @@ export type Initializers = {
 
 export type Input = {
     frame: CompiledImport,
-    owner: Allocator,
     initializers: Initializers,
-    index: U64Buffer,
     member: Member
 }
 

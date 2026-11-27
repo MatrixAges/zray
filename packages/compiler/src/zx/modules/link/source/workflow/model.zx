@@ -1,9 +1,5 @@
 import type { Modules } from "core/native_module_table/model"
-import type {
-    Allocator,
-    ColumnLengths,
-    OptionalU32Buffer
-} from "memory"
+import type { ColumnLengths } from "memory"
 import type {
     Append as TypeRegistration
 } from "../../../../analysis/semantic/merging/model"
@@ -16,6 +12,7 @@ import type {
     RootRequest
 } from "../../../artifact/materializing/publication/source_model"
 import type { Input as Initializer } from "../../../compiled/initializer_registry/insert"
+import type { Initializer as Registered } from "../../../compiled/model"
 import type { Input as RangeRequest } from "../../function_range/valid"
 import type { Destination } from "../../native/publication/model"
 
@@ -32,9 +29,7 @@ export enum Status {
 export type Native = {
     source: Modules,
     base: Modules,
-    destination: Destination,
-    mapping: OptionalU32Buffer,
-    resource: Allocator
+    destination: Destination
 }
 
 export type Check = {
@@ -60,9 +55,12 @@ export type Input = {
     write?: Write
 }
 
-export type Output = Status
+export type Output = {
+    status: Status,
+    native_ids: u32?[]
+}
 
 export type Publication = {
     status: Status,
-    buckets: u32[]
+    initializer?: Registered
 }

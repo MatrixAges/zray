@@ -1,13 +1,8 @@
-import type { ByteWriter } from "memory"
 import type { Declarations } from "./model/declarations"
 import type { Expressions } from "./model/expressions"
 import type { Fields, Arms } from "./model/members"
 import type { Statements } from "./model/statements"
 import type { Token } from "./model/token"
-
-export type Destination = {
-    writer: ByteWriter
-}
 
 export type Source = {
     expressions: Expressions
@@ -20,16 +15,11 @@ export type Source = {
 }
 
 export type Render = {
-    source: Source,
-    output: ByteWriter
+    source: Source
 }
 
 export type Published = Source & {
     valid: bool
-}
-
-export type Publication = Destination & {
-    module: Published
 }
 
 export enum Action {

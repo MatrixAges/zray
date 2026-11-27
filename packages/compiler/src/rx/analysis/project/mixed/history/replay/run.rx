@@ -1,18 +1,23 @@
 <Module>
     <Type from="model" as="Replay" />
 
-    <Args in={Replay.Input} out={u64} />
+    <Args in={Replay.Input} out={Replay.Output} />
 
     <Call fn="../prefix/scan" in={$in.window} />
 
     <If on={$ctx.scan == $in.window.first}>
-        <Return value={$ctx.scan} />
+        <Return
+            value={{
+                position: $ctx.scan,
+                ranges: []
+            }}
+        />
     </If>
 
     <Call
         fn="columns"
         in={{
-            ...$in.transfer,
+            column_count: $in.column_count,
             boundaries: $in.window.history.boundaries,
             first: $in.window.first,
             end: $ctx.scan
@@ -37,5 +42,11 @@
         }}
     />
 
-    <Return value={$ctx.scan} />
+    <Return
+        value={{
+            position: $ctx.scan,
+            ranges: $ctx.columns,
+            publication: $ctx.prefix
+        }}
+    />
 </Module>

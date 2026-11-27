@@ -1,7 +1,6 @@
 const std = @import("std");
 const frontend = @import("frontend");
 const zx = @import("zx");
-const memory = zx.memory;
 const State = @import("state.zig");
 const Edge = @import("../source_graph/model.zig").Edge;
 const Binding = std.meta.Child(@FieldType(frontend.ResolvedImports, "imports"));
@@ -47,6 +46,7 @@ const Bindings = struct {
     members: Selection.Members = undefined,
     request: if (enabled) Selection.Request.Storage else void = undefined,
     rows: Rows = undefined,
+    publication: Publication = undefined,
     fn borrow(handle: *anyopaque) *Bindings {
         return @ptrCast(@alignCast(handle));
     }
@@ -90,7 +90,11 @@ const Bindings = struct {
 
         _ = self.request.init(item, &symbols);
 
+        const target, const prefix = self.publication.target(item.exported);
+
         self.rows = .{
+            .stride = @sizeOf(Binding),
+            .prefix = if (target.items.len == 0) prefix.len else 0,
             .named = std.mem.sliceAsBytes(self.members.named),
             .fallback = if (self.members.default) |member| std.mem.asBytes(member) else &.{},
             .exported = item.exported,
@@ -100,52 +104,91 @@ const Bindings = struct {
     }
 };
 
+const Publication = struct {
+    allocator: std.mem.Allocator,
+    signature: *const Signature,
+    functions: std.ArrayList(Binding) = .empty,
+    published: std.ArrayList(Binding) = .empty,
+    fn target(self: *Publication, exported: bool) struct { *std.ArrayList(Binding), []const Binding } {
+        return if (exported)
+            .{ &self.published, self.signature.reexport_functions }
+
+        else
+            .{ &self.functions, self.signature.function_imports };
+    }
+    fn commit(self: *Publication, plan: anytype) std.mem.Allocator.Error!void {
+        if (!plan.fits) return error.OutOfMemory;
+
+        const output, const prefix = self.target(plan.exported);
+        const count: usize = @intCast(plan.prefix);
+
+        try output.ensureUnusedCapacity(self.allocator, count + plan.names.len);
+
+        output.appendSliceAssumeCapacity(prefix[0..count]);
+
+        for (plan.names, plan.sources) |name, source| {
+            std.debug.assert(source.len == @sizeOf(Binding));
+
+            var row = std.mem.bytesToValue(Binding, source);
+
+            row.name = try self.allocator.dupe(u8, name);
+
+            output.appendAssumeCapacity(row);
+        }
+    }
+    fn deinit(self: *Publication) void {
+        self.release(&self.functions, self.signature.function_imports.len);
+        self.release(&self.published, self.signature.reexport_functions.len);
+    }
+    fn release(self: *Publication, rows: *std.ArrayList(Binding), prefix: usize) void {
+        if (rows.items.len != 0) {
+            for (rows.items[prefix..]) |row| self.allocator.free(row.name);
+        }
+
+        rows.deinit(self.allocator);
+    }
+};
+
 fn collectSource(bindings: *Bindings, allocator: std.mem.Allocator, signature: *const Signature) State.Error!Result {
-    const scratch = bindings.state.scratch.allocator();
-    var functions = memory.RowBuffer.empty(Binding);
-    var published = memory.RowBuffer.empty(Binding);
-    var used = [_]u64{ 0, 0 };
-    var function_used: []u64 = used[0..1];
-    var published_used: []u64 = used[1..2];
+    var scratch = std.heap.ArenaAllocator.init(bindings.state.scratch.child_allocator);
+
+    defer scratch.deinit();
+
+    bindings.publication = .{ .allocator = allocator, .signature = signature };
+
+    errdefer bindings.publication.deinit();
+
     const symbols: *const @TypeOf(bindings.request.input) = &bindings.request.input;
 
     const input: Input = .{
         .binding = @ptrCast(bindings),
-        .imports = if (bindings.parsed.* == .indexed) zx.columns.slice(@FieldType(Input, "imports"), bindings.parsed.indexed.output.imports) else &.{},
         .count = bindings.edges.len,
         .row = 0,
+        .pending = null,
         .symbols = &.{zx.columns.pointer(std.meta.Elem(@FieldType(Input, "symbols")), symbols)},
-        .owner = @ptrCast(&allocator),
-        .owner_rows = @ptrCast(&allocator),
-        .functions = &.{
-            .storage = @ptrCast(&functions),
-            .bytes = @ptrCast(&functions.bytes),
-            .prefix = std.mem.sliceAsBytes(signature.function_imports),
-            .used = @ptrCast(&function_used),
-        },
-        .published = &.{
-            .storage = @ptrCast(&published),
-            .bytes = @ptrCast(&published.bytes),
-            .prefix = std.mem.sliceAsBytes(signature.reexport_functions),
-            .used = @ptrCast(&published_used),
-        },
-        .layout = &.{ .stride = @sizeOf(Binding), .name_offset = @offsetOf(Binding, "name") },
     };
 
-    rule.executeIn(scratch, &input) catch |err| switch (@as(anyerror, err)) {
+    const pending = rule.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         error.InvalidSourceGraph => return error.InvalidSourceGraph,
         else => unreachable,
     };
 
+    const publication = &bindings.publication;
+
+    if (pending) |plan| try publication.commit(plan);
+
     return .{
-        .functions = if (used[0] == 0) signature.function_imports else functions.rows(Binding)[0..@intCast(used[0])],
-        .published = if (used[1] == 0) signature.reexport_functions else published.rows(Binding)[0..@intCast(used[1])],
+        .functions = if (publication.functions.items.len == 0) signature.function_imports else publication.functions.items,
+        .published = if (publication.published.items.len == 0) signature.reexport_functions else publication.published.items,
     };
 }
 
-pub fn openMixedImport(handle: *anyopaque, row: u64) State.Error!?*const Rows {
+pub inline fn openMixedImport(handle: *anyopaque, row: u64, publication: anytype) State.Error!?*const Rows {
     const bindings = Bindings.borrow(handle);
+
+    if (publication) |plan| try bindings.publication.commit(plan);
+
     const index: usize = @intCast(row);
 
     return switch (bindings.parsed.*) {

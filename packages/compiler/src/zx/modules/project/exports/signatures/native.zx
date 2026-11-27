@@ -1,51 +1,36 @@
 import memory from "memory"
-import columns from "memory/columns"
 
 import fromBinding from "./from_binding"
 import write from "./write"
 
-import type { Bindings, Kinds, Target } from "./model"
+import type { Bindings, Change, Kinds } from "./model"
 
 export type Input = {
-    target: Target,
     kinds: Kinds,
     bindings: Bindings,
-    start: u64
+    start: u64,
+    index: u64
 }
 
-export type Output = void
+export type Output = Change?
 
 export default function (in: Input): Output {
-    const { target, kinds, bindings, start } = in
+    const { kinds, bindings, start, index } = in
 
-    const valid = loop({
-        row: 0,
-        valid: true
-    }, {
-        while: state => state.valid && state.row < bindings.count,
-        next: state => {
-            const index = state.row
-            const signature = fromBinding({
-                kinds,
-                facts: bindings.facts,
-                index
-            })
-
-            state.valid = signature != null
-
-            if (signature != null) {
-                write({
-                    ...signature,
-                    target,
-                    name: memory.readTextColumn(bindings.names, index),
-                    row: start + index
-                })
-            }
-
-            state.row += 1
-        },
-        return: state => state.valid
+    const signature = fromBinding({
+        kinds,
+        facts: bindings.facts,
+        index
     })
 
-    columns.requireColumnBounds(valid)
+    if (signature == null) {
+        return null
+    }
+
+    return write({
+        ...signature,
+        name: memory.readTextColumn(bindings.names, index),
+        row: start + index,
+        own_name: false
+    })
 }

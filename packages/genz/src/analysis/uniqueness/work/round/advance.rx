@@ -1,22 +1,38 @@
 <Module>
     <Type from="model" as="Round" />
 
-    <Args in={Round.Advance} out={Round.Visit} />
+    <Args in={Round.Advance} out={Round.Dispatch} />
 
     <Call module="feedback" in={$in} />
+
+    <Call
+        fn="../enqueue"
+        in={{
+            state: $in.state,
+            indices: $ctx.feedback.dirty
+        }}
+    />
 
     <Call
         fn="take"
         in={{
             state: {
                 ...$in.state,
-                cursor: $ctx.feedback
+                cursor: $ctx.feedback.cursor
             },
+            additions: $ctx.enqueue,
             slots: $in.slots,
             phase: $in.phase,
             following: $in.following
         }}
     />
 
-    <Return value={$ctx.take} />
+    <Return
+        value={{
+            ...$ctx.take,
+            additions: $ctx.enqueue,
+            dirty: $ctx.feedback.dirty,
+            plan: $ctx.feedback.plan
+        }}
+    />
 </Module>

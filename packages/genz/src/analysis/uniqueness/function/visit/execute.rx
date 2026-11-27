@@ -6,18 +6,12 @@
     <Call module="run" in={$in.omit(["memo"])} />
 
     <If on={$in.memo != null}>
-        <Call
-            module="../../memo/record/write"
-            in={{
-                target: $in.memo,
-                result: $ctx.run
-            }}
-        />
+        <Call module="../../memo/table/store" in={$in.memo} />
 
         <Return
             value={{
                 ...$ctx.run,
-                row: $ctx.write
+                row: $ctx.store
             }}
         />
     </If>

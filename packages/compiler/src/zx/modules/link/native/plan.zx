@@ -1,34 +1,35 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
 import binding from "core/native_module_table/binding"
-import memory from "memory"
 
 import lookup from "./lookup"
 import { Status } from "./model"
 import pending from "./pending"
 
 import type { Modules } from "core/native_module_table/model"
-import type { OptionalU32Buffer } from "memory"
 
 export type Input = {
     source: Modules,
     base: Modules,
-    types: u32[],
-    target: OptionalU32Buffer
+    types: u32[]
 }
 
 export type Output = {
     additions: u64[],
+    ids: u32?[],
     failure?: Status
 }
 
 export type Selection = {
     rows?: u64[],
+    ids: u32?[],
     failure?: Status
 }
 
 export default function (in: Input): Output {
-    const { source, base, types, target } = in
+    const { source, base, types } = in
+
+    const ids: u32?[] = []
 
     const additions: u64[] = []
     const failure: Status? = null
@@ -39,6 +40,7 @@ export default function (in: Input): Output {
     return loop({
         row: 0,
         additions,
+        ids,
         failure
     }, {
         while: state => state.failure == null && state.row < count,
@@ -70,11 +72,9 @@ export default function (in: Input): Output {
             if (
                 decision.status == Status.Reuse || decision.status == Status.Insert
             ) {
-                memory.writeOptionalU32(
-                    target,
-                    row,
-                    integers.narrow(decision.row)
-                )
+                const id: u32? = integers.narrow(decision.row)
+
+                state.ids = state.ids.push(id)[0]
 
                 if (decision.status == Status.Insert) {
                     state.additions = state.additions.push(row)[0]
@@ -87,6 +87,7 @@ export default function (in: Input): Output {
         },
         return: state => ({
             additions: state.additions,
+            ids: state.ids,
             failure: state.failure
         })
     })

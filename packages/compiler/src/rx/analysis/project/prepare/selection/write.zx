@@ -1,33 +1,20 @@
-import columns from "memory/columns"
-
-import reference from "../flow/write_reference"
-
-import type { CaseRows, Units } from "./model"
+import type { Cases as Output, Units } from "./model"
 
 export type Input = {
-    rows: CaseRows,
+    cases: Output,
     units: Units,
     slot: u64,
-    row: u64,
     tag: u8,
-    attribute: u8[]?,
-    attribute_width: u64
+    attribute?: u8[]
 }
 
-export type Output = void
-
 export default function (in: Input): Output {
-    const { rows, units, slot, row, tag } = in
+    const { cases, units, slot } = in
 
-    columns.writeColumnU32(rows.first, row, units.unit_firsts[slot])
-    columns.writeColumnU32(rows.count, row, units.unit_counts[slot])
-    columns.writeColumnU8(rows.kind, row, tag)
-    columns.writeColumnOptionalBool(rows.truth, row, null)
-
-    reference([
-        rows.source,
-        row,
-        in.attribute,
-        in.attribute_width
-    ])
+    return {
+        firsts: cases.firsts.push(units.unit_firsts[slot])[0],
+        counts: cases.counts.push(units.unit_counts[slot])[0],
+        kinds: cases.kinds.push(in.tag)[0],
+        sources: cases.sources.push(in.attribute ?? [])[0]
+    }
 }

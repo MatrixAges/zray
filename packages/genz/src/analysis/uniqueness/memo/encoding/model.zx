@@ -1,26 +1,10 @@
-import type { ByteWriter, U8Buffer } from "memory"
 import type { GrowthColumns } from "../../function/levels/model"
 import type { Probe } from "../table/model"
 
 export type State = {
-    buffer: ByteWriter,
-    state_end: u64
-}
-
-export type Append = {
-    state: State,
-    bytes: u8[]
-}
-
-export type Integer = {
-    state: State,
-    value: u64,
-    width: u64
-}
-
-export type Levels = {
-    state: State,
-    values: u8[]
+    chunks: u8[][],
+    state_end: u64,
+    size: u64
 }
 
 export enum Kind {
@@ -29,35 +13,15 @@ export enum Kind {
     Planned
 }
 
-export type Header = {
-    state: State,
-    identity: u8[]
-}
-
-export type Begin = {
-    state: State,
-    identity: u8[],
-    index: u64
-}
-
-export type Finish = {
-    state: State,
-    kind: Kind
-}
-
-export type Word = {
-    state: State,
-    value: u64
-}
-
-export type GrowthLevel = Integer & {
+export type GrowthLevel = {
+    value: u64,
+    width: u64,
     want: u8
 }
 
 export type RecordColumns = GrowthColumns.Omit("bytes", "wide")
 
 export type Key = {
-    state: State,
     identity: u8[],
     index: u64,
     kind: Kind,
@@ -73,19 +37,21 @@ export type Key = {
 }
 
 export type Target = {
-    digest: U8Buffer,
     table: Probe
 }
 
 export type Lookup = Key & Target
 
-export type Found = {
-    state: State,
-    row?: u32
+export type Match = {
+    row?: u32,
+    digest: u8[]
+}
+
+export type Found = Match & {
+    state: State
 }
 
 export type Facts = {
-    state: State,
     callees: u32[],
     rows: u8[][],
     own: u8[],

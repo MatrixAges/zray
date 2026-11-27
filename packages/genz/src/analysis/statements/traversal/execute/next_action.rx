@@ -10,24 +10,32 @@
             in={{
                 ...$in.pick([
                     "traversal",
-                    "context",
-                    "buffers"
+                    "context"
                 ]),
                 scope: $in.plan.scopes[$in.index],
+                writes: $in.state.scope_writes[$in.plan.scopes[$in.index]],
                 first: $in.plan.offsets[$in.index],
                 count: $in.plan.counts[$in.index],
                 routes: $in.state.scope_routes[$in.plan.scopes[$in.index]],
-                scope_first: $in.state.scope_firsts[$in.plan.scopes[$in.index]],
-                scope_placement:
-                    $in.state.scope_placements[$in.plan.scopes[$in.index]]
+                scope_first: $in.state.scope_firsts[$in.plan.scopes[$in.index]]
+            }}
+        />
+
+        <Call
+            fn="save_scope_writes"
+            in={{
+                state: $in.state,
+                scope: $in.plan.scopes[$in.index],
+                writes: $ctx.scope.writes
             }}
         />
 
         <Return
             value={{
                 ...$in,
-                index: $in.index + ($ctx.scope ? 1 : 0),
-                running: $ctx.scope && $in.index + 1 < $in.plan.actions.length
+                state: $ctx.save_scope_writes,
+                index: $in.index + ($ctx.scope.valid ? 1 : 0),
+                running: $ctx.scope.valid && $in.index + 1 < $in.plan.actions.length
             }}
         />
     </If>
@@ -38,7 +46,6 @@
             ...$in.pick([
                 "traversal",
                 "context",
-                "buffers",
                 "state",
                 "child"
             ]),

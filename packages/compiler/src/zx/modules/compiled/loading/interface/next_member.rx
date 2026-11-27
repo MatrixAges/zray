@@ -1,0 +1,18 @@
+<Module>
+    <Type from="publication" as="Publication" />
+
+    <Args in={Publication.MemberStep} out={Publication.MemberStep} />
+
+    <Store from="rows" as="rows" />
+
+    <Call fn="members" in={$in.omit(["count"])} />
+
+    <Call fn="stage" setter={[$store.rows.pending]} />
+
+    <Return
+        value={{
+            ...$in,
+            index: $ctx.stage + 1
+        }}
+    />
+</Module>

@@ -4,17 +4,16 @@
 
     <Args in={Load.Import} out={Load.ImportRoute} />
 
-    <If on={$in.claim != null}>
-        <Call fn="imports/claim" in={$in.claim} />
+    <Call fn="imports/claim" in={$in.claim} />
 
-        <If on={$ctx.claim != null}>
-            <Return
-                value={{
-                    route: Target.Route.Invalid,
-                    duplicate: $ctx.claim
-                }}
-            />
-        </If>
+    <If on={$ctx.claim.duplicate != null}>
+        <Return
+            value={{
+                route: Target.Route.Invalid,
+                slots: $ctx.claim.slots,
+                duplicate: $ctx.claim.duplicate
+            }}
+        />
     </If>
 
     <Call module="target" in={$in.target} />
@@ -22,7 +21,7 @@
     <Return
         value={{
             ...$ctx.target,
-            duplicate: null
+            slots: $ctx.claim.slots
         }}
     />
 </Module>

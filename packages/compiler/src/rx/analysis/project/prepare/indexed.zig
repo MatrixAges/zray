@@ -1,6 +1,5 @@
 const std = @import("std");
 const rx = @import("rx");
-const memory = @import("zx").memory;
 const Flow = @import("../flow.zig");
 const Prepare = @import("../prepare.zig");
 const Invocation = @import("invocation/host.zig").Invocation;
@@ -10,13 +9,6 @@ const Index = std.meta.Child(@FieldType(Input, "index"));
 const Tree = std.meta.Child(@FieldType(Input, "tree"));
 const Layout = std.meta.Child(@FieldType(Tree, "layout"));
 const Capacity = @FieldType(rx.IndexedFlow, "capacity");
-const Payload = std.meta.Child(@FieldType(Input, "payload"));
-const Selections = std.meta.Child(@FieldType(Payload, "selections"));
-const payload_lanes = 5;
-
-fn Columns(comptime Row: type, comptime View: type, comptime field: []const u8, comptime paths: anytype) type {
-    return memory.RowOutput(Row, std.meta.Child(@FieldType(View, field)), paths);
-}
 
 pub fn indexed(loader: *Prepare.Loader, layout: rx.IndexedFlow) Prepare.Loader.Error!Flow.Plan {
     const index: Index = .{
@@ -83,17 +75,12 @@ fn bind(loader: *Prepare.Loader, index: *const Index, tree: *const Tree, capacit
 
     try loader.calls.setCapacity(allocator, capacity.calls);
 
-    const headers = loader.plan.rows.slice();
-    var kinds = std.mem.sliceAsBytes(headers.items(.kind));
-    var items = headers.items(.item);
-    var counters: [payload_lanes]u32 = @splat(0);
-    var cursors: []u32 = &counters;
+    var invocation: Invocation = .{ .loader = loader };
+    const view = invocation.view();
     const Rows = std.meta.Child(@FieldType(Input, "rows"));
 
     const rows: Rows = .{
-        .kinds = @ptrCast(&kinds),
-        .items = @ptrCast(&items),
-        .cursors = @ptrCast(&cursors),
+        .cursors = &invocation.cursors,
         .codes = &.{
             .call = @backingInt(Flow.Kind.Call),
             .result = @backingInt(Flow.Kind.Result),
@@ -104,66 +91,26 @@ fn bind(loader: *Prepare.Loader, index: *const Index, tree: *const Tree, capacit
         },
     };
 
-    comptime {
-        if (@sizeOf(Flow.Kind) != @sizeOf(u8)) @compileError("indexed flow kinds must fit in one byte");
-    }
+    var scratch = std.heap.ArenaAllocator.init(loader.backing);
 
-    const body = .{ .first = &.{ "body", "first" }, .count = &.{ "body", "count" } };
-    var tasks: Columns(Flow.Task, Payload, "tasks", body) = undefined;
-    var groups: Columns(Flow.Unit, Payload, "groups", .{}) = undefined;
-    var selections: Columns(Flow.Selection, Selections, "destination", .{}) = undefined;
+    defer scratch.deinit();
 
-    var cases: Columns(Flow.Case, Selections, "body", .{
-        .first = body.first,
-        .count = body.count,
-        .kind = &.{ "label", "kind" },
-        .source = &.{ "label", "source" },
-    }) = undefined;
-
-    var results = memory.RowBuffer.empty(rx.ast.Attribute);
-
-    tasks.init();
-    groups.init();
-    selections.init();
-    cases.init();
-    tasks.bind(loader.plan.tasks.items);
-    groups.bind(loader.plan.groups.items);
-    selections.bind(loader.plan.selections.items);
-
-    results.bytes = std.mem.sliceAsBytes(loader.plan.results.items);
-
-    var invocation: Invocation = .{ .loader = loader };
-    const view = invocation.view();
-
-    entry.executeIn(allocator, &.{
+    entry.executeIn(scratch.allocator(), &.{
         .invocation = view,
         .body = &.{
             .index = index,
             .rows = &rows,
             .tree = tree,
-            .payload = &.{
-                .results = @ptrCast(&results),
-                .tasks = &tasks.view,
-                .groups = &groups.view,
-                .selections = &.{
-                    .destination = &selections.view,
-                    .storage = @ptrCast(&cases.buffer),
-                    .body = &cases.view,
-                    .labels = &.{
-                        .ordinary = @backingInt(Flow.Case.Label.Kind.Case),
-                        .affirmative = @backingInt(Flow.Case.Label.Kind.Affirmative),
-                        .fallback = @backingInt(Flow.Case.Label.Kind.Default),
-                    },
-                },
+            .labels = &.{
+                .ordinary = @backingInt(Flow.Case.Label.Kind.Case),
+                .affirmative = @backingInt(Flow.Case.Label.Kind.Affirmative),
+                .fallback = @backingInt(Flow.Case.Label.Kind.Default),
             },
         },
         .remaining = index.events.len,
-    }) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.InvalidFlow => return @errorCast(err),
-        else => unreachable,
-    };
+    }) catch |err| return Prepare.loadError(err);
 
-    std.debug.assert(std.mem.eql(u32, &counters, &.{
+    std.debug.assert(std.mem.eql(u32, &invocation.cursors, &.{
         capacity.calls,
         capacity.results,
         capacity.tasks,

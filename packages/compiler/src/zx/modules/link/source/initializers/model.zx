@@ -16,8 +16,6 @@ export type Target = {
 
 export type Input = {
     source: Source,
-    target: Target,
     functions: Mapping,
-    start: u64,
-    end: u64
+    row: u64
 }

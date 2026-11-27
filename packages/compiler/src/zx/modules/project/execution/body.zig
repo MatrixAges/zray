@@ -30,6 +30,9 @@ const Body = struct {
     fn borrow(handle: *anyopaque) *Body {
         return @ptrCast(@alignCast(handle));
     }
+    pub fn commit(self: *Body, pending: anytype) std.mem.Allocator.Error!void {
+        try self.exports.commit(self.project.allocator, pending);
+    }
 };
 
 pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
@@ -52,7 +55,9 @@ pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
         defer scratch.deinit();
 
         body.exports.scratch = scratch.allocator();
+        body.exports.bound = false;
 
+        errdefer body.exports.release(project.allocator);
         body.installation.bind(project);
         defer body.installation.commit();
 
@@ -77,13 +82,21 @@ pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
             .installation = &body.installation.input,
         };
 
-        const outcome = zx.columns.invoke(entry.executeIn, project.allocator, &request) catch |err| return switch (@as(anyerror, err)) {
+        const outcome = entry.executeIn(project.allocator, &request, &body) catch |err| return switch (@as(anyerror, err)) {
             error.IntegerOverflow, error.Overflow => error.OutOfMemory,
             else => errorSet(err),
         };
 
         if (outcome.records_used) |count| body.installation.modules.length = count;
-        if (outcome.cache_used) |count| body.installation.cache.length = count;
+
+        if (outcome.cache_record) |index| {
+            const cache_tail = &body.installation.cache;
+
+            cache_tail.output.rows()[@intCast(cache_tail.length)] = @intCast(index);
+
+            cache_tail.length += 1;
+        }
+
         if (outcome.duplicate) |name| return exports.reportDuplicate(project.allocator, project.reporter, name);
         if (outcome.cache_root) |root| project.cache_root = @intCast(root);
 

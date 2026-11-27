@@ -1,5 +1,3 @@
-import type { U8Buffer, U64Buffer } from "memory"
-
 export type Cursor = {
     head: u64,
     count: u64,
@@ -8,29 +6,33 @@ export type Cursor = {
 }
 
 export type State = {
-    slots: U64Buffer,
-    queued: U8Buffer,
+    queued: u8[],
     cursor: Cursor,
     capacity: u64
 }
 
 export type Fill = {
-    state: State,
+    capacity: u64,
     active: bool[]
 }
 
-export type Push = {
-    state: State,
-    index: u64
+export type Filled = {
+    queued: u8[],
+    slots: u64[],
+    cursor: Cursor
+}
+
+export type Slot = {
+    slot: u64,
+    body: u64
 }
 
 export type Enqueue = {
     state: State,
-    dirty: U8Buffer,
     indices: u64[]
 }
 
-export type Notify = Enqueue.Omit("indices") & {
+export type Notify = {
     changed: u64[],
     active: bool[],
     callers: u64[],

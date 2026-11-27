@@ -79,14 +79,17 @@
     <Call fn="verification/check" in={$in.compiled.check} />
 
     <If on={$ctx.check != Check.State.Checked}>
+        <Call fn="verification/remember" in={$in.compiled.check} />
+
         <Call
             fn="host.validatePreparedLibrary"
             in={[
                 $in.state,
-                $ctx.check == Check.State.VerifyExtension
+                $ctx.check == Check.State.VerifyExtension,
+                $ctx.remember.index,
+                $ctx.remember.word,
+                $ctx.remember.first
             ]}
         />
-
-        <Call fn="verification/remember" in={$in.compiled.check} />
     </If>
 </Module>

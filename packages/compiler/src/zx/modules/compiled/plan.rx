@@ -36,17 +36,23 @@
         module="validate"
         in={$in.pick([
             "graph",
-            "export_index"
+            "index_capacity"
         ])}
     />
 
-    <If on={!$ctx.validate}>
+    <If on={!$ctx.validate.valid}>
         <Call fn="empty" in={Link.Status.InvalidLibrary} />
 
         <Return value={$ctx.empty} />
     </If>
 
-    <Call module="load" in={$in} />
+    <Call
+        module="load"
+        in={{
+            ...$in,
+            export_index: $ctx.validate.export_index
+        }}
+    />
 
     <Return value={$ctx.load} />
 </Module>

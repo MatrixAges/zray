@@ -1,15 +1,17 @@
-import memory from "memory"
-
-import type { Counters } from "./model"
-
-export type Input = Counters & {
+export type Input = {
+    reused_before: u64,
     count: u64,
     verified_end: u64
 }
 
-export type Output = void
+export type Output = {
+    verified: u64,
+    reused: u64
+}
 
 export default function (in: Input): Output {
-    memory.writeColumnIndex(in.verified, 0, in.verified_end)
-    memory.writeColumnIndex(in.reused, 0, in.reused_before + in.count)
+    return {
+        verified: in.verified_end,
+        reused: in.reused_before + in.count
+    }
 }

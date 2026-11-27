@@ -49,7 +49,7 @@ export declare function constraintVoidNode(state: ConstraintCollection): u32?
 export declare function defaultConstraintInput(state: ConstraintCollection, input: u32): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function refreshFlowCursor(state: FlowTraversal): void
+export declare function refreshFlowCursor(state: FlowTraversal, next: u64?): void
 
 export declare function prepareFlowCall(state: FlowTraversal, item: u32): bool
     throws { OutOfMemory, InvalidSource, InvalidFlow }
@@ -63,13 +63,19 @@ export declare function evaluateFlowArgument(state: FlowTraversal): void
 export declare function createFlowUnitArgument(state: FlowTraversal): void
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
-export declare function registerFlowCall(state: FlowTraversal, row: u64, visible: bool): u32?
+export declare function registerFlowCall(
+    state: FlowTraversal,
+    row: u64,
+    visible: bool,
+    next: u64?,
+    bindings: u64
+): u32?
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
 export declare function checkFlowParallelCall(state: FlowTraversal, item: u32, id: u32): void
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
-export declare function evaluateFlowReturn(state: FlowTraversal, item: u32): void
+export declare function evaluateFlowReturn(state: FlowTraversal, item: u32, returned: bool): void
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
 export declare function writeFlowStep(
@@ -96,7 +102,15 @@ export declare function evaluateFlowCaseLabel(state: FlowTraversal, row: u64): b
 export declare function readFlowConditionLabel(state: FlowTraversal, row: u64): bool?
     throws { OutOfMemory }
 
-export declare function refineFlowCase(state: FlowTraversal, row: u64): void
+export declare function refineFlowCase(
+    state: FlowTraversal,
+    row: u64,
+    coverage: {
+        truth?: bool,
+        stopped?: bool,
+        remaining?: bool
+    }?
+): void
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
 export declare function pushFlowCase(state: FlowTraversal, row: u64, bindings: u64, facts: u64): void
@@ -105,19 +119,24 @@ export declare function pushFlowCase(state: FlowTraversal, row: u64, bindings: u
 export declare function prepareFlowTaskOutput(state: FlowTraversal): bool
     throws { OutOfMemory, InvalidFlow }
 
-export declare function evaluateFlowTaskOutput(state: FlowTraversal, row: u64, visible: bool): void
+export declare function evaluateFlowTaskOutput(state: FlowTraversal, row: u64, visible: bool, next: u64?): void
     throws { OutOfMemory, InvalidFlow }
 
 export declare function inferFlowTaskOutput(state: FlowTraversal, parallel: bool): u32?
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
-export declare function requestParallelTaskOutput(state: FlowTraversal): void
+export declare function requestParallelTaskOutput(state: FlowTraversal, output: u32, returned: bool): void
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
-export declare function bindFlowTaskOutput(state: FlowTraversal, parallel: bool, value: u32?): void
+export declare function bindFlowTaskOutput(
+    state: FlowTraversal,
+    parallel: bool,
+    value: u32?,
+    bindings: u64
+): void
     throws { OutOfMemory, InvalidSource, InvalidFlow }
 
-export declare function finishLoweredFlowTask(state: FlowTraversal): bool?
+export declare function finishLoweredFlowTask(state: FlowTraversal, bindings: u64): bool?
     throws { OutOfMemory, InvalidFlow }
 
 export declare function mergeFlowParallelBindings(state: FlowTraversal): void
@@ -128,7 +147,12 @@ export declare function checkFlowSelection(state: FlowTraversal): bool
 
 export declare function borrowFlowSelectionLabel(source: SelectionLabels, row: u64): bool
 
-export declare function finishFlowCase(state: FlowTraversal, row: u64): void
+export declare function finishFlowCase(
+    state: FlowTraversal,
+    row: u64?,
+    facts: u64,
+    bindings: u64
+): void
     throws { OutOfMemory }
 
 export declare function popFlowFrame(state: FlowTraversal): void

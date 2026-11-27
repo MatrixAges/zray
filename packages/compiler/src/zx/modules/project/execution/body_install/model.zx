@@ -34,12 +34,11 @@ export type Installation = {
 
 export type Reservation = {
     target: Rows,
-    index: u64
+    index: u64,
+    backing?: ColumnAllocator
 }
 
 export type Register = {
-    target: Rows,
     index: u64,
-    backing: ColumnAllocator,
     publish: bool
 }

@@ -1,9 +1,7 @@
-import type { ByteWriter } from "memory"
 import type { Module as Snapshot } from "../../../ast/snapshot/model"
 import type { Objects } from "../objects/model"
 
 export type Input = {
-    writer: ByteWriter,
     objects: Objects,
     execute: bool,
     io: bool,
@@ -11,6 +9,5 @@ export type Input = {
 }
 
 export type Fragment = {
-    snapshot: Snapshot,
-    writer: ByteWriter
+    snapshot: Snapshot
 }

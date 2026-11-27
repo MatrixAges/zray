@@ -75,9 +75,7 @@ pub fn load(allocator: std.mem.Allocator, project: *const Project, target: compi
 
     const input: std.meta.Child(rule.Input) = .{
         .frame = @ptrCast(&frame),
-        .owner = @ptrCast(&allocator),
         .initializers = &.{ .rows = @ptrCast(&frame.rows), .owner = @ptrCast(&allocator), .first = first },
-        .index = @ptrCast(&frame.pending.storage),
         .member = &.{ .names = @ptrCast(&frame.names), .buckets = @ptrCast(&frame.buckets), .name = target.name },
     };
 
@@ -125,6 +123,7 @@ pub fn reserveCompiledUnit(handle: *anyopaque, index: u64) std.mem.Allocator.Err
     try frame.cache.added.ensureUnusedCapacity(frame.allocator, 1);
 
     const library = frame.project.compiled_libraries[@intCast(index)];
+    frame.pending = try Index.init(frame.allocator, library.exports.len);
 
     frame.size = .{
         .exports = library.exports.len,

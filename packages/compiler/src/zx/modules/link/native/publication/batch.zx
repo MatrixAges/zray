@@ -1,40 +1,35 @@
 import binding from "core/native_module_table/binding"
 
-import append from "./append"
 import remap from "./ids"
 
-import type { Input } from "./model"
+import type { Binding } from "core/native_module_table/model"
+import type { Input as Request } from "./model"
 
-export type Output = void
+export type Input = Request.Omit("destination") & {
+    index: u64,
+    count: u64
+}
+
+export type Output = Binding & {
+    index: u64
+}
 
 export default function (in: Input): Output {
-    const { destination, mapping, rows, source } = in
+    const { source, mapping, rows, index } = in
 
-    const count = rows == null ? source.specifiers.length : rows.length
+    const row = rows == null ? index : rows[index]
 
-    const written = loop(0, {
-        while: index => index < count,
-        next: index => {
-            const row = rows == null ? index : rows[index]
-            const selected = binding({
-                source,
-                row
-            })
-
-            const ids = remap({
-                values: selected.ids,
-                mapping,
-                target: destination.ids,
-                resource: destination.resource
-            })
-
-            append({
-                destination,
-                source: selected,
-                ids
-            })
-
-            index += 1
-        }
+    const selected = binding({
+        source,
+        row
     })
+
+    return {
+        ...selected,
+        ids: remap({
+            values: selected.ids,
+            mapping
+        }),
+        index
+    }
 }

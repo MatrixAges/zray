@@ -1,7 +1,5 @@
-import type { U8Buffer, U32Buffer } from "memory"
-import type { RowBuffer, WriteColumn } from "memory/columns"
 import type { Run as Invocation } from "../invocation/model"
-import type { Rows as SelectionRows } from "../selection/model"
+import type { Labels } from "../selection/model"
 import type { Tree } from "./tree"
 
 export type Index = {
@@ -43,28 +41,16 @@ export type Codes = {
 }
 
 export type Rows = {
-    kinds: U8Buffer,
-    items: U32Buffer,
-    cursors: U32Buffer,
+    cursors: u32[],
     codes: Codes
 }
 
-export type UnitRows = {
-    first: WriteColumn,
-    count: WriteColumn
-}
-
-export type TaskRows = UnitRows & {
-    node: WriteColumn,
-    id: WriteColumn,
-    output: WriteColumn
-}
-
-export type Payload = {
-    results: RowBuffer,
-    tasks: TaskRows,
-    groups: UnitRows,
-    selections: SelectionRows
+export type Header = {
+    position: u32,
+    code: u8,
+    lane: u64,
+    item: u32,
+    next: u32
 }
 
 export type Event = {
@@ -88,12 +74,14 @@ export type Layout = Event.Pick("remaining", "slot") & {
 
 export type Output = Layout & {
     item: u32,
-    implicit_item?: u32
+    implicit_item?: u32,
+    header?: Header,
+    implicit_header?: Header
 }
 
 export type Body = Input.Omit("remaining") & {
     tree: Tree,
-    payload: Payload
+    labels: Labels
 }
 
 export type Run = {

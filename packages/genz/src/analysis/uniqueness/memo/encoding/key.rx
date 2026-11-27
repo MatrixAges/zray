@@ -3,20 +3,10 @@
 
     <Args in={Encoding.Key} out={Encoding.State} />
 
-    <Call
-        module="begin"
-        in={$in.pick([
-            "state",
-            "identity",
-            "index"
-        ])}
-    />
-
     <Task name="summary" out={$ctx.facts}>
         <Call
             fn="facts"
             in={{
-                state: $ctx.begin,
                 callees: $in.callees,
                 rows: $in.called_outputs,
                 own: $in.own_input,
@@ -29,7 +19,6 @@
         <Call
             module="growth/encode"
             in={{
-                state: $ctx.task.summary,
                 rows: $in.normalized,
                 count: $in.normalized_count,
                 wide: false
@@ -41,7 +30,6 @@
         <Call
             module="growth/encode"
             in={{
-                state: $ctx.task.normalized,
                 rows: $in.renewed,
                 count: $in.renewed_count,
                 wide: true
@@ -61,7 +49,6 @@
         <Call
             fn="facts"
             in={{
-                state: $ctx.task.renewed,
                 callees: $in.callees,
                 rows: $in.called_input_wants,
                 own: $ctx.output_wants,
@@ -70,23 +57,33 @@
         />
 
         <Call
-            module="finish"
+            fn="assemble"
             in={{
-                state: $ctx.facts,
+                identity: $in.identity,
+                index: $in.index,
+                summary: $ctx.task.summary,
+                normalized: $ctx.task.normalized,
+                renewed: $ctx.task.renewed,
+                demand: $ctx.facts,
                 kind: $in.kind
             }}
         />
 
-        <Return value={$ctx.finish} />
+        <Return value={$ctx.assemble} />
     </If>
 
     <Call
-        module="finish"
+        fn="assemble"
         in={{
-            state: $ctx.task.renewed,
+            identity: $in.identity,
+            index: $in.index,
+            summary: $ctx.task.summary,
+            normalized: $ctx.task.normalized,
+            renewed: $ctx.task.renewed,
+            demand: [],
             kind: $in.kind
         }}
     />
 
-    <Return value={$ctx.finish} />
+    <Return value={$ctx.assemble} />
 </Module>

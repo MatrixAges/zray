@@ -6,7 +6,7 @@ import { subject_attribute } from "./const"
 
 import type { Branches as Output, Input as Selection } from "./model"
 
-export type Input = Selection.Pick("tree", "slot", "conditional", "has_else")
+export type Input = Selection.Pick("tree", "slot")
 
 export default function (in: Input): Output {
     const { tree } = in
@@ -36,16 +36,9 @@ export default function (in: Input): Output {
         _ => columns.borrowedByteOffset(tree.nodes, children) / width
     }
 
-    const case_count = match {
-        !in.conditional => child_count,
-        in.has_else => 2,
-        _ => 1
-    }
-
     return {
         subject: subject ?? [],
         first_child,
-        child_count,
-        case_count
+        child_count
     }
 }

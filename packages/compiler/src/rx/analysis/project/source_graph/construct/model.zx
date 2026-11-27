@@ -1,6 +1,5 @@
-import type { Table } from "core/bytes/index/fixed"
 import type { PathAllocator } from "lexical_path"
-import type { Allocator, TextColumn, TextSlots } from "memory"
+import type { Allocator, TextColumn } from "memory"
 import type { GraphConstruction, GraphVisit } from "rx_graph_host"
 import type { Ranges as SourceRanges } from "../source"
 
@@ -12,9 +11,8 @@ export type Registration = {
     target: GraphConstruction,
     ranges: Ranges,
     root: string,
-    index: Table,
+    capacity: u64,
     paths: SourcePaths,
-    normalized: TextSlots,
     path_allocator: PathAllocator
 }
 
@@ -24,16 +22,21 @@ export type SourcePaths = {
     stores: TextColumn
 }
 
-export type RootPaths = Registration & {
+export type Index = {
+    keys: string[],
+    buckets: u64[]
+}
+
+export type RootPaths = Registration.Pick("target", "ranges", "root") & {
+    index: Index,
     explicit: TextColumn,
     explicit_count: u64,
     entry: string,
-    allocator: Allocator,
     temporary: Allocator,
     include_rx: bool
 }
 
-export type Input = RootPaths & {
+export type Input = Registration & RootPaths.Omit("index") & {
     visit: GraphVisit,
     retain_parses: bool,
     retain_dependencies: bool

@@ -16,6 +16,15 @@
         <Call fn="integer.widen" in={$ctx.lookup.row} />
 
         <Call
+            fn="remember_hit"
+            in={{
+                hits: $in.hits,
+                phase: $in.cursor.phase,
+                row: $ctx.lookup.row
+            }}
+        />
+
+        <Call
             module="consume"
             in={{
                 ...$in.pick([
@@ -41,6 +50,8 @@
                 ...$in,
                 cursor: $ctx.advance.cursor,
                 cleared: $ctx.advance.cleared,
+                digest: $ctx.lookup.digest,
+                hits: $ctx.remember_hit,
                 replacements: $ctx.consume.replacements,
                 running:
                     $ctx.advance.cursor.phase != Trace.Phase.Done &&
@@ -53,6 +64,7 @@
         module="miss"
         in={{
             scan: $in,
+            digest: $ctx.lookup.digest,
             source: $ctx.lookup.state
         }}
     />

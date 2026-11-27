@@ -3,7 +3,8 @@ import { tailAstPackedStatements } from "ast_rows"
 import unpackSpan from "../../tasks/worker/execute/reference"
 import commit from "../traversal/commit"
 
-import type { Publication as Input, Output } from "./model"
+import type { Output } from "../traversal/commit"
+import type { Publication as Input } from "./model"
 
 export default function (in: Input): Output {
     const prefix = unpackSpan(in.prefix)
@@ -19,10 +20,7 @@ export default function (in: Input): Output {
     const span = unpackSpan(combined)
 
     return commit({
-        starts: in.buffers.starts,
-        counts: in.buffers.counts,
-        base: in.placement,
-        cursor: in.index + 1,
+        row: in.index,
         start: span.start,
         count: span.count,
         consumed_previous: in.consumed_previous

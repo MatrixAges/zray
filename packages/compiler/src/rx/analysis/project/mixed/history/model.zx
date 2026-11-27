@@ -1,3 +1,4 @@
+import type { ReadColumn } from "memory"
 import type { HistoryModuleLink } from "rx_project_host"
 import type { ColumnPair } from "../../../../../zx/ir/compare/model"
 import type { Range as ComparedRange } from "../../../../../zx/ir/compare/range"
@@ -37,6 +38,11 @@ export type RecordTarget = {
     aligned: bool
 }
 
+export type RecordResult = {
+    checkpoint: u64[],
+    recorded: Recorded
+}
+
 export type Recorded = {
     analyzed: u64,
     redone: bool,
@@ -66,14 +72,18 @@ export type Graph = {
 
 export type Earlier = {
     inputs: SourceInputs,
-    checkpoint: u8[],
+    checkpoint: ReadColumn,
     graph: Graph,
     alignment: Alignment,
     functions: ComparedRange
 }
 
+export type Started = {
+    checkpoint: u64[],
+    aligned: bool
+}
+
 export type Start = {
     capture: Capture,
-    checkpoint: u8[],
     earlier?: Earlier
 }

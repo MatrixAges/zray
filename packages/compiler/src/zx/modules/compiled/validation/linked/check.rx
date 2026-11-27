@@ -49,11 +49,12 @@
     <Call
         module="../surface"
         in={{
-            graph: $in.graph
+            graph: $in.graph,
+            index_capacity: 0
         }}
     />
 
-    <If on={!$ctx.surface}>
+    <If on={!$ctx.surface.valid}>
         <Return value={Linked.Status.InvalidLibrary} />
     </If>
 

@@ -12,8 +12,7 @@
         <Call
             fn="reuse"
             in={{
-                target: $in.source.target,
-                index: $in.index,
+                ids: $in.ids,
                 row: $ctx.bind.row
             }}
         />
@@ -21,6 +20,7 @@
         <Return
             value={{
                 ...$in,
+                ids: $ctx.reuse,
                 index: $in.index + 1,
                 running: $in.index + 1 < $in.source.signatures.files.length
             }}
@@ -39,9 +39,7 @@
                     native_module: $ctx.bind.native_id
                 },
                 empty: $in.source.empty,
-                destination: $in.source.destination,
-                mapping: $in.source.target,
-                id: $ctx.bind.row
+                destination: $in.source.destination
             }}
         />
 
@@ -54,9 +52,18 @@
             }}
         />
 
+        <Call
+            fn="reuse"
+            in={{
+                ids: $in.ids,
+                row: $ctx.bind.row
+            }}
+        />
+
         <Return
             value={{
                 ...$in,
+                ids: $ctx.reuse,
                 linked: $ctx.signature_view,
                 index: $in.index + 1,
                 running: $in.index + 1 < $in.source.signatures.files.length

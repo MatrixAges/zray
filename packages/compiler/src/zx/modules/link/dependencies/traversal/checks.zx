@@ -1,5 +1,4 @@
 import { readCells } from "core/column_set"
-import memory from "memory"
 import columns from "memory/columns"
 
 import type { Views } from "./model"
@@ -9,8 +8,6 @@ export type Input = Views
 export type Output = void
 
 export default function (in: Input): Output {
-    memory.refreshOptionalU32View(in.functions, in.mapping)
-
     readCells({
         storage: in.linked_columns,
         view: in.linked_view,

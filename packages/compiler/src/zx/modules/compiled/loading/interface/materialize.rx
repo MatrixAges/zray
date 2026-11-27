@@ -6,13 +6,11 @@
     <Call module="exports" in={$in.omit(["initializers"])} />
 
     <Call
-        fn="initializers"
+        module="initializer_rows"
         in={{
             source: $in.initializers,
             first: $in.first,
-            instance: $in.instance,
-            buffer: $in.buffers.initializers,
-            target: $in.targets.initializers
+            instance: $in.instance
         }}
     />
 </Module>

@@ -1,9 +1,9 @@
-import memory from "memory"
+import crypto from "std:crypto"
 
 import touch from "../table/touch"
 import tag from "./tag"
 
-import type { Kind, Target } from "./model"
+import type { Kind, Match as Output, Target } from "./model"
 
 export type Input = Target & {
     identity: u8[],
@@ -11,15 +11,20 @@ export type Input = Target & {
     kind: Kind
 }
 
-export type Output = u32?
-
 export default function (in: Input): Output {
-    const { identity, state, kind } = in
+    const digest = crypto.sha256Parts([
+        in.identity,
+        in.state,
+        tag(in.kind)
+    ])
 
-    const key = memory.sha256FramedInto(in.digest, identity, state, tag(kind))
-
-    return touch({
+    const row = touch({
         ...in.table,
-        key
+        key: digest
     })
+
+    return {
+        row,
+        digest
+    }
 }

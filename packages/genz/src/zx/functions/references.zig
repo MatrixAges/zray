@@ -21,12 +21,18 @@ pub fn append(self: *Lower, source: anytype) Lower.Error!void {
 
     var fallback = std.heap.BufferFirstAllocator.init(&scratch_buf, arena.allocator());
 
-    const result = zx.columns.invoke(entry.executeValue, fallback.allocator(), &input) catch |err| return switch (err) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
-        else => unreachable,
+    const result = zx.columns.invoke(entry.executeValue, fallback.allocator(), &input) catch |err| {
+        binding.rollback(&self.allocator);
+
+        return switch (err) {
+            error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
+            else => unreachable,
+        };
     };
 
-    switch (result.check) {
+    payloads.appendHeaders(target, source.tags, result.payload);
+
+    switch (result.payload.check) {
         .Valid => self.reference_storage.appendAssumeCapacity(result.span),
         .Invalid => unreachable,
         .Exhausted => return error.OutOfMemory,

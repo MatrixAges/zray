@@ -70,11 +70,21 @@ pub fn write(output: *zx.memory.ByteWriter, workspace: std.mem.Allocator, compti
 }
 
 pub fn writeChunks(output: *zx.memory.ByteWriter, chunks: []const []const u8) std.mem.Allocator.Error!void {
+    return writeGroups(output, &.{chunks});
+}
+
+pub fn writeGroups(output: *zx.memory.ByteWriter, groups: []const []const []const u8) std.mem.Allocator.Error!void {
     var size: usize = 0;
 
-    for (chunks) |chunk| size = std.math.add(usize, size, chunk.len) catch return error.OutOfMemory;
+    for (groups) |chunks| {
+        for (chunks) |chunk| size = std.math.add(usize, size, chunk.len) catch return error.OutOfMemory;
+    }
+
     try output.buffer.ensureUnusedCapacity(output.allocator, size);
-    for (chunks) |chunk| output.buffer.appendSliceAssumeCapacity(chunk);
+
+    for (groups) |chunks| {
+        for (chunks) |chunk| output.buffer.appendSliceAssumeCapacity(chunk);
+    }
 }
 
 fn project(comptime Target: type, sources: anytype) Target {

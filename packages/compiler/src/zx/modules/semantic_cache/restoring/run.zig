@@ -73,7 +73,9 @@ pub const Frame = struct {
             .plan = try zx.columns.bridge(@FieldType(PublishInput, "plan"), self.workspace, &restored.plan),
         };
 
-        const published = publish_entry.executeIn(self.payload, &publish_input) catch |err|
+        var host = self.publication.surface.host(self.payload);
+
+        const published = publish_entry.executeIn(self.payload, &publish_input, &host) catch |err|
             return verification.publicationError(err);
 
         const committed = published orelse return error.InvalidModule;

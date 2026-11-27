@@ -1,30 +1,15 @@
-import type { ReadColumn, U8Buffer, WriteColumn } from "memory"
+import type { Output as Counters } from "./counters"
+import type { Input as Modules, Output as ModuleSpans } from "./modules"
+import type { Output as Span } from "./span"
 
-export type Column = {
-    earlier: u8[],
-    current: U8Buffer,
-    width: u64
-}
-
-export type Modules = {
-    surfaces: Column,
-    functions: Column,
-    present: Column,
-    available: bool[]
-}
-
-export type Counters = {
-    verified: WriteColumn,
-    reused: WriteColumn,
-    reused_before: u64
-}
-
-export type Input = {
-    rows: ReadColumn,
-    first: u64,
-    end: u64,
-    modules: Modules,
-    checkpoints: Column
-    counters: Counters
+export type Input = Modules & {
+    checkpoints: u64,
+    reused_before: u64,
     verified_end: u64
+}
+
+export type Output = {
+    modules: ModuleSpans,
+    checkpoints: Span,
+    counters: Counters
 }

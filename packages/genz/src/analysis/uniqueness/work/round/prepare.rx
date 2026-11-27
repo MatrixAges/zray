@@ -10,13 +10,14 @@
     <Call
         fn="budget"
         in={{
-            cursor: $ctx.fill,
-            capacity: $in.queue.state.capacity
+            cursor: $ctx.fill.cursor,
+            capacity: $in.queue.capacity
         }}
     />
 
     <Return
         value={{
+            ...$ctx.fill,
             cursor: $ctx.budget,
             guarantees: $ctx.prepare_summaries
         }}

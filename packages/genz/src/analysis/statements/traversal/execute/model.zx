@@ -3,10 +3,10 @@ import type { Control as ControlTable } from "core/control_table/model"
 import type { StoreMode } from "core/function_table/complete"
 import type { Table as TypeTable } from "core/type_table/model"
 import type { Lowering, StatementTraversal } from "lowering_host"
-import type { U32Buffer } from "memory"
 import type {
     Expressions as SelectionExpressions
 } from "../../../selection/labels/model"
+import type { Write } from "../commit"
 import type { Action, Schedule } from "../model"
 
 export type Control = ControlTable.Pick(
@@ -29,14 +29,9 @@ export type Control = ControlTable.Pick(
     "case_values"
 )
 
-export type Buffers = {
-    starts: U32Buffer,
-    counts: U32Buffer
-}
-
 export type State = {
+    scope_writes: Write[][],
     scope_firsts: u32[],
-    scope_placements: u64[],
     scope_conditions: u32[],
     scope_yes_starts: u32[],
     scope_yes_counts: u32[],
@@ -70,15 +65,14 @@ export type Context = {
 export type Input = {
     traversal: StatementTraversal,
     context: Context,
-    buffers: Buffers,
     plan: Schedule,
     first: u32,
     count: u32
 }
 
-export type Run = Input.Pick("traversal", "context", "buffers", "plan")
+export type Run = Input.Pick("traversal", "context", "plan")
 
-export type Step = Input.Pick("traversal", "context", "buffers") & {
+export type Step = Input.Pick("traversal", "context") & {
     state: State,
     action: Action,
     first: u32,
@@ -102,14 +96,13 @@ export type StateResult = {
 export type Scope = Step.Pick(
     "traversal",
     "context",
-    "buffers",
     "first",
     "count",
     "scope"
 ) & {
     routes: u8[],
-    scope_first: u32,
-    scope_placement: u64
+    writes: Write[],
+    scope_first: u32
 }
 
 export type Case = Step.Pick(
@@ -124,11 +117,10 @@ export type Case = Step.Pick(
 }
 
 export type ScopeWalk =
-    Scope.Pick("traversal", "context", "buffers", "scope", "routes") & {
+    Scope.Pick("traversal", "context", "scope", "routes", "writes") & {
         first: u64,
         cursor: u64,
         scope_first: u64,
-        scope_placement: u64,
         valid: bool,
         running: bool
     }
@@ -138,4 +130,15 @@ export type ScheduleWalk = Run & {
     index: u64,
     child: u64,
     running: bool
+}
+
+export type ScopeResult = {
+    valid: bool,
+    writes: Write[]
+}
+
+export type Statement = {
+    current: ScopeWalk,
+    write: Write,
+    cursor: u64
 }

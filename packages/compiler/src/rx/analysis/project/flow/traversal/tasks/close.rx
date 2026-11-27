@@ -17,21 +17,19 @@
                     in={[
                         $in.frame,
                         $ctx.select_result.row,
-                        $ctx.select_result.visible
+                        $ctx.select_result.visible,
+                        $ctx.select_result.next
                     ]}
                 />
             </If>
 
             <Call
-                fn="../host.shrinkLengthSlot"
+                fn="../host.finishLoweredFlowTask"
                 in={[
-                    $in.lengths,
-                    0,
+                    $in.frame,
                     $in.saved_bindings
                 ]}
             />
-
-            <Call fn="../host.finishLoweredFlowTask" in={$in.frame} />
 
             <Call
                 fn="publish"

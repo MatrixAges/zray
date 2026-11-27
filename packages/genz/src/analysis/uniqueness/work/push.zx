@@ -1,25 +1,19 @@
-import memory from "memory"
+import type { Slot } from "./model"
 
-import { clear_flag, queued_flag } from "./const"
+export type Input = {
+    head: u64,
+    count: u64,
+    capacity: u64,
+    body: u64
+}
 
-import type { Cursor as Output, Push as Input } from "./model"
+export type Output = Slot
 
 export default function (in: Input): Output {
-    const { state, index } = in
+    const tail = in.head + in.count
 
-    if (memory.readU8(state.queued, index) == clear_flag) {
-        const count = state.cursor.count
-        const tail = state.cursor.head + count
-        const slot = tail < state.capacity ? tail : tail - state.capacity
-
-        memory.writeU64(state.slots, slot, index)
-        memory.writeU8(state.queued, index, queued_flag)
-
-        return {
-            ...state.cursor,
-            count: count + 1
-        }
+    return {
+        body: in.body,
+        slot: tail < in.capacity ? tail : tail - in.capacity
     }
-
-    return state.cursor
 }

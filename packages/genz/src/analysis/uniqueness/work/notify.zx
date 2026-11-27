@@ -1,43 +1,28 @@
-import enqueue from "./enqueue"
-import invalidate from "./invalidate"
+import type { Notify as Input } from "./model"
 
-import type { Cursor as Output, Notify as Input } from "./model"
-
-export type { Notify as Input, Cursor as Output } from "./model"
+export type Output = u64[]
 
 export default function (in: Input): Output {
-    const { changed, active, demand_body, callers, dirty } = in
+    const { changed, active, demand_body, callers } = in
 
-    const start: u64 = 0
+    const indices: u64[] = []
 
     return loop({
-        index: start,
-        cursor: in.state.cursor
+        index: 0,
+        indices
     }, {
-        while: current => current.index < changed.length,
-        next: current => {
-            const body = changed[current.index]
-            const state = {
-                ...in.state,
-                cursor: current.cursor
-            }
+        while: state => state.index < changed.length,
+        next: state => {
+            const body = changed[state.index]
 
             if (demand_body != null && body == demand_body) {
-                current.cursor = enqueue({
-                    state,
-                    dirty,
-                    indices: callers
-                })
+                state.indices = state.indices.concat(callers)[0]
             } else if (active[body]) {
-                current.cursor = invalidate({
-                    state,
-                    dirty,
-                    index: body
-                })
+                state.indices = state.indices.push(body)[0]
             }
 
-            current.index += 1
+            state.index += 1
         },
-        return: current => current.cursor
+        return: state => state.indices
     })
 }

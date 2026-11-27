@@ -1,20 +1,36 @@
-import rebuild from "core/bytes/index/digest/rebuild"
+import integers from "std:integer"
 import { sha256_digest_width } from "core/const"
 import memory from "memory"
-import columns from "memory/columns"
+
+import position from "./position"
 
 import type { Rehash as Input } from "./model"
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    const { keys, current, buckets } = in
+    const { current, buckets, keys } = in
 
-    const bytes = columns.rowBufferBytes(keys)
+    return loop({
+        row: 0,
+        buckets
+    }, {
+        while: state => state.row < current,
+        next: state => {
+            const key = memory.borrowU8Range(
+                keys,
+                state.row * sha256_digest_width,
+                sha256_digest_width
+            )
+            const located = position({
+                keys,
+                buckets: state.buckets,
+                key
+            })
 
-    const rebuilt = rebuild({
-        keys: memory.borrowU8Range(bytes, 0, current * sha256_digest_width),
-        buckets,
-        capacity: memory.u32BufferLength(buckets)
+            state.buckets[located.slot] = integers.narrow(state.row + 1)
+            state.row += 1
+        },
+        return: state => state.buckets
     })
 }

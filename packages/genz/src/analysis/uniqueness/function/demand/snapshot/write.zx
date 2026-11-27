@@ -1,50 +1,30 @@
 import integers from "std:integer"
-import { allocateRows } from "core/row_buffer"
-import memory from "memory"
-import columns from "memory/columns"
 
 import encode from "../../levels/encode"
 
-import type { Write as Input } from "./model"
-
-export type Output = void
+import type { Batch as Output, Write as Input } from "./model"
 
 export default function (in: Input): Output {
-    const { rows, target, wide } = in
-
-    const { keys, wants } = target.columns
-
-    allocateRows({
-        target: target.storage,
-        count: rows.count,
-        owner: in.owner
-    })
+    const { rows, wide } = in
 
     if (rows.stored != null) {
-        columns.copyRowPrefix(target.storage, rows.stored.bytes, rows.count)
-
-        return
+        return {
+            stored: rows.stored.bytes,
+            items: []
+        }
     }
 
-    const first: u64 = 0
-
-    const written = loop(first, {
-        while: index => index < rows.count,
-        next: index => {
-            const row = rows.items[index]
-
-            if (wide) {
-                memory.writeColumnU64(keys, index, row.key)
-            } else {
-                memory.writeColumnU32(
-                    keys,
-                    index,
-                    integers.narrow(row.key)
-                )
+    return {
+        items: rows.items.map(row => {
+            const key = match {
+                wide => row.key,
+                _ => integers.widen(integers.narrow(row.key))
             }
 
-            memory.writeColumnU8(wants, index, encode(row.value))
-            index += 1
-        }
-    })
+            return {
+                key,
+                want: encode(row.value)
+            }
+        })[0]
+    }
 }

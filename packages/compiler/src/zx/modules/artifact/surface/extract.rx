@@ -20,16 +20,33 @@
         in={{
             source: $in.imported.exports,
             types: $in.imported.types,
-            target: $in.imported.export_target,
-            progress: $in.imported.export_progress
+            imported: true
         }}
     />
 
     <Task name="imports">
-        <Call fn="bindings" in={$in.function_imports} />
+        <Loop on={$in.row < $in.source.count}>
+            <Call
+                module="next_binding"
+                in={{
+                    ...$in.function_imports,
+                    row: 0,
+                    member: false
+                }}
+            />
+        </Loop>
     </Task>
 
     <Task name="members">
-        <Call fn="bindings" in={$in.members} />
+        <Loop on={$in.row < $in.source.count}>
+            <Call
+                module="next_binding"
+                in={{
+                    ...$in.members,
+                    row: 0,
+                    member: true
+                }}
+            />
+        </Loop>
     </Task>
 </Module>

@@ -13,7 +13,8 @@
                     next: $ctx.select.next,
                     memo_row: null,
                     following: $ctx.select.following,
-                    state_end: $in.state_end
+                    encoded: null,
+                    digest: null
                 }}
             />
         </If>

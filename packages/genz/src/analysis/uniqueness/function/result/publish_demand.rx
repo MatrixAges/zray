@@ -10,23 +10,18 @@
                 "grew",
                 "changed"
             ]),
-            ...$in.targets.omit([
-                "growth",
-                "install"
-            ]),
-            growth: $in.result.grew || $in.restored_growth ? $in.targets.growth : null,
-            owner: $in.owner
+            deferred: $in.deferred,
+            save_growth: $in.result.grew || $in.restored_growth
         }}
     />
 
-    <If on={$in.result.grew || $in.restored_growth}>
-        <Call fn="install_growth" in={$in.targets} />
-    </If>
-
     <Return
-        value={$in.result.pick([
-            "grew",
-            "changed"
-        ])}
+        value={{
+            ...$ctx.demand,
+            ...$in.result.pick([
+                "grew",
+                "changed"
+            ])
+        }}
     />
 </Module>

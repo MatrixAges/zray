@@ -1,0 +1,9 @@
+import memory from "memory"
+
+import type { List as Input } from "./publication"
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return memory.listLength(in.names, in.row)
+}

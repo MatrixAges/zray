@@ -13,18 +13,18 @@ export type Output = u64[]
 
 export default function (in: Input): Output {
     const { selection, workspace, capacity, initial } = in
-    const { positions, order, signatures } = selection
+    const { order, signatures } = selection
     const { limit } = initial
 
     const collected = loop({
         cursor: 0,
         scan: initial.next,
-        count: initial.count,
+        positions: initial.positions,
         accepted: 0
     }, {
-        while: stage => stage.accepted < limit && stage.count != 0,
+        while: stage => stage.accepted < limit && stage.positions.length != 0,
         next: stage => {
-            const position = memory.readU64(positions, stage.cursor)
+            const position = stage.positions[stage.cursor]
             const index = memory.readColumnIndex(order, position)
             const is_zx = index < signatures.length
 
@@ -44,7 +44,7 @@ export default function (in: Input): Output {
 
             stage.cursor += 1
 
-            if (stage.cursor == stage.count && stage.accepted < limit) {
+            if (stage.cursor == stage.positions.length && stage.accepted < limit) {
                 const more = preview({
                     ...selection,
                     start: stage.scan,
@@ -52,7 +52,7 @@ export default function (in: Input): Output {
                 })
 
                 stage.cursor = 0
-                stage.count = more.count
+                stage.positions = more.positions
                 stage.scan = more.next
             }
         },

@@ -1,43 +1,43 @@
+import bytes from "std:bytes"
 import integers from "std:integer"
-import memory from "memory"
 
 import { level_modulus } from "../../replay/ordered/const"
-import { level_pair_radix } from "./const"
-import word from "./word"
+import { byte_radix, level_pair_radix, word_width } from "./const"
 
-import type { Levels as Input, State as Output } from "./model"
+export type Input = u8[]
+
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const state = word({
-        state: in.state,
-        value: in.values.length
-    })
+    const count = integers.widen(integers.narrow(in.length))
+    const size = word_width + (count + 1) / 2
 
-    const loop_initial = {
+    return loop({
+        output: bytes.repeat(size, 0),
+        length: count,
         index: 0
-    }
+    }, {
+        while: state => state.index < size,
+        next: state => {
+            if (state.index < word_width) {
+                state.output[state.index] =
+                    integers.narrowByte(state.length % byte_radix)
+                state.length /= byte_radix
+            } else {
+                const index = (state.index - word_width) * 2
+                const lower = integers.widenByte(in[index] % level_modulus)
+                const upper = match {
+                    index + 1 < count =>
+                        integers.widenByte(in[index + 1] % level_modulus),
+                    _ => 0
+                }
 
-    const readonly_values = in.values
-
-    return loop(loop_initial, {
-        while: current => current.index < readonly_values.length,
-        next: current => {
-            const lower_input = readonly_values[current.index] % level_modulus
-
-            const lower = integers.widenByte(lower_input)
-            const upper = match {
-                current.index + 1 < readonly_values.length =>
-                    integers.widenByte(
-                        readonly_values[current.index + 1] % level_modulus
-                    ),
-                _ => 0
+                state.output[state.index] =
+                    integers.narrowByte(lower + upper * level_pair_radix)
             }
-            const byte = integers.narrowByte(lower + upper * level_pair_radix)
 
-            memory.appendByte(state.buffer, byte)
-
-            current.index += 2
+            state.index += 1
         },
-        return: current => state
+        return: state => state.output
     })
 }

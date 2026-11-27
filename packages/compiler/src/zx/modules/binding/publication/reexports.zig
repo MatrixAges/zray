@@ -35,8 +35,10 @@ fallback: Fallback,
 source: Source,
 facts: Facts,
 backing: std.mem.Allocator,
+owner: std.mem.Allocator,
+written: usize,
 input: Rows,
-pub fn init(self: *Self, list: List) void {
+pub fn init(self: *Self, list: List, owner: std.mem.Allocator) void {
     self.tail.init(list.rows);
 
     self.member_ports = FunctionImport.Readable.borrowRows(list.bindings.named);
@@ -51,12 +53,12 @@ pub fn init(self: *Self, list: List) void {
 
     self.facts = Signature.bindingFacts(Facts, &self.source, list.stores);
     self.backing = list.backing;
+    self.owner = owner;
+    self.written = 0;
 
     self.input = .{
-        .target = &self.tail.output.view,
         .storage = @ptrCast(&self.tail.output.buffer),
         .used = self.tail.length,
-        .buffer = @ptrCast(&self.tail.output.buffer.bytes),
         .signatures = std.mem.sliceAsBytes(list.signatures),
         .stride = @sizeOf(Signature.Member),
         .facts = &self.facts,
@@ -65,6 +67,18 @@ pub fn init(self: *Self, list: List) void {
     };
 }
 
-pub fn commit(self: *Self) void {
+pub fn discard(self: *Self) void {
+    for (self.tail.output.rows()[@intCast(self.tail.length)..][0..self.written]) |row| self.owner.free(row.name);
+}
+
+pub fn settle(self: *Self) void {
     self.tail.commit();
+}
+
+pub fn commit(self: *Self, pending: anytype) std.mem.Allocator.Error!void {
+    if (pending.store_0) |row| {
+        try @import("../../project/exports/signatures/rows.zig").commit(self.owner, self.tail.output.rows(), row);
+
+        self.written += 1;
+    }
 }

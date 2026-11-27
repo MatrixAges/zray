@@ -1,28 +1,22 @@
-import { refreshRowReads } from "core/row_buffer"
-import memory from "memory"
-import columns from "memory/columns"
-
 import type { Merge as Input } from "./model"
 
-export type Output = u8[]
+export type Output = {
+    rows: u8[],
+    merge: bool
+}
 
 export default function (in: Input): Output {
-    const { own, forwarded, storage, reads, buffer, stride } = in
+    const { own, forwarded } = in
 
     if (own.length == 0) {
-        return forwarded
+        return {
+            rows: forwarded,
+            merge: false
+        }
     }
 
-    if (forwarded.length == 0 && !in.copy_own) {
-        return own
+    return {
+        rows: own,
+        merge: forwarded.length != 0 || in.copy_own
     }
-
-    const count = own.length / stride + forwarded.length / stride
-    const allocated = columns.allocateRowStorage(null, storage, count)
-    const first = memory.copyBytes(buffer, 0, own, 0, own.length)
-    const next = memory.copyBytes(buffer, first, forwarded, 0, forwarded.length)
-
-    refreshRowReads(reads)
-
-    return columns.rowBufferBytes(storage)
 }

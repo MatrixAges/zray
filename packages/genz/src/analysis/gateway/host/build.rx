@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Host" />
 
-    <Args in={Host.Render} out={bool} />
+    <Args in={Host.Render} out={u8[][]?} />
 
     <Call fn="../entry/bases" in={{}} />
 
@@ -25,10 +25,6 @@
 
     <Call
         module="../../../printer/render_checked"
-        in={{
-            module: $ctx.publish,
-            writer: $in.writer
-        }}
     />
 
     <Return value={$ctx.render_checked} />

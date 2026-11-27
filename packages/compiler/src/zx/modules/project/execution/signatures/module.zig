@@ -8,10 +8,46 @@ const generated = @import("generated_project_signature_publish");
 const Input = std.meta.Child(generated.Input);
 const Exports = std.meta.Child(@FieldType(Input, "exports"));
 const rows = @import("../../exports/publication/rows.zig");
+const TypeRows = rows.Rows(zx.ir.Export, std.meta.Child(@FieldType(Exports, "types")), rows.Names);
+const ConstantRows = rows.Rows(zx.ir.Constant, std.meta.Child(@FieldType(Exports, "constants")), rows.Names);
+
+const StoreHost = struct {
+    allocator: std.mem.Allocator,
+    temporary: std.mem.Allocator,
+    types: *TypeRows,
+    constants: *ConstantRows,
+    buckets: *[]u64,
+    members: *Members,
+    pub fn commit(self: *StoreHost, pending: anytype) std.mem.Allocator.Error!void {
+        if (pending.store_0) |row| {
+            try @import("../../exports/signatures/rows.zig").commit(self.allocator, self.members.storage.rows(), row);
+        }
+
+        if (pending.store_1) |row| switch (row.kind) {
+            .Types => try self.types.merge(self.allocator, row.own, row.forwarded),
+            .Constants => try self.constants.merge(self.allocator, row.own, row.forwarded),
+            .Members => unreachable,
+        };
+
+        if (pending.store_2) |index| {
+            self.buckets.* = try self.temporary.alloc(u64, @intCast(index.capacity));
+
+            @memset(self.buckets.*, 0);
+        }
+    }
+};
 
 const Members = struct {
     const Shape = std.meta.Child(@FieldType(Input, "members"));
-    const Target = std.meta.Child(@FieldType(Shape, "target"));
+
+    const Target = struct {
+        name: *anyopaque,
+        kind: *anyopaque,
+        input_type: *anyopaque,
+        output_type: *anyopaque,
+        source: *anyopaque,
+        has_store: *anyopaque,
+    };
 
     const Storage = memory.RowOutput(Signature.Member, Target, .{
         .input_type = &.{ "ports", "input_type" },
@@ -33,14 +69,12 @@ const Members = struct {
         self.reads = .{ .target = &self.storage.buffer, .reads = &self.columns };
 
         return .{
-            .target = &self.storage.view,
             .callable = declaration,
             .declared = !signature.type_only,
             .kinds = &kinds,
             .forwarded = std.mem.sliceAsBytes(forwarded),
             .bindings = bindings,
             .storage = @ptrCast(&self.storage.buffer),
-            .buffer = @ptrCast(&self.storage.buffer.bytes),
             .reads = @ptrCast(&self.reads),
             .stride = @sizeOf(Signature.Member),
             .names = @ptrCast(self.column("name")),
@@ -54,8 +88,8 @@ pub fn run(state: *project.Project, frame: *project.LoadFrame, unit: *project.Un
     const allocator = state.allocator;
     const ir = zx.ir;
     var members: Members = undefined;
-    var types: rows.Rows(ir.Export, std.meta.Child(@FieldType(Exports, "types")), rows.Names) = undefined;
-    var constants: rows.Rows(ir.Constant, std.meta.Child(@FieldType(Exports, "constants")), rows.Names) = undefined;
+    var types: TypeRows = undefined;
+    var constants: ConstantRows = undefined;
     var scratch = std.heap.ArenaAllocator.init(state.arena.child_allocator);
 
     defer scratch.deinit();
@@ -103,8 +137,11 @@ pub fn run(state: *project.Project, frame: *project.LoadFrame, unit: *project.Un
     const exports: Exports = .{ .types = &type_rows, .constants = &constant_rows };
     const Validation = std.meta.Child(@FieldType(Input, "validation"));
 
+    errdefer allocator.free(members.storage.rows());
+    errdefer allocator.free(types.storage.rows());
+    errdefer allocator.free(constants.storage.rows());
+
     const workspace: std.meta.Child(@FieldType(Validation, "workspace")) = .{
-        .scratch = @ptrCast(&temporary),
         .buckets = @ptrCast(&buckets),
     };
 
@@ -116,7 +153,16 @@ pub fn run(state: *project.Project, frame: *project.LoadFrame, unit: *project.Un
         .validation = &validation,
     };
 
-    const result = zx.columns.invoke(generated.executeValue, allocator, &input) catch |err|
+    var host: StoreHost = .{
+        .allocator = allocator,
+        .temporary = temporary,
+        .types = &types,
+        .constants = &constants,
+        .buckets = &buckets,
+        .members = &members,
+    };
+
+    const result = generated.executeIn(allocator, &input, &host) catch |err|
         return @import("../invoke.zig").errorSet(err);
 
     const effective = result.signature;

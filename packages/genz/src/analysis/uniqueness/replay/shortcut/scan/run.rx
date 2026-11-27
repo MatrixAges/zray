@@ -23,7 +23,10 @@
         value={$ctx.next.pick([
             "cursor",
             "replacements",
-            "cleared"
+            "cleared",
+            "restored",
+            "digest",
+            "hits"
         ])}
     />
 </Module>

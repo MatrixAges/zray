@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Execution" />
 
-    <Args in={Execution.Scope} out={bool} />
+    <Args in={Execution.Scope} out={Execution.ScopeResult} />
 
     <Call fn="range" in={$in} />
 
@@ -9,5 +9,10 @@
         <Call module="next_statement" />
     </Loop>
 
-    <Return value={$ctx.next_statement.valid} />
+    <Return
+        value={$ctx.next_statement.pick([
+            "valid",
+            "writes"
+        ])}
+    />
 </Module>

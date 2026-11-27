@@ -1,12 +1,9 @@
 import integers from "std:integer"
-import memory from "memory"
 
-import type { Input as Publication } from "./model"
+export type Input = u64
 
-export type Input = Publication.Pick("first", "slot", "target")
-
-export type Output = void
+export type Output = u32
 
 export default function (in: Input): Output {
-    memory.writeOptionalU32(in.target, in.slot, integers.narrow(in.first))
+    return integers.narrow(in)
 }

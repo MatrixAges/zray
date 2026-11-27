@@ -1,51 +1,43 @@
-import { allocateRows } from "core/row_buffer"
+import bytes from "std:bytes"
 import memory from "memory"
-import columns from "memory/columns"
 
-import record from "./contribution"
-
-import type { ColumnAllocator } from "memory/columns"
-import type { ContributionRows, ContributionTarget } from "./columns"
+import type { Contribution } from "../summary/model"
+import type { ContributionRows } from "./columns"
+import type { SettlementRecord as Output } from "./model"
 
 export type Input = {
     source: ContributionRows,
-    target: ContributionTarget,
-    output: u8[],
-    owner?: ColumnAllocator
+    output: u8[]
 }
 
-export type Output = u8[]
-
 export default function (in: Input): Output {
-    const { source, target } = in
+    const { source } = in
 
-    allocateRows({
-        target: target.storage,
-        count: source.count,
-        owner: in.owner
-    })
-
-    const first: u64 = 0
-
-    const retained = loop(first, {
-        while: index => index < source.count,
-        next: index => {
-            record({
-                target: target.columns,
-                index,
-                callee: memory.readColumnU32(source.callees, index),
-                levels: memory.borrowListBytes(source.levels, index),
-                owner: in.owner
-            })
-            index += 1
-        }
-    })
-
-    if (in.owner != null) {
-        return columns.copyColumnBytes(in.owner, in.output)
+    const blank: Contribution = {
+        callee: 0,
+        guarantees: []
     }
 
-    const output: u8[] = []
+    const rows = bytes.repeat(source.count, 0).map(byte => blank)[0]
 
-    return output.concat(in.output)[0]
+    const passed = loop({
+        index: 0,
+        rows
+    }, {
+        while: state => state.index < source.count,
+        next: state => {
+            state.rows[state.index] = {
+                callee: memory.readColumnU32(source.callees, state.index),
+                guarantees: memory.borrowListBytes(source.levels, state.index)
+            }
+
+            state.index += 1
+        },
+        return: state => state.rows
+    })
+
+    return {
+        passed,
+        levels: in.output
+    }
 }

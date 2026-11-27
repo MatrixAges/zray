@@ -15,11 +15,6 @@ const generated = @import("generated_uniqueness_function_visit");
 const body_view = @import("generated_uniqueness_body_view");
 const Input = std.meta.Child(generated.Input);
 const Body = std.meta.Child(body_view.Input);
-const Settle = std.meta.Child(@typeInfo(@FieldType(Input, "settlement")).optional.child);
-const Demand = std.meta.Child(@typeInfo(@FieldType(Input, "demand")).optional.child);
-const Settlement = rows.Target(Settle, "targets");
-const Publication = rows.Target(Demand, "targets");
-const GrowthTargets = rows.Target(Publication, "growth");
 const Error = std.mem.Allocator.Error;
 
 const Frame = struct {
@@ -101,63 +96,24 @@ fn visit(comptime kind: Memo.Kind, comptime deferred: bool, comptime independent
         else => std.debug.panic("ownership body view failed: {s}", .{@errorName(err)}),
     };
 
-    var passed: rows.Contributions(Settlement, "contributions") = undefined;
-    var settlement_reads: rows.Reads(Settlement) = undefined;
-    var marks: rows.Marks(Publication, "mark_target") = undefined;
-    var demand_reads: rows.Reads(Publication) = undefined;
-    var next_normalized: rows.Normalized(GrowthTargets) = undefined;
-    var next_renewed: rows.Renewed(GrowthTargets) = undefined;
-
-    if (kind == .settled) {
-        passed.init();
-        settlement_reads.init();
-    }
-
-    if (kind == .demanded) {
-        marks.init();
-        demand_reads.init();
-        next_normalized.init();
-        next_renewed.init();
-    }
-
-    errdefer if (kind == .demanded) {
-        frame.owner.free(next_normalized.rows());
-        frame.owner.free(next_renewed.rows());
-        frame.owner.free(demand_reads.rows());
-        frame.owner.free(marks.rows());
-    };
-
-    const target: []Growth.Rows = @as(*[1]Growth.Rows, @ptrCast(growth));
-    var install_normalized = zx.memory.borrowWriteColumn([]const Growth.Normalized, "normalized", target);
-    var install_renewed = zx.memory.borrowWriteColumn([]const Growth.Renewed, "renewed", target);
     var stored: record.Frame(kind, rows.Target(Input, "memo")) = undefined;
     var host: publication.StoreHost(generated) = .{};
     const inline_memo = kind != .planned and frame.memo != null;
 
-    if (inline_memo) stored.open(frame.memo.?, switch (kind) {
-        .settled => .{ .passed = &passed.buffer },
-        .demanded => .{ .marks = &marks.buffer, .growth = growth },
-        .planned => unreachable,
-    });
+    if (inline_memo) stored.open(frame.memo.?);
 
     host.init(if (inline_memo) stored.table.initial_used else 0, 0, false);
-    defer if (inline_memo) stored.table.finish(host.state.*);
 
     const input: Input = .{
         .view = zx.columns.pointer(@FieldType(Input, "view"), view),
         .facts = zx.columns.pointer(@FieldType(Input, "facts"), facts),
         .index = index,
-        .owner_rows = @ptrCast(&frame.owner),
         .types = &types,
         .deferred = deferred,
         .independent = independent,
         .memo = if (inline_memo) &stored.target else null,
         .settlement = if (kind == .settled) &.{
             .input = @ptrCast(&metadata.input),
-            .targets = &.{
-                .contributions = &.{ .storage = @ptrCast(&passed.buffer), .columns = &passed.view },
-                .read_target = if (deferred) &.{ .storage = @ptrCast(&settlement_reads.buffer), .columns = &settlement_reads.view } else null,
-            },
         } else null,
         .demand = if (kind == .demanded) &.{
             .exchange = &.{
@@ -165,15 +121,6 @@ fn visit(comptime kind: Memo.Kind, comptime deferred: bool, comptime independent
                 .inputs = @ptrCast(&metadata.inputs),
                 .outputs = @ptrCast(&metadata.outputs),
                 .deferred = deferred,
-            },
-            .targets = &.{
-                .growth = &.{
-                    .normalized = &.{ .storage = @ptrCast(&next_normalized.buffer), .columns = &next_normalized.view },
-                    .renewed = &.{ .storage = @ptrCast(&next_renewed.buffer), .columns = &next_renewed.view },
-                },
-                .mark_target = &.{ .storage = @ptrCast(&marks.buffer), .columns = &marks.view },
-                .read_target = if (deferred) &.{ .storage = @ptrCast(&demand_reads.buffer), .columns = &demand_reads.view } else null,
-                .install = &.{ .normalized = @ptrCast(&install_normalized), .renewed = @ptrCast(&install_renewed) },
             },
             .restored_growth = frame.restored_growth,
         } else null,
@@ -196,14 +143,39 @@ fn visit(comptime kind: Memo.Kind, comptime deferred: bool, comptime independent
         };
     }
 
-    return .{
-        .record = if (frame.memo != null) stored.value else switch (kind) {
-            .settled => .{ .passed = passed.rows(), .output = @ptrCast(value.levels) },
-            .demanded => .{ .marks = marks.rows(), .normalized = growth.normalized, .renewed = growth.renewed, .grew = value.grew },
-            .planned => unreachable,
+    const retained_reads = if (deferred) try rows.reads(frame.owner, value.reads) else {};
+
+    errdefer if (deferred) frame.owner.free(retained_reads);
+
+    const published: Memo.Result(kind) = switch (kind) {
+        .settled => try rows.settlement(frame.owner, value),
+        .demanded => demand: {
+            const marks = try rows.marks(frame.owner, value.marks);
+
+            errdefer frame.owner.free(marks);
+
+            if (value.growth) |snapshot| growth.* = try rows.growth(frame.owner, snapshot);
+
+            break :demand .{
+                .marks = marks,
+                .normalized = growth.normalized,
+                .renewed = growth.renewed,
+                .grew = value.grew,
+            };
         },
+        .planned => unreachable,
+    };
+
+    if (inline_memo) {
+        stored.value = published;
+
+        try stored.table.finish(host.state.*);
+    }
+
+    return .{
+        .record = published,
         .changed = if (deferred) {} else value.changed,
-        .reads = if (!deferred) {} else if (kind == .settled) settlement_reads.rows() else demand_reads.rows(),
+        .reads = retained_reads,
         .row = if (value.row) |row| @intCast(row) else null,
     };
 }

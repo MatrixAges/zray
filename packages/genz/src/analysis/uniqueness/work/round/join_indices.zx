@@ -1,0 +1,10 @@
+export type Input = {
+    first: u64[],
+    second: u64[]
+}
+
+export type Output = u64[]
+
+export default function (in: Input): Output {
+    return in.first.concat(in.second)[0]
+}

@@ -1,90 +1,60 @@
-import type { ColumnAllocator, WriteColumn } from "memory/columns"
-import type { Targets } from "../../growth/output"
-import type { Demanded, Mark, Visit as DemandInput } from "../demand/model"
-import type { GrowthRows, Knowledge, Read } from "../levels/model"
+import type { Demanded, Visit as DemandInput } from "../demand/model"
+import type { Snapshot } from "../demand/snapshot/model"
+import type { Read } from "../levels/model"
 import type {
     Contribution,
     Settled,
     Settlement as SettlementInput
 } from "../summary/model"
-import type { ContributionTarget, MarkTarget, ReadTarget } from "./columns"
+import type { EncodedMark, EncodedRead } from "./columns"
 
 export type Reads = {
+    enabled: bool,
     before: Read[],
-    after: Read[],
-    target: ReadTarget,
-    owner?: ColumnAllocator
+    after: Read[]
 }
 
-export type Contributions = {
-    passed: Contribution[],
-    target: ContributionTarget,
-    owner?: ColumnAllocator
-}
-
-export type Marks = {
-    marks: Mark[],
-    target: MarkTarget,
-    owner?: ColumnAllocator
-}
-
-export type Settlement = {
-    passed: Contribution[],
-    levels: Knowledge[],
-    reads: Read[],
-    contributions: ContributionTarget,
-    read_target?: ReadTarget,
-    owner?: ColumnAllocator
-}
-
-export type Demand = {
-    marks: Mark[],
-    before: Read[],
-    after: Read[],
-    normalized: GrowthRows,
-    renewed: GrowthRows,
-    mark_target: MarkTarget,
-    read_target?: ReadTarget,
-    growth?: Targets,
-    owner?: ColumnAllocator
-}
-
-export type SettlementTargets = Settlement.Pick("contributions", "read_target")
-
-export type DemandTargets = Demand.Pick("mark_target", "read_target") & {
-    growth: Targets,
-    install: GrowthInstallation
-}
-
-export type GrowthInstallation = {
-    normalized: WriteColumn,
-    renewed: WriteColumn
+export type Demand = Demanded.Omit("grew", "changed") & {
+    deferred: bool,
+    save_growth: bool
 }
 
 export type SettleVisit = {
-    analysis: SettlementInput,
-    targets: SettlementTargets,
-    owner: ColumnAllocator
+    analysis: SettlementInput
 }
 
 export type DemandVisit = {
     analysis: DemandInput,
-    targets: DemandTargets,
-    owner: ColumnAllocator,
     restored_growth: bool
 }
 
-export type PublishSettlement = SettleVisit.Omit("analysis") & {
-    result: Settled
+export type PublishSettlement = {
+    result: Settled,
+    deferred: bool
 }
 
 export type PublishDemand = DemandVisit.Omit("analysis") & {
-    result: Demanded
+    result: Demanded,
+    deferred: bool
 }
 
-export type PublishedSettlement = {
-    levels: u8[],
+export type SettlementRecord = {
+    passed: Contribution[],
+    levels: u8[]
+}
+
+export type SettlementResult = SettlementRecord & {
+    reads: EncodedRead[]
+}
+
+export type DemandResult = {
+    marks: EncodedMark[],
+    reads: EncodedRead[],
+    growth?: Snapshot
+}
+
+export type PublishedSettlement = SettlementResult & {
     changed: u64[]
 }
 
-export type PublishedDemand = Demanded.Pick("grew", "changed")
+export type PublishedDemand = DemandResult & Demanded.Pick("grew", "changed")

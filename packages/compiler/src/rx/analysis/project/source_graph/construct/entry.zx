@@ -1,12 +1,15 @@
+import bytes from "std:bytes"
 import memory from "memory"
 import { rejectSourceGraphRoot } from "rx_graph_host"
 
-import find from "../../../../../zx/modules/path/alias/find"
 import resolve from "../../../../../zx/modules/project/target/package/path"
+import probe from "./probe"
 
+import type { Allocator } from "memory"
 import type { RootPaths } from "./model"
 
-export type Input = RootPaths.Pick("target", "index", "root", "allocator") & {
+export type Input = RootPaths.Pick("target", "index", "root") & {
+    allocator: Allocator,
     path: string,
     missing: string
 }
@@ -19,20 +22,20 @@ export default function (in: Input): Output {
         "path"
     ]))
 
-    const row = find({
-        path,
-        index: {
-            keys: in.index.keys,
-            buckets: memory.u64View(in.index.buckets, null),
-            capacity: in.index.capacity
-        }
-    })
+    const row = match {
+        in.index.buckets.length == 0 => 0,
+        _ => in.index
+            .buckets[probe({
+                index: in.index,
+                key: bytes.fromText(path)
+            })]
+    }
 
-    if (row == null) {
+    if (row == 0) {
         return rejectSourceGraphRoot(in.target, path, in.missing)
     }
 
     memory.freeOwnedText(in.allocator, path)
 
-    return row
+    return row - 1
 }

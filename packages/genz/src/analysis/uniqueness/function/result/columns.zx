@@ -1,21 +1,4 @@
-import type { ListColumn, ReadColumn, WriteColumn } from "memory"
-import type { Storage } from "../../growth/output"
-
-export type ContributionColumns = {
-    callees: WriteColumn,
-    levels: WriteColumn
-}
-
-export type MarkColumns = {
-    output: WriteColumn,
-    functions: WriteColumn,
-    slots: WriteColumn,
-    wants: WriteColumn
-}
-
-export type ContributionTarget = Storage & {
-    columns: ContributionColumns
-}
+import type { ListColumn, ReadColumn } from "memory"
 
 export type ContributionRows = {
     callees: ReadColumn,
@@ -23,17 +6,16 @@ export type ContributionRows = {
     count: u64
 }
 
-export type MarkTarget = Storage & {
-    columns: MarkColumns
+export type EncodedMark = {
+    output: bool,
+    function_index: u32,
+    slot: u32,
+    want: u8
 }
 
-export type ReadColumns = {
-    tables: WriteColumn,
-    functions: WriteColumn,
-    slots: WriteColumn,
-    levels: WriteColumn
-}
-
-export type ReadTarget = Storage & {
-    columns: ReadColumns
+export type EncodedRead = {
+    table: u8,
+    function_index: u32,
+    slot: u32,
+    value: u8
 }

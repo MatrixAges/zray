@@ -1,5 +1,5 @@
 import type { Stores } from "core/store_table/model"
-import type { Allocator, TextColumn, U8Buffer, WriteColumn } from "memory"
+import type { TextColumn } from "memory"
 import type { ColumnAllocator, RowBuffer, RowGrowth } from "memory/columns"
 import type { Bindings as Selected } from "../../../binding/model"
 import type { Members } from "../../../binding/publication/model"
@@ -8,15 +8,6 @@ import type { Ports, Signature } from "../model"
 export type RowsTarget = {
     storage: RowBuffer,
     used: u64
-}
-
-export type Target = {
-    name: WriteColumn,
-    kind: WriteColumn,
-    input_type: WriteColumn,
-    output_type: WriteColumn,
-    source: WriteColumn,
-    has_store: WriteColumn
 }
 
 export type Declaration = Ports & {
@@ -39,9 +30,8 @@ export type Value = Declaration & {
 }
 
 export type Forwarded = {
-    target: U8Buffer,
     rows: u8[],
-    offset: u64
+    row: u64
 }
 
 export type Bindings = {
@@ -51,8 +41,6 @@ export type Bindings = {
 }
 
 export type ReexportRows = RowsTarget & {
-    target: Target,
-    buffer: U8Buffer,
     signatures: u8[],
     stride: u64,
     facts: BindingFacts,
@@ -62,26 +50,41 @@ export type ReexportRows = RowsTarget & {
 
 export type Reexports = Selected & {
     rows: ReexportRows,
-    owner: Allocator,
     first: u64
 }
 
 export type ReexportDelivery = Selected & {
-    rows: ReexportRows,
-    owner: Allocator
+    rows: ReexportRows
 }
 
 export type Input = {
-    target: Target,
     callable: Declaration,
     declared: bool,
     kinds: Kinds,
     forwarded: u8[],
     bindings: Bindings,
     storage: RowBuffer,
-    buffer: U8Buffer,
     reads: RowGrowth,
     stride: u64,
     names: TextColumn,
     signature: Signature
+}
+
+export enum ChangeKind {
+    Value,
+    Forwarded,
+    Reexport
+}
+
+export type Change = {
+    action: ChangeKind,
+    row: u64,
+    name: string,
+    kind: u8,
+    input_type: u32,
+    output_type: u32,
+    has_store: bool,
+    own_name: bool,
+    rows: u8[],
+    source_row: u64
 }

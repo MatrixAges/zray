@@ -14,8 +14,6 @@
                 in={{
                     ...$in.pick([
                         "context",
-                        "buffers",
-                        "placement",
                         "index"
                     ]),
                     prefix: $ctx.prefix,

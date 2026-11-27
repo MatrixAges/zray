@@ -1,17 +1,26 @@
-import type { ColumnAllocator } from "memory/columns"
-import type { Target, Targets } from "../../../growth/output"
 import type { GrowthRows } from "../../levels/model"
 
 export type Input = {
     normalized: GrowthRows,
-    renewed: GrowthRows,
-    targets: Targets,
-    owner?: ColumnAllocator
+    renewed: GrowthRows
 }
 
 export type Write = {
     rows: GrowthRows,
-    target: Target,
-    wide: bool,
-    owner?: ColumnAllocator
+    wide: bool
+}
+
+export type Row = {
+    key: u64,
+    want: u8
+}
+
+export type Batch = {
+    stored?: u8[],
+    items: Row[]
+}
+
+export type Snapshot = {
+    normalized: Batch,
+    renewed: Batch
 }

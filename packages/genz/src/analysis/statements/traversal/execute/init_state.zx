@@ -1,3 +1,4 @@
+import type { Write } from "../commit"
 import type { State } from "./model"
 
 export type Input = {
@@ -8,20 +9,20 @@ export type Input = {
 export type Output = State
 
 export default function (in: Input): Output {
+    const empty_writes: Write[] = []
+    const no_writes: Write[][] = []
     const empty_u32: u32[] = []
-    const empty_u64: u64[] = []
     const empty_u8: u8[] = []
     const empty_routes: u8[][] = []
     const empty_bool: bool[] = []
     const empty_fallback: u64?[] = []
     const no_fallback: u64? = null
     const zero_u32: u32 = 0
-    const zero_u64: u64 = 0
 
     const scopes = loop({
         index: 0,
+        scope_writes: no_writes,
         scope_firsts: empty_u32,
-        scope_placements: empty_u64,
         scope_conditions: empty_u32,
         scope_yes_starts: empty_u32,
         scope_yes_counts: empty_u32,
@@ -29,8 +30,8 @@ export default function (in: Input): Output {
     }, {
         while: state => state.index < in.depth,
         next: state => {
+            state.scope_writes = state.scope_writes.push(empty_writes)[0]
             state.scope_firsts = state.scope_firsts.push(zero_u32)[0]
-            state.scope_placements = state.scope_placements.push(zero_u64)[0]
             state.scope_conditions = state.scope_conditions.push(zero_u32)[0]
             state.scope_yes_starts = state.scope_yes_starts.push(zero_u32)[0]
             state.scope_yes_counts = state.scope_yes_counts.push(zero_u32)[0]
@@ -64,8 +65,8 @@ export default function (in: Input): Output {
     })
 
     return {
+        scope_writes: scopes.scope_writes,
         scope_firsts: scopes.scope_firsts,
-        scope_placements: scopes.scope_placements,
         scope_conditions: scopes.scope_conditions,
         scope_yes_starts: scopes.scope_yes_starts,
         scope_yes_counts: scopes.scope_yes_counts,

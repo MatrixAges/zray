@@ -16,13 +16,12 @@ pub fn render(allocator: std.mem.Allocator, modules: []const []const u8) std.mem
     const Input = if (indirect) std.meta.Child(Parameter) else Parameter;
 
     const input: Input = .{
-        .writer = @ptrCast(&writer),
         .modules = modules,
     };
 
-    const valid = entry.executeValue(arena.allocator(), if (indirect) &input else input) catch |err| return failure(err);
+    const result = entry.executeValue(arena.allocator(), if (indirect) &input else input) catch |err| return failure(err);
 
-    if (!valid) return error.OutOfMemory;
+    try @import("../printer/module.zig").writeChunks(&writer, result orelse return error.OutOfMemory);
 
     return writer.finish();
 }

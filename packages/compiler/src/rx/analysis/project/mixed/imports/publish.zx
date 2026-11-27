@@ -1,51 +1,46 @@
-import bytes from "std:bytes"
-import { reserveAppend } from "core/row_buffer"
 import memory from "memory"
 import columns from "memory/columns"
 
 import type { MixedImportRows } from "rx_project_host"
-import type { Request } from "./model"
 
-export type Input =
-    Request.Pick("owner", "owner_rows", "functions", "published", "layout") & {
-        names: string[],
-        indices: u64[],
-        rows: MixedImportRows,
-        exported: bool
-    }
+export type Input = {
+    names: string[],
+    indices: u64[],
+    rows: MixedImportRows
+}
 
-export type Output = void
+export type Output = {
+    exported: bool,
+    prefix: u64,
+    fits: bool,
+    names: string[],
+    sources: u8[][]
+}
 
 export default function (in: Input): Output {
-    const { names, indices, rows, layout } = in
+    const { names, indices, rows } = in
+    const { named, fallback, stride, prefix, exported } = rows
 
-    const target = in.exported ? in.published : in.functions
+    const limit = columns.rowCapacityLimit()
+    const fits = names.length <= limit && prefix <= limit - names.length
+    const sources: u8[][] = []
 
-    const { named, fallback } = rows
-    const { stride, name_offset } = layout
-
-    const used = memory.readU64(target.used, 0)
-    const prefix = used == 0 ? target.prefix.length / stride : 0
-
-    memory.requireAllocation(prefix <= columns.rowCapacityLimit() - names.length)
-
-    const capacity = reserveAppend([
-        target.storage,
-        used,
-        prefix + names.length,
-        in.owner_rows
-    ])
-
-    if (prefix != 0) {
-        columns.copyRowPrefix(target.storage, target.prefix, prefix)
+    if (!fits) {
+        return {
+            exported,
+            prefix,
+            fits,
+            names,
+            sources
+        }
     }
 
-    const first = used + prefix
     const first_named = fallback.length == 0 ? 0 : 1
 
-    const written = loop(0, {
-        while: row => row < names.length,
-        next: row => {
+    const selected = loop(sources, {
+        while: selected => selected.length < names.length,
+        next: selected => {
+            const row = selected.length
             const index = indices[row]
             const use_named = index >= first_named
             const source = use_named ? named : fallback
@@ -54,25 +49,15 @@ export default function (in: Input): Output {
                 _ => 0
             }
 
-            const destination = first + row
-            const owned = memory.copyColumnText(in.owner, names[row])
-            const copied = memory.copyBytes(
-                target.bytes,
-                destination * stride,
-                source,
-                start,
-                start + stride
-            )
-
-            columns.writeRowByteField(
-                target.storage,
-                destination,
-                name_offset,
-                bytes.fromText(owned)
-            )
-            row += 1
+            selected = selected.push(memory.borrowU8Range(source, start, stride))[0]
         }
     })
 
-    memory.writeU64(target.used, 0, first + names.length)
+    return {
+        exported,
+        prefix,
+        fits,
+        names,
+        sources: selected
+    }
 }

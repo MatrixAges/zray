@@ -1,27 +1,7 @@
-import { reserveAppend } from "core/row_buffer"
-import columns from "memory/columns"
-
 import type { Register as Input } from "./model"
 
-export type Output = u64
+export type Output = u64?
 
 export default function (in: Input): Output {
-    const { target, index, backing, publish } = in
-
-    const row = target.used
-
-    if (!publish) {
-        return row
-    }
-
-    const capacity = reserveAppend([
-        target.storage,
-        row,
-        1,
-        backing
-    ])
-
-    columns.writeRowIndex(target.storage, row, index)
-
-    return row + 1
+    return in.publish ? in.index : null
 }

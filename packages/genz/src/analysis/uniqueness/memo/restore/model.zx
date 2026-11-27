@@ -1,5 +1,5 @@
 import type { AtomicRows } from "memory"
-import type { Targets as GrowthTargets } from "../../growth/output"
+import type { NormalizedRow, RenewedRow } from "../disk/load/model"
 import type { GrowthLayout } from "../disk/model"
 
 export type Input = {
@@ -31,6 +31,7 @@ export type Publication = {
     wants_start: u64
 }
 
-export type Restore = GrowthTargets & {
-    state: Input
+export type Restored = {
+    normalized: NormalizedRow[],
+    renewed: RenewedRow[]
 }

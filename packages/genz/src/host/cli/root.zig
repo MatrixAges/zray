@@ -16,7 +16,6 @@ pub fn render(allocator: std.mem.Allocator, stateful: bool, output: @import("../
     const types = zx.ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), output.types);
 
     const input: Input = .{
-        .writer = @ptrCast(&writer),
         .stateful = stateful,
         .types = &types,
         .output_type = @backingInt(output.id),
@@ -24,7 +23,7 @@ pub fn render(allocator: std.mem.Allocator, stateful: bool, output: @import("../
 
     const result = zx.columns.invoke(entry.executeValue, workspace, &input) catch |err| return failure(err);
 
-    if (!result) return error.OutOfMemory;
+    try @import("../../printer/module.zig").writeChunks(&writer, result orelse return error.OutOfMemory);
 
     return writer.finish();
 }

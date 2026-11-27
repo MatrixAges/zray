@@ -1,6 +1,3 @@
-import { allocateRows } from "core/row_buffer"
-import memory from "memory"
-
 import encode from "../levels/encode"
 import { Table } from "../levels/model"
 import {
@@ -10,44 +7,31 @@ import {
     output_demand_table
 } from "./const"
 
+import type { EncodedRead } from "./columns"
 import type { Reads as Input } from "./model"
 
-export type Output = void
+export type Output = EncodedRead[]
 
 export default function (in: Input): Output {
-    const { before, after, target } = in
-    const { tables, functions, slots, levels } = target.columns
+    if (!in.enabled) {
+        return []
+    }
 
-    const count = before.length + after.length
+    const rows = in.before.concat(in.after)[0]
 
-    allocateRows({
-        target: target.storage,
-        count,
-        owner: in.owner
-    })
-
-    const first: u64 = 0
-
-    const written = loop(first, {
-        while: index => index < count,
-        next: index => {
-            const row = match {
-                index < before.length => before[index],
-                _ => after[index - before.length]
-            }
-
-            const table = match row.table {
-                Table.Input => input_guarantee_table,
-                Table.Output => output_guarantee_table,
-                Table.Inputs => input_demand_table,
-                _ => output_demand_table
-            }
-
-            memory.writeColumnU8(tables, index, table)
-            memory.writeColumnU32(functions, index, row.function_index)
-            memory.writeColumnU32(slots, index, row.slot)
-            memory.writeColumnU8(levels, index, encode(row.value))
-            index += 1
+    return rows.map(row => {
+        const table = match row.table {
+            Table.Input => input_guarantee_table,
+            Table.Output => output_guarantee_table,
+            Table.Inputs => input_demand_table,
+            _ => output_demand_table
         }
-    })
+
+        return {
+            table,
+            function_index: row.function_index,
+            slot: row.slot,
+            value: encode(row.value)
+        }
+    })[0]
 }

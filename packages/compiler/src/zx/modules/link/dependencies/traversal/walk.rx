@@ -6,13 +6,28 @@
 
     <Call fn="checks" in={$in.views} />
 
-    <Call module="../bindings" in={$in.walk.checks} />
+    <Call
+        module="../bindings"
+        in={{
+            ...$in.walk.checks,
+            functions: $in.functions
+        }}
+    />
 
     <If on={$ctx.bindings != Link.Status.Ready}>
         <Return value={$ctx.bindings} />
     </If>
 
-    <Call module="advance" in={$in.walk} />
+    <Call
+        module="advance"
+        in={{
+            ...$in.walk,
+            checks: {
+                ...$in.walk.checks,
+                functions: $in.functions
+            }
+        }}
+    />
 
     <Return value={$ctx.advance} />
 </Module>

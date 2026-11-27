@@ -2,13 +2,39 @@
     <Type from="model" as="Signature" />
     <Type from="decision" as="Decision" />
 
-    <Args in={Signature.Batch} out={Decision.Status} />
+    <Args
+        in={{
+            source?: Signature.Batch,
+            native_ids: u32?[]
+        }}
+        out={Signature.Linked}
+    />
 
-    <Call fn="batch_initialize" in={$in} />
+    <If on={$in.source != null}>
+        <Call
+            fn="batch_initialize"
+            in={{
+                source: $in.source,
+                native_ids: $in.native_ids
+            }}
+        />
 
-    <Loop on={$in.running}>
-        <Call module="batch_next" />
-    </Loop>
+        <Loop on={$in.running}>
+            <Call module="batch_next" />
+        </Loop>
 
-    <Return value={$ctx.batch_next.status} />
+        <Return
+            value={{
+                status: $ctx.batch_next.status,
+                ids: $ctx.batch_next.ids
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            status: Decision.Status.Reuse,
+            ids: []
+        }}
+    />
 </Module>

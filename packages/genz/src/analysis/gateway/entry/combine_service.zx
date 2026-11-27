@@ -1,0 +1,15 @@
+import type { Section } from "./model"
+
+export type Input = {
+    context: Section,
+    invoke: Section
+}
+
+export type Output = Section
+
+export default function (in: Input): Output {
+    return {
+        ...in.invoke,
+        chunks: in.context.chunks.concat(in.invoke.chunks)[0]
+    }
+}

@@ -33,7 +33,7 @@ export declare function lowerMixedRX(state: Mixed): u64
 
 export declare function skipMixedBody(state: Mixed): u64
 
-export declare function recordMixedBody(state: Mixed): void
+export declare function recordMixedBody(state: Mixed): void throws { OutOfMemory }
 
 export declare function materializeMixedModule(state: Mixed): void
     throws { OutOfMemory, InvalidSourceGraph }
@@ -156,8 +156,17 @@ export declare function rejectMixedCallee(
     message: string
 ): void throws { OutOfMemory, InvalidSourceGraph }
 
-export declare function openMixedImport(binding: MixedImports, row: u64): MixedImportRows?
-    throws { OutOfMemory, InvalidSourceGraph }
+export declare function openMixedImport(
+    binding: MixedImports,
+    row: u64,
+    publication: {
+        exported: bool,
+        prefix: u64,
+        fits: bool,
+        names: string[],
+        sources: u8[][]
+    }?
+): MixedImportRows? throws { OutOfMemory, InvalidSourceGraph }
 
 export declare function rejectMixedImport(binding: MixedImports, row: u64, message: string): void
     throws { OutOfMemory, InvalidSourceGraph }

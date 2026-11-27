@@ -1,0 +1,11 @@
+import type { Hit } from "./model"
+
+export type Input = Hit & {
+    hits: Hit[]
+}
+
+export type Output = Hit[]
+
+export default function (in: Input): Output {
+    return in.hits.push(in.omit(["hits"]))[0]
+}

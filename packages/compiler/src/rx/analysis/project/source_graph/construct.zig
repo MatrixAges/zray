@@ -133,9 +133,8 @@ const Build = struct {
         const input: std.meta.Child(rule.Input) = .{
             .target = @ptrCast(self),
             .root = opts.project.root_dir,
-            .index = &.{ .keys = self.paths.keys, .buckets = @ptrCast(&self.paths.buckets), .capacity = self.paths.buckets.len },
+            .capacity = self.paths.buckets.len,
             .paths = &.{ .zx = @ptrCast(&zx_paths), .rx = @ptrCast(&rx_paths), .stores = @ptrCast(&stores) },
-            .normalized = @ptrCast(self.paths.keys.ptr),
             .path_allocator = @ptrCast(&self.allocator),
             .ranges = &.{
                 .zx_count = self.sources.zx_count,
@@ -145,7 +144,6 @@ const Build = struct {
             .explicit = @ptrCast(&roots),
             .explicit_count = entries.len,
             .entry = opts.entry,
-            .allocator = @ptrCast(&self.allocator),
             .temporary = @ptrCast(&self.scratch),
             .include_rx = opts.include_rx_modules,
             .visit = @ptrCast(self.scanner),
@@ -235,9 +233,9 @@ const Build = struct {
 
         return error.InvalidGraph;
     }
-    fn rejectRegistration(self: *Build, row: usize, normalized: bool, message: []const u8) Error {
+    fn rejectRegistration(self: *Build, row: usize, normalized: ?[]const u8, message: []const u8) Error {
         return self.reject(
-            if (normalized) self.modules.items(.path)[row] else self.path(row),
+            normalized orelse self.path(row),
             if (self.rxSource(row)) |source| source.node.location else root_location,
             message,
         );
@@ -258,12 +256,12 @@ const Build = struct {
                 rx.validateSourcePath(self.allocator, source_path, if (store) .store else .module) catch |err| {
                     if (err == error.OutOfMemory) return error.OutOfMemory;
 
-                    return self.rejectRegistration(row, false, "RX source registration requires a project relative path of the expected module kind");
+                    return self.rejectRegistration(row, null, "RX source registration requires a project relative path of the expected module kind");
                 };
             }
 
             if (!try self.claim(row, source_path)) {
-                return self.rejectRegistration(row, !store, if (store)
+                return self.rejectRegistration(row, if (store) null else self.modules.items(.path)[row], if (store)
                     "Store definition path is already registered"
                 else
                     "source paths must be unique after normalization across RX, ZX and Store definitions");
@@ -313,7 +311,7 @@ const Build = struct {
     }
 };
 
-pub fn rejectSourceGraphPath(handle: *anyopaque, row: u64, normalized: bool, message: []const u8) Error!void {
+pub fn rejectSourceGraphPath(handle: *anyopaque, row: u64, normalized: ?[]const u8, message: []const u8) Error!void {
     return Build.borrow(handle).rejectRegistration(@intCast(row), normalized, message);
 }
 

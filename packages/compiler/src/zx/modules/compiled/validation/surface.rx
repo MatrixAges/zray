@@ -1,7 +1,7 @@
 <Module>
     <Type from="../model" as="Model" />
 
-    <Args in={Model.Validation} out={bool} />
+    <Args in={Model.Validation} out={Model.ValidationResult} />
 
     <Call
         module="../../../analysis/semantic/origins"
@@ -13,28 +13,53 @@
     />
 
     <If on={!$ctx.origins}>
-        <Return value={false} />
+        <Return
+            value={{
+                valid: false,
+                export_index: []
+            }}
+        />
     </If>
 
     <Call fn="nominal" in={$in.graph} />
 
     <If on={!$ctx.nominal}>
-        <Return value={false} />
+        <Return
+            value={{
+                valid: false,
+                export_index: []
+            }}
+        />
     </If>
 
     <Call fn="initializers" in={$in.graph} />
 
     <If on={!$ctx.initializers}>
-        <Return value={false} />
+        <Return
+            value={{
+                valid: false,
+                export_index: []
+            }}
+        />
     </If>
 
     <Call fn="exports/name_index" in={$in} />
 
-    <If on={!$ctx.name_index}>
-        <Return value={false} />
+    <If on={!$ctx.name_index.valid}>
+        <Return
+            value={{
+                valid: false,
+                export_index: []
+            }}
+        />
     </If>
 
     <Call fn="exports" in={$in.graph} />
 
-    <Return value={$ctx.exports} />
+    <Return
+        value={{
+            valid: $ctx.exports,
+            export_index: $ctx.name_index.export_index
+        }}
+    />
 </Module>

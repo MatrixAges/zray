@@ -13,11 +13,13 @@
         }}
     />
 
-    <If on={$ctx.restore}>
+    <If on={$ctx.restore != null}>
         <Return
             value={{
                 ...$in.scan,
                 cleared: null,
+                restored: $ctx.restore,
+                digest: $in.digest,
                 running: false
             }}
         />
@@ -37,6 +39,7 @@
             ...$in.scan,
             cursor: $ctx.advance.cursor,
             cleared: $ctx.advance.cleared,
+            digest: $in.digest,
             running:
                 $ctx.advance.cursor.phase != Trace.Phase.Done &&
                 $ctx.advance.cursor.phase != Trace.Phase.Reject

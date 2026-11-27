@@ -1,16 +1,11 @@
-import integers from "std:integer"
-import columns from "memory/columns"
-
 import find from "../../../../../schema/tree/attribute_row"
 import { result_value, task_out } from "../const"
 import node from "../tree"
 
-import type { Input } from "./model"
-
-export type Output = void
+import type { Input, Result as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { tree, payload, event } = in
+    const { tree, event } = in
 
     const source = node([
         tree,
@@ -25,9 +20,8 @@ export default function (in: Input): Output {
         key: implicit == null ? result_value : task_out
     })
 
-    columns.writeRow(
-        payload.results,
-        integers.widen(implicit ?? event.item),
-        value ?? []
-    )
+    return {
+        row: implicit ?? event.item,
+        attribute: value ?? []
+    }
 }

@@ -1,12 +1,23 @@
-import bytes from "std:bytes"
+import memory from "memory"
+
+import type { ReadColumn } from "memory"
 
 export type Input = {
-    earlier: u8[],
-    current: u8[]
+    earlier: ReadColumn,
+    current: u64[]
 }
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    return bytes.equals(in.earlier, in.current)
+    const { earlier, current } = in
+
+    return loop(0, {
+        while: slot => slot < current.length &&
+            memory.readColumnIndex(earlier, slot) == current[slot],
+        next: slot => {
+            slot += 1
+        },
+        return: slot => slot == current.length
+    })
 }

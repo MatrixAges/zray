@@ -9,23 +9,37 @@
             "target",
             "ranges",
             "root",
-            "index",
+            "capacity",
             "paths",
-            "normalized",
             "path_allocator"
         ])}
     />
 
     <Call
         fn="roots"
-        in={$in.omit([
-            "visit",
-            "retain_parses",
-            "retain_dependencies"
-        ])}
+        in={{
+            ...$in.pick([
+                "target",
+                "root",
+                "ranges",
+                "explicit",
+                "explicit_count",
+                "entry",
+                "temporary",
+                "include_rx"
+            ]),
+            index: $ctx.register
+        }}
     />
 
-    <Call fn="host.openSourceGraphScanner" in={$in.visit} />
+    <Call
+        fn="host.openSourceGraphScanner"
+        in={[
+            $in.visit,
+            $ctx.register.keys,
+            $ctx.register.buckets
+        ]}
+    />
 
     <Call
         module="../scan/visit"

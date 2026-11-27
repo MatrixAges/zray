@@ -1,31 +1,25 @@
-import type { ReadTable, Table } from "core/bytes/index/digest/model"
-import type { Allocator, ReadColumn, U32Buffer, WriteColumn } from "memory"
-import type { ColumnAllocator, RowBuffer } from "memory/columns"
+import type { ReadColumn } from "memory"
 
-export type Index = Table & {
-    rows: RowBuffer
-}
-
-export type Publication = Storage.Pick("keys", "values", "buckets") & {
+export type Publication = {
+    keys: u8[],
+    buckets: u32[],
     digest: u8[],
-    value: u8[],
     current: u64
 }
 
 export type Published = {
     row: u64,
+    bucket?: u64,
     used: u32
 }
 
 export type Store = Publication & {
-    owner: Allocator,
-    owner_rows: ColumnAllocator,
-    next_buckets: U32Buffer,
     limit: u64
 }
 
-export type Probe = ReadTable & {
-    used?: WriteColumn
+export type Probe = {
+    keys: u8[],
+    buckets: u32[]
 }
 
 export type Hit = Probe & {
@@ -42,14 +36,15 @@ export type Resize = {
     additional: u32
 }
 
-export type Storage = {
-    keys: RowBuffer,
-    values: RowBuffer,
-    buckets: U32Buffer,
-    owner: Allocator,
-    owner_rows: ColumnAllocator
+export type Reserve = Resize & {
+    keys: u8[]
 }
 
-export type Reserve = Storage & Resize
+export type Reserved = {
+    limit: u64,
+    buckets: u32[]
+}
 
-export type Rehash = Storage.Pick("keys", "buckets") & Resize.Pick("current")
+export type Rehash = Reserve.Pick("keys", "current") & {
+    buckets: u32[]
+}

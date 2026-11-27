@@ -1,12 +1,6 @@
-import bytes from "std:bytes"
-import { allocateRows } from "core/row_buffer"
 import memory from "memory"
-import columns from "memory/columns"
 
-import own from "./own"
-
-import type { ReadColumn, TextColumn, WriteColumn } from "memory"
-import type { RowBuffer, WriteColumn as ListTarget } from "memory/columns"
+import type { ReadColumn, TextColumn } from "memory"
 import type { Header } from "../../module_record/model"
 
 export type Source = {
@@ -16,80 +10,37 @@ export type Source = {
     path: TextColumn
 }
 
-export type Target = {
-    specifier: WriteColumn,
-    identity: ListTarget,
-    names: ListTarget,
-    source_names: ListTarget,
-    path: WriteColumn
-}
-
 export type Input = {
     source: Source,
-    target: Target,
-    storage: RowBuffer,
-    records: u8[]
+    row: u64
 }
 
-export type Output = void
+export type Output = {
+    row: u64,
+    specifier: string,
+    identity?: string,
+    names: string[],
+    source_names: string[],
+    path?: string
+}
 
 export default function (in: Input): Output {
-    const { source, target } = in
+    const { source, row } = in
+    const { header } = source
 
-    const header = source.header
+    const kind = memory.readColumnU8(header.target_kind, row)
 
-    if (header.count == 0) {
-        return
+    const path: string? = match {
+        kind == header.source_kind => memory.readTextColumn(source.path, row),
+        _ => null
     }
 
-    allocateRows({
-        target: in.storage,
-        count: header.count
-    })
-
-    columns.copyRowPrefix(in.storage, in.records, header.count)
-
-    const published = loop(0, {
-        while: row => row < header.count,
-        next: row => {
-            const kind = memory.readColumnU8(header.target_kind, row)
-            const path: string? = match {
-                kind == header.source_kind => memory.readTextColumn(source.path, row),
-                _ => null
-            }
-
-            const value = own({
-                specifier: memory.readTextColumn(header.specifier, row),
-                identity: memory.readOptionalTextColumn(header.identity, row),
-                names: memory.readTextListColumn(source.names, row),
-                source_names: memory.readTextListColumn(source.source_names, row),
-                path
-            })
-
-            memory.writeColumnBytes(
-                target.specifier,
-                row,
-                bytes.fromText(value.specifier)
-            )
-            columns.writeColumnOptionalText(target.identity, row, value.identity)
-            columns.writeColumnTextList(target.names, row, value.names)
-            columns.writeColumnTextList(
-                target.source_names,
-                row,
-                value.source_names
-            )
-
-            const owned_path = value.path
-
-            if (owned_path != null) {
-                memory.writeColumnBytes(
-                    target.path,
-                    row,
-                    bytes.fromText(owned_path)
-                )
-            }
-
-            row += 1
-        }
-    })
+    return {
+        row,
+        specifier: memory.readTextColumn(header.specifier, row),
+        identity: memory.readOptionalTextColumn(header.identity, row),
+        names: memory.readTextListColumn(source.names, row),
+        source_names: memory.readTextListColumn(source.source_names, row),
+        path
+    }
 }

@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="Publication" />
+
+    <Args in={Publication.Request} out={u8[]} />
+
+    <Store from="rows" as="rows" />
+
+    <Call fn="merge_rows" in={$in.rows} />
+
+    <If on={$ctx.merge_rows.merge}>
+        <Call fn="stage_merge" in={$in} setter={[$store.rows.merge]} />
+
+        <Call fn="merged_bytes" />
+
+        <Return value={$ctx.merged_bytes} />
+    </If>
+
+    <Return value={$ctx.merge_rows.rows} />
+</Module>

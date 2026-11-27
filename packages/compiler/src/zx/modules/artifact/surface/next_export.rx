@@ -1,0 +1,18 @@
+<Module>
+    <Type from="exports" as="Exports" />
+
+    <Args in={Exports.Input} out={Exports.Input} />
+
+    <Store from="export_rows" as="rows" />
+
+    <Call fn="exports" in={$in} />
+
+    <Call fn="commit_export" setter={[$store.rows.pending]} />
+
+    <Return
+        value={{
+            ...$in,
+            row: $ctx.commit_export
+        }}
+    />
+</Module>

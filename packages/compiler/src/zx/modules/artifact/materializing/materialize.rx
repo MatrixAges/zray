@@ -39,7 +39,8 @@
                 <Call module="../surface/extract" in={$in.views.surface} />
 
                 <Call fn="../path" in={$in.views.path} />
-                <Call fn="../dependencies/publish" in={$in.views.dependencies} />
+
+                <Call module="../dependencies/materialize" in={$in.views.dependencies} />
 
                 <Return
                     value={{

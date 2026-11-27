@@ -3,7 +3,7 @@ import type { Table as Declarations } from "../../../ast/declarations/table/mode
 import type { Columns as Fields } from "../../../ast/fields/model"
 import type { State as Statements } from "../../../ast/statements/builder/model"
 import type { Columns as Loops } from "../../../ast/statements/builder/while_loop"
-import type { Destination, Published as Module } from "../../../printer/model"
+import type { Published as Module } from "../../../printer/model"
 
 export type Input = {
     stateful: bool
@@ -20,7 +20,5 @@ export type State = {
     optional_type: u32[],
     valid: bool
 }
-
-export type Render = Input & Destination
 
 export type Published = Module

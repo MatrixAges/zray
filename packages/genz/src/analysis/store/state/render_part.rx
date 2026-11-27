@@ -1,10 +1,10 @@
 <Module>
     <Type from="model" as="State" />
 
-    <Args in={State.Fragment} out={bool} />
+    <Args in={State.Fragment} out={u8[][]?} />
 
     <If on={!$in.snapshot.valid}>
-        <Return value={false} />
+        <Return value={null} />
     </If>
 
     <Call fn="snapshot" in={$in} />
@@ -12,10 +12,9 @@
     <Call
         module="../../../printer/render"
         in={{
-            source: $ctx.snapshot,
-            output: $in.writer
+            source: $ctx.snapshot
         }}
     />
 
-    <Return value={true} />
+    <Return value={$ctx.render} />
 </Module>

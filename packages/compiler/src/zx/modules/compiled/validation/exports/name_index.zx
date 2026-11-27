@@ -1,31 +1,36 @@
-import slot from "core/bytes/index/borrowed/wide_slot"
 import memory from "memory"
 
 import unique from "../unique_column"
+import slot from "./index_slot"
 
-import type { Validation as Input } from "../../model"
-
-export type Output = bool
+import type { Validation as Input, ValidationResult as Output } from "../../model"
 
 export default function (in: Input): Output {
     const { exports } = in.graph
     const { names, count } = exports
+    const { index_capacity } = in
 
-    const buckets = in.export_index
-    const capacity = buckets == null ? 0 : memory.u64Views(buckets).length
-
-    if (buckets == null || capacity == 0) {
-        return unique({
-            names,
-            count
-        })
+    if (index_capacity == 0 || count < 2) {
+        return {
+            valid: unique({
+                names,
+                count
+            }),
+            export_index: []
+        }
     }
 
-    if (count < 2) {
-        return true
-    }
+    const empty: u64[] = []
+
+    const buckets = loop(empty, {
+        while: items => items.length < index_capacity,
+        next: items => {
+            items = items.push(0)[0]
+        }
+    })
 
     return loop({
+        buckets,
         row: 0,
         valid: true
     }, {
@@ -34,18 +39,20 @@ export default function (in: Input): Output {
             const row = state.row
             const found = slot({
                 names,
-                buckets: memory.u64View(buckets, null),
-                capacity,
+                buckets: state.buckets,
                 name: memory.readTextColumn(names, row)
             })
 
             state.valid = found.entry == 0
 
             if (state.valid) {
-                memory.writeU64(buckets, found.slot, row + 1)
+                state.buckets = state.buckets.with(found.slot, row + 1)
                 state.row += 1
             }
         },
-        return: state => state.valid
+        return: state => ({
+            valid: state.valid,
+            export_index: state.buckets
+        })
     })
 }

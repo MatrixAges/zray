@@ -1,9 +1,51 @@
 export declare function beginPreparedCall(
     state: InvocationPreparation,
-    node: u8[],
-    item: u32,
+    header: {
+        position: u32,
+        code: u8,
+        lane: u64,
+        item: u32,
+        next: u32
+    },
+    implicit_header: {
+        position: u32,
+        code: u8,
+        lane: u64,
+        item: u32,
+        next: u32
+    }?,
+    payload: {
+        node?: u8[],
+        result?: {
+            row: u32,
+            attribute: u8[]
+        },
+        task?: {
+            row: u32,
+            first: u32,
+            count: u32,
+            id?: u32,
+            node: u8[],
+            output?: u8[]
+        },
+        group?: {
+            row: u32,
+            first: u32,
+            count: u32
+        },
+        selection?: {
+            row: u32,
+            subject: u8[],
+            cases: {
+                firsts: u32[],
+                counts: u32[],
+                kinds: u8[],
+                sources: u8[][]
+            }
+        }
+    },
     previous_end: u32
-): void
+): void throws { OutOfMemory }
 
 export declare function storeDeclarationName(
     state: DeclarationTarget,
@@ -112,7 +154,10 @@ export declare function rejectPreparedLibrary(
 
 export declare function validatePreparedLibrary(
     state: InvocationPreparation,
-    verified_prefix: bool
+    verified_prefix: bool,
+    index: u64,
+    word: u64,
+    first: u64?
 ): void throws { OutOfMemory, InvalidFlow }
 
 export declare function publishPreparedCall(

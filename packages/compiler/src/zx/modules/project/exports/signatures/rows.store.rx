@@ -1,0 +1,21 @@
+<Store name="project_signature_rows" version={1}>
+    <Type from="model" as="Signature" />
+
+    <Object name="pending">
+        <Field
+            name="action"
+            type={Signature.ChangeKind}
+            value={Signature.ChangeKind.Value}
+        />
+
+        <Field name="row" type={u64} value={0} />
+        <Field name="name" type={string} value={""} />
+        <Field name="kind" type={u8} value={0} />
+        <Field name="input_type" type={u32} value={0} />
+        <Field name="output_type" type={u32} value={0} />
+        <Field name="has_store" type={bool} value={false} />
+        <Field name="own_name" type={bool} value={false} />
+        <Field name="rows" type={u8[]} value={[]} />
+        <Field name="source_row" type={u64} value={0} />
+    </Object>
+</Store>

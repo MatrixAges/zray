@@ -1,11 +1,9 @@
-import memory from "memory"
 import columns from "memory/columns"
 
 import member from "../../../call/named/member"
 import resultName from "../../../result_name/select"
 import { Action, TargetKind } from "./model"
 
-import type { U32Buffer } from "memory"
 import type { Published, Targets } from "./model"
 
 export type Input = {
@@ -14,24 +12,30 @@ export type Input = {
     target: u64,
     zx_count: u64,
     rx_end: u64,
-    published: Published,
-    ids: U32Buffer
+    published: Published
 }
 
-export type Output = Action
+export type Output = {
+    action: Action,
+    id?: u32
+}
 
 export default function (in: Input): Output {
-    const { target, position, zx_count, rx_end, published, ids } = in
+    const { target, position, zx_count, rx_end, published } = in
 
     const kind = in.calls.kinds[position]
 
     if (kind == TargetKind.Compiled) {
-        return Action.LoadLibrary
+        return {
+            action: Action.LoadLibrary
+        }
     }
 
     if (kind == TargetKind.NamedSource) {
         if (!published.present[target]) {
-            return Action.MissingMember
+            return {
+                action: Action.MissingMember
+            }
         }
 
         const reference = columns.readIndirectTextColumn(in.calls.references, position)
@@ -48,31 +52,41 @@ export default function (in: Input): Output {
         })
 
         if (function_id == null) {
-            return Action.MissingMember
+            return {
+                action: Action.MissingMember
+            }
         }
 
-        memory.writeU32(ids, position, function_id)
-
-        return Action.Bind
+        return {
+            action: Action.Bind,
+            id: function_id
+        }
     }
 
     const is_rx = target >= zx_count && target < rx_end
 
     if (kind == TargetKind.AuthorizedSource && !is_rx) {
-        return Action.CompileSetter
+        return {
+            action: Action.CompileSetter
+        }
     }
 
     if (!published.present[target]) {
-        return is_rx ? Action.MissingRX : Action.MissingZX
+        return {
+            action: is_rx ? Action.MissingRX : Action.MissingZX
+        }
     }
 
     const function_id = published.functions[target]
 
     if (function_id == null) {
-        return is_rx ? Action.NotExecutableRX : Action.NotExecutableZX
+        return {
+            action: is_rx ? Action.NotExecutableRX : Action.NotExecutableZX
+        }
     }
 
-    memory.writeU32(ids, position, function_id)
-
-    return Action.Bind
+    return {
+        action: Action.Bind,
+        id: function_id
+    }
 }

@@ -1,29 +1,12 @@
-import { load_numerator, load_denominator } from "core/bytes/index/const"
+import type { Initializer as Output } from "../model"
+import type { Entry } from "./model"
 
-import append from "./append"
-
-import type { Entry } from "./append"
-import type { Storage } from "./model"
-
-export type Input = Entry & {
-    registry: Storage
-}
-
-export type Output = u32[]
+export type Input = Entry.Omit("slot")
 
 export default function (in: Input): Output {
-    const { registry } = in
-
-    const empty: u32[] = []
-
-    const inserted = append({
-        ...in,
-        count: registry.count,
-        space: registry.space,
-        capacity: registry.capacity,
-        limit: registry.capacity * load_numerator / load_denominator,
-        buckets: null
-    })
-
-    return inserted.buckets ?? empty
+    return {
+        identity: in.identity,
+        schema_version: in.version,
+        function: in.function
+    }
 }

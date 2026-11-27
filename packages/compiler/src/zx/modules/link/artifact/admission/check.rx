@@ -11,8 +11,6 @@
         <Return value={false} />
     </If>
 
-    <Call fn="reserve" in={$in.mappings} />
-
     <Task name="surface" out={$ctx.admit}>
         <Call module="../../surface/admit" in={$in.surface} />
     </Task>

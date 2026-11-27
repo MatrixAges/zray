@@ -1,25 +1,39 @@
 <Module>
     <Type from="model" as="Binding" />
 
-    <Args in={Binding.Render} out={Binding.Status} />
+    <Args in={Binding.Input} out={Binding.Rendered} />
 
-    <Call module="build" in={$in.omit(["writer"])} />
+    <Call module="build" in={$in} />
 
     <If on={!$ctx.build.supported}>
-        <Return value={Binding.Status.Unsupported} />
+        <Return
+            value={{
+                status: Binding.Status.Unsupported,
+                chunks: []
+            }}
+        />
     </If>
 
     <If on={!$ctx.build.valid}>
-        <Return value={Binding.Status.Invalid} />
+        <Return
+            value={{
+                status: Binding.Status.Invalid,
+                chunks: []
+            }}
+        />
     </If>
 
     <Call
         module="../../../../../printer/render"
         in={{
-            source: $ctx.build.module,
-            output: $in.writer
+            source: $ctx.build.module
         }}
     />
 
-    <Return value={Binding.Status.Ready} />
+    <Return
+        value={{
+            status: Binding.Status.Ready,
+            chunks: $ctx.render
+        }}
+    />
 </Module>

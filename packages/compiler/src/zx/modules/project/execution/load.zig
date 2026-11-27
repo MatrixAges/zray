@@ -32,14 +32,13 @@ pub const Walk = struct {
 pub fn run(project: *Project, index: usize, phase: Phase) zx.Error!void {
     const entry = @import("generated_project_execute_load");
     const Input = std.meta.Child(entry.Input);
-    var marks = std.mem.sliceAsBytes(project.load_states);
     var walk: Walk = .{ .project = project, .phase = phase, .paths = .init(project.arena.child_allocator) };
 
     defer walk.paths.deinit();
 
     const input: Input = .{
         .walk = @ptrCast(&walk),
-        .frame = &.{ .states = marks, .marks = @ptrCast(&marks), .row = index, .depth = project.load_frames.items.len },
+        .frame = &.{ .states = std.mem.sliceAsBytes(project.load_states), .row = index, .depth = project.load_frames.items.len },
     };
 
     var arena = std.heap.ArenaAllocator.init(project.arena.child_allocator);
@@ -59,6 +58,8 @@ pub fn run(project: *Project, index: usize, phase: Phase) zx.Error!void {
 
 pub fn openProjectFrame(handle: *anyopaque, row: u64) zx.Error!void {
     const walk = Walk.borrow(handle);
+
+    walk.project.load_states[@intCast(row)] = .Visiting;
 
     _ = walk.paths.reset(.free_all);
 
@@ -130,8 +131,11 @@ fn finish(walk: *Walk, frame: *Frame, input: anytype) zx.Error!void {
 pub fn closeProjectFrame(handle: *anyopaque) u64 {
     const walk = Walk.borrow(handle);
     const frames = &walk.project.load_frames;
+    const frame = walk.active();
 
-    walk.active().deinitScratch(walk.project.arena.child_allocator);
+    walk.project.load_states[frame.index] = .Done;
+
+    frame.deinitScratch(walk.project.arena.child_allocator);
 
     _ = frames.pop();
 

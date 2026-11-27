@@ -1,23 +1,37 @@
 import bytes from "std:bytes"
 import encoding from "std:encoding"
 import integers from "std:integer"
+import empty from "core/integer/wide_index/empty"
+import get from "core/integer/wide_index/get"
+import insert from "core/integer/wide_index/insert"
 import memory from "memory"
 
-import type { U64Buffer } from "memory"
+import type { U64View } from "memory"
 import type { Span } from "../../../../frontend/lexer/token_model"
 
-export type Input = {
+export type Request = {
     source: string,
     names: Span[],
     first: u64,
     count: u64,
-    buckets: U64Buffer,
+    buckets: U64View,
     capacity: u64
 }
 
-export type Output = u64?
+export type Input = Request?
+
+export type Output = {
+    slots: u64[],
+    duplicate?: u64
+}
 
 export default function (in: Input): Output {
+    if (in == null) {
+        return {
+            slots: []
+        }
+    }
+
     const { source, names, first, count, buckets, capacity } = in
 
     const mask = capacity - 1
@@ -26,7 +40,8 @@ export default function (in: Input): Output {
 
     return loop({
         offset: 0,
-        duplicate
+        duplicate,
+        pending: empty({})
     }, {
         while: state => state.offset < count && state.duplicate == null,
         next: state => {
@@ -34,6 +49,7 @@ export default function (in: Input): Output {
             const span = names[index]
             const key = encoding.sliceBytes(source, span.start, span.end)
             const hash = bytes.hash(bytes.fromText(key))
+            const pending = state.pending
 
             const found = loop({
                 slot: integers.andBits(hash, mask),
@@ -42,7 +58,14 @@ export default function (in: Input): Output {
             }, {
                 while: probe => !probe.vacant && !probe.equal,
                 next: probe => {
-                    const row = memory.readU64(buckets, probe.slot)
+                    const position = get({
+                        index: pending,
+                        key: probe.slot
+                    })
+                    const row = match {
+                        position == null => memory.readU64View(buckets, probe.slot),
+                        _ => first + position + 1
+                    }
 
                     if (row == 0) {
                         probe.vacant = true
@@ -69,11 +92,17 @@ export default function (in: Input): Output {
             if (found.equal) {
                 state.duplicate = state.offset
             } else {
-                memory.writeU64(buckets, found.slot, index + 1)
+                state.pending = insert({
+                    index: pending,
+                    key: found.slot
+                }).index
             }
 
             state.offset += 1
         },
-        return: state => state.duplicate
+        return: state => ({
+            slots: state.pending.keys,
+            duplicate: state.duplicate
+        })
     })
 }

@@ -1,0 +1,15 @@
+<Module>
+    <Type from="publication" as="Publication" />
+
+    <Args in={Publication.InitializerList} out={void} />
+
+    <Loop on={$in.row < $in.source.count}>
+        <Call
+            module="next_initializer"
+            in={{
+                ...$in,
+                row: 0
+            }}
+        />
+    </Loop>
+</Module>

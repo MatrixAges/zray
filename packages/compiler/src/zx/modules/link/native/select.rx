@@ -9,6 +9,7 @@
         <Return
             value={{
                 rows: $ctx.plan.additions,
+                ids: $ctx.plan.ids,
                 failure: $ctx.plan.failure
             }}
         />
@@ -17,6 +18,7 @@
     <Return
         value={{
             rows: null,
+            ids: [],
             failure: null
         }}
     />

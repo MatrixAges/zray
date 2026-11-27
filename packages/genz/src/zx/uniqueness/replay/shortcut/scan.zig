@@ -6,7 +6,6 @@ const Trace = @import("../../trace.zig");
 const Cursor = @import("../shortcut.zig");
 const Replacements = @import("replacements.zig");
 const Growth = @import("../../growth.zig");
-const rows = @import("../../row_output.zig");
 const scanning = @import("generated_uniqueness_shortcut_scan");
 const Input = std.meta.Child(scanning.Input);
 const Tables = std.meta.Child(@FieldType(Input, "tables"));
@@ -15,7 +14,6 @@ const Demand = std.meta.Child(@FieldType(Tables, "demanded"));
 const DemandBinding = Views.Demanded.Binding(std.meta.Child(@FieldType(Demand, "trace")));
 const Index = std.meta.Child(@FieldType(Settlement, "index"));
 const Probe = std.meta.Child(@FieldType(Index, "table"));
-const Recovery = std.meta.Child(@FieldType(Input, "recovery"));
 const Views = @import("../ordered/columns.zig");
 const Error = std.mem.Allocator.Error;
 pub const Prepared = struct { cursor: Cursor, growth: Growth.Rows };
@@ -36,13 +34,7 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, s
     var previous_binding: DemandBinding = undefined;
     var current_binding: DemandBinding = undefined;
     const digests = zx.memory.borrowNestedColumn(Memo.Digest, &.{}, ctx.bodies.identities);
-    var key: []u8 = &ctx.memo.key;
     const demands = ctx.summaries.storage.?.demands;
-    var normalized: rows.Normalized(Recovery) = undefined;
-    var renewed: rows.Renewed(Recovery) = undefined;
-
-    normalized.init();
-    renewed.init();
 
     const input: Input = .{
         .replay = &.{
@@ -68,12 +60,9 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, s
             },
             .planned = &planned.view(),
             .identities = @ptrCast(&digests),
-            .digest = @ptrCast(&key),
             .digest_width = @sizeOf(Memo.Digest),
         },
         .recovery = &.{
-            .normalized = &.{ .storage = @ptrCast(&normalized.buffer), .columns = &normalized.view },
-            .renewed = &.{ .storage = @ptrCast(&renewed.buffer), .columns = &renewed.view },
             .callees = ctx.bodies.callees,
             .summaries = &.{
                 .input = @ptrCast(&ctx.summaries.input),
@@ -100,6 +89,16 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, s
     }
 
     if (result.cleared) |cleared| @memcpy(demands, cleared);
+    if (result.digest) |digest| @memcpy(&ctx.memo.key, digest);
+
+    for (result.hits) |hit| switch (hit.phase) {
+        .Settled => ctx.memo.settled.values.items[hit.row].used = true,
+        .Demanded => ctx.memo.demanded.values.items[hit.row].used = true,
+        .Planned => ctx.memo.planned.values.items[hit.row].used = true,
+        else => unreachable,
+    };
+
+    const growth = if (result.restored) |restored| try installGrowth(scratch, restored) else Growth.Rows{};
 
     return .{
         .cursor = .{
@@ -107,18 +106,32 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, s
             .visit = @intCast(result.cursor.visit),
             .phase = @fromBackingInt(@intCast(@backingInt(result.cursor.phase))),
         },
-        .growth = .{ .normalized = normalized.rows(), .renewed = renewed.rows() },
+        .growth = growth,
     };
 }
 
+fn installGrowth(allocator: std.mem.Allocator, restored: anytype) Error!Growth.Rows {
+    const Level = @import("../../level.zig").Level;
+    const normalized = try allocator.alloc(Growth.Normalized, restored.normalized.len);
+    const renewed = try allocator.alloc(Growth.Renewed, restored.renewed.len);
+
+    for (normalized, restored.normalized) |*row, value| {
+        row.* = .{ .id = @fromBackingInt(value.id), .want = @bitCast(@as(u3, @intCast(value.want))) };
+    }
+
+    for (renewed, restored.renewed) |*row, value| {
+        row.* = .{ .key = value.key, .want = @as(Level, @bitCast(@as(u3, @intCast(value.want)))) };
+    }
+
+    return .{ .normalized = normalized, .renewed = renewed };
+}
+
 const BoundIndex = struct {
-    used: zx.memory.WriteColumn,
     states: zx.memory.ListColumn,
     probe: Probe,
     fn init(self: *@This(), table: anytype, entries: anytype) void {
-        self.used = table.useColumn();
         self.states = zx.memory.borrowSliceColumn(&.{"state"}, entries);
-        self.probe = table.probe(Probe, &self.used);
+        self.probe = table.probe(Probe);
     }
 
     fn view(self: *const @This()) Index {

@@ -3,29 +3,20 @@
 
     <Args in={Encoding.Lookup} out={Encoding.Found} />
 
-    <Call
-        module="key"
-        in={$in.omit([
-            "digest",
-            "table"
-        ])}
-    />
+    <Call module="key" in={$in.omit(["table"])} />
 
     <Call
         fn="find"
         in={{
-            ...$in.pick([
-                "digest",
-                "table"
-            ]),
-            buffer: $ctx.key.buffer
+            table: $in.table,
+            chunks: $ctx.key.chunks
         }}
     />
 
     <Return
         value={{
-            state: $ctx.key,
-            row: $ctx.find
+            ...$ctx.find,
+            state: $ctx.key
         }}
     />
 </Module>

@@ -1,9 +1,7 @@
 import type { Allocator } from "memory"
-import type { ColumnAllocator } from "memory/columns"
 
 export type Resource = Allocator
 
 export type Buffers = {
-    owned: Allocator,
-    names: ColumnAllocator
+    owned: Allocator
 }

@@ -1,12 +1,3 @@
-import type {
-    Allocator,
-    ColumnLengths,
-    U8Storage,
-    U32Storage,
-    U32Buffer,
-    U8Buffer
-} from "memory"
-
 export type Headers = {
     tags: u8[],
     offsets: u32[],
@@ -39,32 +30,10 @@ export type Dense = Headers & {
     counts: u32[]
 }
 
-export type Destination = {
-    target_tags: U8Buffer,
-    target_offsets: U32Buffer,
-    lengths: ColumnLengths
-}
-
-export type Views = {
-    source_tags: U8Buffer,
-    source_offsets: U32Buffer
-}
-
-export type Tail = Destination & Views & {
-    allocator: Allocator,
-    tag_storage: U8Storage,
-    offset_storage: U32Storage
-}
-
-export type Reservation = Tail & {
-    count: u64
-}
-
-export type Rebase = Headers & Destination & {
+export type Rebase = Headers & {
     bases: u32[]
 }
 
-export type Selected = Headers.Pick("tags", "mask") & Destination & {
-    count: u64,
+export type Selected = Headers.Pick("tags", "mask") & {
     bases: u32[]
 }

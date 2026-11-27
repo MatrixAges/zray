@@ -12,7 +12,8 @@ export type Input = Rows?
 
 export type Output = {
     row: u64,
-    visible: bool
+    visible: bool,
+    next?: u64
 }
 
 export default function (in: Input): Output {
@@ -25,10 +26,9 @@ export default function (in: Input): Output {
 
     const row = memory.readLengthSlot(in.cursor, 0)
 
-    memory.advanceLengthSlot(in.cursor, 0, 1)
-
     return {
         row,
+        next: row + 1,
         visible: in.types[row] != scalar_void
     }
 }

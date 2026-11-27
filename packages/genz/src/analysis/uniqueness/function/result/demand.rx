@@ -1,38 +1,42 @@
 <Module>
     <Type from="model" as="Result" />
 
-    <Args in={Result.Demand} out={void} />
+    <Args in={Result.Demand} out={Result.DemandResult} />
+
+    <Call fn="marks" in={$in.marks} />
 
     <Call
-        fn="marks"
+        fn="reads"
         in={{
-            marks: $in.marks,
-            target: $in.mark_target,
-            owner: $in.owner
+            before: $in.before,
+            after: $in.after,
+            enabled: $in.deferred
         }}
     />
 
-    <If on={$in.read_target != null}>
+    <If on={$in.save_growth}>
         <Call
-            fn="reads"
-            in={{
-                before: $in.before,
-                after: $in.after,
-                target: $in.read_target,
-                owner: $in.owner
+            module="../demand/snapshot/publish"
+            in={$in.pick([
+                "normalized",
+                "renewed"
+            ])}
+        />
+
+        <Return
+            value={{
+                marks: $ctx.marks,
+                reads: $ctx.reads,
+                growth: $ctx.publish
             }}
         />
     </If>
 
-    <If on={$in.growth != null}>
-        <Call
-            module="../demand/snapshot/publish"
-            in={{
-                normalized: $in.normalized,
-                renewed: $in.renewed,
-                targets: $in.growth,
-                owner: $in.owner
-            }}
-        />
-    </If>
+    <Return
+        value={{
+            marks: $ctx.marks,
+            reads: $ctx.reads,
+            growth: null
+        }}
+    />
 </Module>

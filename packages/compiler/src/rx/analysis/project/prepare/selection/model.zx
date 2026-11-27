@@ -1,30 +1,9 @@
-import type { RowBuffer, WriteColumn } from "memory/columns"
 import type { Tree } from "../flow/tree"
-
-export type CaseRows = {
-    kind: WriteColumn,
-    source: WriteColumn,
-    first: WriteColumn,
-    count: WriteColumn,
-    truth: WriteColumn
-}
 
 export type Labels = {
     ordinary: u8,
     affirmative: u8,
     fallback: u8
-}
-
-export type SelectionRows = {
-    subject: WriteColumn,
-    cases: WriteColumn
-}
-
-export type Rows = {
-    destination: SelectionRows,
-    storage: RowBuffer,
-    labels: Labels,
-    body: CaseRows
 }
 
 export type Units = {
@@ -34,7 +13,7 @@ export type Units = {
 
 export type Input = {
     tree: Tree,
-    rows: Rows,
+    labels: Labels,
     units: Units,
     facts: u32[],
     slot: u64,
@@ -46,6 +25,18 @@ export type Input = {
 export type Branches = {
     subject: u8[],
     first_child: u64,
-    child_count: u64,
-    case_count: u64
+    child_count: u64
+}
+
+export type Cases = {
+    firsts: u32[],
+    counts: u32[],
+    kinds: u8[],
+    sources: u8[][]
+}
+
+export type Publication = {
+    row: u32,
+    subject: u8[],
+    cases: Cases
 }

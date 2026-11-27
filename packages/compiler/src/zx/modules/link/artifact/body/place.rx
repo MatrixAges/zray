@@ -10,15 +10,6 @@
             <Return value={Body.Placement.Invalid} />
         </If>
 
-        <Call
-            fn="slot"
-            in={$in.pick([
-                "first",
-                "slot",
-                "target"
-            ])}
-        />
-
         <Call fn="../entry" in={$in.body} />
 
         <If on={!$ctx.entry}>

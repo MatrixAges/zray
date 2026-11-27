@@ -18,8 +18,46 @@ const Members = std.meta.Child(@FieldType(Input, "members"));
 const Ports = std.meta.Child(@FieldType(Input, "ports"));
 const Mapping = std.meta.Child(@FieldType(Ports, "types"));
 const Prefix = std.meta.Child(@typeInfo(@FieldType(Initializers, "prefix")).optional.child);
-const InitTarget = std.meta.Child(@FieldType(Initializers, "target"));
 const MemberTarget = std.meta.Child(@FieldType(Members, "target"));
+
+const InitializerHost = struct {
+    allocator: std.mem.Allocator,
+    shared: []const Initializer,
+    surface: ?*Surface = null,
+    rows: []Initializer = &.{},
+    first: usize = 0,
+    written: usize = 0,
+    pub fn commit(self: *InitializerHost, pending: anytype) std.mem.Allocator.Error!void {
+        if (pending.store_0) |entry| try self.surface.?.publishExport(self.allocator, entry);
+
+        const entry = pending.store_1 orelse return;
+
+        if (self.rows.len == 0) {
+            self.first = @intCast(entry.first);
+            self.written = self.first;
+            self.rows = try self.allocator.alloc(Initializer, @intCast(entry.end));
+
+            @memcpy(self.rows[0..self.first], self.shared[0..self.first]);
+        }
+
+        const identity = try self.allocator.dupe(u8, entry.identity);
+
+        self.rows[@intCast(entry.row)] = .{
+            .identity = identity,
+            .schema_version = entry.schema_version,
+            .function = @fromBackingInt(entry.function),
+        };
+
+        self.written += 1;
+    }
+
+    fn release(self: *InitializerHost) void {
+        if (self.rows.len == 0) return;
+        for (self.rows[self.first..self.written]) |entry| self.allocator.free(entry.identity);
+
+        self.allocator.free(self.rows);
+    }
+};
 
 pub fn publish(body: *const Source.Body, nodes: *Nodes, tail: *const ir.FunctionTable, type_prefix: usize, values: []const Initializer) Error!void {
     const input = body.input;
@@ -52,18 +90,13 @@ pub fn publish(body: *const Source.Body, nodes: *Nodes, tail: *const ir.Function
         .function_prefix = nodes.functions.range.prefix,
     };
 
-    var initial_output: memory.RowOutput(Initializer, InitTarget, .{}) = undefined;
-
-    initial_output.init();
+    var initial_output: InitializerHost = .{ .allocator = allocator, .shared = shared };
 
     const initializers: Initializers = .{
         .source = &initial_rows.bind(std.meta.Child(@FieldType(Initializers, "source"))),
         .functions = zx.columns.pointer(@FieldType(Initializers, "functions"), &functions),
         .end = values.len,
         .prefix = if (prefix) |*found| found else null,
-        .target = &initial_output.view,
-        .storage = @ptrCast(&initial_output.buffer),
-        .shared = std.mem.sliceAsBytes(shared),
     };
 
     const member_source = input.members;
@@ -99,6 +132,7 @@ pub fn publish(body: *const Source.Body, nodes: *Nodes, tail: *const ir.Function
     if (declared) {
         surface.init(program.exports, program.constant_exports, nodes.types);
 
+        initial_output.surface = &surface;
         export_types = memory.borrowReadColumn(ir.TypeId, "type_id", program.exports);
         declarations = .{ .rows = &surface.input, .export_types = @ptrCast(&export_types), .prefix = if (input.owned_declarations) type_prefix else 0 };
     }
@@ -120,17 +154,17 @@ pub fn publish(body: *const Source.Body, nodes: *Nodes, tail: *const ir.Function
         },
     };
 
-    errdefer allocator.free(initial_output.rows());
+    errdefer initial_output.release();
     errdefer allocator.free(member_output.rows());
 
-    const selected = zx.columns.invoke(generated.executeValue, allocator, &request) catch |err| switch (@as(anyerror, err)) {
+    const selected = generated.executeIn(allocator, &request, &initial_output) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
 
     const published = selected orelse return error.InvalidModule;
     const first: usize = @intCast(published.initializer_prefix);
-    const owned = initial_output.rows();
+    const owned = initial_output.rows;
     const result = output.surface;
 
     result.exports = if (declared and surface.exports().len != 0) surface.exports() else program.exports;

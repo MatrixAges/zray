@@ -9,24 +9,25 @@
             ...$in.pick([
                 "traversal",
                 "context",
-                "buffers",
                 "scope"
             ]),
             index: $in.cursor - 1,
             statement: $in.scope_first + $in.cursor - 1,
-            placement: $in.scope_placement,
             route: $in.routes[$in.cursor - 1]
         }}
     />
 
     <If on={$ctx.run != null}>
-        <Return
-            value={{
-                ...$in,
-                cursor: $ctx.run,
-                running: $ctx.run > $in.first
+        <Call
+            fn="save_statement"
+            in={{
+                current: $in,
+                write: $ctx.run.omit(["cursor"]),
+                cursor: $ctx.run.cursor
             }}
         />
+
+        <Return value={$ctx.save_statement} />
     </If>
 
     <Return

@@ -1,32 +1,35 @@
+import bytes from "std:bytes"
 import integers from "std:integer"
 import memory from "memory"
 
 import storedKey from "../../../function/levels/growth/stored_key"
 import { renewal_key_width, word_width } from "../const"
 import record from "../record"
+import word from "../word"
 
-import type { State as Output } from "../model"
 import type { Emit as Input } from "./model"
+
+export type Output = u8[]
 
 export default function (in: Input): Output {
     const { columns, count, order, wide } = in
     const { keys, wants } = columns
 
     const width = wide ? renewal_key_width : word_width
+    const header = word(count)
 
-    return loop({
-        state: in.state,
+    const rows = loop({
+        parts: bytes.repeat(count + 1, 0).map(byte => header)[0],
         index: 0
     }, {
-        while: current => current.index < count,
-        next: current => {
+        while: state => state.index < count,
+        next: state => {
             const offset = match {
-                order == null => current.index,
-                _ => integers.widen(order[current.index])
+                order == null => state.index,
+                _ => integers.widen(order[state.index])
             }
 
-            current.state = record({
-                state: current.state,
+            state.parts[state.index + 1] = record({
                 value: storedKey({
                     keys,
                     wide,
@@ -36,8 +39,10 @@ export default function (in: Input): Output {
                 want: memory.readColumnU8(wants, offset)
             })
 
-            current.index += 1
+            state.index += 1
         },
-        return: current => current.state
+        return: state => state.parts
     })
+
+    return bytes.join([], rows)
 }

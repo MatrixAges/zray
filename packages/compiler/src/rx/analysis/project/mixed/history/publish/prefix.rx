@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Publication" />
 
-    <Args in={Publication.Input} out={void} />
+    <Args in={Publication.Input} out={Publication.Output} />
 
     <Call
         fn="modules"
@@ -25,9 +25,17 @@
     <Call
         fn="counters"
         in={{
-            ...$in.counters,
+            reused_before: $in.reused_before,
             count: $in.end - $in.first,
             verified_end: $in.verified_end
+        }}
+    />
+
+    <Return
+        value={{
+            modules: $ctx.modules,
+            checkpoints: $ctx.checkpoints,
+            counters: $ctx.counters
         }}
     />
 </Module>

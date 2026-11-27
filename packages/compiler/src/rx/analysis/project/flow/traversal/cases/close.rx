@@ -3,30 +3,12 @@
 
     <Args in={Effect.BranchClose} out={void} />
 
-    <If on={$in.returns == null}>
-        <Call
-            fn="../host.finishFlowCase"
-            in={[
-                $in.frame,
-                $in.cursor.destination
-            ]}
-        />
-    </If>
-
     <Call
-        fn="../host.shrinkLengthSlot"
+        fn="../host.finishFlowCase"
         in={[
-            $in.lengths,
-            1,
-            $in.saved_facts
-        ]}
-    />
-
-    <Call
-        fn="../host.shrinkLengthSlot"
-        in={[
-            $in.lengths,
-            0,
+            $in.frame,
+            $in.returns == null ? $in.cursor.destination : null,
+            $in.saved_facts,
             $in.saved_bindings
         ]}
     />

@@ -31,15 +31,6 @@
         </Else>
     </If>
 
-    <Call
-        fn="../host.shrinkLengthSlot"
-        in={[
-            $in.lengths,
-            0,
-            $ctx.readLengthSlot
-        ]}
-    />
-
     <Call fn="../select_result" in={$in.results} />
 
     <Call
@@ -47,7 +38,9 @@
         in={[
             $in.frame,
             $ctx.select_result.row,
-            $ctx.select_result.visible
+            $ctx.select_result.visible,
+            $ctx.select_result.next,
+            $ctx.readLengthSlot
         ]}
     />
 

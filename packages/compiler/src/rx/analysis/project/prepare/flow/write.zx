@@ -1,7 +1,4 @@
-import integers from "std:integer"
-import memory from "memory"
-
-import type { Rows } from "./model"
+import type { Header as Output, Rows } from "./model"
 
 export type Input = {
     rows: Rows,
@@ -10,17 +7,16 @@ export type Input = {
     code: u8
 }
 
-export type Output = u32
-
 export default function (in: Input): Output {
-    const { rows, lane } = in
+    const { rows, lane, row, code } = in
 
-    const position = integers.widen(in.row)
-    const item = memory.readU32(rows.cursors, lane)
+    const item = rows.cursors[lane]
 
-    memory.writeU8(rows.kinds, position, in.code)
-    memory.writeU32(rows.items, position, item)
-    memory.writeU32(rows.cursors, lane, item + 1)
-
-    return item
+    return {
+        position: row,
+        code,
+        lane,
+        item,
+        next: item + 1
+    }
 }

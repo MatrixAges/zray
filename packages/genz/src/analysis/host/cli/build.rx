@@ -1,9 +1,9 @@
 <Module>
     <Type from="../input" as="Host" />
 
-    <Args in={Host.Render} out={bool} />
+    <Args in={Host.Input} out={u8[][]?} />
 
-    <Call fn="initialize" in={$in.omit(["writer"])} />
+    <Call fn="initialize" in={$in} />
 
     <Call fn="prelude" />
 
@@ -28,10 +28,6 @@
 
     <Call
         module="../../../printer/render_checked"
-        in={{
-            module: $ctx.publish,
-            writer: $in.writer
-        }}
     />
 
     <Return value={$ctx.render_checked} />

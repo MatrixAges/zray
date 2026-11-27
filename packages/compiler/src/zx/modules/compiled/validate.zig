@@ -29,15 +29,16 @@ pub fn validateIndexed(allocator: std.mem.Allocator, library: model.Graph, names
 
     graph.init(temporary, &library);
 
-    const index = if (names) |value| &value.storage else null;
-    const input: Input = .{ .graph = &graph.input, .export_index = if (index) |buckets| @ptrCast(buckets) else null };
+    const buckets: []u64 = if (names) |value| value.storage else &.{};
+    const input: Input = .{ .graph = &graph.input, .index_capacity = buckets.len };
 
     const accepted = zx.columns.invoke(rule.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => return error.InvalidLibrary,
     };
 
-    if (!accepted) return error.InvalidLibrary;
+    if (!accepted.valid) return error.InvalidLibrary;
+    if (buckets.len != 0) @memcpy(buckets, accepted.export_index);
 }
 
 pub fn validateLinked(allocator: std.mem.Allocator, library: model.Graph) LinkError!void {

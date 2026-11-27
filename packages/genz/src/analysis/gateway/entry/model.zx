@@ -1,5 +1,4 @@
 import type { Table } from "core/type_table/model"
-import type { ByteWriter } from "memory"
 import type { Input as Bases } from "../../../ast/context/model"
 import type { SlotRange } from "../adapter/model"
 import type { Input as DispatchInput, Route } from "../dispatch/model"
@@ -26,7 +25,6 @@ export type ServiceColumns = {
 }
 
 export type Input = {
-    writer: ByteWriter,
     services: Service[],
     bound?: ServiceColumns,
     service_modules: string[],
@@ -36,43 +34,47 @@ export type Input = {
     max_body_bytes: u32
 }
 
-export type Output = {
+export type Status = {
     valid: bool,
     invalid_route: bool
 }
 
+export type Section = Status & {
+    chunks: u8[][]
+}
+
+export type Output = Status & {
+    groups: u8[][][]
+}
+
 export type Prelude = {
-    writer: ByteWriter,
     config: PreludeInput
 }
 
 export type Dispatch = {
-    writer: ByteWriter,
     config: DispatchInput
 }
 
-export type Services = Input.Pick("services", "bound", "writer") & {
+export type Services = Input.Pick("services", "bound") & {
     bases: Bases
 }
 
 export type Visit = Service & {
-    writer: ByteWriter,
     bases: Bases,
     index: u64
 }
 
 export type Invoke = {
-    writer: ByteWriter,
     config: InvokeInput
 }
 
 export type Http = {
-    writer: ByteWriter,
     bases: Bases
 }
 
 export type Traversal = Services & {
-    state: Output,
+    groups: u8[][][],
+    valid: bool,
     index: u64,
     count: u64,
     running: bool

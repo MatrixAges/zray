@@ -10,10 +10,8 @@
             module="next_service"
             in={{
                 ...$in,
-                state: {
-                    valid: true,
-                    invalid_route: false
-                },
+                groups: [],
+                valid: true,
                 index: 0,
                 count: $ctx.service_count,
                 running: $ctx.service_count != 0
@@ -21,5 +19,11 @@
         />
     </Loop>
 
-    <Return value={$ctx.next_service.state} />
+    <Return
+        value={{
+            valid: $ctx.next_service.valid,
+            invalid_route: false,
+            groups: $ctx.next_service.groups
+        }}
+    />
 </Module>

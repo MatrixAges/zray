@@ -81,12 +81,21 @@
     <Call
         fn="body_install/register_cache"
         in={{
-            target: $in.installation.cache,
             index: $in.installation.records.used,
-            backing: $in.installation.backing,
             publish: $ctx.plan.publish_artifact
         }}
     />
+
+    <If on={$ctx.register_cache != null}>
+        <Call
+            fn="body_install/reserve_record"
+            in={{
+                target: $in.installation.cache,
+                index: $in.installation.cache.used,
+                backing: $in.installation.backing
+            }}
+        />
+    </If>
 
     <Call
         fn="body_install/reserve_record"
@@ -120,7 +129,7 @@
                     duplicate: $ctx.publish.duplicate,
                     cache_root: $in.installation.records.used,
                     records_used: $in.installation.records.used + 1,
-                    cache_used: $ctx.register_cache
+                    cache_record: $ctx.register_cache
                 }}
             />
         </If>
@@ -130,7 +139,7 @@
         value={{
             duplicate: $ctx.publish.duplicate,
             records_used: $in.installation.records.used + 1,
-            cache_used: $ctx.register_cache
+            cache_record: $ctx.register_cache
         }}
     />
 </Module>

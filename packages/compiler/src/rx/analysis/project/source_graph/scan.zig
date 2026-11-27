@@ -104,8 +104,14 @@ pub const Scan = struct {
     }
 };
 
-pub fn openSourceGraphScanner(handle: *anyopaque) std.mem.Allocator.Error!void {
-    return Scan.borrow(handle).prefetch();
+pub fn openSourceGraphScanner(handle: *anyopaque, paths: []const []const u8, buckets: []const u64) std.mem.Allocator.Error!void {
+    const scan = Scan.borrow(handle);
+    const registered = scan.collector.paths;
+
+    @memcpy(registered.keys, paths);
+    @memcpy(registered.buckets, buckets);
+
+    return scan.prefetch();
 }
 
 pub fn finishSourceGraphScan(handle: *anyopaque, retain_parses: bool) []const u64 {

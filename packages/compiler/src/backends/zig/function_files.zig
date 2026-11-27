@@ -31,7 +31,6 @@ pub fn create(owned: std.mem.Allocator, backing: std.mem.Allocator, functions: *
         .initializers = &.{ .names = @ptrCast(&initializer_names), .sources = @ptrCast(&initializer_sources), .imports = @ptrCast(&initializer_imports), .count = initializers.len },
         .native_ids = functions.native_modules,
         .native_names = native_names,
-        .destination = &.{ .owner = @ptrCast(&owned) },
     };
 
     const result = zx.columns.invoke(registration.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
@@ -47,7 +46,7 @@ pub fn create(owned: std.mem.Allocator, backing: std.mem.Allocator, functions: *
         output[i] = .{
             .name = item.name,
             .source = item.source,
-            .imports = item.imports,
+            .imports = if (item.imports.len == 0) &.{} else try owned.dupe([]const u8, item.imports),
         };
     }
 

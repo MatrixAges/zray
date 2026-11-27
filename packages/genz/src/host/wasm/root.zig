@@ -13,10 +13,10 @@ pub fn render(allocator: std.mem.Allocator, stateful: bool, output: @import("../
     const entry = @import("generated_wasm_host");
     const Input = std.meta.Child(entry.Input);
     const table = zx.ir.TypeTable.borrow(std.meta.Child(@FieldType(Input, "types")), output.types);
-    const input: Input = .{ .writer = @ptrCast(&writer), .stateful = stateful, .types = &table, .output_type = @backingInt(output.id) };
+    const input: Input = .{ .stateful = stateful, .types = &table, .output_type = @backingInt(output.id) };
     const result = zx.columns.invoke(entry.executeValue, arena.allocator(), &input) catch |err| return failure(err);
 
-    if (!result) return error.OutOfMemory;
+    try @import("../../printer/module.zig").writeChunks(&writer, result orelse return error.OutOfMemory);
 
     return writer.finish();
 }

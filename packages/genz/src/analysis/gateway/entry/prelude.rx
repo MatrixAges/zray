@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Entry" />
 
-    <Args in={Entry.Prelude} out={Entry.Output} />
+    <Args in={Entry.Prelude} out={Entry.Section} />
 
     <Call module="../prelude/build" in={$in.config} />
 
@@ -9,7 +9,8 @@
         <Return
             value={{
                 valid: false,
-                invalid_route: false
+                invalid_route: false,
+                chunks: []
             }}
         />
     </If>
@@ -19,15 +20,15 @@
     <Call
         module="../../../printer/render"
         in={{
-            source: $ctx.prelude,
-            output: $in.writer
+            source: $ctx.prelude
         }}
     />
 
     <Return
         value={{
             valid: true,
-            invalid_route: false
+            invalid_route: false,
+            chunks: $ctx.render
         }}
     />
 </Module>

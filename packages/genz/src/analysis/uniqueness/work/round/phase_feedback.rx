@@ -1,17 +1,14 @@
 <Module>
     <Type from="model" as="Round" />
-    <Type from="../model" as="Work" />
     <Type from="../../program/model" as="Program" />
 
-    <Args in={Round.PhaseFeedback} out={Work.Cursor} />
+    <Args in={Round.PhaseFeedback} out={Round.Actions} />
 
     <If on={$in.phase == Program.Phase.Settle}>
         <Call
             module="publish"
             in={{
                 ...$in.pick([
-                    "state",
-                    "dirty",
                     "active",
                     "outputs"
                 ]),
@@ -24,30 +21,48 @@
             }}
         />
 
-        <Return value={$ctx.publish} />
+        <Return
+            value={{
+                dirty: $ctx.publish,
+                plan: null
+            }}
+        />
     </If>
 
     <If on={$in.phase == Program.Phase.Demand && $in.previous.changed.length != 0}>
         <Call
             fn="../notify"
             in={{
-                ...$in.pick([
-                    "state",
-                    "dirty",
-                    "active"
-                ]),
+                active: $in.active,
                 changed: $in.previous.changed,
                 callers: $in.callers[$in.previous.body],
                 demand_body: $in.previous.body
             }}
         />
 
-        <Return value={$ctx.notify} />
+        <Return
+            value={{
+                dirty: $ctx.notify,
+                plan: null
+            }}
+        />
     </If>
 
     <If on={$in.phase == Program.Phase.Plan && $in.previous.plan != null}>
         <Call fn="../../program/visit/publish" in={$in.previous.plan} />
+
+        <Return
+            value={{
+                dirty: [],
+                plan: $ctx.publish
+            }}
+        />
     </If>
 
-    <Return value={$in.state.cursor} />
+    <Return
+        value={{
+            dirty: [],
+            plan: null
+        }}
+    />
 </Module>

@@ -1,5 +1,6 @@
 import type { AtomicRows, ListColumn } from "memory"
 import type { Probe } from "../../../memo/encoding/body/model"
+import type { State as Encoding } from "../../../memo/encoding/model"
 import type { Step } from "../../../replay/model"
 import type { Origin } from "../model"
 
@@ -13,8 +14,7 @@ export type Reads = {
 
 export type Cache = {
     memo?: Probe,
-    history?: Step,
-    state_end: u64
+    history?: Step
 }
 
 export type ProbeInput = Cache.Omit("history") & {
@@ -26,7 +26,8 @@ export type Found = {
     next?: u32,
     memo_row?: u32,
     following: bool,
-    state_end: u64
+    encoded?: Encoding,
+    digest?: u8[]
 }
 
 export type Input = Cache & {

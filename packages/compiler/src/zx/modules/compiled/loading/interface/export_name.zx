@@ -1,17 +1,14 @@
-import bytes from "std:bytes"
-import strings from "std:string"
 import memory from "memory"
 
-import type { Traversal as Input } from "./model"
+import { Kind } from "./publication"
 
-export type Output = void
+import type { Traversal as Input } from "./model"
+import type { Pending as Output } from "./publication"
 
 export default function (in: Input): Output {
-    const name = strings.copy(memory.readTextColumn(in.names, in.output))
-
-    memory.writeColumnBytes(
-        in.source.targets.exports.names,
-        in.output,
-        bytes.fromText(name)
-    )
+    return {
+        kind: Kind.Name,
+        row: in.output,
+        text: memory.readTextColumn(in.names, in.output)
+    }
 }

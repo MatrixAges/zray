@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Entry" />
 
-    <Args in={Entry.Visit} out={Entry.Output} />
+    <Args in={Entry.Visit} out={Entry.Section} />
 
     <Call
         module="../adapter/build"
@@ -18,7 +18,8 @@
             <Return
                 value={{
                     valid: false,
-                    invalid_route: false
+                    invalid_route: false,
+                    chunks: []
                 }}
             />
         </If>
@@ -28,15 +29,15 @@
         <Call
             module="../../../printer/render"
             in={{
-                source: $ctx.adapter,
-                output: $in.writer
+                source: $ctx.adapter
             }}
         />
 
         <Return
             value={{
                 valid: true,
-                invalid_route: false
+                invalid_route: false,
+                chunks: $ctx.render
             }}
         />
 
@@ -44,7 +45,8 @@
             <Return
                 value={{
                     valid: true,
-                    invalid_route: false
+                    invalid_route: false,
+                    chunks: []
                 }}
             />
         </Else>

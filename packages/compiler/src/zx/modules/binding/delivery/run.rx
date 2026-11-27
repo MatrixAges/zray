@@ -18,7 +18,6 @@
             <Call
                 module="../../project/exports/signatures/publish_reexports"
                 in={{
-                    owner: $in.owner,
                     rows: $in.reexports,
                     names: $ctx.bind.function_names,
                     indices: $ctx.bind.function_indices

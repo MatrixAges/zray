@@ -8,7 +8,7 @@ import type { Walk as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { walk, marks, row, depth } = in
+    const { walk, row, depth } = in
 
     const completed: u64? = null
 
@@ -34,7 +34,6 @@ export default function (in: Input): Output {
             } else {
                 host.finishProjectFrame(walk)
                 state.completed = complete({
-                    marks,
                     row: state.row,
                     depth: state.depth
                 })

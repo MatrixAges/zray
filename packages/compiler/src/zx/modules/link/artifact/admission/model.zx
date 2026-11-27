@@ -1,6 +1,5 @@
 import type { Modules } from "core/native_module_table/model"
 import type { Table as Signatures } from "core/signature_table/model"
-import type { OptionalU32Buffer } from "memory"
 import type {
     Interface as Constants
 } from "../../../../analysis/constants/validation/model"
@@ -20,13 +19,5 @@ export type Surface = {
 export type Input = {
     layout: Layout,
     surface: Surface,
-    constants?: Constants,
-    mappings: Mappings
-}
-
-export type Mappings = {
-    functions: OptionalU32Buffer,
-    modules: OptionalU32Buffer,
-    function_count: u64,
-    module_count: u64
+    constants?: Constants
 }

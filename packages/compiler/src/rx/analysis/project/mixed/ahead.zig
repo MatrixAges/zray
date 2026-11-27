@@ -310,8 +310,6 @@ fn executeWindow(frame: *Preparation, reuse: *const Reuse, window: Schedule.Wind
     const state = frame.state;
     const graph = &state.graph;
     const order = @import("../history/columns.zig").words(std.mem.sliceAsBytes(graph.order));
-    var slots: [Candidates.chunk_size]u64 = undefined;
-    var positions: []u64 = &slots;
     const previous = if (reuse.aligned) reuse.prefix else null;
 
     const input: Input = .{
@@ -324,18 +322,19 @@ fn executeWindow(frame: *Preparation, reuse: *const Reuse, window: Schedule.Wind
             .local_calls = frame.derived.loaded.local_calls,
             .compiled_dependencies = graph.modules.items(.compiled_dependency),
             .history = if (previous) |snapshot| zx.columns.pointer(@typeInfo(@FieldType(Selection, "history")).optional.child, &snapshot.history) else null,
-            .positions = @ptrCast(&positions),
         },
         .workspace = @ptrCast(frame),
         .prior = &.{ .workspace = @ptrCast(frame.ahead), .rows = frame.ahead.items.len, .workers = frame.ahead.arenas.len },
         .minimum = minimum,
-        .capacity = slots.len,
+        .capacity = Candidates.chunk_size,
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var scratch = std.heap.ArenaAllocator.init(state.scratch.child_allocator);
 
-    const consumed = zx.columns.invoke(collect_plan.executeValue, empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
+    defer scratch.deinit();
+
+    const consumed = zx.columns.invoke(collect_plan.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
 

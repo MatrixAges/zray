@@ -20,7 +20,7 @@
                     invocation: $in.invocation,
                     index: $in.body.index,
                     tree: $in.body.tree,
-                    payload: $in.body.payload,
+                    labels: $in.body.labels,
                     event: $ctx.next
                 }}
             />

@@ -105,11 +105,11 @@ pub fn merge(self: *Self, allocator: std.mem.Allocator, values: []const Entry, r
     const Input = std.meta.Child(rule.Input);
     const source_columns = readRows(values);
     const source = source_columns.bind(std.meta.Child(@FieldType(Input, "source")));
-    var writer: Writer(std.meta.Child(@FieldType(Input, "registry"))) = undefined;
-    var committed_count = self.rows.items.len;
+    const existing = readRows(self.rows.items);
+    const published = existing.bind(std.meta.Child(@FieldType(std.meta.Child(@FieldType(Input, "registry")), "published")));
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
-    writer.init(self, own);
-    defer writer.finish(self, committed_count);
+    defer arena.deinit();
 
     const FunctionView = @import("../../ir/compare/linked/host.zig").View(std.meta.Child(@FieldType(Input, "functions")));
     var function_view: FunctionView = undefined;
@@ -118,20 +118,23 @@ pub fn merge(self: *Self, allocator: std.mem.Allocator, values: []const Entry, r
 
     const input: Input = .{
         .source = &source,
-        .registry = &writer.input,
+        .registry = &.{
+            .published = &published,
+            .buckets = @ptrCast(&self.buckets),
+            .capacity = self.buckets.len,
+            .count = self.rows.items.len,
+        },
         .range = &.{ .first = range.first, .count = range.count, .prefix = range.prefix, .available = available },
         .functions = &function_view.input,
         .end = values.len,
     };
 
-    const result = zx.columns.invoke(rule.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+    const result = zx.columns.invoke(rule.executeValue, arena.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
 
-    committed_count = @intCast(result.count);
-
-    if (result.buckets) |updated| try self.adoptBuckets(updated);
+    try self.commit(allocator, result, own);
 
     switch (result.status) {
         .Done => return,
@@ -140,48 +143,35 @@ pub fn merge(self: *Self, allocator: std.mem.Allocator, values: []const Entry, r
     }
 }
 
-pub fn Writer(comptime Storage: type) type {
-    const Target = std.meta.Child(@FieldType(Storage, "target"));
-    const Published = std.meta.Child(@FieldType(Storage, "published"));
+fn commit(self: *Self, allocator: std.mem.Allocator, result: anytype, own: bool) std.mem.Allocator.Error!void {
+    const first = self.rows.items.len;
 
-    return struct {
-        target: memory.RowOutput(Entry, Target, .{}),
-        reads: [@typeInfo(Target).@"struct".field_names.len]memory.ReadColumn,
-        growth: memory.RowGrowth,
-        published: Published,
-        input: Storage,
-        pub fn init(self: *@This(), registry: *Self, own: bool) void {
-            self.target.init();
+    try self.rows.ensureUnusedCapacity(allocator, result.rows.len);
 
-            const storage = registry.rows.allocatedSlice();
+    const tail = self.rows.unusedCapacitySlice()[0..result.rows.len];
+    var written: usize = 0;
 
-            self.target.bind(storage);
-
-            self.growth = .{ .target = &self.target.buffer, .reads = &self.reads };
-
-            inline for (@typeInfo(Target).@"struct".field_names, 0..) |name, index| {
-                self.growth.refreshCell(index, storage.len);
-                @field(self.published, name) = @ptrCast(&self.reads[index]);
-            }
-
-            self.input = .{
-                .published = &self.published,
-                .target = &self.target.view,
-                .growth = @ptrCast(&self.growth),
-                .buckets = @ptrCast(&registry.buckets),
-                .capacity = registry.buckets.len,
-                .count = registry.rows.items.len,
-                .space = registry.rows.capacity,
-                .own = own,
-            };
-        }
-        pub fn finish(self: *const @This(), registry: *Self, count: usize) void {
-            const rows = self.target.rows();
-
-            registry.rows.items = rows[0..count];
-            registry.rows.capacity = rows.len;
-        }
+    errdefer if (own) {
+        for (tail[0..written]) |row| allocator.free(row.identity);
     };
+
+    for (result.rows, tail) |row, *target| {
+        target.* = .{
+            .identity = if (own) try allocator.dupe(u8, row.identity) else row.identity,
+            .schema_version = row.version,
+            .function = @fromBackingInt(row.function),
+        };
+
+        written += 1;
+    }
+
+    if (result.buckets) |updated| {
+        try self.adoptBuckets(updated);
+    } else {
+        for (result.rows, first..) |row, index| self.buckets[@intCast(row.slot)] = @intCast(index + 1);
+    }
+
+    self.rows.items.len += written;
 }
 
 pub fn readRows(values: []const Entry) memory.ReadFields(fields) {

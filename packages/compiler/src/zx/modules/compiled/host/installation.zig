@@ -44,7 +44,7 @@ pub fn init(self: *Self, allocator: *const std.mem.Allocator, input: *const Inpu
     };
 
     self.types.init(&self.options, .{}, @as(Origins.Table, .{}));
-    self.natives.init(allocator, destination.native_modules, .{}, &.{}, null);
+    self.natives.init(allocator, destination.native_modules, .{}, &.{}, false);
 
     if (self.needs_interface) self.public.init(input, library.instance, self.first, initializer_tail);
 

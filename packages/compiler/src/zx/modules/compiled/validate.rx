@@ -1,24 +1,39 @@
 <Module>
     <Type from="model" as="Model" />
 
-    <Args in={Model.Validation} out={bool} />
+    <Args in={Model.Validation} out={Model.ValidationResult} />
 
     <Call fn="validation/header" in={$in.graph} />
 
     <If on={!$ctx.header}>
-        <Return value={false} />
+        <Return
+            value={{
+                valid: false,
+                export_index: []
+            }}
+        />
     </If>
 
     <Call module="../../ir/canonical/validation/validate" in={$in.graph.program} />
 
     <If on={$ctx.validate == null}>
-        <Return value={false} />
+        <Return
+            value={{
+                valid: false,
+                export_index: []
+            }}
+        />
     </If>
 
     <Call module="validation/surface" in={$in} />
 
-    <If on={!$ctx.surface}>
-        <Return value={false} />
+    <If on={!$ctx.surface.valid}>
+        <Return
+            value={{
+                valid: false,
+                export_index: []
+            }}
+        />
     </If>
 
     <Call
@@ -28,5 +43,10 @@
         }}
     />
 
-    <Return value={$ctx.stores} />
+    <Return
+        value={{
+            valid: $ctx.stores,
+            export_index: $ctx.surface.export_index
+        }}
+    />
 </Module>

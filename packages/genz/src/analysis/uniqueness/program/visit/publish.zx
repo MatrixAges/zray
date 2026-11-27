@@ -1,13 +1,9 @@
-import memory from "memory"
-
-import type { Plan as Input } from "../../work/round/model"
-
-export type Output = void
+import type { Plan as Input, PlanWrite as Output } from "../../work/round/model"
 
 export default function (in: Input): Output {
-    if (in.body == in.count) {
-        memory.copyColumnValue(in.entry, 0, in.fields)
-    } else {
-        memory.copyColumnValue(in.plans, in.body, in.fields)
+    return {
+        entry: in.body == in.count,
+        index: in.body,
+        fields: in.fields
     }
 }

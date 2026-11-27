@@ -1,5 +1,5 @@
 import type { Allocator, ColumnTransfers } from "memory"
-import type { CheckResult, Headers, Tail } from "../model"
+import type { Check, CheckResult, Headers } from "../model"
 
 export enum Layout {
     Dense,
@@ -15,7 +15,7 @@ export type Preparation = Columns & {
     allocator: Allocator
 }
 
-export type Input = Headers & Columns & Tail & {
+export type Input = Headers & Preparation & {
     layout: Layout
 }
 
@@ -32,9 +32,20 @@ export type Validation = Headers & {
 
 export type ValidationResult = CheckResult
 
-export type Bound = Headers & Tail & {
+export type Bound = Headers & {
+    allocator: Allocator,
+    reserved: bool,
     groups: ColumnTransfers,
     complete: bool[],
     existing: u64,
     layout: Layout
+}
+
+export type Appended = {
+    count: u64,
+    offsets: u32[]
+}
+
+export type Published = Appended & {
+    check: Check
 }

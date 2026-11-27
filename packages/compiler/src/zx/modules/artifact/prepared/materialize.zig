@@ -6,6 +6,7 @@ const generated = @import("generated_artifact_extract");
 const Nodes = @import("../nodes.zig");
 const remap = @import("../nodes/remap.zig");
 const Record = @import("../../module_record.zig");
+const Binding = @import("../../function_import.zig");
 const surfaces = @import("../surface.zig");
 const memory = zx.memory;
 const Input = std.meta.Child(@FieldType(std.meta.Child(generated.Input), "materialization"));
@@ -22,7 +23,7 @@ exported: surfaces.Publication(std.meta.Child(@FieldType(Surface, "exported"))),
 imported: surfaces.Publication(std.meta.Child(@FieldType(Surface, "imported"))),
 imports: surfaces.BindingPublication(std.meta.Child(@FieldType(Surface, "function_imports"))),
 members: surfaces.BindingPublication(std.meta.Child(@FieldType(Surface, "members"))),
-dependencies: DependencyOutput,
+dependencies: DependencyInput,
 surface: Surface,
 input: Input,
 pub fn bind(self: *Self, nodes: *const Nodes, program: *const ir.Program, source: ?*const ir.FunctionView, copy_entry_stores: bool, record: *const Record) void {
@@ -55,61 +56,38 @@ pub fn bind(self: *Self, nodes: *const Nodes, program: *const ir.Program, source
     };
 }
 
-pub fn publishedSurface(self: *const Self) surfaces.Surface {
+pub fn publishedSurface(self: *const Self, imports: []const Binding, members: []const Binding) surfaces.Surface {
     return .{
         .exports = self.exported.exports(),
         .constant_exports = self.exported.constants(),
         .constant_imports = self.imported.constants(),
         .type_imports = self.imported.exports(),
-        .function_imports = self.imports.output.rows(),
-        .members = self.members.output.rows(),
+        .function_imports = imports,
+        .members = members,
     };
 }
 
-pub fn publishedDependencies(self: *const Self) []const Record.Import {
-    return self.dependencies.output.rows();
-}
-
-const DependencyOutput = struct {
+const DependencyInput = struct {
     const Header = @import("../../module_record/columns.zig");
-    const Source = std.meta.Child(@FieldType(Dependencies, "source"));
-    const Target = std.meta.Child(@FieldType(Dependencies, "target"));
 
     header: Header,
-    header_view: std.meta.Child(@FieldType(Source, "header")),
+    header_view: std.meta.Child(@FieldType(Dependencies, "header")),
     names: memory.ReadColumn,
     source_names: memory.ReadColumn,
     path: memory.ReadColumn,
-    source: Source,
     input: Dependencies,
-    output: memory.RowOutput(Record.Import, Target, .{
-        .specifier = &.{"specifier"},
-        .identity = &.{"identity"},
-        .names = &.{"names"},
-        .source_names = &.{"source_names"},
-        .path = &.{ "target", "path" },
-    }),
-    fn init(self: *DependencyOutput, source: []const Record.Import) void {
+    fn init(self: *DependencyInput, source: []const Record.Import) void {
         self.header = Header.borrow(source);
         self.header_view = self.header.view(@TypeOf(self.header_view));
         self.names = memory.borrowReadColumn([]const []const u8, "names", source);
         self.source_names = memory.borrowReadColumn([]const []const u8, "source_names", source);
         self.path = memory.borrowNestedColumn([]const u8, &.{ "target", "path" }, source);
 
-        self.output.init();
-
-        self.source = .{
+        self.input = .{
             .header = &self.header_view,
             .names = @ptrCast(&self.names),
             .source_names = @ptrCast(&self.source_names),
             .path = @ptrCast(&self.path),
-        };
-
-        self.input = .{
-            .source = &self.source,
-            .target = &self.output.view,
-            .storage = @ptrCast(&self.output.buffer),
-            .records = std.mem.sliceAsBytes(source),
         };
     }
 };

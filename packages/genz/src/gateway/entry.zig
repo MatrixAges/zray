@@ -62,7 +62,6 @@ fn renderGenerated(allocator: std.mem.Allocator, options: Options, bound: ?Servi
     defer writer.deinit();
 
     const input: Input = .{
-        .writer = @ptrCast(&writer),
         .services = if (bound == null) try services(@FieldType(Input, "services"), workspace, options.services) else &.{},
         .bound = if (bound != null) &source else null,
         .routes = zx.columns.storage.view(@FieldType(Input, "routes"), options.routes),
@@ -76,6 +75,7 @@ fn renderGenerated(allocator: std.mem.Allocator, options: Options, bound: ?Servi
 
     if (output.invalid_route) @panic("invalid Gateway method group");
     if (!output.valid) return error.OutOfMemory;
+    try @import("../printer/module.zig").writeGroups(&writer, output.groups);
 
     return writer.finish();
 }

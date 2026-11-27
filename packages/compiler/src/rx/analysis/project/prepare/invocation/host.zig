@@ -12,6 +12,7 @@ const compiled_admission = @import("../../../call/compiled_admission.zig");
 const wrapper = @import("../../../call/compiled_wrapper.zig");
 const Graph = @import("../../source_graph/model.zig");
 const previous = @import("../previous_input.zig");
+const flow = @import("../flow/commit.zig");
 const Error = prepare.Loader.Error;
 const generated = @import("rx_options").generated_graph;
 const memory = @import("zx").memory;
@@ -37,6 +38,7 @@ const MemberColumns = struct { names: memory.ListColumn, kinds: memory.ListColum
 
 pub const Invocation = struct {
     loader: *prepare.Loader,
+    cursors: flow.Cursors = @splat(0),
     node: rx.ast.Node = undefined,
     loop_condition: ?*const rx.ast.Attribute = null,
     attributes: Attributes = undefined,
@@ -163,11 +165,15 @@ pub fn bind(loader: *prepare.Loader, source: rx.ast.Node, previous_end: u32) Err
     return index;
 }
 
-pub fn beginPreparedCall(handle: *anyopaque, bytes: []const u8, item: u32, previous_end: u32) void {
+pub inline fn beginPreparedCall(handle: *anyopaque, header: anytype, implicit_header: anytype, payload: anytype, previous_end: u32) std.mem.Allocator.Error!void {
     const state = Invocation.borrow(handle);
 
-    std.debug.assert(state.loader.calls.len == item);
-    state.open(borrowNode(bytes).*, previous_end);
+    try flow.apply(state.loader, &state.cursors, header, implicit_header, payload);
+
+    if (payload.node) |bytes| {
+        std.debug.assert(state.loader.calls.len == header.item);
+        state.open(borrowNode(bytes).*, previous_end);
+    }
 }
 
 pub fn rejectPreparedFlow(handle: *anyopaque, bytes: []const u8, at_output: bool, code: []const u8, message: []const u8) Error!void {
@@ -279,7 +285,7 @@ pub fn selectPreparedLibraryMember(handle: *anyopaque, index: u64, row: ?u64) vo
         state.compiled_admission = compiled_admission.facts(CompiledAdmission, exported.function, &binding.functions, state.setter != null);
 
         state.compiled_check = .{
-            .words = @ptrCast(&binding.checked),
+            .words = binding.checked,
             .function = if (exported.function) |function| @backingInt(function) else 0,
         };
     }
@@ -297,8 +303,19 @@ fn libraryError(state: *const Invocation, status: wrapper.Status) Error {
     return state.loader.fail(state.attributes.module.?.value_location, issue.code, issue.message);
 }
 
-pub fn validatePreparedLibrary(handle: *anyopaque, verified_prefix: bool) Error!void {
+pub fn validatePreparedLibrary(handle: *anyopaque, verified_prefix: bool, index: u64, word: u64, first: ?u64) Error!void {
     const state = Invocation.borrow(handle);
+
+    try validateLibrary(state, verified_prefix);
+
+    const words = state.compiled.binding.checked;
+
+    words[@intCast(index)] = word;
+
+    if (first) |value| words[0] = value;
+}
+
+fn validateLibrary(state: *const Invocation, verified_prefix: bool) Error!void {
     const loader = state.loader;
     const location = state.attributes.module.?.value_location;
 
@@ -332,7 +349,7 @@ fn prepareLibrarySeed(state: *Invocation, row: u64) Error!void {
 
     if (words[word] & mask != 0) return;
 
-    try validatePreparedLibrary(state, words[0] & 1 != 0);
+    try validateLibrary(state, words[0] & 1 != 0);
 
     words[word] |= mask;
     words[0] |= 1;
@@ -420,6 +437,7 @@ pub fn preparedPreviousName(handle: *anyopaque, row: u32, task: bool) ?[]const u
 
 pub fn publishPreparedPrevious(handle: *anyopaque, value: []const u8) std.mem.Allocator.Error!void {
     const state = Invocation.borrow(handle);
+    const owned = try state.loader.allocator.dupe(u8, value);
 
-    try previous.publish(state.loader, state.loader.calls.len - 1, value);
+    try previous.publish(state.loader, state.loader.calls.len - 1, owned);
 }

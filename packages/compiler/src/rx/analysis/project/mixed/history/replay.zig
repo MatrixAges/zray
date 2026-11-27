@@ -1,20 +1,16 @@
 const std = @import("std");
+const zx = @import("zx");
 const History = @import("../../history.zig");
 const State = @import("../state.zig");
 const Borrowed = @import("admit.zig").Borrowed;
 const columns = @import("../../history/columns.zig");
+const Transfer = zx.memory.column_transfer;
 const rule = @import("generated_rx_mixed_history_replay");
 const Input = std.meta.Child(rule.Input);
 
 pub fn run(state: *State, previous: *const History.Retained, prefix: *const Borrowed, boundaries: []History.Checkpoint, first: usize, end: usize, reused: *usize) std.mem.Allocator.Error!usize {
     const graph = &state.graph;
     const order = columns.words(std.mem.sliceAsBytes(graph.order));
-    var surfaces = std.mem.sliceAsBytes(state.finished.surfaces);
-    var functions = std.mem.sliceAsBytes(state.finished.functions);
-    var present = std.mem.sliceAsBytes(state.finished.present);
-    var checkpoints = std.mem.sliceAsBytes(boundaries);
-    var verified = columns.wordTarget(std.mem.asBytes(&state.verified));
-    var replayed = columns.wordTarget(std.mem.asBytes(reused));
 
     const input: Input = .{
         .window = &.{
@@ -25,42 +21,60 @@ pub fn run(state: *State, previous: *const History.Retained, prefix: *const Borr
             .sources = &.{ .zx_count = graph.sources.zx_count, .rx_end = graph.sources.rx_end },
             .history = &prefix.history,
         },
-        .transfer = &.{ .allocator = @ptrCast(&state.allocator), .group = @ptrCast(&prefix.group) },
+        .column_count = prefix.group.len,
         .publication = &.{
             .rows = @ptrCast(&order),
             .modules = &.{
-                .surfaces = &.{
-                    .earlier = std.mem.sliceAsBytes(previous.finished.surfaces),
-                    .current = @ptrCast(&surfaces),
-                    .width = @sizeOf(std.meta.Elem(@TypeOf(state.finished.surfaces))),
-                },
-                .functions = &.{
-                    .earlier = std.mem.sliceAsBytes(previous.finished.functions),
-                    .current = @ptrCast(&functions),
-                    .width = @sizeOf(std.meta.Elem(@TypeOf(state.finished.functions))),
-                },
-                .present = &.{
-                    .earlier = std.mem.sliceAsBytes(previous.finished.present),
-                    .current = @ptrCast(&present),
-                    .width = @sizeOf(bool),
-                },
+                .surfaces = @sizeOf(std.meta.Elem(@TypeOf(state.finished.surfaces))),
+                .functions = @sizeOf(std.meta.Elem(@TypeOf(state.finished.functions))),
+                .present = @sizeOf(bool),
                 .available = previous.finished.present,
             },
-            .counters = &.{ .verified = @ptrCast(&verified), .reused = @ptrCast(&replayed), .reused_before = reused.* },
-            .checkpoints = &.{
-                .earlier = std.mem.sliceAsBytes(previous.boundaries),
-                .current = @ptrCast(&checkpoints),
-                .width = @sizeOf(History.Checkpoint),
-            },
+            .checkpoints = @sizeOf(History.Checkpoint),
+            .reused_before = reused.*,
         },
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var scratch = std.heap.ArenaAllocator.init(state.scratch.child_allocator);
 
-    const position = rule.executeIn(empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory => return error.OutOfMemory,
+    defer scratch.deinit();
+
+    const result = rule.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
 
-    return @intCast(position);
+    if (result.publication) |publication| {
+        const group: *const anyopaque = @ptrCast(&prefix.group);
+
+        for (result.ranges) |range| {
+            _ = try Transfer.reserveOne(&state.allocator, group, range.column, range.count);
+        }
+
+        for (result.ranges) |range| {
+            Transfer.copyRange(group, range.column, range.first, range.count);
+            Transfer.publishOne(group, range.column, range.count);
+        }
+
+        for (publication.modules) |module| {
+            copySpan(state.finished.present, previous.finished.present, module.present);
+
+            if (module.surfaces) |span| copySpan(state.finished.surfaces, previous.finished.surfaces, span);
+            if (module.functions) |span| copySpan(state.finished.functions, previous.finished.functions, span);
+        }
+
+        copySpan(boundaries, previous.boundaries, publication.checkpoints);
+
+        state.verified = @intCast(publication.counters.verified);
+        reused.* = @intCast(publication.counters.reused);
+    }
+
+    return @intCast(result.position);
+}
+
+fn copySpan(current: anytype, earlier: anytype, span: anytype) void {
+    const first: usize = @intCast(span.first);
+    const end: usize = @intCast(span.end);
+
+    @memmove(std.mem.sliceAsBytes(current)[first..end], std.mem.sliceAsBytes(earlier)[first..end]);
 }

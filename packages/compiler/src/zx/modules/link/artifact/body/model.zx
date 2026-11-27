@@ -1,4 +1,3 @@
-import type { OptionalU32Buffer } from "memory"
 import type { Input as ControlCheck } from "../../../../ir/canonical/body/workspace"
 import type { Destination } from "../../signature/publication/model"
 import type { Input as Layout } from "../entry"
@@ -15,9 +14,7 @@ export type Input = {
     body?: Layout,
     entry: bool,
     stores: u64,
-    first: u64,
-    slot: u64,
-    target: OptionalU32Buffer
+    first: u64
 }
 
 export type Preparation = Input & {

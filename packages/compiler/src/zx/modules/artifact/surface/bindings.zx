@@ -1,13 +1,10 @@
-import bytes from "std:bytes"
-import { allocateRows } from "core/row_buffer"
 import memory from "memory"
-import columns from "memory/columns"
 
-import own from "./binding"
+import remap from "./binding"
 
-import type { ReadColumn, TextColumn, WriteColumn } from "memory"
-import type { RowBuffer, WriteColumn as OptionalColumn } from "memory/columns"
+import type { ReadColumn, TextColumn } from "memory"
 import type { Mapping } from "../remapping/model"
+import type { Output as Binding } from "./binding"
 
 export type Source = {
     name: TextColumn,
@@ -19,71 +16,42 @@ export type Source = {
     count: u64
 }
 
-export type Target = {
-    name: WriteColumn,
-    namespace: OptionalColumn,
-    id: OptionalColumn,
-    input_type: OptionalColumn,
-    output_type: OptionalColumn,
-    intrinsic: OptionalColumn
-}
-
-export type Input = {
+export type Rows = {
     source: Source,
-    target: Target,
-    storage: RowBuffer,
     types: Mapping,
     functions: Mapping
 }
 
-export type Output = void
+export type Input = Rows & {
+    row: u64,
+    member: bool
+}
+
+export type Output = Binding & {
+    row: u64,
+    member: bool,
+    intrinsic?: u8
+}
 
 export default function (in: Input): Output {
-    const { source, target, types, functions } = in
+    const { source, row, types, functions } = in
 
-    if (source.count == 0) {
-        return
+    const intrinsic = memory.readColumnOptionalU8(source.intrinsic, row)
+
+    const value = remap({
+        name: memory.readTextColumn(source.name, row),
+        namespace: memory.readOptionalTextColumn(source.namespace, row),
+        id: memory.readColumnOptionalU32(source.id, row),
+        input_type: memory.readColumnOptionalU32(source.input_type, row),
+        output_type: memory.readColumnOptionalU32(source.output_type, row),
+        types,
+        functions
+    })
+
+    return {
+        ...value,
+        intrinsic,
+        row,
+        member: in.member
     }
-
-    allocateRows({
-        target: in.storage,
-        count: source.count
-    })
-
-    const published = loop(0, {
-        while: row => row < source.count,
-        next: row => {
-            const value = own({
-                name: memory.readTextColumn(source.name, row),
-                namespace: memory.readOptionalTextColumn(source.namespace, row),
-                id: memory.readColumnOptionalU32(source.id, row),
-                input_type: memory.readColumnOptionalU32(source.input_type, row),
-                output_type: memory.readColumnOptionalU32(source.output_type, row),
-                types,
-                functions
-            })
-
-            memory.writeColumnBytes(target.name, row, bytes.fromText(value.name))
-            columns.writeColumnOptionalText(target.namespace, row, value.namespace)
-            columns.writeColumnOptionalU32(target.id, row, value.id)
-            columns.writeColumnOptionalU32(
-                target.input_type,
-                row,
-                value.input_type
-            )
-            columns.writeColumnOptionalU32(
-                target.output_type,
-                row,
-                value.output_type
-            )
-            const intrinsic = memory.readColumnOptionalU8(
-                source.intrinsic,
-                row
-            )
-
-            columns.writeColumnOptionalU8(target.intrinsic, row, intrinsic)
-
-            row += 1
-        }
-    })
 }

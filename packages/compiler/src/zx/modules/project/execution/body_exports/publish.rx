@@ -1,27 +1,43 @@
 <Module>
     <Type from="model" as="Publication" />
+    <Type from="../../exports/publication/model" as="Rows" />
 
     <Args in={Publication.Input} out={Publication.Output} />
 
-    <Call fn="../../exports/publication/merge_exports" in={$in.exports} />
-    <Call fn="../../exports/publication/merge_rows" in={$in.members} />
+    <Store from="../../exports/publication/rows" as="rows" />
+
+    <Call module="../../exports/publication/merge_exports" in={$in.exports} />
+
+    <Call
+        module="../../exports/publication/merge"
+        in={{
+            rows: $in.members,
+            kind: Rows.Kind.Members
+        }}
+    />
 
     <Call
         fn="prepare_validation"
         in={{
             source: $in,
             merged: $ctx.merge_exports,
-            members: $ctx.merge_rows
+            members: $ctx.merge
         }}
     />
 
     <If on={$ctx.prepare_validation != null}>
-        <Call module="../../exports/plan" in={$ctx.prepare_validation} />
+        <Call
+            fn="../../exports/publication/stage_index"
+            in={$ctx.prepare_validation}
+            setter={[$store.rows.index]}
+        />
+
+        <Call module="../../exports/plan" />
 
         <Return
             value={{
                 ...$ctx.merge_exports,
-                members: $ctx.merge_rows,
+                members: $ctx.merge,
                 entry: $ctx.plan.entry,
                 duplicate: $ctx.plan.duplicate
             }}
@@ -31,7 +47,7 @@
     <Return
         value={{
             ...$ctx.merge_exports,
-            members: $ctx.merge_rows,
+            members: $ctx.merge,
             entry: $in.entry,
             duplicate: null
         }}

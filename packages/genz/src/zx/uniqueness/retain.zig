@@ -11,15 +11,22 @@ pub fn plan(owner: std.mem.Allocator, source: *const Function.Plan) Error!Functi
 
 pub fn marks(owner: std.mem.Allocator, source: []const Function.Mark) Error![]const Function.Mark {
     const entry = @import("generated_uniqueness_retain_rows");
-    var buffer = zx.memory.RowBuffer.empty(Function.Mark);
+    const input = rowInput(std.meta.Child(entry.Input), source);
+    const retained = try retain(entry, owner, input);
 
-    try retain(entry, owner, rowInput(std.meta.Child(entry.Input), &buffer, source, &owner));
-
-    return buffer.rows(Function.Mark);
+    return copyRows(Function.Mark, owner, retained);
 }
 
-pub fn rowInput(comptime Input: type, buffer: *zx.memory.RowBuffer, source: anytype, owner: *const std.mem.Allocator) Input {
-    return .{ .source = std.mem.sliceAsBytes(source), .target = @ptrCast(buffer), .count = source.len, .owner = @ptrCast(owner) };
+pub fn rowInput(comptime Input: type, source: anytype) Input {
+    return .{ .source = std.mem.sliceAsBytes(source), .count = source.len, .width = @sizeOf(std.meta.Elem(@TypeOf(source))) };
+}
+
+pub fn copyRows(comptime Row: type, owner: std.mem.Allocator, raw: []const u8) Error![]const Row {
+    if (raw.len == 0) return &.{};
+
+    const aligned: []align(@alignOf(Row)) const u8 = @alignCast(raw);
+
+    return owner.dupe(Row, std.mem.bytesAsSlice(Row, aligned));
 }
 
 pub fn flow(owner: std.mem.Allocator, held: []const bool, text_held: []const bool, written: []const bool) Error!Memo.Flowed {
@@ -36,7 +43,7 @@ fn retain(comptime entry: type, owner: std.mem.Allocator, source: anytype) Error
     const input = storage.view(Input, source);
 
     return entry.executeValue(owner, if (indirect) &input else input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => std.debug.panic("ownership record retention failed: {s}", .{@errorName(err)}),
     };
 }

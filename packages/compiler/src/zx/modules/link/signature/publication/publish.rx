@@ -18,15 +18,6 @@
     />
 
     <Call
-        fn="../../artifact/body/slot"
-        in={{
-            first: $in.id,
-            slot: $in.row,
-            target: $in.mapping
-        }}
-    />
-
-    <Call
         fn="append"
         in={{
             destination: $in.destination,

@@ -1,23 +1,32 @@
+import bytes from "std:bytes"
 import integers from "std:integer"
 
 import { level_modulus } from "../../replay/ordered/const"
-import { level_width } from "./const"
-import integer from "./integer"
+import { byte_radix } from "./const"
 
-import type { GrowthLevel as Input, State as Output } from "./model"
+import type { GrowthLevel as Input } from "./model"
+
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { state, value, width, want } = in
+    const size = in.width + 1
 
-    const key = integer({
-        state,
-        value,
-        width
-    })
+    return loop({
+        bytes: bytes.repeat(size, 0),
+        value: in.value,
+        index: 0
+    }, {
+        while: state => state.index < size,
+        next: state => {
+            if (state.index == in.width) {
+                state.bytes[state.index] = in.want % level_modulus
+            } else {
+                state.bytes[state.index] = integers.narrowByte(state.value % byte_radix)
+                state.value /= byte_radix
+            }
 
-    return integer({
-        state: key,
-        value: integers.widenByte(want % level_modulus),
-        width: level_width
+            state.index += 1
+        },
+        return: state => state.bytes
     })
 }

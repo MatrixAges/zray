@@ -1,16 +1,18 @@
 import integers from "std:integer"
 import { publishAstBasicStatements } from "ast_rows"
 import host from "lowering_host"
-import memory from "memory"
 
 import unpackSpan from "../../../tasks/worker/execute/reference"
 import branch from "../../basic/branch"
 import { Action } from "../model"
 import selectionCase from "./case"
+import finishScope from "./host"
 import openScope from "./open_scope"
+import saveScopeWrites from "./save_scope_writes"
 import selectionOpen from "./selection_open"
 import selectionResolve from "./selection_resolve"
 
+import type { Write } from "../commit"
 import type { Step as Input, StepResult as Output } from "./model"
 
 export default function (in: Input): Output {
@@ -18,7 +20,6 @@ export default function (in: Input): Output {
         action,
         traversal,
         context,
-        buffers,
         state,
         scope,
         first,
@@ -50,10 +51,12 @@ export default function (in: Input): Output {
             ok: true,
             child,
             state: {
-                ...state,
+                ...saveScopeWrites({
+                    state,
+                    scope,
+                    writes: []
+                }),
                 scope_firsts: state.scope_firsts.splice(scope, 1, [first])[0],
-                scope_placements:
-                    state.scope_placements.splice(scope, 1, [placement])[0],
                 scope_routes:
                     state.scope_routes.splice(scope, 1, [opened.routes])[0]
             }
@@ -102,7 +105,6 @@ export default function (in: Input): Output {
         const condition = state.scope_conditions[scope]
         const yes_start = state.scope_yes_starts[scope]
         const yes_count = state.scope_yes_counts[scope]
-        const scope_placement = state.scope_placements[scope]
         const no = unpackSpan(child)
 
         const span = publishAstBasicStatements(
@@ -117,20 +119,30 @@ export default function (in: Input): Output {
         )
 
         const joined = unpackSpan(span)
-        const offset = scope_placement + integers.widen(first)
 
-        memory.writeU32(buffers.starts, offset, joined.start)
-        memory.writeU32(buffers.counts, offset, joined.count)
+        const write: Write = {
+            row: integers.widen(first),
+            start: joined.start,
+            count: joined.count
+        }
 
         return {
             ok: true,
             child,
-            state
+            state: saveScopeWrites({
+                state,
+                scope,
+                writes: state.scope_writes[scope].push(write)[0]
+            })
         }
     }
 
     if (action == Action.Close) {
-        const finished = host.finishStatementScope(traversal, scope)
+        const finished = finishScope({
+            traversal,
+            scope,
+            writes: state.scope_writes[scope]
+        })
 
         return {
             ok: finished != null,

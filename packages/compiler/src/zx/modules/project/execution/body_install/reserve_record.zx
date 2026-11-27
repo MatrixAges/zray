@@ -5,12 +5,12 @@ import type { Reservation as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { target, index } = in
+    const { target, index, backing } = in
 
     const capacity = reserveAppend([
         target.storage,
         index,
         1,
-        null
+        backing
     ])
 }

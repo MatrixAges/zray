@@ -1,14 +1,15 @@
 import type { Expressions } from "core/expression_table/model"
 import type { Table } from "core/type_table/model"
 import type { AtomicRows } from "memory"
-import type { ColumnAllocator } from "memory/columns"
-import type { Target as MemoTarget } from "../../memo/record/model"
+import type { Store as MemoTarget } from "../../memo/table/model"
 import type { Layout } from "../../slots/model"
 import type { Exchange } from "../demand/model"
+import type { Snapshot } from "../demand/snapshot/model"
 import type { Context as FactsContext } from "../levels/model"
 import type { Published } from "../plan/model"
 import type { Output as Facts } from "../prepare/model"
-import type { DemandTargets, SettlementTargets } from "../result/model"
+import type { EncodedMark, EncodedRead } from "../result/columns"
+import type { Contribution } from "../summary/model"
 
 export type Body = FactsContext.Pick("normalized", "renewed") & {
     facts: Facts,
@@ -25,12 +26,10 @@ export type Body = FactsContext.Pick("normalized", "renewed") & {
 }
 
 export type Settlement = {
-    targets: SettlementTargets,
     input: AtomicRows
 }
 
 export type Demand = {
-    targets: DemandTargets,
     exchange: Exchange,
     restored_growth: bool
 }
@@ -44,7 +43,6 @@ export type Input = {
     view: View,
     facts: Facts,
     index?: u32,
-    owner_rows: ColumnAllocator,
     types: Table,
     deferred: bool,
     settlement?: Settlement,
@@ -54,6 +52,10 @@ export type Input = {
 
 export type Output = {
     levels: u8[],
+    passed: Contribution[],
+    marks: EncodedMark[],
+    reads: EncodedRead[],
+    growth?: Snapshot,
     changed: u64[],
     grew: bool,
     plan?: Published

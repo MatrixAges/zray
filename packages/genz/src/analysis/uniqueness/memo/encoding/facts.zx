@@ -1,43 +1,24 @@
+import bytes from "std:bytes"
 import integers from "std:integer"
 
 import levels from "./levels"
 
-import type { Facts as Input, State as Output } from "./model"
+import type { Facts as Input } from "./model"
+
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { state, own, trailing, callees, rows } = in
+    const { own, trailing, callees, rows } = in
 
-    const first = match {
-        trailing => state,
-        _ => levels({
-            state,
-            values: own
-        })
+    const own_levels: u8[][] = [levels(own)]
+
+    const called =
+        callees.map(callee => levels(rows[integers.widen(callee)]))[0]
+
+    const chunks = match {
+        trailing => called.concat(own_levels)[0],
+        _ => own_levels.concat(called)[0]
     }
 
-    const encoded = loop({
-        state: first,
-        index: 0
-    }, {
-        while: current => current.index < callees.length,
-        next: current => {
-            const callee = integers.widen(callees[current.index])
-
-            current.state = levels({
-                state: current.state,
-                values: rows[callee]
-            })
-            current.index += 1
-        },
-        return: current => current.state
-    })
-
-    if (!trailing) {
-        return encoded
-    }
-
-    return levels({
-        state: encoded,
-        values: own
-    })
+    return bytes.join([], chunks)
 }

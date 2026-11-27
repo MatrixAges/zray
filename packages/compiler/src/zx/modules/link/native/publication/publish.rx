@@ -5,7 +5,14 @@
 
     <Call fn="reserve" in={$in} />
 
-    <If on={$ctx.reserve != 0}>
-        <Call fn="batch" in={$in} />
-    </If>
+    <Loop on={$in.index < $in.count}>
+        <Call
+            module="next"
+            in={{
+                ...$in.omit(["destination"]),
+                index: 0,
+                count: $ctx.reserve
+            }}
+        />
+    </Loop>
 </Module>

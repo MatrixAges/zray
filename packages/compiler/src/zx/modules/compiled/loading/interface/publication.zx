@@ -1,0 +1,65 @@
+import type { ListColumn } from "memory"
+import type { RowBuffer, WriteColumn } from "memory/columns"
+import type { Initializers, Members } from "../../model"
+
+export enum Kind {
+    Name,
+    Header,
+    Type,
+    Member,
+    Initializer
+}
+
+export type Pending = {
+    kind: Kind,
+    row: u64,
+    text: string,
+    id?: u32,
+    input?: u32,
+    output?: u32,
+    intrinsic?: u8,
+    version?: u32
+}
+
+export type List = {
+    names: ListColumn,
+    row: u64
+}
+
+export type Types = List & {
+    ids: ListColumn,
+    output: u64,
+    mapping: u32[],
+    column: WriteColumn,
+    buffer: RowBuffer
+}
+
+export type TypeStep = Types.Pick("names", "ids", "row", "mapping") & {
+    count: u64,
+    index: u64
+}
+
+export type MemberList = {
+    source: Members,
+    row: u64,
+    output: u64,
+    mapping: u32[],
+    first: u64,
+    column: WriteColumn,
+    buffer: RowBuffer
+}
+
+export type MemberStep = MemberList.Omit("output", "column", "buffer") & {
+    count: u64,
+    index: u64
+}
+
+export type InitializerList = {
+    source: Initializers,
+    first: u64,
+    instance: string
+}
+
+export type InitializerStep = InitializerList & {
+    row: u64
+}

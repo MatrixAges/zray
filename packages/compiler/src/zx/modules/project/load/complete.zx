@@ -1,7 +1,3 @@
-import memory from "memory"
-
-import { done } from "./const"
-
 import type { Completed } from "./model"
 
 export type Input = Completed
@@ -9,7 +5,5 @@ export type Input = Completed
 export type Output = u64?
 
 export default function (in: Input): Output {
-    memory.writeU8(in.marks, in.row, done)
-
     return in.depth > 1 ? in.row : null
 }

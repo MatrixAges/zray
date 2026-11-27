@@ -673,8 +673,9 @@ else
   cat > "$EFFECTIVE_PROMPT_SRC" <<'POLICY'
 [EXECUTOR POLICY - NO LONG BACKGROUND/WAITING TASKS]
 - Do NOT run long-running background waiting tasks: no daemons, dev servers, or file watchers; no backgrounded shell jobs (& or nohup); no sleep or polling loops; no waiting on long asynchronous builds, CI, or external jobs; and no nested background subagents.
+- Do NOT run full builds (`zig build`), full test suites (`zig build test`), 3-stage bootstraps, cold benchmarks, or any long-running compilation/verification commands—all full builds, full test suites, and long verifications belong strictly to the Orchestrator. Only run fast, narrowly-scoped checks (e.g. `zxc fmt`, `zxc lint`, `zig fmt`, `zig ast-check`).
 - Only run bounded synchronous foreground commands.
-- If any required step needs long background waiting or async monitoring, do NOT hold this executor slot—stop immediately and return OUTCOME: blocked with the exact command for the orchestrator to execute.
+- If any required step needs long background waiting, full build/test execution, or async monitoring, do NOT hold this executor slot—stop immediately and return OUTCOME: blocked with the exact command for the orchestrator to execute.
 
 POLICY
   cat "$PROMPT_SRC" >> "$EFFECTIVE_PROMPT_SRC"

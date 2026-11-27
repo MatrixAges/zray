@@ -1,11 +1,19 @@
-import type { RowBuffer } from "memory/columns"
+import type { Initializer } from "../../../compiled/model"
 import type { Prefix } from "../initializer_rows"
 import type { Input as Publish } from "./model"
 
-export type Input = Publish.Omit("start") & {
+export type Input = Publish.Omit("row") & {
     prefix?: Prefix,
-    storage: RowBuffer,
-    shared: u8[]
+    end: u64
 }
 
-export type Output = u64
+export type Step = Input.Omit("prefix") & {
+    first: u64,
+    row: u64
+}
+
+export type Commit = Initializer & {
+    first: u64,
+    row: u64,
+    end: u64
+}

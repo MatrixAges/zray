@@ -1,0 +1,34 @@
+<Module>
+    <Type from="resolve_model" as="Initializers" />
+
+    <Args in={Initializers.Step} out={Initializers.Step} />
+
+    <Store from="rows" as="rows" />
+
+    <Call
+        fn="publish"
+        in={$in.pick([
+            "source",
+            "functions",
+            "row"
+        ])}
+    />
+
+    <Call
+        fn="commit"
+        in={{
+            ...$ctx.publish,
+            first: $in.first,
+            row: $in.row,
+            end: $in.end
+        }}
+        setter={[$store.rows.pending]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $ctx.commit
+        }}
+    />
+</Module>

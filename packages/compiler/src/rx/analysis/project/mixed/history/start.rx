@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="History" />
 
-    <Args in={History.Start} out={bool} />
+    <Args in={History.Start} out={History.Started} />
 
     <Call fn="snapshot" in={$in.capture} />
 
@@ -9,37 +9,67 @@
         <Call fn="../../history/inputs" in={$in.earlier.inputs} />
 
         <If on={!$ctx.inputs}>
-            <Return value={false} />
+            <Return
+                value={{
+                    checkpoint: $ctx.snapshot,
+                    aligned: false
+                }}
+            />
         </If>
 
         <Call
             fn="same_checkpoint"
             in={{
                 earlier: $in.earlier.checkpoint,
-                current: $in.checkpoint
+                current: $ctx.snapshot
             }}
         />
 
         <If on={!$ctx.same_checkpoint}>
-            <Return value={false} />
+            <Return
+                value={{
+                    checkpoint: $ctx.snapshot,
+                    aligned: false
+                }}
+            />
         </If>
 
         <Call fn="graph_match" in={$in.earlier.graph} />
 
         <If on={!$ctx.graph_match}>
-            <Return value={false} />
+            <Return
+                value={{
+                    checkpoint: $ctx.snapshot,
+                    aligned: false
+                }}
+            />
         </If>
 
         <Call module="align" in={$in.earlier.alignment} />
 
         <If on={!$ctx.align}>
-            <Return value={false} />
+            <Return
+                value={{
+                    checkpoint: $ctx.snapshot,
+                    aligned: false
+                }}
+            />
         </If>
 
         <Call module="../../../../../zx/ir/compare/header" in={$in.earlier.functions} />
 
-        <Return value={$ctx.header} />
+        <Return
+            value={{
+                checkpoint: $ctx.snapshot,
+                aligned: $ctx.header
+            }}
+        />
     </If>
 
-    <Return value={false} />
+    <Return
+        value={{
+            checkpoint: $ctx.snapshot,
+            aligned: false
+        }}
+    />
 </Module>

@@ -1,0 +1,11 @@
+<Store name="linked_native_module_rows" version={1}>
+    <Object name="pending">
+        <Field name="index" type={u64} value={0} />
+        <Field name="identity" type={string?} value={null} />
+        <Field name="specifier" type={string} value={""} />
+        <Field name="import_name" type={string} value={""} />
+        <Field name="namespace" type={string[]} value={[]} />
+        <Field name="names" type={string[]} value={[]} />
+        <Field name="ids" type={u32[]} value={[]} />
+    </Object>
+</Store>

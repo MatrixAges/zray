@@ -1,0 +1,38 @@
+<Module>
+    <Type from="publication" as="Publication" />
+
+    <Args in={Publication.MemberList} out={void} />
+
+    <Call
+        fn="list_count"
+        in={{
+            names: $in.source.names,
+            row: $in.row
+        }}
+    />
+
+    <Call
+        fn="../../../../../core/row_buffer/allocate_list"
+        in={[
+            $in.column,
+            $in.output,
+            $in.buffer,
+            $ctx.list_count
+        ]}
+    />
+
+    <Loop on={$in.index < $in.count}>
+        <Call
+            module="next_member"
+            in={{
+                ...$in.omit([
+                    "output",
+                    "column",
+                    "buffer"
+                ]),
+                count: $ctx.list_count,
+                index: 0
+            }}
+        />
+    </Loop>
+</Module>

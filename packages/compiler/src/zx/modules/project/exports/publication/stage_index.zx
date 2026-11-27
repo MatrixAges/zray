@@ -1,0 +1,15 @@
+import type { Input as Plan } from "../model"
+
+export type Input = Plan
+
+export type Output = Plan
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.rows.index = {
+        capacity: in.capacity
+    }
+
+    return in
+}

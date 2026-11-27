@@ -34,7 +34,6 @@ pub fn route(allocator: std.mem.Allocator, claims: *Claims, internal: []const in
         const local = zx.memory.borrowTextColumn("specifier", scoped);
         const legacy = zx.memory.borrowTextColumn("specifier", externals);
         const names = zx.memory.borrowTextColumn("module", internal);
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
         var buckets: []u64 = &.{};
         var claim: ?Claim = null;
 
@@ -75,7 +74,23 @@ pub fn route(allocator: std.mem.Allocator, claims: *Claims, internal: []const in
             .claim = if (claim) |*view| view else null,
         };
 
-        const result = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch unreachable;
+        var arena = std.heap.ArenaAllocator.init(allocator);
+
+        defer arena.deinit();
+
+        var buffer: [512]u8 = undefined;
+        var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+
+        const result = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
+            else => unreachable,
+        };
+
+        if (claim) |view| {
+            for (result.slots, 0..) |slot, offset| {
+                buckets[@intCast(slot)] = view.first + offset + 1;
+            }
+        }
 
         if (result.duplicate) |offset| return .{ .duplicate = item.nameAt(@intCast(offset)) };
 
@@ -153,7 +168,6 @@ pub fn source(index: *const Index, state_column: []State, request: Source) Plan 
         const generated = @import("generated_project_load_source");
         var empty = std.heap.FixedBufferAllocator.init(&.{});
         const Input = std.meta.Child(generated.Input);
-        var marks = std.mem.sliceAsBytes(state_column);
 
         const input: Input = .{
             .path = request.path,
@@ -166,8 +180,7 @@ pub fn source(index: *const Index, state_column: []State, request: Source) Plan 
             .keys = index.keys,
             .buckets = @ptrCast(&index.buckets),
             .capacity = index.buckets.len,
-            .states = marks,
-            .marks = @ptrCast(&marks),
+            .states = std.mem.sliceAsBytes(state_column),
         };
 
         const plan = zx.columns.invoke(generated.executeValue, empty.allocator(), &input) catch unreachable;

@@ -1,38 +1,39 @@
-import strings from "std:string"
 import memory from "memory"
 
 import remap from "../remapping/id"
 
-import type { NamedRowBuffer, U64Buffer } from "memory"
 import type { Rows } from "../../../ir/canonical/validation/names/model"
 import type { Mapping } from "../remapping/model"
 
-export type Input = {
+export type Request = {
     source: Rows,
     types: Mapping,
-    target: NamedRowBuffer,
-    progress: U64Buffer
+    imported: bool
 }
 
-export type Output = void
+export type Input = Request & {
+    row: u64
+}
+
+export type Output = {
+    name: string,
+    id: u32,
+    row: u64,
+    imported: bool
+}
 
 export default function (in: Input): Output {
-    const { source, types, target, progress } = in
-    const { rows, length } = source
+    const { source, types, row, imported } = in
 
-    const published = loop(0, {
-        while: row => row < length,
-        next: row => {
-            const id = remap({
-                id: memory.readRowId(rows, row),
-                mapping: types
-            })
-            const name = strings.copy(memory.readRowName(rows, row))
-
-            memory.writeNamedRow(target, row, name, id)
-            memory.writeU64(progress, 0, row + 1)
-
-            row += 1
-        }
+    const id = remap({
+        id: memory.readRowId(source.rows, row),
+        mapping: types
     })
+
+    return {
+        name: memory.readRowName(source.rows, row),
+        id,
+        row,
+        imported
+    }
 }

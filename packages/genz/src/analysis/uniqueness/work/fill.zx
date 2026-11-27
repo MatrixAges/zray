@@ -1,37 +1,40 @@
-import memory from "memory"
+import bytes from "std:bytes"
 
 import { clear_flag, queued_flag } from "./const"
 
-import type { Cursor as Output, Fill as Input } from "./model"
+import type { Fill as Input, Filled as Output } from "./model"
 
 export default function (in: Input): Output {
-    const queue = in.state
+    const { capacity, active } = in
 
-    const count = loop({
+    const queued = bytes.repeat(capacity, clear_flag)
+    const slots: u64[] = queued.map(flag => 0)[0]
+
+    return loop({
         body: 0,
-        tail: 0
+        count: 0,
+        queued,
+        slots
     }, {
-        while: row => row.body < queue.capacity,
+        while: row => row.body < capacity,
         next: row => {
-            const body = row.body
-            const active = in.active[body]
-
-            memory.writeU8(queue.queued, body, active ? queued_flag : clear_flag)
-
-            if (active) {
-                memory.writeU64(queue.slots, row.tail, body)
-                row.tail += 1
+            if (active[row.body]) {
+                row.queued[row.body] = queued_flag
+                row.slots[row.count] = row.body
+                row.count += 1
             }
 
             row.body += 1
         },
-        return: row => row.tail
+        return: row => ({
+            queued: row.queued,
+            slots: row.slots,
+            cursor: {
+                head: 0,
+                count: row.count,
+                budget: 0,
+                grew: false
+            }
+        })
     })
-
-    return {
-        head: 0,
-        count,
-        budget: 0,
-        grew: false
-    }
 }

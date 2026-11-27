@@ -1,36 +1,33 @@
-import memory from "memory"
-
 import { Phase } from "../../program/model"
-import { clear_flag } from "../const"
 
 import type { Take as Input, Visit as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { state } = in
+    const { state, additions } = in
+    const { cursor, capacity } = state
 
-    const cursor = state.cursor
     const head = cursor.head
-    const count = cursor.count
+    const count = cursor.count + additions.length
 
     if (count == 0) {
         return {
             body: null,
+            dequeued: null,
             exhausted: false,
-            first: [],
-            second: [],
+            pending_start: head,
+            pending_first: 0,
+            pending_second: 0,
             grew: cursor.grew,
             prefetch: false,
             cursor
         }
     }
 
-    const available = state.capacity - head
+    const available = capacity - head
     const prefix = count < available ? count : available
-    const index = in.slots[head]
+    const index = cursor.count == 0 ? additions[0].body : in.slots[head]
     const next = head + 1
-    const first = next == state.capacity ? 0 : next
-
-    memory.writeU8(state.queued, index, clear_flag)
+    const first = next == capacity ? 0 : next
 
     const limited = in.phase == Phase.Settle
     const budget = cursor.budget
@@ -39,9 +36,11 @@ export default function (in: Input): Output {
 
     return {
         body: exhausted ? null : index,
+        dequeued: index,
         exhausted,
-        first: memory.borrowU64Range(in.slots, head, prefix),
-        second: memory.borrowU64Range(in.slots, 0, count - prefix),
+        pending_start: head,
+        pending_first: prefix,
+        pending_second: count - prefix,
         grew: false,
         prefetch: !exhausted && !in.following,
         cursor: {

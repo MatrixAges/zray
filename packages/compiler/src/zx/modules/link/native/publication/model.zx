@@ -1,18 +1,14 @@
 import type { Modules } from "core/native_module_table/model"
-import type { Allocator } from "memory"
 import type {
     ColumnAllocator,
     ColumnSet,
-    ColumnU32s,
     NativeModuleRow
 } from "memory/columns"
 
 export type Destination = {
     storage: ColumnSet,
     shape?: NativeModuleRow,
-    resource: ColumnAllocator,
-    text_allocator: Allocator,
-    ids: ColumnU32s
+    resource: ColumnAllocator
 }
 
 export type Input = {
