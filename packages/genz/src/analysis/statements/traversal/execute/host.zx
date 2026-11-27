@@ -1,2 +1,1 @@
 export { finishStatementScope } from "lowering_host"
-export { readU8 } from "memory"

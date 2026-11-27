@@ -22,9 +22,3 @@ export const invalid_package_library: string =
     "compiled package target must identify one instance, artifact and public module"
 
 export const duplicate_package: string = "duplicate ZX package specifier"
-
-export const path_slot: u64 = 0
-
-export const instance_slot: u64 = 1
-
-export const export_slot: u64 = 2

@@ -1,7 +1,8 @@
 <Module>
     <Type from="model" as="Round" />
+    <Type from="../model" as="Work" />
 
-    <Args in={Round.Settlement} out={void} />
+    <Args in={Round.Settlement} out={Work.Cursor} />
 
     <Call
         fn="../notify"
@@ -18,10 +19,20 @@
     <If on={$in.body + 1 < $in.active.length}>
         <Call
             fn="publish_output"
-            in={$in.omit([
-                "changed",
-                "active"
-            ])}
+            in={{
+                ...$in.omit([
+                    "changed",
+                    "active"
+                ]),
+                state: {
+                    ...$in.state,
+                    cursor: $ctx.notify
+                }
+            }}
         />
+
+        <Return value={$ctx.publish_output} />
     </If>
+
+    <Return value={$ctx.notify} />
 </Module>

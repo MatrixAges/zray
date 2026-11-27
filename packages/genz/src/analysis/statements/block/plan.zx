@@ -3,7 +3,6 @@ import { StatementKind } from "core/control_table/model"
 import { ExpressionKind } from "core/expression_table/kinds"
 import { StoreMode } from "core/function_table/complete"
 import { kind_task } from "core/type_table/const"
-import memory from "memory"
 
 import {
     bind_operation,
@@ -17,18 +16,18 @@ import {
     write_operation
 } from "./const"
 
-import type { Input } from "./model"
-
-export type Output = void
+import type { Input, Output } from "./model"
 
 export default function (in: Input): Output {
     const { control, values } = in
 
     const stores = in.mode == StoreMode.orchestration && in.store_count != 0
+    const empty: u8[] = []
 
-    const planned = loop({
+    return loop({
         index: 0,
-        previous_store: false
+        previous_store: false,
+        routes: empty
     }, {
         while: state => state.index < in.count,
         next: state => {
@@ -81,13 +80,11 @@ export default function (in: Input): Output {
                 _ => 0
             }
 
-            memory.writeU8(
-                in.target,
-                in.offset + state.index,
-                operation + before + binding + returned
-            )
+            state.routes =
+                state.routes.push(operation + before + binding + returned)[0]
             state.previous_store = expression == ExpressionKind.StoreGet
             state.index += 1
-        }
+        },
+        return: state => state.routes
     })
 }

@@ -11,13 +11,19 @@ const opening = @import("generated_uniqueness_open_program");
 const preparing = @import("generated_uniqueness_prepare_round");
 const Queue = std.meta.Child(@FieldType(dispatch.Advance, "state"));
 const Self = @This();
-const position_count = 4;
+
+pub const Cursor = struct {
+    head: u64 = 0,
+    count: u64 = 0,
+    budget: u64 = 0,
+    grew: bool = false,
+};
 
 allocator: std.mem.Allocator,
 slots: []u64,
 queued: []u8,
 
-positions: [position_count]u64 = undefined,
+cursor: Cursor = .{},
 pub fn open(owner: std.mem.Allocator, scratch: std.mem.Allocator, called: []const []const u32, exported: []const zx.ir.FunctionId) std.mem.Allocator.Error!struct { work: Self, reverse: Topology.Plan } {
     var slots: zx.memory.RowBuffer = .empty(u64);
     var queued: zx.memory.RowBuffer = .empty(u8);
@@ -48,35 +54,69 @@ pub fn deinit(self: *Self) void {
     self.allocator.free(self.slots);
 }
 
-fn queue(self: *Self, positions: *[]const u64) Queue {
+const QueueCursor = std.meta.Child(@FieldType(Queue, "cursor"));
+
+fn queue(self: *Self, cursor: *const QueueCursor) Queue {
     return .{
         .slots = @ptrCast(&self.slots),
         .queued = @ptrCast(&self.queued),
-        .positions = @ptrCast(positions),
+        .cursor = cursor,
         .capacity = self.slots.len,
     };
 }
 
+fn queueCursor(self: *const Self) QueueCursor {
+    return .{
+        .head = self.cursor.head,
+        .count = self.cursor.count,
+        .budget = self.cursor.budget,
+        .grew = self.cursor.grew,
+    };
+}
+
 pub fn prepare(self: *Self, summaries: *const Summaries, active: []const bool, known: []const bool, phase: Round.Phase, exhausted: bool) std.mem.Allocator.Error!void {
-    var state = SummaryState.Borrowed.init(summaries);
-    const facts = state.input(.Reset, active, known);
-    var positions: []const u64 = &self.positions;
+    const state = SummaryState.Borrowed.init(summaries);
+    const cursor = self.queueCursor();
+    const state_view = self.queue(&cursor);
+
+    const fill_view: std.meta.Child(@FieldType(std.meta.Child(preparing.Input), "queue")) = .{
+        .state = &state_view,
+        .active = active,
+    };
+
+    const facts: std.meta.Child(@FieldType(std.meta.Child(preparing.Input), "facts")) = .{
+        .layout = &state.layout,
+        .active = active,
+        .known = known,
+    };
 
     const input: std.meta.Child(preparing.Input) = .{
-        .queue = &.{ .state = &self.queue(&positions), .active = active },
+        .queue = &fill_view,
         .facts = &facts,
         .phase = phase,
         .exhausted = exhausted,
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var scratch_buf: [4096]u8 = undefined;
+    var arena = std.heap.ArenaAllocator.init(self.allocator);
 
-    return invoke(preparing, empty.allocator(), &input);
+    defer arena.deinit();
+
+    var fallback = std.heap.BufferFirstAllocator.init(&scratch_buf, arena.allocator());
+    const prepared = try invoke(preparing, fallback.allocator(), &input);
+
+    self.cursor = .{
+        .head = prepared.cursor.head,
+        .count = prepared.cursor.count,
+        .budget = prepared.cursor.budget,
+        .grew = prepared.cursor.grew,
+    };
+
+    if (prepared.guarantees) |guarantees| @memcpy(state.guarantees, guarantees);
 }
 
 pub fn advance(self: *Self, comptime kind: Memo.Kind, phase: Round.Phase, frame: *Round.Frame, previous: ?Round.Feedback, following: bool, ahead: *Ahead, memo: *Memo) std.mem.Allocator.Error!Round.Claim {
     var flags = std.mem.sliceAsBytes(frame.dirty);
-    var positions: []const u64 = &self.positions;
     const Input = dispatch.Advance;
     const Feedback = std.meta.Child(@typeInfo(@FieldType(Input, "previous")).optional.child);
     const Plan = std.meta.Child(@typeInfo(@FieldType(Feedback, "plan")).optional.child);
@@ -102,8 +142,11 @@ pub fn advance(self: *Self, comptime kind: Memo.Kind, phase: Round.Phase, frame:
         .plan = if (fields != null) &plan else null,
     } else undefined;
 
+    const cursor = self.queueCursor();
+    const queue_view = self.queue(&cursor);
+
     const input: Input = .{
-        .state = &self.queue(&positions),
+        .state = &queue_view,
         .slots = self.slots,
         .phase = phase,
         .following = following,
@@ -114,7 +157,7 @@ pub fn advance(self: *Self, comptime kind: Memo.Kind, phase: Round.Phase, frame:
         .previous = if (previous != null) &feedback else null,
     };
 
-    return dispatch.run(ahead, memo, kind, &input);
+    return dispatch.run(ahead, memo, kind, &input, &self.cursor);
 }
 
 inline fn invoke(comptime entry: type, allocator: std.mem.Allocator, input: entry.Input) std.mem.Allocator.Error!@typeInfo(@typeInfo(@TypeOf(entry.executeValue)).@"fn".return_type.?).error_union.payload {

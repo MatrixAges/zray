@@ -1,7 +1,6 @@
 import integers from "std:integer"
-import memory from "memory"
 
-import type { Layout as Input } from "./model"
+import type { Dense as Input } from "./model"
 
 export type Output = bool
 
@@ -17,7 +16,7 @@ export default function (in: Input): Output {
             const byte = integers.widenByte(tags[state.index])
             const tag = integers.andBits(byte, mask)
 
-            state.valid = offsets[state.index] < memory.readU32(counts, tag)
+            state.valid = offsets[state.index] < counts[tag]
             state.index += 1
         },
         return: state => state.valid

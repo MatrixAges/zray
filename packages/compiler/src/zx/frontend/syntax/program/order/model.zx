@@ -1,4 +1,3 @@
-import type { U64Buffer } from "memory"
 import type { BlockTree } from "../../../parser/body/model"
 import type { ExprTree } from "../../../parser/expressions/state/model"
 
@@ -19,17 +18,17 @@ export type Trees = {
     blocks: BlockTree
 }
 
-export type Columns = {
-    expressions: U64Buffer,
-    blocks: U64Buffer,
-    statements: U64Buffer,
-    patterns: U64Buffer,
-    edges: U64Buffer
+export type ExpressionsOutput = {
+    expressions: u64[],
+    edges: u64[]
 }
 
-export type Input = {
-    trees: Trees,
-    columns: Columns
-}
+export type Input = Trees
 
-export type Output = u64
+export type Output = {
+    expressions: u64[],
+    blocks: u64[],
+    statements: u64[],
+    patterns: u64[],
+    edges: u64[]
+}

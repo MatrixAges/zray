@@ -1,12 +1,23 @@
-import memory from "memory"
-
 import encode from "../function/levels/encode"
 import { Knowledge } from "../function/levels/model"
 
 import type { Clear as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    memory.fillByteRange(in.cells, 0, in.count, encode(Knowledge.None))
+    const empty = encode(Knowledge.None)
+    const initial: u8[] = []
+
+    return loop({
+        index: 0,
+        cells: initial
+    }, {
+        while: state => state.index < in.count,
+        next: state => {
+            state.cells = state.cells.push(empty)[0]
+            state.index += 1
+        },
+        return: state => state.cells
+    })
 }

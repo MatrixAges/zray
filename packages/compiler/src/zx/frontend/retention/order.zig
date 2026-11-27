@@ -5,22 +5,23 @@ const Error = std.mem.Allocator.Error;
 pub fn fill(allocator: std.mem.Allocator, tree: anytype, result: anytype) Error!void {
     const rule = @import("generated_parser_type_order_write");
     const Input = std.meta.Child(rule.Input);
-    const fields_end = tree.nodes.len + tree.fields.len;
-    const words = try allocator.alloc(u64, fields_end + tree.items.len);
-    var heads = words[0..tree.nodes.len];
-    var fields = words[tree.nodes.len..fields_end];
-    var items = words[fields_end..];
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
-    const input: Input = .{
-        .tree = zx.columns.pointer(@FieldType(Input, "tree"), tree),
-        .heads = @ptrCast(&heads),
-        .fields = @ptrCast(&fields),
-        .items = @ptrCast(&items),
-    };
+    defer arena.deinit();
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var scratch_buf: [2048]u8 = undefined;
+    var fallback = std.heap.BufferFirstAllocator.init(&scratch_buf, arena.allocator());
+    const tree_view = zx.columns.view(Input, tree);
+    const order = rule.executeValue(fallback.allocator(), &tree_view) catch |err| return failure(err);
+    const fields_end = order.heads.len + order.fields.len;
+    const words = try allocator.alloc(u64, fields_end + order.items.len);
+    const heads = words[0..order.heads.len];
+    const fields = words[order.heads.len..fields_end];
+    const items = words[fields_end..];
 
-    rule.executeIn(empty.allocator(), &input) catch |err| return failure(err);
+    @memcpy(heads, order.heads);
+    @memcpy(fields, order.fields);
+    @memcpy(items, order.items);
 
     result.* = .{ .heads = heads, .fields = fields, .items = items };
 }

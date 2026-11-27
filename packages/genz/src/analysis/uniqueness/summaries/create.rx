@@ -1,27 +1,11 @@
 <Module>
     <Type from="model" as="State" />
 
-    <Args in={State.Create} out={State.Layout} />
+    <Args in={State.Create} out={State.Cells} />
 
     <Call fn="layout" in={$in.shape} />
 
-    <Call
-        fn="allocate"
-        in={{
-            layout: $ctx.layout,
-            buffers: $in.buffers,
-            allocator: $in.allocator
-        }}
-    />
+    <Call fn="allocate" />
 
-    <Call
-        fn="views"
-        in={{
-            cells: $ctx.allocate,
-            views: $in.views,
-            owner_rows: $in.owner_rows
-        }}
-    />
-
-    <Return value={$ctx.layout} />
+    <Return value={$ctx.allocate} />
 </Module>

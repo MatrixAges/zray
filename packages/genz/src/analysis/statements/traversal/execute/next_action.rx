@@ -15,7 +15,11 @@
                 ]),
                 scope: $in.plan.scopes[$in.index],
                 first: $in.plan.offsets[$in.index],
-                count: $in.plan.counts[$in.index]
+                count: $in.plan.counts[$in.index],
+                routes: $in.state.scope_routes[$in.plan.scopes[$in.index]],
+                scope_first: $in.state.scope_firsts[$in.plan.scopes[$in.index]],
+                scope_placement:
+                    $in.state.scope_placements[$in.plan.scopes[$in.index]]
             }}
         />
 
@@ -35,6 +39,7 @@
                 "traversal",
                 "context",
                 "buffers",
+                "state",
                 "child"
             ]),
             action: $in.plan.actions[$in.index],
@@ -48,6 +53,7 @@
     <Return
         value={{
             ...$in,
+            state: $ctx.step.state,
             child: $ctx.step.child,
             index: $in.index + ($ctx.step.ok ? 1 : 0),
             running: $ctx.step.ok && $in.index + 1 < $in.plan.actions.length

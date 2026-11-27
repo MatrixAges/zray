@@ -46,23 +46,7 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     const spans = try scratch.alloc(u32, std.math.mul(usize, capacity, 2) catch return error.OutOfMemory);
     var starts: []u32 = spans[0..capacity];
     var counts: []u32 = spans[capacity..];
-    var routes: []u8 = try scratch.alloc(u8, capacity);
-    const scope_u32 = try scratch.alloc(u32, std.math.mul(usize, depth, 4) catch return error.OutOfMemory);
-    var scope_firsts: []u32 = scope_u32[0..depth];
-    var scope_conditions: []u32 = scope_u32[depth..][0..depth];
-    var scope_yes_starts: []u32 = scope_u32[2 * depth ..][0..depth];
-    var scope_yes_counts: []u32 = scope_u32[3 * depth ..][0..depth];
-    var scope_placements: []u64 = try scratch.alloc(u64, depth);
     const selection_depth: usize = if (plan.flat) 0 else @intCast(plan.selection_depth);
-    const selection_u32 = try scratch.alloc(u32, std.math.mul(usize, selection_depth, 4) catch return error.OutOfMemory);
-    var selection_payloads: []u32 = selection_u32[0..selection_depth];
-    var selection_subjects: []u32 = selection_u32[selection_depth..][0..selection_depth];
-    var selection_counts: []u32 = selection_u32[2 * selection_depth ..][0..selection_depth];
-    var selection_comparisons: []u32 = selection_u32[3 * selection_depth ..][0..selection_depth];
-    const selection_u8 = try scratch.alloc(u8, std.math.mul(usize, selection_depth, 2) catch return error.OutOfMemory);
-    var selection_selected: []u8 = selection_u8[0..selection_depth];
-    var selection_has_fallback: []u8 = selection_u8[selection_depth..][0..selection_depth];
-    var selection_fallbacks: []u64 = try scratch.alloc(u64, selection_depth);
     var flat_scope: [1]Scope = undefined;
     const scopes: []Scope = if (plan.flat) &flat_scope else try scratch.alloc(Scope, depth);
     const selections: []Selection = if (plan.flat) &.{} else try scratch.alloc(Selection, selection_depth);
@@ -137,19 +121,6 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     const buffers: Buffers = .{
         .starts = @ptrCast(&starts),
         .counts = @ptrCast(&counts),
-        .routes = @ptrCast(&routes),
-        .scope_firsts = @ptrCast(&scope_firsts),
-        .scope_placements = @ptrCast(&scope_placements),
-        .scope_conditions = @ptrCast(&scope_conditions),
-        .scope_yes_starts = @ptrCast(&scope_yes_starts),
-        .scope_yes_counts = @ptrCast(&scope_yes_counts),
-        .selection_payloads = @ptrCast(&selection_payloads),
-        .selection_subjects = @ptrCast(&selection_subjects),
-        .selection_counts = @ptrCast(&selection_counts),
-        .selection_comparisons = @ptrCast(&selection_comparisons),
-        .selection_selected = @ptrCast(&selection_selected),
-        .selection_has_fallback = @ptrCast(&selection_has_fallback),
-        .selection_fallbacks = @ptrCast(&selection_fallbacks),
     };
 
     const request: Execution = .{

@@ -1,35 +1,36 @@
 import integers from "std:integer"
 import host from "lowering_host"
-import memory from "memory"
 
 import plan from "../../block/plan"
 
 import type { StatementTraversal } from "lowering_host"
-import type { Buffers, Context } from "./model"
+import type { Context } from "./model"
 
 export type Input = {
     traversal: StatementTraversal,
     context: Context,
-    buffers: Buffers,
     scope: u64,
     first: u32,
     count: u32,
     placement: u64
 }
 
-export type Output = bool
+export type Output = {
+    ok: bool,
+    routes: u8[]
+}
 
 export default function (in: Input): Output {
-    const { traversal, context, buffers, scope, first, count, placement } = in
+    const { traversal, context, scope, first, count, placement } = in
 
     if (!host.openStatementScope(traversal, scope, first, count, placement)) {
-        return false
+        return {
+            ok: false,
+            routes: []
+        }
     }
 
-    memory.writeU32(buffers.scope_firsts, scope, first)
-    memory.writeU64(buffers.scope_placements, scope, placement)
-
-    plan({
+    const routes = plan({
         control: context.control.pick([
             "statement_kinds",
             "statement_payloads",
@@ -44,11 +45,12 @@ export default function (in: Input): Output {
         },
         first: integers.widen(first),
         count: integers.widen(count),
-        offset: placement,
         mode: context.store_mode,
-        store_count: context.store_count,
-        target: buffers.routes
+        store_count: context.store_count
     })
 
-    return true
+    return {
+        ok: true,
+        routes
+    }
 }

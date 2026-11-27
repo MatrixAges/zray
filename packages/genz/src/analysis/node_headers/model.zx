@@ -4,7 +4,6 @@ import type {
     U8Storage,
     U32Storage,
     U32Buffer,
-    U64Buffer,
     U8Buffer
 } from "memory"
 
@@ -16,15 +15,28 @@ export type Headers = {
 
 export type Layout = Headers & {
     existing: u64,
-    counts: U32Buffer,
     variants: u64,
-    limits?: U64Buffer
+    limits?: u64[]
 }
 
 export enum Check {
     Valid,
     Invalid,
     Exhausted
+}
+
+export type CheckResult = {
+    check: Check,
+    counts: u32[]
+}
+
+export type CountResult = {
+    valid: bool,
+    counts: u32[]
+}
+
+export type Dense = Headers & {
+    counts: u32[]
 }
 
 export type Destination = {
@@ -49,10 +61,10 @@ export type Reservation = Tail & {
 }
 
 export type Rebase = Headers & Destination & {
-    bases: U32Buffer
+    bases: u32[]
 }
 
 export type Selected = Headers.Pick("tags", "mask") & Destination & {
     count: u64,
-    bases: U32Buffer
+    bases: u32[]
 }

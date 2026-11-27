@@ -40,11 +40,12 @@
         <Return
             value={{
                 ...$in,
-                cursor: $ctx.advance,
+                cursor: $ctx.advance.cursor,
+                cleared: $ctx.advance.cleared,
                 count: $ctx.consume.count,
                 running:
-                    $ctx.advance.phase != Trace.Phase.Done &&
-                    $ctx.advance.phase != Trace.Phase.Reject
+                    $ctx.advance.cursor.phase != Trace.Phase.Done &&
+                    $ctx.advance.cursor.phase != Trace.Phase.Reject
             }}
         />
     </If>

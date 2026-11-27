@@ -1,19 +1,16 @@
 import integers from "std:integer"
 import { BinaryOperator } from "core/expression_table/kinds"
 import host from "lowering_host"
-import memory from "memory"
 
 import binary from "../../../expressions/evaluate/binary"
 
-import type { Case as Input } from "./model"
-
-export type Output = bool
+import type { Case as Input, StateResult as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { traversal, context, buffers, placement, count, first } = in
+    const { traversal, context, state, placement, count, first } = in
 
-    const direct = memory.readU8(buffers.selection_selected, placement) != 0
-    const subject_ir = memory.readU32(buffers.selection_subjects, placement)
+    const direct = state.selection_selected[placement]
+    const subject_ir = state.selection_subjects[placement]
 
     const binary_expressions = context.expressions.pick([
         "kinds",
@@ -22,7 +19,10 @@ export default function (in: Input): Output {
 
     if (!in.after) {
         if (direct) {
-            return true
+            return {
+                ok: true,
+                state
+            }
         }
 
         const comparison = binary({
@@ -36,20 +36,28 @@ export default function (in: Input): Output {
             right_ir: first
         })
 
-        memory.writeU32(buffers.selection_comparisons, placement, comparison)
-
-        return true
+        return {
+            ok: true,
+            state: {
+                ...state,
+                selection_comparisons:
+                    state.selection_comparisons.splice(placement, 1, [comparison])[0]
+            }
+        }
     }
 
     if (!direct) {
-        const comparison = memory.readU32(buffers.selection_comparisons, placement)
+        const comparison = state.selection_comparisons[placement]
 
         host.saveStatementCase(traversal, placement, count, comparison, null)
 
-        return true
+        return {
+            ok: true,
+            state
+        }
     }
 
-    const case_count = memory.readU32(buffers.selection_counts, placement)
+    const case_count = state.selection_counts[placement]
 
     if (integers.widen(count) + 1 == integers.widen(case_count)) {
         const comparison = binary({
@@ -65,12 +73,18 @@ export default function (in: Input): Output {
 
         host.saveStatementCase(traversal, placement, count, comparison, null)
 
-        return true
+        return {
+            ok: true,
+            state
+        }
     }
 
     const literal = host.lowerRegular(context.frame, first, true, null)
 
     host.saveStatementCase(traversal, placement, count, 0, literal)
 
-    return true
+    return {
+        ok: true,
+        state
+    }
 }

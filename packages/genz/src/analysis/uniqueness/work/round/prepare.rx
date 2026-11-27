@@ -1,23 +1,24 @@
 <Module>
     <Type from="model" as="Round" />
-    <Type from="../../program/model" as="Program" />
 
-    <Args in={Round.Input} out={void} />
+    <Args in={Round.Input} out={Round.Prepared} />
 
-    <If on={$in.phase == Program.Phase.Settle}>
-        <Call fn="../../summaries/reset" in={$in.facts} />
-    </If>
-
-    <If on={$in.phase == Program.Phase.Demand && $in.exhausted}>
-        <Call
-            fn="../../summaries/clear"
-            in={{
-                cells: $in.facts.guarantees,
-                count: $in.facts.layout.input_count + $in.facts.layout.output_count
-            }}
-        />
-    </If>
+    <Call module="prepare_summaries" in={$in.omit(["queue"])} />
 
     <Call fn="../fill" in={$in.queue} />
-    <Call fn="budget" in={$in.queue.state} />
+
+    <Call
+        fn="budget"
+        in={{
+            cursor: $ctx.fill,
+            capacity: $in.queue.state.capacity
+        }}
+    />
+
+    <Return
+        value={{
+            cursor: $ctx.budget,
+            guarantees: $ctx.prepare_summaries
+        }}
+    />
 </Module>

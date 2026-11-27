@@ -14,12 +14,19 @@ const TableType = std.meta.Child(@FieldType(ProbeInput, "table"));
 const EncodingState = std.meta.Child(@FieldType(ProbeInput, "state"));
 pub const Advance = std.meta.Child(entry.Input);
 
-pub fn run(ahead: *Ahead, memo: *Memo, comptime kind: Memo.Kind, advance: *const Advance) std.mem.Allocator.Error!Round.Claim {
+pub fn run(ahead: *Ahead, memo: *Memo, comptime kind: Memo.Kind, advance: *const Advance, cursor: anytype) std.mem.Allocator.Error!Round.Claim {
     const allocator = memo.arena.allocator();
 
     const chosen = zx.columns.invoke(entry.executeValue, allocator, advance) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => std.debug.panic("ownership work dispatch failed: {s}", .{@errorName(err)}),
+    };
+
+    cursor.* = .{
+        .head = chosen.cursor.head,
+        .count = chosen.cursor.count,
+        .budget = chosen.cursor.budget,
+        .grew = chosen.cursor.grew,
     };
 
     const claim: Round.Claim = .{

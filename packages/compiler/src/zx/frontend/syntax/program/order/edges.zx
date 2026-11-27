@@ -1,38 +1,34 @@
-import memory from "memory"
-
 import { Chain } from "./model"
 
-import type { U64Buffer } from "memory"
 import type { Trees } from "./model"
 
 export type Input = {
     trees: Trees,
-    target: U64Buffer,
+    edges: u64[],
     kind: Chain,
-    first: u64,
     head: u64,
     count: u64
 }
 
-export type Output = u64
+export type Output = u64[]
 
 export default function (in: Input): Output {
     const expressions = in.trees.expressions
     const blocks = in.trees.blocks
-    const target = in.target
-    const end = in.first + in.count
     const kind = in.kind
+    const empty: u64[] = []
 
-    return loop({
+    const reversed = loop({
         row: in.head,
-        position: end
+        remaining: in.count,
+        items: empty
     }, {
-        while: state => state.position > in.first,
+        while: state => state.remaining != 0,
         next: state => {
             const row = state.row - 1
 
-            state.position -= 1
-            memory.writeU64(target, state.position, row)
+            state.items = state.items.push(row)[0]
+            state.remaining -= 1
 
             state.row = match kind {
                 Chain.Arguments => expressions.items[row].previous,
@@ -46,6 +42,18 @@ export default function (in: Input): Output {
                 _ => 0
             }
         },
-        return: state => end
+        return: state => state.items
+    })
+
+    return loop({
+        remaining: reversed.length,
+        edges: in.edges
+    }, {
+        while: state => state.remaining != 0,
+        next: state => {
+            state.remaining -= 1
+            state.edges = state.edges.push(reversed[state.remaining])[0]
+        },
+        return: state => state.edges
     })
 }

@@ -22,7 +22,8 @@
     <Return
         value={$ctx.next.pick([
             "cursor",
-            "count"
+            "count",
+            "cleared"
         ])}
     />
 </Module>

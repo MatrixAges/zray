@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Block" />
 
-    <Args in={Block.Input} out={Block.Layout} />
+    <Args in={Block.Input} out={Block.Output} />
 
     <Call
         fn="layout"
@@ -17,31 +17,26 @@
 
     <If on={$ctx.layout.append}>
         <Call
-            fn="reserve"
-            in={{
-                ...$in.omit([
-                    "starts",
-                    "counts",
-                    "parts",
-                    "last",
-                    "end",
-                    "at_tail"
-                ]),
-                count: $ctx.layout.count
-            }}
-        />
-
-        <Call
             fn="publish"
             in={$in.omit([
-                "tag_storage",
-                "offset_storage",
-                "allocator",
                 "end",
                 "at_tail"
             ])}
         />
+
+        <Return
+            value={{
+                ...$ctx.layout,
+                ...$ctx.publish
+            }}
+        />
     </If>
 
-    <Return value={$ctx.layout} />
+    <Return
+        value={{
+            ...$ctx.layout,
+            tags: [],
+            offsets: []
+        }}
+    />
 </Module>

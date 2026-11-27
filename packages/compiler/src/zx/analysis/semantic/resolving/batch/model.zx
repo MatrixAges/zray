@@ -1,5 +1,5 @@
 import type { Table } from "core/type_table/model"
-import type { NamedRowViewBuffer, ReadColumn, U32Buffer } from "memory"
+import type { NamedRowViewBuffer, ReadColumn } from "memory"
 import type { Aliases, Cache, Diagnostic, State } from "../model"
 import type { Indexed } from "../source/model"
 
@@ -21,18 +21,19 @@ export type Input = {
     resolved: Cache,
     aliases: Aliases,
     grouping?: Grouping,
-    store?: Store,
-    ids: U32Buffer
+    store?: Store
 }
 
 export type Update = {
     input: Input,
     state: State,
     row: u64,
-    owner?: u64
+    owner?: u64,
+    ids: u32[]
 }
 
 export type Output = {
     delta: Table,
-    diagnostic: Diagnostic
+    diagnostic: Diagnostic,
+    ids: u32[]
 }

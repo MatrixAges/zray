@@ -25,8 +25,7 @@
         in={$in.pick([
             "allocator",
             "groups",
-            "counts",
-            "bases"
+            "counts"
         ])}
     />
 
@@ -39,11 +38,11 @@
                 ...$in.pick([
                     "tags",
                     "mask",
-                    "bases",
                     "target_tags",
                     "target_offsets",
                     "lengths"
                 ]),
+                bases: $ctx.prepare,
                 count: $ctx.copy_selected
             }}
         />
@@ -67,15 +66,17 @@
 
     <Call
         fn="../rebase"
-        in={$in.pick([
-            "tags",
-            "offsets",
-            "mask",
-            "bases",
-            "target_tags",
-            "target_offsets",
-            "lengths"
-        ])}
+        in={{
+            ...$in.pick([
+                "tags",
+                "offsets",
+                "mask",
+                "target_tags",
+                "target_offsets",
+                "lengths"
+            ]),
+            bases: $ctx.prepare
+        }}
     />
 
     <Return value={true} />

@@ -19,6 +19,7 @@ export default function (in: Input): Output {
         traversal,
         context,
         buffers,
+        state,
         scope,
         first,
         count,
@@ -28,22 +29,39 @@ export default function (in: Input): Output {
         in
 
     if (action == Action.Open) {
+        const opened = openScope({
+            traversal,
+            context,
+            scope,
+            first,
+            count,
+            placement
+        })
+
+        if (!opened.ok) {
+            return {
+                ok: false,
+                child,
+                state
+            }
+        }
+
         return {
-            ok: openScope({
-                traversal,
-                context,
-                buffers,
-                scope,
-                first,
-                count,
-                placement
-            }),
-            child
+            ok: true,
+            child,
+            state: {
+                ...state,
+                scope_firsts: state.scope_firsts.splice(scope, 1, [first])[0],
+                scope_placements:
+                    state.scope_placements.splice(scope, 1, [placement])[0],
+                scope_routes:
+                    state.scope_routes.splice(scope, 1, [opened.routes])[0]
+            }
         }
     }
 
     if (action == Action.Condition) {
-        const scope_first = memory.readU32(buffers.scope_firsts, scope)
+        const scope_first = state.scope_firsts[scope]
         const row = integers.widen(scope_first) + integers.widen(first)
         const payload = integers.widen(context.control.statement_payloads[row])
 
@@ -54,31 +72,37 @@ export default function (in: Input): Output {
             null
         )
 
-        memory.writeU32(buffers.scope_conditions, scope, cond)
-
         return {
             ok: true,
-            child
+            child,
+            state: {
+                ...state,
+                scope_conditions: state.scope_conditions.splice(scope, 1, [cond])[0]
+            }
         }
     }
 
     if (action == Action.SaveYes) {
         const yes = unpackSpan(child)
 
-        memory.writeU32(buffers.scope_yes_starts, scope, yes.start)
-        memory.writeU32(buffers.scope_yes_counts, scope, yes.count)
-
         return {
             ok: true,
-            child
+            child,
+            state: {
+                ...state,
+                scope_yes_starts:
+                    state.scope_yes_starts.splice(scope, 1, [yes.start])[0],
+                scope_yes_counts:
+                    state.scope_yes_counts.splice(scope, 1, [yes.count])[0]
+            }
         }
     }
 
     if (action == Action.Join) {
-        const condition = memory.readU32(buffers.scope_conditions, scope)
-        const yes_start = memory.readU32(buffers.scope_yes_starts, scope)
-        const yes_count = memory.readU32(buffers.scope_yes_counts, scope)
-        const scope_placement = memory.readU64(buffers.scope_placements, scope)
+        const condition = state.scope_conditions[scope]
+        const yes_start = state.scope_yes_starts[scope]
+        const yes_count = state.scope_yes_counts[scope]
+        const scope_placement = state.scope_placements[scope]
         const no = unpackSpan(child)
 
         const span = publishAstBasicStatements(
@@ -100,7 +124,8 @@ export default function (in: Input): Output {
 
         return {
             ok: true,
-            child
+            child,
+            state
         }
     }
 
@@ -109,46 +134,44 @@ export default function (in: Input): Output {
 
         return {
             ok: finished != null,
-            child: finished ?? child
+            child: finished ?? child,
+            state
         }
     }
 
     if (action == Action.Fallback) {
-        memory.writeU8(buffers.selection_has_fallback, placement, 1)
-        memory.writeU64(buffers.selection_fallbacks, placement, child)
+        const fallback: u64? = child
 
         return {
             ok: true,
-            child
+            child,
+            state: {
+                ...state,
+                selection_fallbacks:
+                    state.selection_fallbacks.splice(placement, 1, [fallback])[0]
+            }
         }
     }
 
     if (action == Action.EndSelection) {
-        const has_fallback =
-            memory.readU8(buffers.selection_has_fallback, placement) != 0
-
-        const fallback: u64? = match {
-            has_fallback => memory.readU64(buffers.selection_fallbacks, placement),
-            _ => null
-        }
-
         return {
             ok: host.finishStatementSelection(
                 traversal,
                 scope,
                 first,
                 placement,
-                fallback
+                state.selection_fallbacks[placement]
             ),
-            child
+            child,
+            state
         }
     }
 
-    const ok = match action {
+    const result = match action {
         Action.Selection => selectionOpen({
             traversal,
             context,
-            buffers,
+            state,
             scope,
             first,
             placement
@@ -156,14 +179,14 @@ export default function (in: Input): Output {
         Action.Resolve => selectionResolve({
             traversal,
             context,
-            buffers,
+            state,
             placement,
             count
         }),
         Action.Case => selectionCase({
             traversal,
             context,
-            buffers,
+            state,
             placement,
             count,
             first,
@@ -172,17 +195,21 @@ export default function (in: Input): Output {
         Action.SaveCase => selectionCase({
             traversal,
             context,
-            buffers,
+            state,
             placement,
             count,
             first,
             after: true
         }),
-        _ => false
+        _ => ({
+            ok: false,
+            state
+        })
     }
 
     return {
-        ok,
-        child
+        ok: result.ok,
+        child,
+        state: result.state
     }
 }

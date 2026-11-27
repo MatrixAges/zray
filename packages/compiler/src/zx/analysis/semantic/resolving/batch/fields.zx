@@ -15,12 +15,14 @@ export default function (in: Input): Output {
 
     const count = fields.source.declarations.length
     const owner: u64? = null
+    const ids: u32[] = []
 
     return loop({
         input: fields,
         state,
         row: 0,
-        owner
+        owner,
+        ids
     }, {
         while: current =>
             current.row < count && current.state.diagnostic.message == "",
@@ -29,7 +31,8 @@ export default function (in: Input): Output {
         },
         return: current => ({
             delta: current.state.delta,
-            diagnostic: current.state.diagnostic
+            diagnostic: current.state.diagnostic,
+            ids: current.ids
         })
     })
 }

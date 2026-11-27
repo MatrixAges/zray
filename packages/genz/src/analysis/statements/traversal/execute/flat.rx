@@ -9,7 +9,6 @@
             ...$in.pick([
                 "traversal",
                 "context",
-                "buffers",
                 "first",
                 "count"
             ]),
@@ -18,7 +17,7 @@
         }}
     />
 
-    <If on={!$ctx.open_scope}>
+    <If on={!$ctx.open_scope.ok}>
         <Return value={false} />
     </If>
 
@@ -32,7 +31,10 @@
                 "first",
                 "count"
             ]),
-            scope: 0
+            scope: 0,
+            routes: $ctx.open_scope.routes,
+            scope_first: $in.first,
+            scope_placement: 0
         }}
     />
 

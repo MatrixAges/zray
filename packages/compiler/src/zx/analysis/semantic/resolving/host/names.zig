@@ -56,20 +56,31 @@ pub fn put(self: *Self, allocator: std.mem.Allocator, name: []const u8, id: zx.i
 }
 
 pub fn publish(self: *Self, allocator: std.mem.Allocator, cache: *const Cache, types: ?*const TypePublication) std.mem.Allocator.Error!void {
+    const first = self.columns.names.items.len;
+
+    if (cache.names.len != 0) {
+        const required = std.math.add(usize, first, cache.names.len) catch return error.OutOfMemory;
+
+        if (required > std.math.maxInt(u32)) return error.OutOfMemory;
+        try self.columns.names.ensureTotalCapacity(allocator, required);
+        try self.columns.ids.ensureTotalCapacity(allocator, required);
+
+        self.columns.names.appendSliceAssumeCapacity(cache.names);
+        self.columns.ids.appendSliceAssumeCapacity(cache.ids);
+    }
+
+    errdefer if (cache.names.len != 0) {
+        self.columns.names.shrinkRetainingCapacity(first);
+        self.columns.ids.shrinkRetainingCapacity(first);
+    };
+
     var keys = memory.borrowTextSlice(self.columns.names.items);
-    var tails: Cache = .{ .names = &.{}, .ids = &.{} };
-    var slots = memory.bindColumnRanges(&self.columns, cache.*, &tails);
-    var ranges: memory.ColumnRanges = &slots;
     const index: Index = .{ .keys = @ptrCast(&keys), .buckets = @ptrCast(&self.buckets) };
 
     const target: Destination = .{
         .committed = @ptrCast(&self.columns.names.items),
-        .names = @ptrCast(&tails.names),
-        .ids = @ptrCast(&tails.ids),
-        .ranges = @ptrCast(&ranges),
         .index = &index,
-        .resource = @ptrCast(&allocator),
-        .first = self.columns.names.items.len,
+        .first = first,
     };
 
     const input: Input = .{ .cache = cache, .destination = &target, .types = types };

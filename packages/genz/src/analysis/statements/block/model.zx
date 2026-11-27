@@ -1,6 +1,5 @@
 import type { ExpressionKind } from "core/expression_table/kinds"
 import type { StoreMode } from "core/function_table/complete"
-import type { U8Buffer } from "memory"
 import type { Control as Statements } from "../../store/begin/model"
 
 export type Control = Statements & {
@@ -18,8 +17,8 @@ export type Input = {
     values: Values,
     first: u64,
     count: u64,
-    offset: u64,
     mode: StoreMode,
-    store_count: u64,
-    target: U8Buffer
+    store_count: u64
 }
+
+export type Output = u8[]

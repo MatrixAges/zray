@@ -1,0 +1,53 @@
+<Module>
+    <Type from="model" as="Round" />
+    <Type from="../model" as="Work" />
+    <Type from="../../program/model" as="Program" />
+
+    <Args in={Round.PhaseFeedback} out={Work.Cursor} />
+
+    <If on={$in.phase == Program.Phase.Settle}>
+        <Call
+            module="publish"
+            in={{
+                ...$in.pick([
+                    "state",
+                    "dirty",
+                    "active",
+                    "outputs"
+                ]),
+                ...$in.previous.pick([
+                    "body",
+                    "levels",
+                    "changed"
+                ]),
+                callers: $in.callers[$in.previous.body]
+            }}
+        />
+
+        <Return value={$ctx.publish} />
+    </If>
+
+    <If on={$in.phase == Program.Phase.Demand && $in.previous.changed.length != 0}>
+        <Call
+            fn="../notify"
+            in={{
+                ...$in.pick([
+                    "state",
+                    "dirty",
+                    "active"
+                ]),
+                changed: $in.previous.changed,
+                callers: $in.callers[$in.previous.body],
+                demand_body: $in.previous.body
+            }}
+        />
+
+        <Return value={$ctx.notify} />
+    </If>
+
+    <If on={$in.phase == Program.Phase.Plan && $in.previous.plan != null}>
+        <Call fn="../../program/visit/publish" in={$in.previous.plan} />
+    </If>
+
+    <Return value={$in.state.cursor} />
+</Module>

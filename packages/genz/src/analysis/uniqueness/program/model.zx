@@ -1,4 +1,4 @@
-import type { Create, Layout } from "../summaries/model"
+import type { Cells, Create } from "../summaries/model"
 import type { Bodies, Calls, Input as Graph } from "../topology/model"
 import type { Buffers } from "../work/allocate"
 
@@ -8,7 +8,7 @@ export type Prepare = Create & {
 
 export type Prepared = {
     topology: Calls,
-    layout: Layout
+    cells: Cells
 }
 
 export type Open = Graph & {

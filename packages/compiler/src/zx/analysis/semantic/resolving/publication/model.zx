@@ -1,10 +1,4 @@
-import type {
-    Allocator,
-    ColumnRanges,
-    StringBuffer,
-    TextColumnBuffer,
-    U32Buffer
-} from "memory"
+import type { StringBuffer, TextColumnBuffer, U32Buffer } from "memory"
 import type { Input as TypePublication } from "../../merging/publication/model"
 import type { Cache } from "../model"
 
@@ -15,11 +9,7 @@ export type Index = {
 
 export type Destination = {
     committed: StringBuffer,
-    names: StringBuffer,
-    ids: U32Buffer,
-    ranges: ColumnRanges,
     index: Index,
-    resource: Allocator,
     first: u64
 }
 

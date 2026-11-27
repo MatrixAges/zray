@@ -1,17 +1,11 @@
-import memory from "memory"
-
-import { path_slot } from "../const"
 import resolve from "../file"
 import select from "./select"
 
-import type { TextSlots } from "memory"
 import type { FileProbe, FileRequest, FileSelection } from "../model"
 
-export type Input = FileRequest & FileProbe.Omit("path") & {
-    output: TextSlots
-}
+export type Input = FileRequest & FileProbe.Omit("path")
 
-export type Output = FileSelection.Pick("row", "issue")
+export type Output = FileSelection
 
 export default function (in: Input): Output {
     const target = resolve(in.pick([
@@ -28,19 +22,20 @@ export default function (in: Input): Output {
 
     if (path == null) {
         return {
+            path: "",
             issue: target.issue
         }
     }
 
-    memory.writeTextSlot(in.output, path_slot, path)
-
     const capacity = target.fallback ? in.index.capacity : 0
 
     if (capacity == 0 && in.roots.length == 0) {
-        return {}
+        return {
+            path
+        }
     }
 
-    const selected = select({
+    return select({
         ...in.pick([
             "release",
             "owner",
@@ -53,11 +48,4 @@ export default function (in: Input): Output {
         },
         path
     })
-
-    memory.writeTextSlot(in.output, path_slot, selected.path)
-
-    return selected.pick([
-        "row",
-        "issue"
-    ])
 }

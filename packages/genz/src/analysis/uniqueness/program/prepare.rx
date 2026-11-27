@@ -9,7 +9,7 @@
     <Return
         value={{
             topology: $ctx.collect,
-            layout: $ctx.create
+            cells: $ctx.create
         }}
     />
 </Module>

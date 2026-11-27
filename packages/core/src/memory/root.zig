@@ -388,7 +388,6 @@ pub const writeRowListCount = column.writeRowListCount;
 pub const copyRow = column.copyRow;
 pub const writeRow = column.writeRow;
 pub const writeRowIndex = column.writeRowIndex;
-pub const writeRowByteView = column.writeRowByteView;
 pub const writeRowByteField = column.writeRowByteField;
 pub const copyRowPrefix = column.copyRowPrefix;
 pub const borrowWriteColumn = column.borrow;

@@ -8,9 +8,10 @@ const creating = @import("generated_uniqueness_prepare_program");
 const lifecycle = @import("lifecycle.zig");
 const Calls = @import("../topology.zig").Calls;
 const Prepared = std.meta.Child(creating.Output);
+const Cells = @FieldType(Prepared, "cells");
 
 pub const Model = struct {
-    layout: @FieldType(Prepared, "layout"),
+    layout: @FieldType(std.meta.Child(Cells), "layout"),
     guarantees: []u8,
     demands: []u8,
 };
@@ -23,12 +24,6 @@ pub fn prepare(temporary: std.mem.Allocator, summary_memory: std.mem.Allocator, 
 
     const Input = std.meta.Child(creating.Input);
     const Bodies = std.meta.Child(@FieldType(Input, "bodies"));
-    var input_rows: zx.memory.RowBuffer = .empty([]Level);
-    var output_rows: zx.memory.RowBuffer = .empty([]Level);
-    var input_wants: zx.memory.RowBuffer = .empty([]Level);
-    var output_wants: zx.memory.RowBuffer = .empty([]Level);
-    var guarantees: []u8 = &.{};
-    var demands: []u8 = &.{};
 
     const input: Input = .{
         .bodies = &.{
@@ -42,18 +37,6 @@ pub fn prepare(temporary: std.mem.Allocator, summary_memory: std.mem.Allocator, 
             .input_types = program.functions.input_types,
             .output_types = program.functions.output_types,
         },
-        .views = &.{
-            .input = @ptrCast(&input_rows),
-            .output = @ptrCast(&output_rows),
-            .inputs = @ptrCast(&input_wants),
-            .outputs = @ptrCast(&output_wants),
-        },
-        .buffers = &.{
-            .guarantees = @ptrCast(&guarantees),
-            .demands = @ptrCast(&demands),
-        },
-        .allocator = @ptrCast(&summary_memory),
-        .owner_rows = @ptrCast(&summary_memory),
     };
 
     const prepared = creating.executeIn(temporary, &input) catch |err| switch (err) {
@@ -61,13 +44,16 @@ pub fn prepare(temporary: std.mem.Allocator, summary_memory: std.mem.Allocator, 
         else => std.debug.panic("ownership preparation failed: {s}", .{@errorName(err)}),
     };
 
-    const layout = try summary_memory.create(std.meta.Child(@FieldType(Prepared, "layout")));
+    const prepared_layout = prepared.cells.layout;
+    const guarantees = try summary_memory.dupe(u8, prepared.cells.guarantees);
+    const demands = try summary_memory.dupe(u8, prepared.cells.demands);
+    const layout = try summary_memory.create(std.meta.Child(@FieldType(std.meta.Child(Cells), "layout")));
 
     layout.* = .{
-        .input_first = try summary_memory.dupe(u64, prepared.layout.input_first),
-        .output_first = try summary_memory.dupe(u64, prepared.layout.output_first),
-        .input_count = prepared.layout.input_count,
-        .output_count = prepared.layout.output_count,
+        .input_first = try summary_memory.dupe(u64, prepared_layout.input_first),
+        .output_first = try summary_memory.dupe(u64, prepared_layout.output_first),
+        .input_count = prepared_layout.input_count,
+        .output_count = prepared_layout.output_count,
     };
 
     const model: Model = .{
@@ -76,11 +62,16 @@ pub fn prepare(temporary: std.mem.Allocator, summary_memory: std.mem.Allocator, 
         .demands = demands,
     };
 
+    const input_rows = try sliceRows(summary_memory, layout.input_first, 0, layout.input_count, guarantees);
+    const output_rows = try sliceRows(summary_memory, layout.output_first, layout.input_count, layout.output_count, guarantees);
+    const input_wants = try sliceRows(summary_memory, layout.input_first, 0, layout.input_count, demands);
+    const output_wants = try sliceRows(summary_memory, layout.output_first, layout.input_count, layout.output_count, demands);
+
     const result = Summaries{
-        .input = input_rows.rows([]Level),
-        .output = output_rows.rows([]Level),
-        .inputs = input_wants.rows([]Level),
-        .outputs = output_wants.rows([]Level),
+        .input = input_rows,
+        .output = output_rows,
+        .inputs = input_wants,
+        .outputs = output_wants,
         .held = basis.flow.held,
         .written = basis.flow.written,
         .return_only = basis.return_only,
@@ -96,4 +87,18 @@ pub fn prepare(temporary: std.mem.Allocator, summary_memory: std.mem.Allocator, 
         .calls = .{ .active = topology.active, .callees = topology.callees, .recursive = topology.recursive },
         .summaries = result,
     };
+}
+
+fn sliceRows(allocator: std.mem.Allocator, first: []const u64, base: u64, count: u64, bytes: []u8) std.mem.Allocator.Error![][]Level {
+    const result = try allocator.alloc([]Level, first.len);
+    const levels: []Level = @ptrCast(bytes);
+
+    for (result, 0..) |*slot, index| {
+        const start = first[index];
+        const end = if (index + 1 == first.len) count else first[index + 1];
+
+        slot.* = levels[@intCast(base + start)..@intCast(base + end)];
+    }
+
+    return result;
 }

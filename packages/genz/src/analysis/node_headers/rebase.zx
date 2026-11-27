@@ -14,7 +14,7 @@ export default function (in: Input): Output {
         next: index => {
             const byte = integers.widenByte(tags[index])
             const tag = integers.andBits(byte, mask)
-            const offset = memory.readU32(bases, tag) + offsets[index]
+            const offset = bases[tag] + offsets[index]
 
             memory.writeU32(in.target_offsets, index, offset)
             index += 1

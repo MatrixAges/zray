@@ -142,21 +142,39 @@ fn collectSource(comptime Span: type, allocator: std.mem.Allocator, rows: anytyp
     std.debug.assert(starts.len == counts.len);
 
     const entry = @import("generated_node_block_build");
-    const lengths: zx.memory.ColumnLengths = &.{ &rows.tags.items.len, &rows.offsets.items.len };
-    var views: @import("headers.zig").Views = .{};
-    var input = views.bind(std.meta.Child(entry.Input), &allocator, rows, &lengths);
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
-    input.end = rows.tags.items.len;
-    input.starts = starts;
-    input.counts = counts;
-    input.parts = parts;
-    input.last = last;
-    input.at_tail = at_tail;
+    defer arena.deinit();
 
-    const layout = zx.columns.invoke(entry.executeValue, fixed.allocator(), @as(*const @TypeOf(input), &input)) catch |err| return failure(err);
+    var scratch_buf: [1024]u8 = undefined;
+    var fallback = std.heap.BufferFirstAllocator.init(&scratch_buf, arena.allocator());
 
-    return .{ .start = @intCast(layout.start), .len = @intCast(layout.count) };
+    const input: std.meta.Child(entry.Input) = .{
+        .starts = starts,
+        .counts = counts,
+        .parts = parts,
+        .last = last,
+        .end = rows.tags.items.len,
+        .at_tail = at_tail,
+        .source_tags = std.mem.sliceAsBytes(rows.tags.items),
+        .source_offsets = rows.offsets.items,
+    };
+
+    const result = zx.columns.invoke(entry.executeValue, fallback.allocator(), &input) catch |err| return failure(err);
+
+    if (result.append) {
+        if (result.tags.len > std.math.maxInt(u32) - rows.tags.items.len) return error.OutOfMemory;
+        try rows.tags.ensureUnusedCapacity(allocator, result.tags.len);
+        try rows.offsets.ensureUnusedCapacity(allocator, result.offsets.len);
+
+        @memcpy(std.mem.sliceAsBytes(rows.tags.unusedCapacitySlice()[0..result.tags.len]), result.tags);
+        @memcpy(rows.offsets.unusedCapacitySlice()[0..result.offsets.len], result.offsets);
+
+        rows.tags.items.len += result.tags.len;
+        rows.offsets.items.len += result.offsets.len;
+    }
+
+    return .{ .start = @intCast(result.start), .len = @intCast(result.count) };
 }
 
 fn collectSeed(comptime Span: type, allocator: std.mem.Allocator, rows: anytype, starts: []const u32, counts: []const u32, at_tail: bool) std.mem.Allocator.Error!Span {

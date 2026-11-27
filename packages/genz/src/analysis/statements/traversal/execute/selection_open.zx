@@ -6,31 +6,28 @@ import {
     readAstOrigin
 } from "ast_rows"
 import host from "lowering_host"
-import memory from "memory"
 import { requireAllocation } from "memory"
 
 import switchName from "../../switch/name"
 import switchReference from "../../switch/reference"
 
 import type { StatementTraversal } from "lowering_host"
-import type { Buffers, Context } from "./model"
+import type { Context, State, StateResult as Output } from "./model"
 
 export type Input = {
     traversal: StatementTraversal,
     context: Context,
-    buffers: Buffers,
+    state: State,
     scope: u64,
     first: u32,
     placement: u64
 }
 
-export type Output = bool
-
 export default function (in: Input): Output {
-    const { traversal, context, buffers, scope, first, placement } = in
+    const { traversal, context, state, scope, first, placement } = in
     const { frame, writer, origin, control } = context
 
-    const scope_first = memory.readU32(buffers.scope_firsts, scope)
+    const scope_first = state.scope_firsts[scope]
     const row = integers.widen(scope_first) + integers.widen(first)
     const payload = control.statement_payloads[row]
     const subject_ir = control.selection_subjects[integers.widen(payload)]
@@ -65,17 +62,26 @@ export default function (in: Input): Output {
         AstPayloadOwnership.BorrowingText
     )
 
-    memory.writeU32(buffers.selection_payloads, placement, payload)
-    memory.writeU32(buffers.selection_subjects, placement, subject_ir)
-    memory.writeU8(buffers.selection_has_fallback, placement, 0)
+    const no_fallback: u64? = null
 
-    return host.openStatementSelection(
-        traversal,
-        scope,
-        first,
-        placement,
-        name,
-        subject,
-        ref.root
-    )
+    return {
+        ok: host.openStatementSelection(
+            traversal,
+            scope,
+            first,
+            placement,
+            name,
+            subject,
+            ref.root
+        ),
+        state: {
+            ...state,
+            selection_payloads:
+                state.selection_payloads.splice(placement, 1, [payload])[0],
+            selection_subjects:
+                state.selection_subjects.splice(placement, 1, [subject_ir])[0],
+            selection_fallbacks:
+                state.selection_fallbacks.splice(placement, 1, [no_fallback])[0]
+        }
+    }
 }

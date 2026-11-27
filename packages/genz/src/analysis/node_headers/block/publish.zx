@@ -1,23 +1,20 @@
 import integers from "std:integer"
-import { publish as publishLengths } from "core/column_lengths"
-import memory from "memory"
 
 import { word_radix } from "./const"
 
-import type { Destination as Input } from "./model"
-
-export type Output = void
+import type { Destination as Input, Published as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { starts, counts, parts, last } = in
+    const { starts, counts, parts, last, source_tags, source_offsets } = in
 
-    const tags = memory.u8Views(in.source_tags)
-    const offsets = memory.u32Views(in.source_offsets)
     const total = counts.length + parts.length
+    const empty_tags: u8[] = []
+    const empty_offsets: u32[] = []
 
     const written = loop({
         index: 0,
-        target: 0
+        tags: empty_tags,
+        offsets: empty_offsets
     }, {
         while: state => state.index < total,
         next: state => {
@@ -32,41 +29,59 @@ export default function (in: Input): Output {
                 const start = word / word_radix
                 const end = start + count
 
-                const copied = memory.copyBytes(
-                    in.target_tags,
-                    state.target,
-                    tags,
-                    start,
-                    end
-                )
+                const copied = loop({
+                    pos: start,
+                    tags: state.tags,
+                    offsets: state.offsets
+                }, {
+                    while: inner => inner.pos < end,
+                    next: inner => {
+                        inner.tags = inner.tags.push(source_tags[inner.pos])[0]
+                        inner.offsets =
+                            inner.offsets.push(source_offsets[inner.pos])[0]
+                        inner.pos += 1
+                    },
+                    return: inner => ({
+                        tags: inner.tags,
+                        offsets: inner.offsets
+                    })
+                })
 
-                memory.copyU32Range(
-                    in.target_offsets,
-                    state.target,
-                    offsets,
-                    start,
-                    end
-                )
-                state.target += count
+                state.tags = copied.tags
+                state.offsets = copied.offsets
             }
 
             state.index += 1
         },
-        return: state => state.target
+        return: state => ({
+            tags: state.tags,
+            offsets: state.offsets
+        })
     })
 
     const tail_count = last % word_radix
 
-    if (tail_count != 0) {
-        const start = last / word_radix
-        const end = start + tail_count
-        const copied = memory.copyBytes(in.target_tags, written, tags, start, end)
-
-        memory.copyU32Range(in.target_offsets, written, offsets, start, end)
+    if (tail_count == 0) {
+        return written
     }
 
-    publishLengths({
-        target: in.lengths,
-        count: written + tail_count
+    const tail_start = last / word_radix
+    const tail_end = tail_start + tail_count
+
+    return loop({
+        pos: tail_start,
+        tags: written.tags,
+        offsets: written.offsets
+    }, {
+        while: inner => inner.pos < tail_end,
+        next: inner => {
+            inner.tags = inner.tags.push(source_tags[inner.pos])[0]
+            inner.offsets = inner.offsets.push(source_offsets[inner.pos])[0]
+            inner.pos += 1
+        },
+        return: inner => ({
+            tags: inner.tags,
+            offsets: inner.offsets
+        })
     })
 }

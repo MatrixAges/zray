@@ -78,12 +78,6 @@ pub fn Binding(comptime Target: type, comptime View: type, comptime layout: Layo
         buffers: [width]transfer.Column = undefined,
         slices: [names.len][]const transfer.Column = undefined,
         groups: transfer.Groups = undefined,
-        counts: [names.len]u32 = @splat(0),
-        bases: [names.len]u32 = undefined,
-        limits: [if (layout == .selected) names.len else 0]u64 = undefined,
-        count_view: []u32 = undefined,
-        base_view: []u32 = undefined,
-        limit_view: []u64 = undefined,
         views: headers.Views = .{},
         length_slots: [2]*usize = undefined,
         lengths: zx.memory.ColumnLengths = undefined,
@@ -107,16 +101,13 @@ pub fn Binding(comptime Target: type, comptime View: type, comptime layout: Layo
             }
 
             self.groups = &self.slices;
-            self.count_view = &self.counts;
 
             var input: Input = if (@hasField(Input, "allocator")) storage: {
-                self.base_view = &self.bases;
                 self.length_slots = .{ &target.tags.items.len, &target.offsets.items.len };
                 self.lengths = &self.length_slots;
 
                 var tail = self.views.bind(Input, allocator, target, &self.lengths);
 
-                tail.bases = @ptrCast(&self.base_view);
                 tail.layout = if (layout == .selected) .Selected else .Dense;
 
                 break :storage tail;
@@ -126,16 +117,12 @@ pub fn Binding(comptime Target: type, comptime View: type, comptime layout: Layo
             input.offsets = source.offsets;
             input.mask = headers.mask(Tag);
             input.groups = @ptrCast(&self.groups);
-            input.counts = &self.counts;
-            input.count_buffer = @ptrCast(&self.count_view);
             input.complete = &complete;
             input.existing = target.tags.items.len;
 
-            input.limits = if (layout == .selected) limits: {
-                self.limit_view = &self.limits;
-
-                break :limits @ptrCast(&self.limit_view);
-            } else null;
+            if (@hasField(Input, "selected")) {
+                input.selected = layout == .selected;
+            }
 
             return input;
         }
@@ -181,10 +168,25 @@ pub fn check(target: anytype, source: anytype, comptime layout: Layout) headers.
     const entry = @import("generated_node_payload_validate");
     var binding: Binding(@TypeOf(target), std.meta.Child(@TypeOf(source)), layout) = .{};
     const input = binding.bind(std.meta.Child(entry.Input), undefined, target, source, false, true);
+    var scratch_buf: [2048]u8 = undefined;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
 
-    try invoke(entry.executeValue, &input);
+    defer arena.deinit();
 
-    return binding.counts;
+    var fallback = std.heap.BufferFirstAllocator.init(&scratch_buf, arena.allocator());
+    const result = zx.columns.invoke(entry.executeValue, fallback.allocator(), &input) catch |err| return failure(err);
+
+    switch (result.check) {
+        .Valid => {},
+        .Invalid => return error.InvalidAst,
+        .Exhausted => return error.OutOfMemory,
+    }
+
+    var counts: headers.Counts(@TypeOf(target)) = undefined;
+
+    @memcpy(&counts, result.counts);
+
+    return counts;
 }
 
 pub fn appendSeed(allocator: std.mem.Allocator, target: anytype, source: anytype, counts: *const headers.Counts(@TypeOf(target)), comptime layout: Layout, comptime copy_payloads: bool, comptime borrow_text: bool) headers.Error!void {
@@ -226,8 +228,13 @@ pub fn appendSeed(allocator: std.mem.Allocator, target: anytype, source: anytype
 }
 
 pub fn invoke(comptime execute: anytype, input: anytype) headers.Error!void {
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-    const result = zx.columns.invoke(execute, fixed.allocator(), input) catch |err| return failure(err);
+    var scratch_buf: [2048]u8 = undefined;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+
+    defer arena.deinit();
+
+    var fallback = std.heap.BufferFirstAllocator.init(&scratch_buf, arena.allocator());
+    const result = zx.columns.invoke(execute, fallback.allocator(), input) catch |err| return failure(err);
 
     return switch (result) {
         .Valid => {},

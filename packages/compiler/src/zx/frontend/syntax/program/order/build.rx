@@ -8,8 +8,9 @@
     <Call
         fn="body"
         in={{
-            ...$in,
-            first: $ctx.expressions
+            trees: $in,
+            expressions: $ctx.expressions.expressions,
+            edges: $ctx.expressions.edges
         }}
     />
 

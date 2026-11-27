@@ -65,7 +65,8 @@ export type Input = {
 
 export type Output = {
     cursor: Cursor,
-    count: u64
+    count: u64,
+    cleared?: u8[]
 }
 
 export type Resume = Input.Omit("recovered", "recovery") & {

@@ -61,8 +61,6 @@ pub fn resolve(arena: *std.heap.ArenaAllocator, request: Request, text: []const 
         .expressions = fields.expressions,
     } else null;
 
-    var ids = request.ids;
-
     const input: Input = .{
         .source = &source,
         .base = &base,
@@ -70,7 +68,6 @@ pub fn resolve(arena: *std.heap.ArenaAllocator, request: Request, text: []const 
         .aliases = &aliases,
         .grouping = if (grouping) |*view| view else null,
         .store = if (store) |*rules| rules else null,
-        .ids = @ptrCast(&ids),
     };
 
     const result = rule.execute(arena, &input) catch |err| switch (@as(anyerror, err)) {
@@ -83,6 +80,8 @@ pub fn resolve(arena: *std.heap.ArenaAllocator, request: Request, text: []const 
         .span = .{ .start = @intCast(result.diagnostic.start), .end = @intCast(result.diagnostic.end) },
         .message = result.diagnostic.message,
     };
+
+    for (result.ids, 0..) |id, index| request.ids[index] = @fromBackingInt(id);
 
     if (result.delta.kinds.len != 0) {
         try @import("../../merging/commit.zig").appendTypes(request.allocator, request.target, result.delta.*);

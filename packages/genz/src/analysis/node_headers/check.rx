@@ -1,10 +1,15 @@
 <Module>
     <Type from="model" as="Headers" />
 
-    <Args in={Headers.Layout} out={Headers.Check} />
+    <Args in={Headers.Layout} out={Headers.CheckResult} />
 
     <If on={$in.tags.length != $in.offsets.length}>
-        <Return value={Headers.Check.Invalid} />
+        <Return
+            value={{
+                check: Headers.Check.Invalid,
+                counts: []
+            }}
+        />
     </If>
 
     <Call
@@ -16,24 +21,59 @@
     />
 
     <If on={!$ctx.fits}>
-        <Return value={Headers.Check.Exhausted} />
+        <Return
+            value={{
+                check: Headers.Check.Exhausted,
+                counts: []
+            }}
+        />
     </If>
 
     <Call fn="count" in={$in} />
 
-    <If on={!$ctx.count}>
-        <Return value={Headers.Check.Invalid} />
+    <If on={!$ctx.count.valid}>
+        <Return
+            value={{
+                check: Headers.Check.Invalid,
+                counts: []
+            }}
+        />
     </If>
 
     <If on={$in.limits != null}>
-        <Return value={Headers.Check.Valid} />
+        <Return
+            value={{
+                check: Headers.Check.Valid,
+                counts: $ctx.count.counts
+            }}
+        />
     </If>
 
-    <Call fn="dense" in={$in} />
+    <Call
+        fn="dense"
+        in={{
+            ...$in.pick([
+                "tags",
+                "offsets",
+                "mask"
+            ]),
+            counts: $ctx.count.counts
+        }}
+    />
 
     <If on={$ctx.dense}>
-        <Return value={Headers.Check.Valid} />
+        <Return
+            value={{
+                check: Headers.Check.Valid,
+                counts: $ctx.count.counts
+            }}
+        />
     </If>
 
-    <Return value={Headers.Check.Invalid} />
+    <Return
+        value={{
+            check: Headers.Check.Invalid,
+            counts: []
+        }}
+    />
 </Module>

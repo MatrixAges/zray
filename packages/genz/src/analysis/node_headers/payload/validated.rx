@@ -6,21 +6,21 @@
 
     <Call
         module="validate"
-        in={$in.pick([
-            "complete",
-            "count_buffer",
-            "counts",
-            "existing",
-            "groups",
-            "limits",
-            "mask",
-            "offsets",
-            "tags"
-        ])}
+        in={{
+            ...$in.pick([
+                "complete",
+                "existing",
+                "groups",
+                "mask",
+                "offsets",
+                "tags"
+            ]),
+            selected: $in.layout == Payload.Layout.Selected
+        }}
     />
 
-    <If on={$ctx.validate != Headers.Check.Valid}>
-        <Return value={$ctx.validate} />
+    <If on={$ctx.validate.check != Headers.Check.Valid}>
+        <Return value={$ctx.validate.check} />
     </If>
 
     <If on={$in.tags.length == 0}>
@@ -29,12 +29,13 @@
 
     <Call
         module="append"
-        in={$in.omit([
-            "count_buffer",
-            "complete",
-            "existing",
-            "limits"
-        ])}
+        in={{
+            ...$in.omit([
+                "complete",
+                "existing"
+            ]),
+            counts: $ctx.validate.counts
+        }}
     />
 
     <If on={$ctx.append}>

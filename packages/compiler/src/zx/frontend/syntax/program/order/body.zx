@@ -1,38 +1,37 @@
-import memory from "memory"
-
 import edges from "./edges"
 import { Chain } from "./model"
 import chain from "./statement_chain"
 
-import type { Input as Order, Output } from "./model"
+import type { Output, Trees } from "./model"
 
-export type Input = Order & {
-    first: u64
+export type Input = {
+    trees: Trees,
+    expressions: u64[],
+    edges: u64[]
 }
 
 export default function (in: Input): Output {
     const trees = in.trees
     const blocks = trees.blocks
-    const columns = in.columns
-    const target = columns.edges
     const block_rows = blocks.blocks
+    const empty_blocks: u64[] = []
 
-    const block_end = loop({
+    const block_state = loop({
         row: 0,
-        end: in.first
+        blocks: empty_blocks,
+        edges: in.edges
     }, {
         while: state => state.row < block_rows.length,
         next: state => {
             const block = block_rows[state.row]
 
-            memory.writeU64(columns.blocks, state.row, state.end)
+            state.blocks = state.blocks.push(state.edges.length)[0]
 
             if (block.count != 0) {
-                state.end = edges({
+                state.edges = edges({
                     trees,
-                    target,
+                    edges: state.edges,
                     kind: Chain.Statements,
-                    first: state.end,
                     head: block.head,
                     count: block.count
                 })
@@ -40,28 +39,32 @@ export default function (in: Input): Output {
 
             state.row += 1
         },
-        return: state => state.end
+        return: state => ({
+            blocks: state.blocks,
+            edges: state.edges
+        })
     })
 
     const statements = blocks.statements
+    const empty_statements: u64[] = []
 
-    const statement_end = loop({
+    const statement_state = loop({
         row: 0,
-        end: block_end
+        statements: empty_statements,
+        edges: block_state.edges
     }, {
         while: state => state.row < statements.length,
         next: state => {
             const statement = statements[state.row]
             const kind = chain(statement.kind)
 
-            memory.writeU64(columns.statements, state.row, state.end)
+            state.statements = state.statements.push(state.edges.length)[0]
 
             if (kind != Chain.Empty && statement.count != 0) {
-                state.end = edges({
+                state.edges = edges({
                     trees,
-                    target,
+                    edges: state.edges,
                     kind,
-                    first: state.end,
                     head: statement.head,
                     count: statement.count
                 })
@@ -69,27 +72,31 @@ export default function (in: Input): Output {
 
             state.row += 1
         },
-        return: state => state.end
+        return: state => ({
+            statements: state.statements,
+            edges: state.edges
+        })
     })
 
     const names = blocks.names
+    const empty_patterns: u64[] = []
 
-    return loop({
+    const pattern_state = loop({
         row: 0,
-        end: statement_end
+        patterns: empty_patterns,
+        edges: statement_state.edges
     }, {
         while: state => state.row < names.length,
         next: state => {
             const name = names[state.row]
 
-            memory.writeU64(columns.patterns, state.row, state.end)
+            state.patterns = state.patterns.push(state.edges.length)[0]
 
             if (name.count != 0) {
-                state.end = edges({
+                state.edges = edges({
                     trees,
-                    target,
+                    edges: state.edges,
                     kind: Chain.Names,
-                    first: state.end,
                     head: name.head,
                     count: name.count
                 })
@@ -97,6 +104,17 @@ export default function (in: Input): Output {
 
             state.row += 1
         },
-        return: state => state.end
+        return: state => ({
+            patterns: state.patterns,
+            edges: state.edges
+        })
     })
+
+    return {
+        expressions: in.expressions,
+        blocks: block_state.blocks,
+        statements: statement_state.statements,
+        patterns: pattern_state.patterns,
+        edges: pattern_state.edges
+    }
 }

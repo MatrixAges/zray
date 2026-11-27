@@ -1,37 +1,31 @@
-import memory from "memory"
-
 import encode from "../function/levels/encode"
 import { Knowledge } from "../function/levels/model"
 
-import type { Allocator } from "memory"
-import type { Buffers, Cells as Output, Layout } from "./model"
-
-export type Input = {
-    layout: Layout,
-    buffers: Buffers,
-    allocator: Allocator
-}
+import type { Cells as Output, Layout as Input } from "./model"
 
 export default function (in: Input): Output {
     const empty = encode(Knowledge.None)
-    const count = in.layout.input_count + in.layout.output_count
+    const count = in.input_count + in.output_count
+    const empty_guarantees: u8[] = []
+    const empty_demands: u8[] = []
 
-    const guarantees = memory.allocateU8Buffer(
-        in.allocator,
-        in.buffers.guarantees,
-        count
-    )
-
-    const demands = memory.allocateU8Buffer(in.allocator, in.buffers.demands, count)
-
-    if (count != 0) {
-        memory.fillByteRange(in.buffers.guarantees, 0, count, empty)
-        memory.fillByteRange(in.buffers.demands, 0, count, empty)
-    }
+    const buffers = loop({
+        index: 0,
+        guarantees: empty_guarantees,
+        demands: empty_demands
+    }, {
+        while: state => state.index < count,
+        next: state => {
+            state.guarantees = state.guarantees.push(empty)[0]
+            state.demands = state.demands.push(empty)[0]
+            state.index += 1
+        },
+        return: state => state
+    })
 
     return {
-        layout: in.layout,
-        guarantees,
-        demands
+        layout: in,
+        guarantees: buffers.guarantees,
+        demands: buffers.demands
     }
 }

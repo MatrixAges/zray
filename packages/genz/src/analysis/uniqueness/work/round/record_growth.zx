@@ -1,11 +1,10 @@
-import memory from "memory"
+import type { Cursor as Input } from "../model"
 
-import { growth_slot } from "../const"
-
-import type { State as Input } from "../model"
-
-export type Output = void
+export type Output = Input
 
 export default function (in: Input): Output {
-    memory.writeU64(in.positions, growth_slot, 1)
+    return {
+        ...in,
+        grew: true
+    }
 }

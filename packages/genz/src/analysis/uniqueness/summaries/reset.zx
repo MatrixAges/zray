@@ -1,58 +1,81 @@
-import memory from "memory"
-
 import encode from "../function/levels/encode"
 import { Knowledge } from "../function/levels/model"
 import { Mode } from "./model"
 
 import type { Lifecycle as Input } from "./model"
 
-export type Output = void
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { layout, guarantees } = in
+    const { layout } = in
 
     const count = layout.input_first.length
     const all = encode(Knowledge.All)
     const none = encode(Knowledge.None)
-    const initial: u64 = 0
+    const empty: u8[] = []
 
-    const filled = loop(initial, {
-        while: row => row < count,
-        next: row => {
-            const internal = in.active[row]
-            const reached = in.mode == Mode.Initialize || in.known[row]
-            const next = row + 1
-            const input = layout.input_first[row]
-            const output = layout.output_first[row]
-
-            const input_end = match {
+    const input_cells = loop({
+        row: 0,
+        cells: empty
+    }, {
+        while: state => state.row < count,
+        next: state => {
+            const internal = in.active[state.row]
+            const reached = in.mode == Mode.Initialize || in.known[state.row]
+            const next = state.row + 1
+            const start = layout.input_first[state.row]
+            const end = match {
                 next == count => layout.input_count,
                 _ => layout.input_first[next]
             }
-            const output_end = match {
+            const value = internal && reached ? all : none
+
+            state.cells = loop({
+                pos: start,
+                cells: state.cells
+            }, {
+                while: inner => inner.pos < end,
+                next: inner => {
+                    inner.cells = inner.cells.push(value)[0]
+                    inner.pos += 1
+                },
+                return: inner => inner.cells
+            })
+
+            state.row = next
+        },
+        return: state => state.cells
+    })
+
+    return loop({
+        row: 0,
+        cells: input_cells
+    }, {
+        while: state => state.row < count,
+        next: state => {
+            const internal = in.active[state.row]
+            const next = state.row + 1
+            const start = layout.output_first[state.row]
+            const end = match {
                 next == count => layout.output_count,
                 _ => layout.output_first[next]
             }
+            const value = internal ? all : none
 
-            if (input != input_end) {
-                memory.fillByteRange(
-                    guarantees,
-                    input,
-                    input_end - input,
-                    internal && reached ? all : none
-                )
-            }
+            state.cells = loop({
+                pos: start,
+                cells: state.cells
+            }, {
+                while: inner => inner.pos < end,
+                next: inner => {
+                    inner.cells = inner.cells.push(value)[0]
+                    inner.pos += 1
+                },
+                return: inner => inner.cells
+            })
 
-            if (output != output_end) {
-                memory.fillByteRange(
-                    guarantees,
-                    layout.input_count + output,
-                    output_end - output,
-                    internal ? all : none
-                )
-            }
-
-            row = next
-        }
+            state.row = next
+        },
+        return: state => state.cells
     })
 }

@@ -1,6 +1,5 @@
 import integers from "std:integer"
 import refresh from "core/bytes/index/borrowed/refresh"
-import { reserve } from "core/column_ranges"
 import { max_u32 } from "core/const"
 import memory from "memory"
 
@@ -12,7 +11,7 @@ export type Output = u32[]?
 
 export default function (in: Input): Output {
     const { destination, cache } = in
-    const { first, index, resource, ranges } = destination
+    const { first, index } = destination
 
     const required = first + cache.names.length
     const limit = integers.widen(max_u32)
@@ -22,7 +21,7 @@ export default function (in: Input): Output {
     const capacity = memory.u32Views(index.buckets).length
     const initial: u32[]? = null
 
-    const rebuilt = match {
+    return match {
         required > linear_name_limit => refresh({
             keys: memory.bindTextView(index.keys, destination.committed, null),
             buckets: index.buckets,
@@ -34,14 +33,4 @@ export default function (in: Input): Output {
         }).buckets,
         _ => initial
     }
-
-    reserve({
-        resource,
-        ranges,
-        limit,
-        precise: false,
-        uniform: true
-    })
-
-    return rebuilt
 }

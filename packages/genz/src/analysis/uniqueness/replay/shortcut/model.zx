@@ -1,5 +1,4 @@
 import type { ReadColumn, ListColumn, WriteColumn, U8Buffer } from "memory"
-import type { Clear } from "../../summaries/model"
 
 export enum Phase {
     Start,
@@ -34,7 +33,12 @@ export type Input = Scan & Visits & {
 }
 
 export type Advance = Input & {
-    demands: Clear
+    demand_count: u64
+}
+
+export type Advanced = {
+    cursor: Cursor,
+    cleared?: u8[]
 }
 
 export type PlanReads = {

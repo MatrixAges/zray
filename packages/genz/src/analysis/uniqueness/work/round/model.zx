@@ -1,13 +1,20 @@
 import type { AtomicRows, WriteColumn } from "memory"
 import type { Phase } from "../../program/model"
-import type { Lifecycle } from "../../summaries/model"
-import type { Fill, Notify, State } from "../model"
+import type { Facts } from "../../summaries/model"
+import type { Cursor, Fill, Notify, State } from "../model"
 
 export type Input = {
     queue: Fill,
-    facts: Lifecycle,
+    facts: Facts,
     phase: Phase,
     exhausted: bool
+}
+
+export type PrepareSummaries = Input.Omit("queue")
+
+export type Prepared = {
+    cursor: Cursor,
+    guarantees?: u8[]
 }
 
 export type Take = {
@@ -23,7 +30,8 @@ export type Visit = {
     first: u64[],
     second: u64[],
     grew: bool,
-    prefetch: bool
+    prefetch: bool,
+    cursor: Cursor
 }
 
 export type Settlement = Notify.Omit("demand_body") & {
@@ -52,4 +60,8 @@ export type Advance = Take & Notify.Pick("dirty", "active") & {
     outputs: AtomicRows,
     callers: u64[][],
     previous?: Feedback
+}
+
+export type PhaseFeedback = Advance.Omit("previous") & {
+    previous: Feedback
 }

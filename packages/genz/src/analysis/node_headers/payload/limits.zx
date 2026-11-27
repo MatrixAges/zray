@@ -1,31 +1,34 @@
 import { minimum } from "core/column_transfer"
-import memory from "memory"
 
-import type { U64Buffer } from "memory"
-import type { Shape } from "./model"
+import type { Validation } from "./model"
 
-export type Input = Shape.Pick("groups", "complete") & {
-    limits: U64Buffer
-}
+export type Input = Validation.Pick("groups", "complete")
 
-export type Output = void
+export type Output = u64[]
 
 export default function (in: Input): Output {
-    const { groups, complete, limits } = in
+    const { groups, complete } = in
 
-    const finished = loop(0, {
-        while: index => index < complete.length,
-        next: index => {
-            const limit = match complete[index] {
+    const empty: u64[] = []
+    const zero: u64 = 0
+
+    return loop({
+        index: 0,
+        limits: empty
+    }, {
+        while: state => state.index < complete.length,
+        next: state => {
+            const limit = match complete[state.index] {
                 true => minimum({
                     groups,
-                    index
+                    index: state.index
                 }),
-                _ => 0
+                _ => zero
             }
 
-            memory.writeU64(limits, index, limit)
-            index += 1
-        }
+            state.limits = state.limits.push(limit)[0]
+            state.index += 1
+        },
+        return: state => state.limits
     })
 }

@@ -1,69 +1,21 @@
 <Module>
     <Type from="model" as="Round" />
-    <Type from="../../program/model" as="Program" />
 
     <Args in={Round.Advance} out={Round.Visit} />
 
-    <If on={$in.previous != null}>
-        <Switch on={$in.phase}>
-            <Case value={Program.Phase.Settle}>
-                <Call
-                    module="publish"
-                    in={{
-                        ...$in.pick([
-                            "state",
-                            "dirty",
-                            "active",
-                            "outputs"
-                        ]),
-                        ...$in.previous.pick([
-                            "body",
-                            "levels",
-                            "changed"
-                        ]),
-                        callers: $in.callers[$in.previous.body]
-                    }}
-                />
-            </Case>
-
-            <Case value={Program.Phase.Demand}>
-                <If on={$in.previous.changed.length != 0}>
-                    <Call
-                        fn="../notify"
-                        in={{
-                            ...$in.pick([
-                                "state",
-                                "dirty",
-                                "active"
-                            ]),
-                            changed: $in.previous.changed,
-                            callers: $in.callers[$in.previous.body],
-                            demand_body: $in.previous.body
-                        }}
-                    />
-                </If>
-            </Case>
-
-            <Case value={Program.Phase.Plan}>
-                <If on={$in.previous.plan != null}>
-                    <Call fn="../../program/visit/publish" in={$in.previous.plan} />
-                </If>
-            </Case>
-        </Switch>
-
-        <If on={$in.previous.grew}>
-            <Call fn="record_growth" in={$in.state} />
-        </If>
-    </If>
+    <Call module="feedback" in={$in} />
 
     <Call
         fn="take"
-        in={$in.pick([
-            "state",
-            "slots",
-            "phase",
-            "following"
-        ])}
+        in={{
+            state: {
+                ...$in.state,
+                cursor: $ctx.feedback
+            },
+            slots: $in.slots,
+            phase: $in.phase,
+            following: $in.following
+        }}
     />
 
     <Return value={$ctx.take} />

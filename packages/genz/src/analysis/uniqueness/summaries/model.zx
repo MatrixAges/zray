@@ -1,6 +1,3 @@
-import type { Allocator, U8Buffer } from "memory"
-import type { ColumnAllocator, RowBuffer } from "memory/columns"
-
 export type Shape = {
     counts: u32[],
     input_types: u32[],
@@ -14,30 +11,14 @@ export type Layout = {
     output_count: u64
 }
 
-export type Buffers = {
-    guarantees: U8Buffer,
-    demands: U8Buffer
-}
-
 export type Cells = {
     layout: Layout,
     guarantees: u8[],
     demands: u8[]
 }
 
-export type Views = {
-    input: RowBuffer,
-    output: RowBuffer,
-    inputs: RowBuffer,
-    outputs: RowBuffer
-}
-
 export type Create = {
-    shape: Shape,
-    views: Views,
-    buffers: Buffers,
-    allocator: Allocator,
-    owner_rows: ColumnAllocator
+    shape: Shape
 }
 
 export enum Mode {
@@ -47,16 +28,16 @@ export enum Mode {
     ClearWants
 }
 
-export type Lifecycle = {
-    mode: Mode,
+export type Facts = {
     layout: Layout,
-    guarantees: U8Buffer,
-    demands: U8Buffer,
     active: bool[],
     known: bool[]
 }
 
+export type Lifecycle = Facts & {
+    mode: Mode
+}
+
 export type Clear = {
-    cells: U8Buffer,
     count: u64
 }

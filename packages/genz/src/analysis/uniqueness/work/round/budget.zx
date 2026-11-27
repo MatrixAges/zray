@@ -1,13 +1,18 @@
-import memory from "memory"
-
-import { budget_slot, growth_slot } from "../const"
 import { visits_per_body } from "./const"
 
-import type { State as Input } from "../model"
+import type { Cursor } from "../model"
 
-export type Output = void
+export type Input = {
+    cursor: Cursor,
+    capacity: u64
+}
+
+export type Output = Cursor
 
 export default function (in: Input): Output {
-    memory.writeU64(in.positions, budget_slot, in.capacity * visits_per_body)
-    memory.writeU64(in.positions, growth_slot, 0)
+    return {
+        ...in.cursor,
+        budget: in.capacity * visits_per_body,
+        grew: false
+    }
 }

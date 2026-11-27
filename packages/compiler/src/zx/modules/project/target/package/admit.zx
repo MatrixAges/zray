@@ -1,12 +1,7 @@
-import memory from "memory"
-
 import {
     duplicate_package,
-    export_slot,
-    instance_slot,
     invalid_package_library,
     invalid_package_source,
-    path_slot,
     undeclared_package
 } from "../const"
 import direction from "../direction"
@@ -19,7 +14,10 @@ import type { PackageRequest as Input, PackageTarget as Output } from "../model"
 export default function (in: Input): Output {
     if (!in.present) {
         return {
-            issue: undeclared_package
+            issue: undeclared_package,
+            path: "",
+            instance: "",
+            export_name: ""
         }
     }
 
@@ -33,7 +31,10 @@ export default function (in: Input): Output {
 
         if (issue != null) {
             return {
-                issue
+                issue,
+                path: "",
+                instance: "",
+                export_name: ""
             }
         }
     }
@@ -48,19 +49,28 @@ export default function (in: Input): Output {
 
     if (kind == PackageShape.InvalidSource) {
         return {
-            issue: invalid_package_source
+            issue: invalid_package_source,
+            path: "",
+            instance: "",
+            export_name: ""
         }
     }
 
     if (kind == PackageShape.InvalidCompiled) {
         return {
-            issue: invalid_package_library
+            issue: invalid_package_library,
+            path: "",
+            instance: "",
+            export_name: ""
         }
     }
 
     if (in.duplicate) {
         return {
-            issue: duplicate_package
+            issue: duplicate_package,
+            path: "",
+            instance: "",
+            export_name: ""
         }
     }
 
@@ -74,19 +84,10 @@ export default function (in: Input): Output {
         path: target
     })
 
-    memory.writeTextSlot(in.output, path_slot, path)
-
-    if (members != null) {
-        const instance = memory.copyColumnText(in.release, members.instance)
-
-        memory.writeTextSlot(in.output, instance_slot, instance)
-
-        const name = memory.copyColumnText(in.release, members.name)
-
-        memory.writeTextSlot(in.output, export_slot, name)
-    }
-
     return {
-        issue: null
+        issue: null,
+        path,
+        instance: members == null ? "" : members.instance,
+        export_name: members == null ? "" : members.name
     }
 }

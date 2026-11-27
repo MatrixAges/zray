@@ -40,7 +40,7 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, s
     const stored_plans = zx.memory.borrowNestedColumn(Memo.Planned, &.{}, ctx.memo.planned.values.items);
     const digests = zx.memory.borrowNestedColumn(Memo.Digest, &.{}, ctx.bodies.identities);
     var key: []u8 = &ctx.memo.key;
-    var demands = ctx.summaries.storage.?.demands;
+    const demands = ctx.summaries.storage.?.demands;
     var output: zx.memory.RowOutput(Row, Columns, .{ .positions = &.{"visit"}, .values = &.{"value"} }) = undefined;
     var normalized: rows.Normalized(Recovery) = undefined;
     var renewed: rows.Renewed(Recovery) = undefined;
@@ -60,7 +60,7 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, s
             .planned = trace.planned.starts,
             .changed = ctx.replay.changed,
             .agreed = cursor.phase == .start,
-            .demands = &.{ .cells = @ptrCast(&demands), .count = demands.len },
+            .demand_count = demands.len,
             .cursor = &.{ .body = cursor.body, .visit = cursor.visit, .phase = @fromBackingInt(@intCast(@backingInt(cursor.phase))) },
         },
         .tables = &.{
@@ -106,6 +106,8 @@ pub fn advance(ctx: *Context, trace: *const Trace, scratch: std.mem.Allocator, s
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => std.debug.panic("ownership replay scan failed: {s}", .{@errorName(err)}),
     };
+
+    if (result.cleared) |cleared| @memcpy(demands, cleared);
 
     replacements.used = @intCast(result.count);
 

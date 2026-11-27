@@ -102,12 +102,11 @@ export default function (in: Input): Output {
         }
     }
 
-    memory.writeU32(input.ids, row, found.result)
-
     return {
         input,
         owner,
         row: row + 1,
-        state: found
+        state: found,
+        ids: in.ids.push(found.result)[0]
     }
 }

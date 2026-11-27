@@ -1,0 +1,80 @@
+import type { State } from "./model"
+
+export type Input = {
+    depth: u64,
+    selection_depth: u64
+}
+
+export type Output = State
+
+export default function (in: Input): Output {
+    const empty_u32: u32[] = []
+    const empty_u64: u64[] = []
+    const empty_u8: u8[] = []
+    const empty_routes: u8[][] = []
+    const empty_bool: bool[] = []
+    const empty_fallback: u64?[] = []
+    const no_fallback: u64? = null
+    const zero_u32: u32 = 0
+    const zero_u64: u64 = 0
+
+    const scopes = loop({
+        index: 0,
+        scope_firsts: empty_u32,
+        scope_placements: empty_u64,
+        scope_conditions: empty_u32,
+        scope_yes_starts: empty_u32,
+        scope_yes_counts: empty_u32,
+        scope_routes: empty_routes
+    }, {
+        while: state => state.index < in.depth,
+        next: state => {
+            state.scope_firsts = state.scope_firsts.push(zero_u32)[0]
+            state.scope_placements = state.scope_placements.push(zero_u64)[0]
+            state.scope_conditions = state.scope_conditions.push(zero_u32)[0]
+            state.scope_yes_starts = state.scope_yes_starts.push(zero_u32)[0]
+            state.scope_yes_counts = state.scope_yes_counts.push(zero_u32)[0]
+            state.scope_routes = state.scope_routes.push(empty_u8)[0]
+            state.index += 1
+        },
+        return: state => state
+    })
+
+    const selections = loop({
+        index: 0,
+        selection_payloads: empty_u32,
+        selection_subjects: empty_u32,
+        selection_counts: empty_u32,
+        selection_comparisons: empty_u32,
+        selection_selected: empty_bool,
+        selection_fallbacks: empty_fallback
+    }, {
+        while: state => state.index < in.selection_depth,
+        next: state => {
+            state.selection_payloads = state.selection_payloads.push(zero_u32)[0]
+            state.selection_subjects = state.selection_subjects.push(zero_u32)[0]
+            state.selection_counts = state.selection_counts.push(zero_u32)[0]
+            state.selection_comparisons =
+                state.selection_comparisons.push(zero_u32)[0]
+            state.selection_selected = state.selection_selected.push(false)[0]
+            state.selection_fallbacks = state.selection_fallbacks.push(no_fallback)[0]
+            state.index += 1
+        },
+        return: state => state
+    })
+
+    return {
+        scope_firsts: scopes.scope_firsts,
+        scope_placements: scopes.scope_placements,
+        scope_conditions: scopes.scope_conditions,
+        scope_yes_starts: scopes.scope_yes_starts,
+        scope_yes_counts: scopes.scope_yes_counts,
+        scope_routes: scopes.scope_routes,
+        selection_payloads: selections.selection_payloads,
+        selection_subjects: selections.selection_subjects,
+        selection_counts: selections.selection_counts,
+        selection_comparisons: selections.selection_comparisons,
+        selection_selected: selections.selection_selected,
+        selection_fallbacks: selections.selection_fallbacks
+    }
+}

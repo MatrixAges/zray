@@ -23,8 +23,6 @@
         />
     </If>
 
-    <Call fn="names" in={$in.omit(["types"])} />
-
     <Call
         fn="index_suffix"
         in={{

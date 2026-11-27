@@ -1,0 +1,26 @@
+<Module>
+    <Type from="model" as="Round" />
+    <Type from="../model" as="Work" />
+
+    <Args in={Round.Advance} out={Work.Cursor} />
+
+    <If on={$in.previous != null}>
+        <Call
+            module="phase_feedback"
+            in={{
+                ...$in,
+                previous: $in.previous
+            }}
+        />
+
+        <If on={$in.previous.grew}>
+            <Call fn="record_growth" in={$ctx.phase_feedback} />
+
+            <Return value={$ctx.record_growth} />
+        </If>
+
+        <Return value={$ctx.phase_feedback} />
+    </If>
+
+    <Return value={$in.state.cursor} />
+</Module>

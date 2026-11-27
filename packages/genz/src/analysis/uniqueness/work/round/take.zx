@@ -1,15 +1,16 @@
 import memory from "memory"
 
 import { Phase } from "../../program/model"
-import { budget_slot, clear_flag, count_slot, growth_slot, head_slot } from "../const"
+import { clear_flag } from "../const"
 
 import type { Take as Input, Visit as Output } from "./model"
 
 export default function (in: Input): Output {
     const { state } = in
 
-    const head = memory.readU64(state.positions, head_slot)
-    const count = memory.readU64(state.positions, count_slot)
+    const cursor = state.cursor
+    const head = cursor.head
+    const count = cursor.count
 
     if (count == 0) {
         return {
@@ -17,8 +18,9 @@ export default function (in: Input): Output {
             exhausted: false,
             first: [],
             second: [],
-            grew: memory.readU64(state.positions, growth_slot) != 0,
-            prefetch: false
+            grew: cursor.grew,
+            prefetch: false,
+            cursor
         }
     }
 
@@ -29,16 +31,11 @@ export default function (in: Input): Output {
     const first = next == state.capacity ? 0 : next
 
     memory.writeU8(state.queued, index, clear_flag)
-    memory.writeU64(state.positions, head_slot, first)
-    memory.writeU64(state.positions, count_slot, count - 1)
 
     const limited = in.phase == Phase.Settle
-    const budget = limited ? memory.readU64(state.positions, budget_slot) : 0
+    const budget = cursor.budget
     const exhausted = limited && budget == 0
-
-    if (limited && !exhausted) {
-        memory.writeU64(state.positions, budget_slot, budget - 1)
-    }
+    const next_budget = limited && !exhausted ? budget - 1 : budget
 
     return {
         body: exhausted ? null : index,
@@ -46,6 +43,12 @@ export default function (in: Input): Output {
         first: memory.borrowU64Range(in.slots, head, prefix),
         second: memory.borrowU64Range(in.slots, 0, count - prefix),
         grew: false,
-        prefetch: !exhausted && !in.following
+        prefetch: !exhausted && !in.following,
+        cursor: {
+            ...cursor,
+            head: first,
+            count: count - 1,
+            budget: next_budget
+        }
     }
 }

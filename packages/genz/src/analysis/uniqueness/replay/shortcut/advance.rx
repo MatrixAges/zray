@@ -1,13 +1,30 @@
 <Module>
     <Type from="model" as="Trace" />
 
-    <Args in={Trace.Advance} out={Trace.Cursor} />
+    <Args in={Trace.Advance} out={Trace.Advanced} />
 
-    <Call module="choose" in={$in.omit(["demands"])} />
+    <Call module="choose" in={$in.omit(["demand_count"])} />
 
     <If on={$ctx.choose.phase == Trace.Phase.Reject}>
-        <Call fn="../../summaries/clear" in={$in.demands} />
+        <Call
+            fn="../../summaries/clear"
+            in={{
+                count: $in.demand_count
+            }}
+        />
+
+        <Return
+            value={{
+                cursor: $ctx.choose,
+                cleared: $ctx.clear
+            }}
+        />
     </If>
 
-    <Return value={$ctx.choose} />
+    <Return
+        value={{
+            cursor: $ctx.choose,
+            cleared: null
+        }}
+    />
 </Module>

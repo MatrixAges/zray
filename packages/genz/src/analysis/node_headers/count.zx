@@ -1,16 +1,29 @@
 import integers from "std:integer"
-import memory from "memory"
 
-import type { Layout as Input } from "./model"
-
-export type Output = bool
+import type { CountResult as Output, Layout as Input } from "./model"
 
 export default function (in: Input): Output {
-    const { counts, tags, offsets, mask, limits } = in
+    const { tags, offsets, mask, limits } = in
+
+    const empty: u32[] = []
+    const zero: u32 = 0
+
+    const initial = loop({
+        index: 0,
+        counts: empty
+    }, {
+        while: state => state.index < in.variants,
+        next: state => {
+            state.counts = state.counts.push(zero)[0]
+            state.index += 1
+        },
+        return: state => state.counts
+    })
 
     return loop({
         index: 0,
-        valid: true
+        valid: true,
+        counts: initial
     }, {
         while: state => state.valid && state.index < tags.length,
         next: state => {
@@ -21,20 +34,20 @@ export default function (in: Input): Output {
                 state.valid = false
             } else if (
                 limits != null &&
-                    integers.widen(offsets[state.index]) >= memory.readU64(
-                        limits,
-                        tag
-                    )
+                    integers.widen(offsets[state.index]) >= limits[tag]
             ) {
                 state.valid = false
             } else {
-                const count = memory.readU32(counts, tag)
+                const count = state.counts[tag]
 
-                memory.writeU32(counts, tag, count + 1)
+                state.counts[tag] = count + 1
             }
 
             state.index += 1
         },
-        return: state => state.valid
+        return: state => ({
+            valid: state.valid,
+            counts: state.counts
+        })
     })
 }

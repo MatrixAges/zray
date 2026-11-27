@@ -3,11 +3,10 @@ import integers from "std:integer"
 import merge from "../../function/updates/merge"
 import enqueue from "../enqueue"
 
+import type { Cursor as Output } from "../model"
 import type { Settlement } from "./model"
 
 export type Input = Settlement.Omit("changed", "active")
-
-export type Output = void
 
 export default function (in: Input): Output {
     const { state, body, levels, outputs, dirty, callers } = in
@@ -21,10 +20,12 @@ export default function (in: Input): Output {
     })
 
     if (weakened != 0) {
-        enqueue({
+        return enqueue({
             state,
             dirty,
             indices: callers
         })
     }
+
+    return state.cursor
 }

@@ -1,35 +1,41 @@
 <Module>
     <Type from="model" as="State" />
 
-    <Args in={State.Lifecycle} out={void} />
+    <Args in={State.Lifecycle} out={u8[]} />
 
     <Switch on={$in.mode}>
         <Case value={State.Mode.Initialize}>
             <Call fn="reset" in={$in} />
+
+            <Return value={$ctx.reset} />
         </Case>
 
         <Case value={State.Mode.Reset}>
             <Call fn="reset" in={$in} />
+
+            <Return value={$ctx.reset} />
         </Case>
 
         <Case value={State.Mode.Clear}>
             <Call
                 fn="clear"
                 in={{
-                    cells: $in.guarantees,
                     count: $in.layout.input_count + $in.layout.output_count
                 }}
             />
+
+            <Return value={$ctx.clear} />
         </Case>
 
         <Case value={State.Mode.ClearWants}>
             <Call
                 fn="clear"
                 in={{
-                    cells: $in.demands,
                     count: $in.layout.input_count + $in.layout.output_count
                 }}
             />
+
+            <Return value={$ctx.clear} />
         </Case>
     </Switch>
 </Module>

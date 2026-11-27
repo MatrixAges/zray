@@ -21,8 +21,9 @@
 
     <Return
         value={{
-            cursor: $ctx.advance,
-            count: $ctx.consume.count
+            cursor: $ctx.advance.cursor,
+            count: $ctx.consume.count,
+            cleared: $ctx.advance.cleared
         }}
     />
 </Module>

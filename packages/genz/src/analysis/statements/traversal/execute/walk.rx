@@ -3,11 +3,20 @@
 
     <Args in={Execution.Run} out={u64} />
 
+    <Call
+        fn="init_state"
+        in={{
+            depth: $in.plan.depth,
+            selection_depth: $in.plan.selection_depth
+        }}
+    />
+
     <Loop on={$in.running}>
         <Call
             module="next_action"
             in={{
                 ...$in,
+                state: $ctx.init_state,
                 index: 0,
                 child: 0,
                 running: $in.plan.actions.length != 0

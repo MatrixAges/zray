@@ -1,10 +1,8 @@
 import memory from "memory"
 
-import { clear_flag, count_slot, head_slot, queued_flag } from "./const"
+import { clear_flag, queued_flag } from "./const"
 
-import type { Fill as Input } from "./model"
-
-export type Output = void
+import type { Cursor as Output, Fill as Input } from "./model"
 
 export default function (in: Input): Output {
     const queue = in.state
@@ -30,6 +28,10 @@ export default function (in: Input): Output {
         return: row => row.tail
     })
 
-    memory.writeU64(queue.positions, head_slot, 0)
-    memory.writeU64(queue.positions, count_slot, count)
+    return {
+        head: 0,
+        count,
+        budget: 0,
+        grew: false
+    }
 }

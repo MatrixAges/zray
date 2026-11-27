@@ -2,19 +2,32 @@
     <Type from="model" as="Payload" />
     <Type from="../model" as="Headers" />
 
-    <Args in={Payload.Validation} out={Headers.Check} />
+    <Args in={Payload.Validation} out={Payload.ValidationResult} />
 
-    <If on={$in.limits != null}>
+    <If on={$in.selected}>
         <Call
             fn="limits"
+            in={$in.pick([
+                "complete",
+                "groups"
+            ])}
+        />
+
+        <Call
+            module="../check"
             in={{
                 ...$in.pick([
-                    "complete",
-                    "groups"
+                    "existing",
+                    "tags",
+                    "offsets",
+                    "mask"
                 ]),
-                limits: $in.limits
+                limits: $ctx.limits,
+                variants: $in.complete.length
             }}
         />
+
+        <Return value={$ctx.check} />
     </If>
 
     <Call
@@ -24,34 +37,36 @@
                 "existing",
                 "tags",
                 "offsets",
-                "mask",
-                "limits"
+                "mask"
             ]),
-            counts: $in.count_buffer,
-            variants: $in.counts.length
+            limits: null,
+            variants: $in.complete.length
         }}
     />
 
-    <If on={$ctx.check != Headers.Check.Valid}>
+    <If on={$ctx.check.check != Headers.Check.Valid}>
         <Return value={$ctx.check} />
-    </If>
-
-    <If on={$in.limits != null}>
-        <Return value={Headers.Check.Valid} />
     </If>
 
     <Call
         fn="shape"
-        in={$in.pick([
-            "complete",
-            "groups",
-            "counts"
-        ])}
+        in={{
+            ...$in.pick([
+                "complete",
+                "groups"
+            ]),
+            counts: $ctx.check.counts
+        }}
     />
 
     <If on={$ctx.shape}>
-        <Return value={Headers.Check.Valid} />
+        <Return value={$ctx.check} />
     </If>
 
-    <Return value={Headers.Check.Invalid} />
+    <Return
+        value={{
+            check: Headers.Check.Invalid,
+            counts: []
+        }}
+    />
 </Module>

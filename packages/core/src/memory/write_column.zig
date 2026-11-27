@@ -282,10 +282,6 @@ pub fn writeRow(target: *anyopaque, index: u64, source: []const u8) IndexError!v
     @memcpy(output.bytes[offset..][0..width], source);
 }
 
-pub inline fn writeRowByteView(target: *anyopaque, index: u64, source: []const u8) IndexError!void {
-    try writeRow(target, index, std.mem.asBytes(&source));
-}
-
 pub inline fn writeRowIndex(target: *anyopaque, index: u64, value: u64) IndexError!void {
     const converted = std.math.cast(usize, value) orelse return error.IndexOutOfBounds;
 

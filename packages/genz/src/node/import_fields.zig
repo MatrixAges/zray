@@ -51,34 +51,27 @@ pub fn materializeBorrowingText(allocator: std.mem.Allocator, source: anytype) E
     if (generated) {
         const entry = @import("generated_node_materialize_fields");
         const Input = std.meta.Child(entry.Input);
-        const Target = std.meta.Child(@FieldType(Input, "target"));
+        var arena = std.heap.ArenaAllocator.init(allocator);
 
-        const Output = zx.memory.RowOutput(node.Field, Target, .{
-            .name = &.{"name"},
-            .value = &.{"value"},
-            .default_value = &.{"default_value"},
-            .comptime_parameter = &.{"comptime_parameter"},
-        });
+        defer arena.deinit();
 
-        var output: Output = undefined;
+        var scratch_buf: [1024]u8 = undefined;
+        var fallback = std.heap.BufferFirstAllocator.init(&scratch_buf, arena.allocator());
+        const fields = zx.columns.view(Input, source);
+        const result = zx.columns.invoke(entry.executeValue, fallback.allocator(), &fields) catch |err| return payloads.failure(err);
 
-        output.init();
+        if (!result.valid) return error.InvalidAst;
 
-        const fields = zx.columns.view(std.meta.Child(@FieldType(Input, "source")), source);
+        const materialized = try allocator.alloc(node.Field, result.fields.len);
 
-        const input: Input = .{
-            .source = &fields,
-            .target = &output.view,
-            .rows = @ptrCast(&output.buffer),
-            .allocator = @ptrCast(&allocator),
+        for (materialized, result.fields) |*item, field| item.* = .{
+            .name = field.name,
+            .value = @fromBackingInt(field.value),
+            .default_value = if (field.default_value) |id| @fromBackingInt(id) else null,
+            .comptime_parameter = field.comptime_parameter,
         };
 
-        var fixed = std.heap.FixedBufferAllocator.init(&.{});
-        const valid = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch |err| return payloads.failure(err);
-
-        if (!valid) return error.InvalidAst;
-
-        return output.rows();
+        return materialized;
     }
 
     const count = source.name.len;

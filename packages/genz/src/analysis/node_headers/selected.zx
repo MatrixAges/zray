@@ -7,18 +7,21 @@ import type { Selected as Input } from "./model"
 export type Output = void
 
 export default function (in: Input): Output {
-    const { bases, tags, mask, target_tags, target_offsets, count, lengths } = in
+    const { target_tags, target_offsets, tags, mask, count, lengths } = in
 
-    const written = loop(0, {
-        while: index => index < count,
-        next: index => {
-            const byte = integers.widenByte(tags[index])
+    const written = loop({
+        index: 0,
+        bases: in.bases
+    }, {
+        while: state => state.index < count,
+        next: state => {
+            const byte = integers.widenByte(tags[state.index])
             const tag = integers.andBits(byte, mask)
-            const offset = memory.readU32(bases, tag)
+            const offset = state.bases[tag]
 
-            memory.writeU32(target_offsets, index, offset)
-            memory.writeU32(bases, tag, offset + 1)
-            index += 1
+            memory.writeU32(target_offsets, state.index, offset)
+            state.bases[tag] = offset + 1
+            state.index += 1
         }
     })
 

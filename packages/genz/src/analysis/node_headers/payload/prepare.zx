@@ -1,31 +1,37 @@
 import integers from "std:integer"
 import { reserve } from "core/column_transfer"
-import memory from "memory"
 
 import type { Preparation as Input } from "./model"
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    const { allocator, groups, counts, bases } = in
+    const { allocator, groups, counts } = in
 
-    const prepared = loop(0, {
-        while: index => index < counts.length,
-        next: index => {
-            const count = integers.widen(counts[index])
+    const empty: u32[] = []
+    const zero: u32 = 0
 
-            if (count != 0) {
-                const base = reserve({
+    return loop({
+        index: 0,
+        bases: empty
+    }, {
+        while: state => state.index < counts.length,
+        next: state => {
+            const count = integers.widen(counts[state.index])
+
+            const base = match {
+                count != 0 => integers.narrow(reserve({
                     allocator,
                     groups,
-                    index,
+                    index: state.index,
                     count
-                })
-
-                memory.writeU32(bases, index, integers.narrow(base))
+                })),
+                _ => zero
             }
 
-            index += 1
-        }
+            state.bases = state.bases.push(base)[0]
+            state.index += 1
+        },
+        return: state => state.bases
     })
 }

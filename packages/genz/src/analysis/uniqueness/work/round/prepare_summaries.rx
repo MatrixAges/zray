@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Round" />
+    <Type from="../../program/model" as="Program" />
+    <Type from="../../summaries/model" as="Summary" />
+
+    <Args in={Round.PrepareSummaries} out={u8[]?} />
+
+    <If on={$in.phase == Program.Phase.Settle}>
+        <Call
+            fn="../../summaries/reset"
+            in={{
+                ...$in.facts,
+                mode: Summary.Mode.Reset
+            }}
+        />
+
+        <Return value={$ctx.reset} />
+    </If>
+
+    <If on={$in.phase == Program.Phase.Demand && $in.exhausted}>
+        <Call
+            fn="../../summaries/clear"
+            in={{
+                count: $in.facts.layout.input_count + $in.facts.layout.output_count
+            }}
+        />
+
+        <Return value={$ctx.clear} />
+    </If>
+
+    <Return value={null} />
+</Module>

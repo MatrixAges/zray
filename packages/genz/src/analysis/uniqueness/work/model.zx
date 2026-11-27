@@ -1,9 +1,16 @@
 import type { U8Buffer, U64Buffer } from "memory"
 
+export type Cursor = {
+    head: u64,
+    count: u64,
+    budget: u64,
+    grew: bool
+}
+
 export type State = {
     slots: U64Buffer,
     queued: U8Buffer,
-    positions: U64Buffer,
+    cursor: Cursor,
     capacity: u64
 }
 
