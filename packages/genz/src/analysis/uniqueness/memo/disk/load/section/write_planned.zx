@@ -1,7 +1,7 @@
+import integers from "std:integer"
 import memory from "memory"
 
 import claim from "../../../table/claim"
-import complete from "../../../table/complete"
 
 import type { PlannedWrite as Input } from "./model"
 
@@ -12,7 +12,7 @@ export default function (in: Input): Output {
     const { index, target } = section
 
     const row = claim({
-        ...index.omit(["used"]),
+        ...index,
         digest: record.digest,
         used
     })
@@ -36,9 +36,5 @@ export default function (in: Input): Output {
 
     memory.writeColumnBool(target.used, row, false)
 
-    return complete({
-        target: index.used,
-        used,
-        row
-    })
+    return row == integers.widen(used) ? used + 1 : used
 }

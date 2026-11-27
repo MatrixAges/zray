@@ -8,28 +8,23 @@ pub fn Frame(comptime Index: type) type {
     return struct {
         const Self = @This();
         digests: zx.memory.RowBuffer,
-        used: [1]u32,
-        count: []u32,
         index: Index,
         pub fn open(self: *Self, table: anytype) void {
             const keys = table.keys.allocatedSlice();
 
             self.digests = reserve.bind(&table.keys);
-            self.used = .{@intCast(table.keys.items.len)};
-            self.count = &self.used;
 
             self.index = .{
                 .keys = std.mem.sliceAsBytes(keys),
                 .buckets = @ptrCast(&table.buckets),
                 .capacity = table.buckets.len,
                 .rows = @ptrCast(&self.digests),
-                .used = @ptrCast(&self.count),
             };
         }
-
-        pub fn finish(self: *const Self, table: anytype) void {
-            table.keys.items.len = self.used[0];
-            table.values.items.len = self.used[0];
+        pub fn finish(self: *const Self, table: anytype, used: u32) void {
+            _ = self;
+            table.keys.items.len = used;
+            table.values.items.len = used;
         }
     };
 }

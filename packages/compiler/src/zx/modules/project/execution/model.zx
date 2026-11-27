@@ -1,6 +1,6 @@
 import type { Symbols } from "core/symbol_table/model"
 import type { ColumnLengths, ReadColumn, U8Buffer } from "memory"
-import type { FunctionBodyRow, WriteColumn } from "memory/columns"
+import type { FunctionBodyRow } from "memory/columns"
 import type { ProgramEntry, ProjectBody, ProjectEntry, ProjectWalk } from "project_host"
 import type { FunctionColumns } from "../../entry_body/model"
 import type { Frame } from "../load/model"
@@ -34,7 +34,9 @@ export type Body = {
 
 export type BodyResult = {
     duplicate?: string,
-    cache_root?: u64
+    cache_root?: u64,
+    records_used?: u64,
+    cache_used?: u64
 }
 
 export type Entry = {
@@ -65,7 +67,6 @@ export type EntryPublication = {
     functions: LinkedFunctions,
     lengths: ColumnLengths,
     linked_count: u64,
-    recursive: WriteColumn,
     original: EntryBody
 }
 

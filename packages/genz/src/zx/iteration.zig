@@ -12,6 +12,20 @@ const generated = @import("genz_options").generated_analysis;
 const entry = if (generated) @import("generated_lower_loop") else struct {};
 const Input = if (generated) std.meta.Child(entry.Input) else void;
 const RenewalSource = if (generated) std.meta.Child(std.meta.Child(@FieldType(Input, "renewal_source"))) else void;
+const StoreState = if (generated) std.meta.Child(@FieldType(entry.zx_pending, "store_0")) else void;
+
+const StoreHost = if (generated) struct {
+    frame: *Frame,
+    store_0: *StoreState,
+    pub fn commit(self: *@This(), pending: anytype) error{}!void {
+        if (pending.store_0) |next| {
+            self.store_0.* = next;
+
+            if (next.has_seed) self.frame.seed = @fromBackingInt(next.seed);
+            if (next.changed_name.len != 0) self.frame.changed_name = next.changed_name;
+        }
+    }
+} else void;
 
 pub fn lower(self: *Lower, id: ir.ExprId, iteration: ir.Iteration) Lower.Error!node.ExpressionId {
     return (try lowerMode(self, id, iteration, .reference, null)).?;
@@ -74,21 +88,17 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
     const self = frame.lowering;
     const state = self.state_symbols.current();
     const stack = self.stack_symbols.current();
-    var state_count: []u64 = @as(*[1]u64, @ptrCast(&state.count));
-    var stack_count: []u64 = @as(*[1]u64, @ptrCast(&stack.count));
     var flags: []bool = &frame.parameters.flags;
     var previous: [][]const u8 = &frame.parameters.previous;
     const initial_plan: *const @TypeOf(frame.initial) = &frame.initial;
     var origin: @import("construction/publication.zig").OriginBuffer = .{};
 
     const state_view: Index = .{
-        .count = @ptrCast(&state_count),
         .keys = @ptrCast(&state.keys.items),
         .buckets = @ptrCast(&state.buckets.items),
     };
 
     const stack_view: Index = .{
-        .count = @ptrCast(&stack_count),
         .keys = @ptrCast(&stack.keys.items),
         .buckets = @ptrCast(&stack.buckets.items),
     };
@@ -105,10 +115,11 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
 
     comptime std.debug.assert(@typeInfo(node.ExpressionId).@"enum".tag_type == u32);
 
-    var seed_slot: []u32 = @as(*[1]u32, @ptrCast(&frame.seed));
-    var changed_slot: [][]const u8 = @as(*[1][]const u8, @ptrCast(&frame.changed_name));
     const state_info: *const Frame.StateInfo = &frame.state_info;
     const guard_info: *const Frame.GuardInfo = &frame.guard_info;
+    var store_value: std.meta.Child(StoreState) = .{ .has_seed = false, .seed = 0, .changed_name = &.{} };
+    var store_ptr: StoreState = &store_value;
+    var host: StoreHost = .{ .frame = frame, .store_0 = &store_ptr };
 
     const input: Input = .{
         .frame = @ptrCast(self),
@@ -118,8 +129,6 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
         .loop_frame = @ptrCast(frame),
         .loop_state = zx.columns.pointer(@FieldType(Input, "loop_state"), state_info),
         .guard_info = zx.columns.pointer(@FieldType(Input, "guard_info"), guard_info),
-        .seed_slot = @ptrCast(&seed_slot),
-        .changed_slot = @ptrCast(&changed_slot),
         .id = @backingInt(frame.id),
         .initial = @backingInt(frame.iteration.initial),
         .parameters = &parameters,
@@ -131,7 +140,7 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
         .renewal_source = renewal_source,
     };
 
-    const output = entry.executeIn(temporary, &input) catch |err| switch (@as(anyerror, err)) {
+    const output = entry.executeIn(temporary, &input, &host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };

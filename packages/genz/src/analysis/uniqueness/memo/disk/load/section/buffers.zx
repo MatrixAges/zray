@@ -1,1 +1,0 @@
-export { readU32 } from "memory"

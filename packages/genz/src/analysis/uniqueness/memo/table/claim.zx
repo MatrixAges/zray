@@ -4,7 +4,7 @@ import columns from "memory/columns"
 
 import type { Index } from "./model"
 
-export type Input = Index.Omit("used") & {
+export type Input = Index & {
     digest: u8[],
     used: u32
 }

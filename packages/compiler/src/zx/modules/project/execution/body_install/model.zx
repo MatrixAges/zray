@@ -1,4 +1,3 @@
-import type { U64Buffer } from "memory"
 import type {
     ColumnAllocator,
     ColumnGrowth,
@@ -11,7 +10,7 @@ import type { Request } from "../../publication/model"
 
 export type Rows = {
     storage: RowBuffer,
-    used: U64Buffer
+    used: u64
 }
 
 export type Functions = {
@@ -41,5 +40,6 @@ export type Reservation = {
 export type Register = {
     target: Rows,
     index: u64,
-    backing: ColumnAllocator
+    backing: ColumnAllocator,
+    publish: bool
 }

@@ -1,15 +1,7 @@
 <Module>
     <Type from="model" as="Cache" />
 
-    <Args in={Cache.DemandedSection} out={bool} />
-
-    <Call
-        fn="buffers.readU32"
-        in={[
-            $in.index.used,
-            0
-        ]}
-    />
+    <Args in={Cache.DemandedSection} out={Cache.Outcome} />
 
     <Loop on={$in.running}>
         <Call
@@ -18,11 +10,16 @@
                 section: $in,
                 offset: $in.start,
                 remaining: $in.count,
-                used: $ctx.readU32,
+                used: $in.used,
                 running: $in.count != 0 && $in.start != 0
             }}
         />
     </Loop>
 
-    <Return value={$ctx.read_demanded.remaining == 0} />
+    <Return
+        value={{
+            valid: $ctx.read_demanded.remaining == 0,
+            used: $ctx.read_demanded.used
+        }}
+    />
 </Module>

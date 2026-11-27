@@ -79,29 +79,20 @@
     </If>
 
     <Call
-        fn="index.readU64"
-        in={[
-            $in.installation.records.used,
-            0
-        ]}
+        fn="body_install/register_cache"
+        in={{
+            target: $in.installation.cache,
+            index: $in.installation.records.used,
+            backing: $in.installation.backing,
+            publish: $ctx.plan.publish_artifact
+        }}
     />
-
-    <If on={$ctx.plan.publish_artifact}>
-        <Call
-            fn="body_install/register_cache"
-            in={{
-                target: $in.installation.cache,
-                index: $ctx.readU64,
-                backing: $in.installation.backing
-            }}
-        />
-    </If>
 
     <Call
         fn="body_install/reserve_record"
         in={{
             target: $in.installation.records,
-            index: $ctx.readU64
+            index: $in.installation.records.used
         }}
     />
 
@@ -109,7 +100,7 @@
         fn="index.writeProjectModuleRecord"
         in={[
             $in.body,
-            $ctx.readU64,
+            $in.installation.records.used,
             $ctx.publish.exports,
             $ctx.publish.constant_exports,
             $ctx.publish.members,
@@ -120,15 +111,6 @@
         ]}
     />
 
-    <Call
-        fn="index.writeU64"
-        in={[
-            $in.installation.records.used,
-            0,
-            $ctx.readU64 + 1
-        ]}
-    />
-
     <If on={$in.installation.request.entry}>
         <Call fn="index.moveProjectEntryBody" in={$in.body} />
 
@@ -136,7 +118,9 @@
             <Return
                 value={{
                     duplicate: $ctx.publish.duplicate,
-                    cache_root: $ctx.readU64
+                    cache_root: $in.installation.records.used,
+                    records_used: $in.installation.records.used + 1,
+                    cache_used: $ctx.register_cache
                 }}
             />
         </If>
@@ -144,7 +128,9 @@
 
     <Return
         value={{
-            duplicate: $ctx.publish.duplicate
+            duplicate: $ctx.publish.duplicate,
+            records_used: $in.installation.records.used + 1,
+            cache_used: $ctx.register_cache
         }}
     />
 </Module>

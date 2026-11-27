@@ -87,7 +87,6 @@ const Loader = struct {
         target.init();
         target.bind(table.values.allocatedSlice());
         frame.open(table);
-        defer frame.finish(table);
 
         var input: Input = undefined;
 
@@ -96,6 +95,7 @@ const Loader = struct {
         input.count = bounds.count;
         input.target = &target.view;
         input.index = &frame.index;
+        input.used = @intCast(table.keys.items.len);
 
         inline for (@typeInfo(@TypeOf(buffers)).@"struct".field_names) |name| {
             const buffer = @field(buffers, name);
@@ -105,11 +105,13 @@ const Loader = struct {
 
         const borrowed: *const Input = &input;
 
-        const valid = zx.columns.invoke(entry.executeValue, self.payload, borrowed) catch |err| switch (@as(anyerror, err)) {
+        const outcome = zx.columns.invoke(entry.executeValue, self.payload, borrowed) catch |err| switch (@as(anyerror, err)) {
             error.OutOfMemory => return error.OutOfMemory,
             else => std.debug.panic("validated memo section could not be decoded: {s}", .{@errorName(err)}),
         };
 
-        if (!valid) @panic("validated memo section ended early");
+        frame.finish(table, outcome.used);
+
+        if (!outcome.valid) @panic("validated memo section ended early");
     }
 };

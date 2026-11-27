@@ -1,15 +1,18 @@
 import { reserveAppend } from "core/row_buffer"
-import memory from "memory"
 import columns from "memory/columns"
 
 import type { Register as Input } from "./model"
 
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
-    const { target, index, backing } = in
+    const { target, index, backing, publish } = in
 
-    const row = memory.readU64(target.used, 0)
+    const row = target.used
+
+    if (!publish) {
+        return row
+    }
 
     const capacity = reserveAppend([
         target.storage,
@@ -19,5 +22,6 @@ export default function (in: Input): Output {
     ])
 
     columns.writeRowIndex(target.storage, row, index)
-    memory.writeU64(target.used, 0, row + 1)
+
+    return row + 1
 }

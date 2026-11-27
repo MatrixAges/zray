@@ -46,8 +46,8 @@ pub fn bind(self: *Self, project: *Project) void {
     self.modules.init(&project.modules);
     self.cache.init(&project.cache_records);
 
-    self.record_rows = .{ .storage = @ptrCast(&self.modules.output.buffer), .used = @ptrCast(&self.modules.used) };
-    self.cache_rows = .{ .storage = @ptrCast(&self.cache.output.buffer), .used = @ptrCast(&self.cache.used) };
+    self.record_rows = .{ .storage = @ptrCast(&self.modules.output.buffer), .used = self.modules.length };
+    self.cache_rows = .{ .storage = @ptrCast(&self.cache.output.buffer), .used = self.cache.length };
 
     self.input = .{
         .request = &self.request,

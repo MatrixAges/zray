@@ -13,7 +13,13 @@ import type {
 } from "../model"
 
 export type Section = Input & Span.Pick("start", "count") & {
-    index: Index
+    index: Index,
+    used: u32
+}
+
+export type Outcome = {
+    valid: bool,
+    used: u32
 }
 
 export type SettlementColumns = {

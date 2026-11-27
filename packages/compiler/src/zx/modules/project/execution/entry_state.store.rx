@@ -1,0 +1,6 @@
+<Store name="project_entry_state" version={1}>
+    <Object name="state">
+        <Field name="has_recursive" type={bool} value={false} />
+        <Field name="recursive" type={u32} value={0} />
+    </Object>
+</Store>

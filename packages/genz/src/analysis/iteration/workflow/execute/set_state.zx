@@ -1,0 +1,18 @@
+export type Input = {
+    seed: u32,
+    changed_name?: u8[]
+}
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    const empty: u8[] = []
+
+    $store.loop_state.state = {
+        has_seed: true,
+        seed: in.seed,
+        changed_name: in.changed_name ?? empty
+    }
+}

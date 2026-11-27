@@ -4,6 +4,8 @@
 
     <Args in={Loop.Parameters} out={Loop.ParametersOutcome} />
 
+    <Store from="state" as="loop_state" />
+
     <If on={$in.initial_plan.state_scope}>
         <Call fn="index.enterLoopRepresentation" in={$in.loop_frame} />
     </If>
@@ -13,9 +15,16 @@
         in={$in.pick([
             "frame",
             "writer",
-            "origin",
-            "seed_slot"
+            "origin"
         ])}
+    />
+
+    <Call
+        fn="set_state"
+        in={{
+            seed: $ctx.create_seed.expression
+        }}
+        setter={[$store.loop_state.state]}
     />
 
     <Call
@@ -32,9 +41,17 @@
             in={$in.pick([
                 "frame",
                 "writer",
-                "origin",
-                "changed_slot"
+                "origin"
             ])}
+        />
+
+        <Call
+            fn="set_state"
+            in={{
+                seed: $ctx.create_seed.expression,
+                changed_name: $ctx.track_change
+            }}
+            setter={[$store.loop_state.state]}
         />
     </If>
 
@@ -85,7 +102,7 @@
 
     <Return
         value={{
-            seed_name: $ctx.create_seed,
+            seed_name: $ctx.create_seed.name,
             projected: $ctx.prepare_fields
         }}
     />

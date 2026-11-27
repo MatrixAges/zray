@@ -46,8 +46,6 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
         const symbols = zx.columns.pointer(@FieldType(Original, "symbols"), @as(*const zx.ir.SymbolTable, &program.symbols));
         const length_slots = zx.memory.borrowSliceLengths(&program.functions);
         const lengths: zx.memory.ColumnLengths = &length_slots;
-        const result_row: []Analysis.Result = @as(*[1]Analysis.Result, @ptrCast(&state.result));
-        var recursive = zx.memory.borrowWriteColumn(?u32, "entry_function", result_row);
         const records = project.cache_records.items;
 
         const record_column: zx.memory.ReadColumn = .{
@@ -67,7 +65,6 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
                 .functions = &functions,
                 .lengths = @ptrCast(&lengths),
                 .linked_count = program.functions.count(),
-                .recursive = @ptrCast(&recursive),
                 .original = &.{
                     .file = program.file_name,
                     .type_only = program.type_only,
@@ -90,7 +87,25 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
             },
         };
 
-        _ = entry.executeIn(project.allocator, &input) catch |err| return switch (err) {
+        const StoreState = std.meta.Child(@FieldType(entry.zx_pending, "store_0"));
+
+        const StoreHost = struct {
+            result: *Analysis.Result,
+            store_0: *StoreState,
+            pub fn commit(self: *@This(), pending: anytype) error{}!void {
+                if (pending.store_0) |next| {
+                    self.store_0.* = next;
+
+                    if (next.has_recursive) self.result.entry_function = @fromBackingInt(next.recursive);
+                }
+            }
+        };
+
+        var store_value: std.meta.Child(StoreState) = .{ .has_recursive = false, .recursive = 0 };
+        var store_ptr: StoreState = &store_value;
+        var host: StoreHost = .{ .result = &state.result, .store_0 = &store_ptr };
+
+        _ = entry.executeIn(project.allocator, &input, &host) catch |err| return switch (err) {
             error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
             else => unreachable,
         };

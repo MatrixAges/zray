@@ -3,6 +3,8 @@
 
     <Args in={Execution.EntryForwarding} out={void} />
 
+    <Store from="entry_state" as="entry_state" />
+
     <Call
         fn="entry_forward"
         in={{
@@ -27,12 +29,9 @@
 
     <If on={!$in.native}>
         <Call
-            fn="index.writeColumnOptionalU32"
-            in={[
-                $in.publication.recursive,
-                0,
-                $in.function_id
-            ]}
+            fn="set_entry_recursive"
+            in={$in.function_id}
+            setter={[$store.entry_state.state]}
         />
     </If>
 </Module>

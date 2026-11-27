@@ -1,6 +1,5 @@
 import { appendAstIdentifierRows, readAstOrigin } from "ast_rows"
 import host from "lowering_host"
-import memory from "memory"
 import { requireAllocation } from "memory"
 
 import fresh from "../../../../ast/fresh"
@@ -8,19 +7,20 @@ import identifierRows from "../../../aggregate/binding/identifier_rows"
 
 import type { AstOriginBuffer, AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
-import type { U32Buffer } from "memory"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
-    seed_slot: U32Buffer
+    origin: AstOriginBuffer
 }
 
-export type Output = u8[]
+export type Output = {
+    name: u8[],
+    expression: u32
+}
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, seed_slot } = in
+    const { frame, writer, origin } = in
 
     const current = readAstOrigin(writer, origin)
 
@@ -35,7 +35,9 @@ export default function (in: Input): Output {
 
     appendAstIdentifierRows(writer, identifierRows(name))
     host.finishGeneratedAst(frame, generated.serial, false)
-    memory.writeU32(seed_slot, 0, current.expression_base)
 
-    return name
+    return {
+        name,
+        expression: current.expression_base
+    }
 }

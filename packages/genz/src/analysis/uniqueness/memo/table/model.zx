@@ -3,8 +3,7 @@ import type { Allocator, ReadColumn, U32Buffer, WriteColumn } from "memory"
 import type { ColumnAllocator, RowBuffer } from "memory/columns"
 
 export type Index = Table & {
-    rows: RowBuffer,
-    used: U32Buffer
+    rows: RowBuffer
 }
 
 export type Publication = Storage.Pick("keys", "values", "buckets") & {

@@ -82,6 +82,8 @@ pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
             else => errorSet(err),
         };
 
+        if (outcome.records_used) |count| body.installation.modules.length = count;
+        if (outcome.cache_used) |count| body.installation.cache.length = count;
         if (outcome.duplicate) |name| return exports.reportDuplicate(project.allocator, project.reporter, name);
         if (outcome.cache_root) |root| project.cache_root = @intCast(root);
 

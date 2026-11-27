@@ -1,10 +1,9 @@
 import type { LoopParameterLayout } from "lowering_host"
-import type { BoolBuffer, U32Buffer, U64Buffer, U8ListBuffer } from "memory"
+import type { BoolBuffer, U32Buffer, U8ListBuffer } from "memory"
 
 export type Layout = LoopParameterLayout
 
 export type LiveIndex = {
-    count: U64Buffer,
     keys: U32Buffer,
     buckets: U32Buffer
 }
@@ -54,12 +53,6 @@ export type Target = Slots & {
 }
 
 export type Rename = Target & Names
-
-export type Removal = Slots & {
-    index: LiveIndex,
-    remove_condition: bool,
-    remove_step: bool
-}
 
 export type RemovalFlags = Output.Pick(
     "remove_state_condition",
