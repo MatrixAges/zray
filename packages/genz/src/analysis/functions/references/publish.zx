@@ -1,14 +1,9 @@
-import memory from "memory"
-
 import { word_radix } from "../../node_headers/block/const"
 
 import type { Input } from "./model"
 
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
-    const count = in.payload.tags.length
-    const span = in.payload.existing * word_radix + count
-
-    memory.appendU64(in.payload.allocator, in.spans, span)
+    return in.payload.existing * word_radix + in.payload.tags.length
 }

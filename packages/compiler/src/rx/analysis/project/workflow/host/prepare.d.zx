@@ -144,11 +144,6 @@ export declare function rejectPreparedFlow(
     code: string,
     message: string
 ): void throws { OutOfMemory, InvalidFlow }
-export declare function advanceTypeBindingTail(
-    tail: TypeBindingTail,
-    used: u64,
-    grow: bool
-): void throws { OutOfMemory }
 
 export declare function collectStoreDefinitionLayout(state: StoreDefinitionWork): void
     throws { OutOfMemory }

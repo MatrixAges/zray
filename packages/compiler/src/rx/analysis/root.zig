@@ -13,7 +13,6 @@ const imports = @import("project/mixed/imports.zig");
 pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("selection.zig"),
     @import("project/type_imports.zig"),
-    @import("project/type_imports/publish.zig"),
     @import("project/contracts/source.zig"),
     @import("store/references.zig"),
     @import("project/prepare/invocation/host.zig"),
@@ -66,7 +65,6 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("project/mixed/state.zig"),
     @import("project/mixed/zx.zig"),
     @import("project/source_graph/construct.zig"),
-    @import("project/source_graph/references/registered.zig"),
     @import("project/source_graph/references/scan.zig"),
     @import("project/source_graph/scan.zig"),
     @import("project/workflow/derive/host.zig"),

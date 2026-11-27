@@ -1,27 +1,18 @@
-import type {
-    NamedRowBuffer,
-    NamedRows,
-    StringBuffer,
-    U32Buffer
-} from "memory"
-import type { TypeBindingTail } from "rx_project_host"
+import type { NamedRows } from "memory"
 
-export type Qualified = {
-    alias: string,
-    rows: NamedRowBuffer
-}
-
-export type Values = {
-    names: StringBuffer,
-    ids: U32Buffer,
-    capacity: u64
+export type Row = {
+    name: string,
+    id: u32
 }
 
 export type Input = {
     rows: NamedRows,
     length: u64,
     kinds: u8[],
-    qualified?: Qualified,
-    tail: TypeBindingTail,
-    values: Values,
+    alias?: string
+}
+
+export type Output = {
+    qualified: Row[],
+    visible: Row[]
 }

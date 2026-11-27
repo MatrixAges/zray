@@ -59,8 +59,6 @@ export default function (in: Input): Output {
         }
     }
 
-    memory.writeU8List(paths.slots, row, normalized)
-
     return {
         normalized,
         issue: null

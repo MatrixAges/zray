@@ -15,6 +15,7 @@ export declare function emitReduceRenewals(
     accumulator: u8[],
     first: u64,
     end: u64,
+    skipped: u64[],
     filtered_inline: bool
 ): u64 throws { OutOfMemory }
 

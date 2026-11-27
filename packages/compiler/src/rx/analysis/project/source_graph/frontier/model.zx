@@ -1,22 +1,26 @@
-import type { U32Buffer, U64Buffer } from "memory"
+export type Frontier = {
+    seen: bool[],
+    queue: u64[],
+    end: u64
+}
 
-export type Queue = {
-    seen: U32Buffer,
-    queue: U64Buffer,
-    end: u64,
+export type Edges = {
+    starts: u64[],
+    ends: u64[]
+}
+
+export type Queue = Frontier & {
     targets: u64[]
 }
 
 export type Position = {
-    queue: U64Buffer,
+    queue: u64[],
     cursor: u64,
     end: u64
 }
 
-export type Publication = {
+export type Publication = Edges & {
     owner: u64,
-    starts: U64Buffer,
-    ends: U64Buffer,
     edge_start: u64,
     edge_end: u64
 }

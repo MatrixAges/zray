@@ -47,13 +47,19 @@ pub fn publish(allocator: std.mem.Allocator, modules: []const Module, indices: [
         .paths = @ptrCast(&deferred_paths),
     };
 
-    var index_words: []u64 = @ptrCast(indices);
+    const index_words: []u64 = @ptrCast(indices);
+    var arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer arena.deinit();
+
+    var buffer: [4096]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
 
     var input: Input = .{
         .modules = &input_rows,
         .start = 0,
-        .indices = @ptrCast(&index_words),
-        .forwards = null,
+        .indices = index_words,
+        .with_forwards = false,
         .forwarding = &.{
             .keys = paths.keys,
             .buckets = @ptrCast(&paths.buckets),
@@ -62,21 +68,32 @@ pub fn publish(allocator: std.mem.Allocator, modules: []const Module, indices: [
         },
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const first = rule.executeValue(empty.allocator(), &input) catch unreachable;
+    const first = rule.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
+        else => unreachable,
+    };
 
-    if (first == modules.len) return &.{};
+    @memcpy(index_words, first.indices);
 
-    var forwards = try allocator.alloc(u64, modules.len);
+    if (first.row == modules.len) return &.{};
+
+    const forwards = try allocator.alloc(u64, modules.len);
 
     @memset(forwards, 0);
 
-    input.start = first;
-    input.forwards = @ptrCast(&forwards);
+    input.start = first.row;
+    input.with_forwards = true;
 
-    const end = rule.executeValue(empty.allocator(), &input) catch unreachable;
+    const second = rule.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
+        else => unreachable,
+    };
 
-    std.debug.assert(end == modules.len);
+    @memcpy(index_words, second.indices);
+
+    for (second.forwards) |item| forwards[@intCast(item.row)] = item.encoded;
+
+    std.debug.assert(second.row == modules.len);
 
     return forwards;
 }

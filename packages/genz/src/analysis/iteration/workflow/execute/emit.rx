@@ -11,6 +11,7 @@
                 $in.loop_frame,
                 $in.renewals.first,
                 $in.renewals.end,
+                $in.renewals.skipped,
                 $in.schedule.inline_lists
             ]}
         />

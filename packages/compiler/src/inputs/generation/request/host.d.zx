@@ -110,8 +110,12 @@ export declare function listGenerationLevel(
     directories: string[]
 ): bool throws { GenerationRequestFailed }
 
-export declare function reserveGenerationFiles(scan: DirectoryScan, count: u64): void
-    throws { OutOfMemory }
+export declare function commitGenerationFiles(
+    scan: DirectoryScan,
+    records: u8[][],
+    paths: string[],
+    copy_paths: bool
+): void throws { OutOfMemory }
 
 export declare function retireGenerationLevel(scan: DirectoryScan, frontier: u8): void
 

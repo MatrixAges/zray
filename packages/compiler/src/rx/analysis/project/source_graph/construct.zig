@@ -126,14 +126,6 @@ const Build = struct {
         const zx_paths = memory.borrowTextColumn("path", opts.sources);
         const rx_paths = memory.borrowTextColumn("path", opts.modules);
         const stores = memory.borrowTextColumn("path", opts.stores);
-        const frontier_allocator = self.scanner.collector.backing;
-        var queue: []u64 = &.{};
-        var seen: []u32 = &.{};
-
-        defer {
-            frontier_allocator.free(queue);
-            frontier_allocator.free(seen);
-        }
 
         @memset(self.modules.items(.dependencies), &.{});
         @memset(self.modules.items(.compiled_dependency), false);
@@ -153,19 +145,10 @@ const Build = struct {
             .explicit = @ptrCast(&roots),
             .explicit_count = entries.len,
             .entry = opts.entry,
-            .roots = @ptrCast(&self.roots),
             .allocator = @ptrCast(&self.allocator),
             .temporary = @ptrCast(&self.scratch),
             .include_rx = opts.include_rx_modules,
             .visit = @ptrCast(self.scanner),
-            .columns = &.{
-                .seen = @ptrCast(&seen),
-                .queue = @ptrCast(&queue),
-                .starts = @ptrCast(&self.adjacency.starts),
-                .ends = @ptrCast(&self.adjacency.ends),
-            },
-            .edge_allocator = @ptrCast(&self.scanner.collector.target_allocator),
-            .frontier_allocator = @ptrCast(&frontier_allocator),
             .retain_parses = opts.prefetched != null,
             .retain_dependencies = opts.retain_source_dependencies,
         };
@@ -185,13 +168,20 @@ const Build = struct {
             .batch_ends = try self.indices(result.batch_ends, true),
         };
 
+        const additional_roots = try self.indices(result.roots[1..][0..@intCast(result.additional)], true);
+        const edge_allocator = self.scanner.collector.target_allocator;
+
         const dependencies: ?model.SourceDependencies = if (result.dependencies) |value|
-            .{ .starts = value.starts, .ends = value.ends, .targets = value.targets }
+            .{
+                .starts = try edge_allocator.dupe(u64, value.starts),
+                .ends = try edge_allocator.dupe(u64, value.ends),
+                .targets = value.targets,
+            }
 
         else
             null;
 
-        return self.finish(@intCast(result.entry), @intCast(result.additional), schedule, dependencies, result.retain_parses);
+        return self.finish(@intCast(result.entry), additional_roots, schedule, dependencies, result.retain_parses);
     }
     fn indices(self: *Build, values: []const u64, comptime copy: bool) Allocator.Error![]const usize {
         if (native_width) return if (copy) self.allocator.dupe(usize, @ptrCast(values)) else @as([]const usize, @ptrCast(values));
@@ -202,9 +192,7 @@ const Build = struct {
 
         return result;
     }
-    fn finish(self: *Build, entry: usize, additional: usize, schedule: model.Schedule, dependencies: ?model.SourceDependencies, retain_parses: bool) Allocator.Error!model.Value {
-        const additional_roots = try self.indices(self.roots[1..][0..additional], false);
-
+    fn finish(self: *Build, entry: usize, additional_roots: []const usize, schedule: model.Schedule, dependencies: ?model.SourceDependencies, retain_parses: bool) Allocator.Error!model.Value {
         if (retain_parses) {
             self.opts.prefetched.?.* = self.scanner.parsed;
             self.scanner.parsed = .{};
@@ -321,7 +309,7 @@ const Build = struct {
             .targets = self.adjacency.targets,
         } else null;
 
-        return self.finish(entry, additional_count, schedule, dependencies, self.opts.prefetched != null);
+        return self.finish(entry, try self.indices(self.roots[1..][0..additional_count], false), schedule, dependencies, self.opts.prefetched != null);
     }
 };
 
@@ -337,7 +325,7 @@ pub fn rejectSourceGraphCycle(handle: *anyopaque, owner: u64, edge: u64) error{I
     const state = Build.borrow(handle);
     const row: usize = @intCast(owner);
     const module = state.modules.get(row);
-    var source_index = state.adjacency.starts[row];
+    var source_index: usize = 0;
 
     for (module.dependencies) |dependency| {
         if (dependency.target != .source) continue;

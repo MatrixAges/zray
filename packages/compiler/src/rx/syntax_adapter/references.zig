@@ -177,14 +177,9 @@ pub fn positionsForNode(index: *const Index, node: *const ast.Node) ?Positions {
     return if (ast.sameStorage(node, storage.root)) .{ .attributes = storage.attributes } else null;
 }
 
-// The XML parser admits at most 256 nested elements.
-const xml_nesting_limit = 256;
-
 pub fn build(comptime scan: anytype, comptime publish: anytype, allocator: std.mem.Allocator, temporary: std.mem.Allocator, source: []const u8, input: anytype, slots: []const u64, nodes: []const ast.Node, attributes: []const ast.Attribute, value_extent: usize) std.mem.Allocator.Error!*const Index {
     const Parameter = @typeInfo(@TypeOf(scan)).@"fn".param_types[1].?;
     const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
-    var storage: [xml_nesting_limit]u64 = undefined;
-    var parents: []u64 = &storage;
     const project_flow = nodes[0].children.len != 0 and std.mem.eql(u8, nodes[0].name, "Module");
     const count = if (project_flow) nodes.len else 0;
 
@@ -206,7 +201,6 @@ pub fn build(comptime scan: anytype, comptime publish: anytype, allocator: std.m
         .nodes = input.tree.nodes,
         .attributes = input.tree.attributes,
         .root = input.control.result,
-        .parents = @ptrCast(&parents),
         .slots = slots,
         .facts = @ptrCast(&facts),
         .unit_firsts = @ptrCast(&unit_firsts),

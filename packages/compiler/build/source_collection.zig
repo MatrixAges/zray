@@ -54,9 +54,6 @@ const DirectoryViews = if (generated) struct {
     names: memory.ReadColumn = undefined,
     files: memory.ListColumn = undefined,
     paths: memory.ListColumn = undefined,
-    bytes: []u8 = undefined,
-    output_paths: memory.WriteColumn = undefined,
-    relatives: memory.WriteColumn = undefined,
 } else void;
 
 const Scan = struct {
@@ -123,13 +120,8 @@ const Scan = struct {
             .directories = @ptrCast(&views.names),
             .files = @ptrCast(&views.files),
             .paths = @ptrCast(&views.paths),
-            .target = &.{
-                .records = @ptrCast(&views.bytes),
-                .paths = @ptrCast(&views.output_paths),
-                .relatives = @ptrCast(&views.relatives),
-                .width = @sizeOf(Entry),
-                .prefix_length = self.prefix.len,
-            },
+            .width = @sizeOf(Entry),
+            .prefix_length = self.prefix.len,
             .initial = &.{""},
         }) catch |err| return self.failure orelse err;
     }
@@ -170,18 +162,34 @@ pub fn listGenerationLevel(handle: *anyopaque, level: []const []const u8) Error!
     return self.copyPaths(level.len);
 }
 
-pub fn reserveGenerationFiles(handle: *anyopaque, count: u64) std.mem.Allocator.Error!void {
+pub fn commitGenerationFiles(handle: *anyopaque, records: []const []const u8, paths: []const []const u8, copy_paths: bool) std.mem.Allocator.Error!void {
     const self: *Scan = @ptrCast(@alignCast(handle));
-    const rows = try self.extend(@intCast(count));
+    var count: usize = 0;
 
-    self.views.bytes = std.mem.sliceAsBytes(rows);
-    self.views.output_paths = memory.borrowWriteColumn([]const u8, "path", rows);
-    self.views.relatives = memory.borrowWriteColumn([]const u8, "relative", rows);
+    for (records) |chunk| count += chunk.len / @sizeOf(Entry);
+
+    const rows = try self.extend(count);
+    const target = std.mem.sliceAsBytes(rows);
+    var offset: usize = 0;
+
+    for (records) |chunk| {
+        @memcpy(target[offset..][0..chunk.len], chunk);
+
+        offset += chunk.len;
+    }
+
+    if (copy_paths) {
+        for (rows, paths) |*row, path| {
+            const owned = try self.paths.dupe(u8, path);
+
+            row.path = owned;
+            row.relative = owned[self.prefix.len..];
+        }
+    }
 }
 
 pub fn selectGenerationAllocator(handle: *anyopaque, frontier: ?u8) void {
     const self: *Scan = @ptrCast(@alignCast(handle));
-
     self.scope.active = if (frontier) |index| self.frontier[index].allocator() else self.paths;
 }
 

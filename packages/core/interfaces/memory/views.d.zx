@@ -77,12 +77,6 @@ export declare function u64View(source: U64Buffer, shape: U64View?): U64View
 
 export declare function u32Views(source: U32Buffer): u32[]
 
-export declare function appendU64(
-    resource: Allocator,
-    target: U64Storage,
-    value: u64
-): void throws { OutOfMemory }
-
 export declare function reserveU8Tail(
     resource: Allocator,
     storage: U8Storage,
@@ -141,10 +135,6 @@ export declare function readI32Bytes(
 ): i32 throws { IndexOutOfBounds } concurrent
 
 export declare function i32Bits(value: i32): u32 concurrent
-
-export declare function copyText(allocator, value: string): string throws {
-    OutOfMemory
-}
 
 export declare function borrowU32Range(
     source: u32[],

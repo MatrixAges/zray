@@ -1,26 +1,22 @@
-import memory from "memory"
-
 import { parallel_tag } from "../../schema/execution/const"
 import name from "../../syntax/document/name_matches"
 
-import type { U64Buffer } from "memory"
 import type { Node } from "../../syntax/document/model"
 
 export type Input = {
     source: u8[],
     nodes: Node[],
-    parents: U64Buffer,
-    depth: u64
+    parents: u64[]
 }
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    if (in.depth == 0) {
+    if (in.parents.length == 0) {
         return false
     }
 
-    const parent = memory.readU64(in.parents, in.depth - 1) - 1
+    const parent = in.parents[in.parents.length - 1] - 1
     const span = in.nodes[parent].name
 
     return name({

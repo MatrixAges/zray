@@ -7,6 +7,7 @@ const Frame = struct {
     allocator: std.mem.Allocator,
     schemas: std.mem.Allocator,
     data: ?[]modules.Module,
+    slots: [][]const u8,
     sources: []const modules.Source,
     source_index: *usize,
     reporter: *dsl.Reporter,
@@ -24,6 +25,7 @@ pub fn run(allocator: std.mem.Allocator, schemas: std.mem.Allocator, data: ?[]mo
         .allocator = allocator,
         .schemas = schemas,
         .data = data,
+        .slots = registry.keys,
         .sources = sources,
         .source_index = source_index,
         .reporter = reporter,
@@ -34,7 +36,6 @@ pub fn run(allocator: std.mem.Allocator, schemas: std.mem.Allocator, data: ?[]mo
         .paths = &.{
             .source = @ptrCast(&paths),
             .count = sources.len,
-            .slots = @ptrCast(&registry.keys),
             .registry = &.{
                 .keys = registry.keys,
                 .buckets = @ptrCast(&registry.buckets),
@@ -66,6 +67,7 @@ pub fn validateRegisteredGraphModule(handle: *anyopaque, index: u64, path: []con
     const source = &frame.sources[row];
 
     frame.source_index.* = row;
+    frame.slots[row] = path;
 
     if (frame.data) |data| {
         data[row] = .{ .path = path, .data = try schema.decode(frame.allocator, source.node, frame.reporter, source.callSequence()) };

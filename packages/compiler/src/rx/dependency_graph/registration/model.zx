@@ -1,11 +1,10 @@
 import type { Table } from "core/bytes/index/fixed"
-import type { TextColumn, U8ListBuffer } from "memory"
+import type { TextColumn } from "memory"
 import type { GraphModuleRegistration } from "rx_graph_host"
 
 export type Paths = {
     source: TextColumn,
     count: u64,
-    slots: U8ListBuffer,
     registry: Table
 }
 

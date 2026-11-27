@@ -4,8 +4,6 @@ export type GraphModuleRegistration = mutable_opaque
 
 export type GraphVisit = mutable_opaque
 
-export type GraphEdgePublication = opaque
-
 export type GraphEdgeScan = mutable_opaque
 
 export enum GraphReferenceKind {
@@ -63,18 +61,6 @@ export declare function publishSourceGraphDependencies(
     owner: u64,
     start: u64
 ): u64[] throws { OutOfMemory }
-
-export declare function appendSourceGraphEdge(
-    target: GraphEdgePublication,
-    row: u64?,
-    named: bool
-): void throws { OutOfMemory }
-
-export declare function rejectSourceGraphEdge(
-    target: GraphEdgePublication,
-    store: bool,
-    message: string
-): void throws { OutOfMemory, InvalidGraph }
 
 export declare function deliverSourceGraphReference(
     target: GraphEdgeScan,

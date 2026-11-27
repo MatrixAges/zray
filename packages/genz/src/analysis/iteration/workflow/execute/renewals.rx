@@ -25,7 +25,8 @@
             first: 0,
             end: 0,
             delayed: false,
-            emit: false
+            emit: false,
+            skipped: []
         }}
     />
 </Module>

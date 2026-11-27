@@ -40,14 +40,6 @@
     />
 
     <Call
-        fn="host.reserveGenerationFiles"
-        in={[
-            $in.scan.scan,
-            $ctx.count.files
-        ]}
-    />
-
-    <Call
         fn="host.selectGenerationAllocator"
         in={[
             $in.scan.scan,
@@ -60,14 +52,20 @@
         in={{
             files: $in.scan.files,
             paths: $in.scan.paths,
-            entries: $in.scan.target.records,
-            target_paths: $in.scan.target.paths,
-            target_relatives: $in.scan.target.relatives,
             groups: $in.parents.length,
-            width: $in.scan.target.width,
-            prefix_length: $in.scan.target.prefix_length,
+            width: $in.scan.width,
             copy_paths: $ctx.listGenerationLevel
         }}
+    />
+
+    <Call
+        fn="host.commitGenerationFiles"
+        in={[
+            $in.scan.scan,
+            $ctx.flatten.records,
+            $ctx.flatten.paths,
+            $ctx.listGenerationLevel
+        ]}
     />
 
     <Call

@@ -1,26 +1,17 @@
 import bytes from "std:bytes"
 import encoding from "std:encoding"
-import integers from "std:integer"
 import memory from "memory"
 
-import missingInput from "../../schema/call/input/missing"
-import { loop_tag } from "../../schema/execution/const"
 import { Tag } from "../../schema/execution/model"
 import classify from "../../schema/execution/tag"
-import matches from "../../syntax/document/name_matches"
-import bodyEvent from "../flow/body_event"
-import { declaration } from "../flow/const"
-import parallelParent from "../flow/parallel_parent"
-import project from "../flow/project"
 import taskExit from "../flow/task_exit"
-import unit from "../flow/unit"
+import nodeFlow from "./node_flow"
 import select from "./select"
 
 import type { View } from "../flow/model"
 import type { Reference, Scan as Input, Scanned as Output } from "./model"
 
 export default function (in: Input): Output {
-    const parents = in.parents
     const source = bytes.fromText(in.source)
 
     const view: View = {
@@ -37,11 +28,11 @@ export default function (in: Input): Output {
     }
 
     const references: Reference[] = []
+    const parents: u64[] = []
     const missing_input: u64? = null
 
     return loop({
         next: in.root + 1,
-        depth: 0,
         finishing: false,
         module_steps: 0,
         parallel_tasks: 0,
@@ -54,6 +45,7 @@ export default function (in: Input): Output {
         events: 0,
         source_extent: 0,
         graph_references: 0,
+        parents,
         missing_input,
         references
     }, {
@@ -75,8 +67,7 @@ export default function (in: Input): Output {
             }
 
             if (!state.finishing && node.children != 0) {
-                memory.writeU64(parents, state.depth, state.next)
-                state.depth += 1
+                state.parents = state.parents.push(state.next)[0]
                 state.next = node.children
             } else {
                 const name =
@@ -90,105 +81,49 @@ export default function (in: Input): Output {
                 }
 
                 if (in.project_flow) {
-                    const slot = in.slots[row]
-                    const parallel = tag == Tag.Task && parallelParent({
+                    const step = nodeFlow({
                         source,
                         nodes: in.nodes,
-                        parents,
-                        depth: state.depth
+                        attributes: in.attributes,
+                        node,
+                        row,
+                        slot: in.slots[row],
+                        tag,
+                        parents: state.parents,
+                        facts: in.facts,
+                        view,
+                        columns,
+                        module_steps: state.module_steps,
+                        parallel_tasks: state.parallel_tasks,
+                        steps: state.steps
                     })
 
-                    if (parallel) {
+                    if (step.parallel) {
                         state.parallel_tasks += 1
                     }
 
-                    const has_output =
-                        tag == Tag.Task && memory.readU32(in.facts, slot) != 0
-                    const implicit = parallel && has_output
-
-                    const flags = project({
-                        view,
-                        head: node.children,
-                        tag
-                    })
-
-                    const skipped = integers.andBits(
-                        integers.widen(flags),
-                        integers.widen(declaration)
-                    )
-
-                    if (state.depth == 1 && skipped == 0) {
+                    if (step.module_step) {
                         state.module_steps += 1
                     }
 
-                    const root_steps = match state.depth {
-                        0 => state.module_steps,
-                        _ => node.child_count
+                    state.steps = step.steps
+
+                    if (step.event != null) {
+                        memory.writeU64(in.events, state.events, step.event)
+                        state.events += 1
                     }
 
-                    state.steps = unit({
-                        geometry: {
-                            children: {
-                                view,
-                                head: node.children
-                            },
-                            child_count: node.child_count,
-                            tag,
-                            root_steps,
-                            implicit_result: implicit
-                        },
-                        columns,
-                        slot,
-                        start: state.steps,
-                        flags,
-                        task_output: has_output
-                    })
-
-                    const has_call = tag == Tag.Call || tag == Tag.Loop
-                    const parent = has_call ? memory.readU64(parents, state.depth - 1) : 0
-                    const loop_body = tag == Tag.Call && matches({
-                        source,
-                        ...in.nodes[parent - 1].name,
-                        name: loop_tag
-                    })
-
-                    if (state.depth != 0 && !loop_body) {
-                        const event = bodyEvent({
-                            tag,
-                            slot,
-                            parallel_rank: parallel ? state.parallel_tasks : null
-                        })
-
-                        if (event != null) {
-                            memory.writeU64(in.events, state.events, event)
-                            state.events += 1
-                        }
+                    if (step.missing_input != null) {
+                        state.missing_input = step.missing_input
                     }
 
-                    const call_row = match {
-                        tag == Tag.Call && !loop_body => row + 1,
-                        tag == Tag.Loop => node.children,
-                        _ => 0
-                    }
-
-                    if (call_row != 0) {
+                    if (step.call) {
                         state.calls += 1
-
-                        if (missingInput({
-                            source,
-                            nodes: in.nodes,
-                            attributes: in.attributes,
-                            parent: in.nodes[parent - 1],
-                            call: in.nodes[call_row - 1],
-                            previous: node.previous_sibling
-                        })) {
-                            state.missing_input = call_row - 1
-                        }
                     } else if (tag == Tag.Return) {
                         state.results += 1
                     } else if (tag == Tag.Task) {
                         state.tasks += 1
-                        state.results += implicit ? 1 : 0
+                        state.results += step.implicit ? 1 : 0
                     } else if (tag == Tag.Parallel) {
                         state.groups += 1
                     } else if (tag == Tag.Switch || tag == Tag.If) {
@@ -212,9 +147,11 @@ export default function (in: Input): Output {
                 if (node.previous_sibling != 0) {
                     state.next = node.previous_sibling
                     state.finishing = false
-                } else if (state.depth != 0) {
-                    state.depth -= 1
-                    state.next = memory.readU64(parents, state.depth)
+                } else if (state.parents.length != 0) {
+                    const popped = state.parents.pop()
+
+                    state.parents = popped[0]
+                    state.next = popped[1] ?? 0
                     state.finishing = true
                 } else {
                     state.next = 0

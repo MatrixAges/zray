@@ -1,0 +1,141 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import missingInput from "../../schema/call/input/missing"
+import { loop_tag } from "../../schema/execution/const"
+import { Tag } from "../../schema/execution/model"
+import matches from "../../syntax/document/name_matches"
+import bodyEvent from "../flow/body_event"
+import { declaration } from "../flow/const"
+import parallelParent from "../flow/parallel_parent"
+import project from "../flow/project"
+import unit from "../flow/unit"
+
+import type { U32Buffer } from "memory"
+import type { Attribute, Node } from "../../syntax/document/model"
+import type { View } from "../flow/model"
+import type { Columns } from "../flow/unit"
+
+export type Input = {
+    source: u8[],
+    nodes: Node[],
+    attributes: Attribute[],
+    node: Node,
+    row: u64,
+    slot: u64,
+    tag: Tag,
+    parents: u64[],
+    facts: U32Buffer,
+    view: View,
+    columns: Columns,
+    module_steps: u64,
+    parallel_tasks: u64,
+    steps: u64
+}
+
+export type Output = {
+    parallel: bool,
+    implicit: bool,
+    module_step: bool,
+    steps: u64,
+    event?: u64,
+    call: bool,
+    missing_input?: u64
+}
+
+export default function (in: Input): Output {
+    const { source, node, row, slot, tag, parents, view, columns } = in
+
+    const parallel = tag == Tag.Task && parallelParent({
+        source,
+        nodes: in.nodes,
+        parents
+    })
+
+    const parallel_rank = in.parallel_tasks + (parallel ? 1 : 0)
+    const has_output = tag == Tag.Task && memory.readU32(in.facts, slot) != 0
+    const implicit = parallel && has_output
+
+    const flags = project({
+        view,
+        head: node.children,
+        tag
+    })
+
+    const skipped = integers.andBits(
+        integers.widen(flags),
+        integers.widen(declaration)
+    )
+
+    const module_step = parents.length == 1 && skipped == 0
+
+    const root_steps = match parents.length {
+        0 => in.module_steps + (module_step ? 1 : 0),
+        _ => node.child_count
+    }
+
+    const steps = unit({
+        geometry: {
+            children: {
+                view,
+                head: node.children
+            },
+            child_count: node.child_count,
+            tag,
+            root_steps,
+            implicit_result: implicit
+        },
+        columns,
+        slot,
+        start: in.steps,
+        flags,
+        task_output: has_output
+    })
+
+    const has_call = tag == Tag.Call || tag == Tag.Loop
+
+    const parent = match {
+        has_call && parents.length != 0 => parents[parents.length - 1],
+        _ => 0
+    }
+
+    const loop_body = tag == Tag.Call && matches({
+        source,
+        ...in.nodes[parent - 1].name,
+        name: loop_tag
+    })
+
+    const event = match {
+        parents.length != 0 && !loop_body => bodyEvent({
+            tag,
+            slot,
+            parallel_rank: parallel ? parallel_rank : null
+        }),
+        _ => null
+    }
+
+    const call_row = match {
+        tag == Tag.Call && !loop_body => row + 1,
+        tag == Tag.Loop => node.children,
+        _ => 0
+    }
+
+    const missing = call_row != 0 && missingInput({
+        source,
+        nodes: in.nodes,
+        attributes: in.attributes,
+        parent: in.nodes[parent - 1],
+        call: in.nodes[call_row - 1],
+        previous: node.previous_sibling
+    })
+
+    return {
+        parallel,
+        implicit,
+        module_step,
+        steps,
+        event,
+        call: call_row != 0,
+        missing_input: missing ? call_row - 1 : null
+    }
+}

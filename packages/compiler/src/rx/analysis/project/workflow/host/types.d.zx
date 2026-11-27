@@ -75,8 +75,6 @@ export type SelectionLabels = mutable_opaque
 
 export type DeclarationTarget = mutable_opaque
 
-export type TypeBindingTail = mutable_opaque
-
 export enum ReferenceTarget {
     Source,
     Compiled,

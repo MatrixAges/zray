@@ -1,0 +1,35 @@
+import type { Edges, Frontier } from "./model"
+
+export type Input = u64
+
+export type Output = Edges & Frontier.Omit("end")
+
+export default function (in: Input): Output {
+    const seen: bool[] = []
+    const queue: u64[] = []
+    const starts: u64[] = []
+    const ends: u64[] = []
+
+    return loop({
+        index: 0,
+        seen,
+        queue,
+        starts: starts.push(0)[0],
+        ends
+    }, {
+        while: state => state.index < in,
+        next: state => {
+            state.seen = state.seen.push(false)[0]
+            state.queue = state.queue.push(0)[0]
+            state.starts = state.starts.push(0)[0]
+            state.ends = state.ends.push(0)[0]
+            state.index += 1
+        },
+        return: state => ({
+            seen: state.seen,
+            queue: state.queue,
+            starts: state.starts,
+            ends: state.ends
+        })
+    })
+}

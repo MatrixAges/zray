@@ -70,7 +70,7 @@ pub fn enterLoweredLoop(handle: *anyopaque) Error!void {
     return publishLoopDeclarations(handle);
 }
 
-pub fn emitLoopRenewals(handle: *anyopaque, first: u64, end: u64, filtered_inline: bool) Error!void {
+pub fn emitLoopRenewals(handle: *anyopaque, first: u64, end: u64, skipped: []const u64, filtered_inline: bool) Error!void {
     const frame = Frame.borrow(handle);
 
     frame.growth = try @import("../../growth/delivery.zig").entry(frame.lowering, .{
@@ -78,7 +78,7 @@ pub fn emitLoopRenewals(handle: *anyopaque, first: u64, end: u64, filtered_inlin
         .target = .{ .reference = if (frame.fields != null) frame.seed else frame.state },
         .first = @intCast(first),
         .end = @intCast(end),
-        .skipped = frame.renewal_workspace.skipped.items,
+        .skipped = skipped,
         .filtered_inline = filtered_inline,
     });
 }

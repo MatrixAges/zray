@@ -1,6 +1,5 @@
 import bytes from "std:bytes"
 import fixed from "core/bytes/index/fixed"
-import memory from "memory"
 
 import find from "../find_field"
 
@@ -8,11 +7,13 @@ import type { Input, Output } from "./model"
 
 export default function (in: Input): Output {
     const index = in.existing
+    const positions: u64[] = []
 
     return loop({
         scanned: 0,
         length: index.names.length,
-        missing: false
+        missing: false,
+        positions
     }, {
         while: state => state.scanned < in.incoming.length && !state.missing,
         next: state => {
@@ -33,11 +34,8 @@ export default function (in: Input): Output {
             if (position == null && in.closed) {
                 state.missing = true
             } else {
-                memory.writeU64(
-                    in.positions,
-                    state.scanned,
-                    position == null ? state.length : position
-                )
+                state.positions =
+                    state.positions.push(position == null ? state.length : position)[0]
 
                 if (position == null) {
                     state.length += 1
@@ -48,7 +46,8 @@ export default function (in: Input): Output {
         },
         return: state => ({
             scanned: state.scanned,
-            length: state.length
+            length: state.length,
+            positions: state.positions
         })
     })
 }

@@ -65,6 +65,7 @@ export declare function emitLoopRenewals(
     frame: LoopFrame,
     first: u64,
     end: u64,
+    skipped: u64[],
     filtered_inline: bool
 ): void throws { OutOfMemory }
 

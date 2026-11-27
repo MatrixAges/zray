@@ -1,6 +1,3 @@
-import memory from "memory"
-import host from "rx_graph_host"
-
 import {
     crossed_package,
     missing_owner
@@ -17,18 +14,17 @@ import select from "./select"
 import type { Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    const { target, source, resources } = in
+    const { source } = in
 
     if (source == null) {
-        const compiled = resources.compiled
-
-        if (compiled != null) {
-            memory.writeBool(compiled, 0, true)
+        return {
+            ok: true,
+            compiled: in.compiled,
+            target: null,
+            named: false,
+            store_error: false,
+            message: null
         }
-
-        host.appendSourceGraphEdge(target, null, false)
-
-        return
     }
 
     const selected = select({
@@ -46,9 +42,14 @@ export default function (in: Input): Output {
 
     if (store_start != null) {
         if (row == null || row < store_start) {
-            host.rejectSourceGraphEdge(target, true, missing_definition)
-
-            return
+            return {
+                ok: false,
+                compiled: false,
+                target: null,
+                named: false,
+                store_error: true,
+                message: missing_definition
+            }
         }
     }
 
@@ -61,24 +62,45 @@ export default function (in: Input): Output {
         })
 
         if (boundary == Boundary.MissingOwner) {
-            host.rejectSourceGraphEdge(target, false, missing_owner)
-
-            return
+            return {
+                ok: false,
+                compiled: false,
+                target: null,
+                named: false,
+                store_error: false,
+                message: missing_owner
+            }
         }
 
         if (boundary == Boundary.Crossed) {
-            host.rejectSourceGraphEdge(target, false, crossed_package)
-
-            return
+            return {
+                ok: false,
+                compiled: false,
+                target: null,
+                named: false,
+                store_error: false,
+                message: crossed_package
+            }
         }
     }
 
     if (row == null) {
-        host.rejectSourceGraphEdge(target, false, missing_source)
-
-        return
+        return {
+            ok: false,
+            compiled: false,
+            target: null,
+            named: false,
+            store_error: false,
+            message: missing_source
+        }
     }
 
-    memory.appendU64(resources.allocator, resources.targets, row)
-    host.appendSourceGraphEdge(target, row, selected.named)
+    return {
+        ok: true,
+        compiled: false,
+        target: row,
+        named: selected.named,
+        store_error: false,
+        message: null
+    }
 }

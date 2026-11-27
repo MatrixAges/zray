@@ -1,15 +1,15 @@
-import memory from "memory"
-
-import type { Queue } from "./frontier/model"
+import type { Frontier, Queue } from "./frontier/model"
 
 export type Input = Queue
 
-export type Output = u64
+export type Output = Frontier
 
 export default function (in: Input): Output {
-    const { seen, queue, targets } = in
+    const { targets } = in
 
     return loop({
+        seen: in.seen,
+        queue: in.queue,
         cursor: 0,
         end: in.end
     }, {
@@ -17,14 +17,18 @@ export default function (in: Input): Output {
         next: state => {
             const target = targets[state.cursor]
 
-            if (memory.readU32(seen, target) == 0) {
-                memory.writeU32(seen, target, 1)
-                memory.writeU64(queue, state.end, target)
+            if (!state.seen[target]) {
+                state.seen[target] = true
+                state.queue[state.end] = target
                 state.end += 1
             }
 
             state.cursor += 1
         },
-        return: state => state.end
+        return: state => ({
+            seen: state.seen,
+            queue: state.queue,
+            end: state.end
+        })
     })
 }

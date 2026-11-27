@@ -49,10 +49,8 @@
     <Call
         fn="../frontier/publish"
         in={{
-            ...$in.request.pick([
-                "starts",
-                "ends"
-            ]),
+            starts: $in.starts,
+            ends: $in.ends,
             owner: $ctx.source.owner,
             edge_start: $in.edge_end,
             edge_end: $in.edge_end + $ctx.publishSourceGraphDependencies.length
@@ -62,10 +60,8 @@
     <Call
         fn="../enqueue"
         in={{
-            ...$in.request.pick([
-                "seen",
-                "queue"
-            ]),
+            seen: $in.seen,
+            queue: $in.queue,
             end: $in.end,
             targets: $ctx.publishSourceGraphDependencies
         }}
@@ -74,17 +70,19 @@
     <Call
         fn="../frontier/select"
         in={{
-            queue: $in.request.queue,
+            queue: $ctx.enqueue.queue,
             cursor: $in.cursor,
-            end: $ctx.enqueue
+            end: $ctx.enqueue.end
         }}
     />
 
     <Return
         value={{
             request: $in.request,
+            starts: $ctx.publish.starts,
+            ends: $ctx.publish.ends,
+            ...$ctx.enqueue,
             ...$ctx.select,
-            end: $ctx.enqueue,
             edge_end: $in.edge_end + $ctx.publishSourceGraphDependencies.length
         }}
     />

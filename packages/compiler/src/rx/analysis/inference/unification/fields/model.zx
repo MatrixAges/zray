@@ -10,11 +10,11 @@ export type Index = {
 export type Input = {
     existing: Index,
     incoming: string[],
-    positions: U64Buffer,
     closed: bool
 }
 
 export type Output = {
     scanned: u64,
-    length: u64
+    length: u64,
+    positions: u64[]
 }

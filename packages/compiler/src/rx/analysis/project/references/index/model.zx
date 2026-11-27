@@ -1,4 +1,4 @@
-import type { TextColumn, U64Buffer } from "memory"
+import type { TextColumn } from "memory"
 import type { Input as Forward } from "../forward"
 
 export type Signatures = {
@@ -11,10 +11,21 @@ export type Signatures = {
     paths: TextColumn
 }
 
+export type ForwardUpdate = {
+    row: u64,
+    encoded: u64
+}
+
 export type Input = {
     modules: Signatures,
     start: u64,
-    indices: U64Buffer,
-    forwards?: U64Buffer,
+    indices: u64[],
+    with_forwards: bool,
     forwarding: Forward.Omit("path")
+}
+
+export type Output = {
+    row: u64,
+    indices: u64[],
+    forwards: ForwardUpdate[]
 }

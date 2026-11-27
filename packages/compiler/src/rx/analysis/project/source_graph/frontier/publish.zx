@@ -1,12 +1,12 @@
-import memory from "memory"
-
-import type { Publication } from "./model"
+import type { Edges, Publication } from "./model"
 
 export type Input = Publication
 
-export type Output = void
+export type Output = Edges
 
 export default function (in: Input): Output {
-    memory.writeU64(in.starts, in.owner, in.edge_start)
-    memory.writeU64(in.ends, in.owner, in.edge_end)
+    return {
+        starts: in.starts.splice(in.owner, 1, [in.edge_start])[0],
+        ends: in.ends.splice(in.owner, 1, [in.edge_end])[0]
+    }
 }

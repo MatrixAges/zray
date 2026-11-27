@@ -1,15 +1,15 @@
 <Module>
     <Type from="model" as="Visit" />
 
-    <Args in={Visit.Input} out={u64} />
+    <Args in={Visit.Input} out={Visit.Output} />
+
+    <Call fn="../frontier/init" in={$in.end} />
 
     <Call
         fn="../enqueue"
         in={{
-            ...$in.pick([
-                "seen",
-                "queue"
-            ]),
+            seen: $ctx.init.seen,
+            queue: $ctx.init.queue,
             end: 0,
             targets: $in.roots
         }}
@@ -18,9 +18,9 @@
     <Call
         fn="../frontier/select"
         in={{
-            queue: $in.queue,
+            queue: $ctx.enqueue.queue,
             cursor: 0,
-            end: $ctx.enqueue
+            end: $ctx.enqueue.end
         }}
     />
 
@@ -28,13 +28,25 @@
         <Call
             module="advance"
             in={{
-                request: $in,
+                request: $in.pick([
+                    "target",
+                    "zx_count",
+                    "rx_end"
+                ]),
+                starts: $ctx.init.starts,
+                ends: $ctx.init.ends,
+                ...$ctx.enqueue,
                 ...$ctx.select,
-                end: $ctx.enqueue,
                 edge_end: 0
             }}
         />
     </Loop>
 
-    <Return value={$ctx.advance.end} />
+    <Return
+        value={{
+            end: $ctx.advance.end,
+            starts: $ctx.advance.starts,
+            ends: $ctx.advance.ends
+        }}
+    />
 </Module>

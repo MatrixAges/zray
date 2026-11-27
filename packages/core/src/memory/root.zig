@@ -84,7 +84,6 @@ pub const writeColumnU32s = writeU32;
 pub const copyColumnText = column_set.copyText;
 pub const copyColumnBytes = column_set.copyText;
 pub const copyColumnTextViews = column_set.copyTextViews;
-pub const appendU64 = column_set.appendU64;
 pub const column_transfer = @import("column_transfer.zig");
 pub const borrowTransferGroup = column_transfer.borrowGroup;
 pub const transferColumnCount = column_transfer.countColumns;
@@ -493,10 +492,6 @@ inline fn copySliceAt(comptime T: type, target: *anyopaque, offset: u64, source:
 
 pub inline fn copyStringViews(target: *anyopaque, source: []const []const u8) error{IndexOutOfBounds}!void {
     return copySlice([]const u8, target, source);
-}
-
-pub inline fn copyText(allocator: std.mem.Allocator, value: []const u8) std.mem.Allocator.Error![]const u8 {
-    return allocator.dupe(u8, value);
 }
 
 inline fn copySlice(comptime T: type, target: *anyopaque, source: []const T) error{IndexOutOfBounds}!void {

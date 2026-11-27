@@ -22,6 +22,7 @@
                     $in.accumulator,
                     $ctx.check.first,
                     $ctx.check.end,
+                    $ctx.check.skipped,
                     $in.inline_lists
                 ]}
             />

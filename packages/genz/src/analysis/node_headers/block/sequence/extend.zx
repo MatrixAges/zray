@@ -1,32 +1,45 @@
 import append from "./append"
 
-import type { Extend as Input } from "./model"
-
-export type Output = u64
+import type { Extend as Input, Extended as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { parts, allocator, suffix, tail } = in
+    const { suffix, tail } = in
+
+    const parts: u64[] = []
 
     const progress = loop({
         index: 0,
-        last: in.last
+        last: in.last,
+        parts
     }, {
         while: state => state.index < suffix.length,
         next: state => {
-            state.last = append({
-                parts,
-                allocator,
+            const step = append({
                 last: state.last,
                 span: suffix[state.index]
             })
+
+            state.last = step.last
+
+            if (step.emit != null) {
+                state.parts = state.parts.push(step.emit)[0]
+            }
+
             state.index += 1
-        }
+        },
+        return: state => ({
+            last: state.last,
+            parts: state.parts
+        })
     })
 
-    return append({
-        parts,
-        allocator,
+    const final = append({
         last: progress.last,
         span: tail
     })
+
+    return {
+        last: final.last,
+        parts: final.emit != null ? progress.parts.push(final.emit)[0] : progress.parts
+    }
 }

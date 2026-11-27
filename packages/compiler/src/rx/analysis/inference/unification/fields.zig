@@ -22,10 +22,6 @@ const AlignFrame = struct {
 };
 
 pub fn alignFields(allocator: std.mem.Allocator, existing: []const []const u8, incoming: []const []const u8, closed: bool) std.mem.Allocator.Error!Alignment {
-    var positions = try allocator.alloc(u64, incoming.len);
-
-    errdefer allocator.free(positions);
-
     var frame: AlignFrame = .{ .allocator = allocator };
 
     defer allocator.free(frame.buckets);
@@ -34,13 +30,22 @@ pub fn alignFields(allocator: std.mem.Allocator, existing: []const []const u8, i
 
     const input: Align = .{
         .frame = @ptrCast(&frame),
-        .scan = &.{ .existing = &frame.index, .incoming = incoming, .positions = @ptrCast(&positions), .closed = closed },
+        .scan = &.{ .existing = &frame.index, .incoming = incoming, .closed = closed },
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const result = zx.columns.invoke(align_rule.executeValue, empty.allocator(), &input) catch |err| return allocationError(err);
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
-    return .{ .positions = positions, .scanned = @intCast(result.scanned), .length = @intCast(result.length) };
+    defer arena.deinit();
+
+    var scratch_buf: [2048]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&scratch_buf, arena.allocator());
+    const result = zx.columns.invoke(align_rule.executeValue, scratch.allocator(), &input) catch |err| return allocationError(err);
+
+    return .{
+        .positions = try allocator.dupe(u64, result.positions),
+        .scanned = @intCast(result.scanned),
+        .length = @intCast(result.length),
+    };
 }
 
 pub fn publish(buffers: *Graph.Fields.Buffers, allocator: std.mem.Allocator, left: Graph.Fields, right: Graph.Fields.View, alignment: Alignment) std.mem.Allocator.Error!Graph.Fields {

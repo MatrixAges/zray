@@ -3,44 +3,48 @@ import memory from "memory"
 
 import forward from "../forward"
 
-import type { Input as Request } from "./model"
-
-export type Input = Request
-
-export type Output = u64
+import type { ForwardUpdate, Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    const { modules, indices, forwards, forwarding } = in
+    const { modules, forwarding } = in
+
+    const indices = in.indices
+    const forwards: ForwardUpdate[] = []
 
     return loop({
         row: in.start,
-        needs_forwards: false
+        needs_forwards: false,
+        indices,
+        forwards
     }, {
         while: state => state.row < modules.count && !state.needs_forwards,
         next: state => {
             const row = state.row
             const owner = modules.sources[row * modules.word_stride]
 
-            if (memory.readU64(indices, owner) == 0) {
+            if (state.indices[owner] == 0) {
                 const offset = row * modules.byte_stride
                 const deferred = modules.deferred[offset] != 0
 
-                if (deferred && forwards == null) {
+                if (deferred && !in.with_forwards) {
                     state.needs_forwards = true
                 } else {
                     const has_store = modules.store[offset] != 0
                     const ordinal = has_store ? max_u64 - row : row + 1
 
-                    memory.writeU64(indices, owner, ordinal)
+                    state.indices[owner] = ordinal
 
-                    if (deferred && forwards != null) {
+                    if (deferred && in.with_forwards) {
                         const target = forward({
                             ...forwarding,
                             path: memory.readTextColumn(modules.paths, row)
                         })
                         const encoded = target == null ? max_u64 : target + 1
 
-                        memory.writeU64(forwards, row, encoded)
+                        state.forwards = state.forwards.push({
+                            row,
+                            encoded
+                        })[0]
                     }
                 }
             }
@@ -49,6 +53,10 @@ export default function (in: Input): Output {
                 state.row += 1
             }
         },
-        return: state => state.row
+        return: state => ({
+            row: state.row,
+            indices: state.indices,
+            forwards: state.forwards
+        })
     })
 }

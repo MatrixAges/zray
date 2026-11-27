@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import type { Position, Selection } from "./model"
 
 export type Input = Position
@@ -14,7 +12,7 @@ export default function (in: Input): Output {
         }
     }
 
-    const owner = memory.readU64(in.queue, in.cursor)
+    const owner = in.queue[in.cursor]
 
     return {
         cursor: in.cursor + 1,

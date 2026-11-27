@@ -1,10 +1,6 @@
-import memory from "memory"
-
 import { word_radix } from "../const"
 
-import type { Append as Input } from "./model"
-
-export type Output = u64
+import type { Append as Input, Appended as Output } from "./model"
 
 export default function (in: Input): Output {
     const { span, last } = in
@@ -12,20 +8,30 @@ export default function (in: Input): Output {
     const count = span % word_radix
 
     if (count == 0) {
-        return last
+        return {
+            last,
+            emit: null
+        }
     }
 
     if (last == 0) {
-        return span
+        return {
+            last: span,
+            emit: null
+        }
     }
 
     const end = last / word_radix + last % word_radix
 
     if (end == span / word_radix) {
-        return last + count
+        return {
+            last: last + count,
+            emit: null
+        }
     }
 
-    memory.appendU64(in.allocator, in.parts, last)
-
-    return span
+    return {
+        last: span,
+        emit: last
+    }
 }

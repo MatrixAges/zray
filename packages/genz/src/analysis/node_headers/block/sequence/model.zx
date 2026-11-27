@@ -1,16 +1,20 @@
-import type { Allocator, U64Storage } from "memory"
-
-export type Sequence = {
-    parts: U64Storage,
-    allocator: Allocator,
-    last: u64
-}
-
-export type Append = Sequence & {
+export type Append = {
+    last: u64,
     span: u64
 }
 
-export type Extend = Sequence & {
+export type Appended = {
+    last: u64,
+    emit?: u64
+}
+
+export type Extend = {
+    last: u64,
     suffix: u64[],
     tail: u64
+}
+
+export type Extended = {
+    last: u64,
+    parts: u64[]
 }

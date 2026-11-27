@@ -13,35 +13,61 @@ const Scope = std.meta.Child(@typeInfo(@FieldType(Source, "scope")).optional.chi
 const Location = rx.ast.Location;
 
 const Publication = struct {
-    collector: *Collector,
-    location: Location,
-    role: model.Reference,
-    store_owner: ?[]const u8 = null,
-    external: model.Target = undefined,
-    fn borrow(handle: *const anyopaque) *const Publication {
-        return @ptrCast(@alignCast(handle));
-    }
-    fn publish(self: *const Publication, selection: ?*const Source, compiled: bool) Collector.Error!void {
-        const collector = self.collector;
+    fn publish(
+        collector: *Collector,
+        location: Location,
+        role: model.Reference,
+        store_owner: ?[]const u8,
+        external_target: model.Target,
+        selection: ?*const Source,
+        compiled: bool,
+    ) Collector.Error!void {
         const temporary = collector.temporary.allocator();
-        var flag: []bool = collector.modules.items(.compiled_dependency)[collector.owner..][0..1];
 
         const input: Input = .{
-            .target = @ptrCast(self),
             .source = selection,
-            .resources = &.{
-                .allocator = @ptrCast(&collector.target_allocator),
-                .targets = @ptrCast(&collector.targets),
-                .compiled = if (compiled) @ptrCast(&flag) else null,
-            },
+            .compiled = compiled,
             .release = @ptrCast(&temporary),
         };
 
-        zx.columns.invoke(rule.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
+        const result = zx.columns.invoke(rule.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
             error.OutOfMemory, error.Overflow, error.WriteFailed => return error.OutOfMemory,
-            error.InvalidGraph => return error.InvalidGraph,
             else => unreachable,
         };
+
+        if (!result.ok) {
+            const message = result.message.?;
+
+            if (!result.store_error) return collector.fail(location, message);
+
+            collector.issue = .{
+                .path = try collector.allocator.dupe(u8, store_owner.?),
+                .location = location,
+                .code = "capability",
+                .message = message,
+            };
+
+            return error.InvalidGraph;
+        }
+
+        if (result.compiled) {
+            collector.modules.items(.compiled_dependency)[collector.owner] = true;
+        }
+
+        const target: model.Target = if (result.target) |value| blk: {
+            const index: usize = @intCast(value);
+
+            try collector.targets.append(collector.target_allocator, index);
+
+            break :blk .{ .source = index };
+        } else external_target;
+
+        try collector.edges.append(collector.allocator, .{
+            .target = target,
+            .location = location,
+            .reference = role,
+            .named = result.named,
+        });
     }
 };
 
@@ -51,13 +77,6 @@ pub fn source(collector: *Collector, location: Location, role: model.Reference, 
     member_width: ?usize = null,
     boundary: ?project.ImportScope = null,
 }) Collector.Error!void {
-    const publication: Publication = .{
-        .collector = collector,
-        .location = location,
-        .role = role,
-        .store_owner = details.store_owner,
-    };
-
     const roots = zx.memory.borrowTextColumn("root", if (details.boundary) |scope| scope.scopes else &.{});
 
     const boundary: Scope = .{
@@ -70,7 +89,7 @@ pub fn source(collector: *Collector, location: Location, role: model.Reference, 
     const index = table(collector.paths);
     const alternate = if (other != collector.paths) table(other.?) else undefined;
 
-    try publication.publish(&.{
+    try Publication.publish(collector, location, role, details.store_owner, undefined, &.{
         .path = selection.path,
         .index = &index,
         .matched = if (other == collector.paths) selection.row else null,
@@ -87,40 +106,5 @@ fn table(index: *const project.source_index.Map) Table {
 }
 
 pub fn external(collector: *Collector, location: Location, role: model.Reference, target: model.Target) Collector.Error!void {
-    const publication: Publication = .{
-        .collector = collector,
-        .location = location,
-        .role = role,
-        .external = target,
-    };
-
-    try publication.publish(null, target == .compiled);
-}
-
-pub fn appendSourceGraphEdge(handle: *const anyopaque, row: ?u64, named: bool) std.mem.Allocator.Error!void {
-    const self = Publication.borrow(handle);
-    const target: model.Target = if (row) |value| .{ .source = @intCast(value) } else self.external;
-
-    try self.collector.edges.append(self.collector.allocator, .{
-        .target = target,
-        .location = self.location,
-        .reference = self.role,
-        .named = named,
-    });
-}
-
-pub fn rejectSourceGraphEdge(handle: *const anyopaque, store: bool, message: []const u8) Collector.Error!void {
-    const self = Publication.borrow(handle);
-    const collector = self.collector;
-
-    if (!store) return collector.fail(self.location, message);
-
-    collector.issue = .{
-        .path = try collector.allocator.dupe(u8, self.store_owner.?),
-        .location = self.location,
-        .code = "capability",
-        .message = message,
-    };
-
-    return error.InvalidGraph;
+    try Publication.publish(collector, location, role, null, target, null, target == .compiled);
 }

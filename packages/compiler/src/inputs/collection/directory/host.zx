@@ -1,6 +1,6 @@
 export {
     listGenerationLevel,
-    reserveGenerationFiles,
+    commitGenerationFiles,
     selectGenerationAllocator,
     retireGenerationLevel
 } from "generation_host"

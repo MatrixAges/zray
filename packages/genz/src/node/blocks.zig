@@ -37,15 +37,16 @@ fn Spans(comptime Span: type, comptime field: []const u8) type {
                 const entry = @import("generated_node_span_append");
 
                 const input: std.meta.Child(entry.Input) = .{
-                    .parts = @ptrCast(&self.parts),
-                    .allocator = @ptrCast(&self.scratch),
                     .last = self.last,
                     .span = @bitCast(Pair{ .count = span.len, .start = span.start }),
                 };
 
                 var fixed = std.heap.FixedBufferAllocator.init(&.{});
+                const result = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
 
-                self.last = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch |err| return failure(err);
+                if (result.emit) |emitted| try self.parts.append(self.scratch, emitted);
+
+                self.last = result.last;
 
                 return;
             }
@@ -64,21 +65,24 @@ fn Spans(comptime Span: type, comptime field: []const u8) type {
         }
         pub fn extend(self: *Self, suffix: *const Self) std.mem.Allocator.Error!void {
             const entry = @import("generated_node_span_extend");
-            const checkpoint = self.parts.items.len;
+            var arena = std.heap.ArenaAllocator.init(self.scratch);
+
+            defer arena.deinit();
+
+            var buffer: [512]u8 = undefined;
+            var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
 
             const input: std.meta.Child(entry.Input) = .{
-                .parts = @ptrCast(&self.parts),
-                .allocator = @ptrCast(&self.scratch),
                 .last = self.last,
                 .suffix = suffix.parts.items,
                 .tail = suffix.last,
             };
 
-            errdefer self.parts.shrinkRetainingCapacity(checkpoint);
+            const result = entry.executeIn(scratch.allocator(), &input) catch |err| return failure(err);
 
-            var fixed = std.heap.FixedBufferAllocator.init(&.{});
+            try self.parts.appendSlice(self.scratch, result.parts);
 
-            self.last = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch |err| return failure(err);
+            self.last = result.last;
         }
         pub fn finish(self: *Self, allocator: std.mem.Allocator) std.mem.Allocator.Error!Span {
             return self.collectSpan(allocator, true);

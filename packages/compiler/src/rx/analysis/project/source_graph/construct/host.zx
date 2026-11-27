@@ -1,11 +1,4 @@
 export {
-    allocateFilledU32Buffer,
-    allocateU64Buffer,
-    releaseU32Buffer,
-    releaseU64Buffer,
-    u64Views
-} from "memory"
-export {
     finishSourceGraphScan,
     openSourceGraphScanner,
     rejectSourceGraphCycle

@@ -230,10 +230,6 @@ fn list(comptime Item: type, storage: *anyopaque) *std.ArrayList(Item) {
     return @ptrCast(@alignCast(storage));
 }
 
-pub fn appendU64(resource: *const anyopaque, target: *anyopaque, value: u64) std.mem.Allocator.Error!void {
-    try list(u64, target).append(borrowAllocator(resource), value);
-}
-
 pub fn reserveTail(comptime Item: type, resource: *const anyopaque, storage: *anyopaque, source: *anyopaque, tail: *anyopaque, count: u64, limit: u64) std.mem.Allocator.Error!void {
     const column = list(Item, storage);
 

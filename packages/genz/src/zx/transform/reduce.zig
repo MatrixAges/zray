@@ -46,7 +46,7 @@ pub fn lower(self: *Lower, body: *Statements, args: Request) Lower.Error!node.Ex
     return @import("../aggregate.zig").finish(self, body, result);
 }
 
-pub fn emitReduceRenewals(handle: *anyopaque, accumulator: []const u8, first: u64, end: u64, filtered_inline: bool) Lower.Error!u64 {
+pub fn emitReduceRenewals(handle: *anyopaque, accumulator: []const u8, first: u64, end: u64, skipped: []const u64, filtered_inline: bool) Lower.Error!u64 {
     const frame = Frame.borrow(handle);
 
     return @import("../construction/publication.zig").packSpan(try @import("../growth/delivery.zig").entry(frame.lowering, .{
@@ -54,7 +54,7 @@ pub fn emitReduceRenewals(handle: *anyopaque, accumulator: []const u8, first: u6
         .target = .{ .name = accumulator },
         .first = @intCast(first),
         .end = @intCast(end),
-        .skipped = frame.renewal_workspace.skipped.items,
+        .skipped = skipped,
         .filtered_inline = filtered_inline,
     }));
 }

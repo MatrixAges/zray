@@ -1,25 +1,13 @@
 import type { DirectoryScan } from "generation_host"
-import type {
-    ListColumn,
-    ReadColumn,
-    U8Buffer,
-    WriteColumn
-} from "memory"
-
-export type Files = {
-    records: U8Buffer,
-    paths: WriteColumn,
-    relatives: WriteColumn,
-    width: u64,
-    prefix_length: u64
-}
+import type { ListColumn, ReadColumn } from "memory"
 
 export type Input = {
     scan: DirectoryScan,
     directories: ReadColumn,
     files: ListColumn,
     paths: ListColumn,
-    target: Files,
+    width: u64,
+    prefix_length: u64,
     initial: string[]
 }
 

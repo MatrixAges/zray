@@ -1,6 +1,5 @@
 import type { Table } from "core/bytes/index/slot"
-import type { Allocator, BoolBuffer, U64Storage } from "memory"
-import type { GraphEdgePublication } from "rx_graph_host"
+import type { Allocator } from "memory"
 import type {
     Input as Scope
 } from "../../../../../../zx/modules/project/target/scope/check"
@@ -19,17 +18,17 @@ export type Source = Lookup & {
     member_width?: u64
 }
 
-export type Resources = {
-    allocator: Allocator,
-    targets: U64Storage,
-    compiled?: BoolBuffer
-}
-
 export type Input = {
-    target: GraphEdgePublication,
     source?: Source,
-    resources: Resources,
+    compiled: bool,
     release: Allocator
 }
 
-export type Output = void
+export type Output = {
+    ok: bool,
+    compiled: bool,
+    target?: u64,
+    named: bool,
+    store_error: bool,
+    message?: string
+}

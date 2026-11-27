@@ -1,7 +1,11 @@
-import type { U64Storage } from "memory"
+import type { Check } from "../../node_headers/model"
 import type { Bound } from "../../node_headers/payload/model"
 
 export type Input = {
-    payload: Bound,
-    spans: U64Storage
+    payload: Bound
+}
+
+export type Output = {
+    check: Check,
+    span: u64
 }

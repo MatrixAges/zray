@@ -45,7 +45,6 @@ export type Scan = {
     nodes: Node[],
     attributes: Attribute[],
     root: u64,
-    parents: U64Buffer,
     slots: u64[],
     facts: U32Buffer,
     unit_firsts: U32Buffer,
