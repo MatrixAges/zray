@@ -7,35 +7,19 @@
 
     <Call
         module="source"
-        in={{
-            loader: $in.request.loader,
-            path: $ctx.publish.path,
-            text: $ctx.publish.source
-        }}
+        in={$ctx.publish.pick([
+            "path",
+            "source"
+        ])}
     />
 
     <Call
         fn="binding"
         in={{
-            ...$ctx.publish.pick([
-                "index",
-                "alias",
-                "path",
-                "module",
-                "namespaces"
-            ]),
-            row: $in.row,
+            plan: $ctx.publish,
             source: $ctx.source
         }}
     />
 
-    <Call
-        fn="host.writeNativeBinding"
-        in={[
-            $in.request.loader,
-            $ctx.binding
-        ]}
-    />
-
-    <Return value={$ctx.publish.next} />
+    <Return value={$ctx.binding} />
 </Module>

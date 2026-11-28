@@ -1,4 +1,3 @@
-import type { SnapshotVersions } from "generation_host"
 import type { TextColumn } from "memory"
 
 export type WriteHeader = {
@@ -7,10 +6,20 @@ export type WriteHeader = {
     count: u64
 }
 
+export type Version = {
+    inode: u64,
+    size: u64,
+    mtime_low: u64,
+    ctime_low: u64,
+    read_low: u64,
+    mtime_high: i32,
+    ctime_high: i32,
+    read_high: i32
+}
+
 export type WriteRows = WriteHeader.Pick("count") & {
     paths: TextColumn,
-    keys: TextColumn,
-    versions: SnapshotVersions
+    versions: Version[]
 }
 
 export type Write = WriteHeader & WriteRows

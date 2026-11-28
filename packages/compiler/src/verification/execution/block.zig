@@ -81,7 +81,7 @@ pub fn evaluateSymbolicStatement(handle: *anyopaque, expression: ?u32) zx.Error!
 
     frame.outcome_view = .{
         .safe = outcome.safe,
-        .text = if (outcome.value == .scalar) outcome.value.scalar else null,
+        .text = outcome.value.scalar,
     };
 
     return &frame.outcome_view;

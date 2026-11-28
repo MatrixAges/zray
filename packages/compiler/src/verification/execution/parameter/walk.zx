@@ -3,7 +3,6 @@ import { max_u64 } from "core/const"
 import { scalar_void } from "core/type_table/const"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
-import host from "verification_program_host"
 
 import fieldPath from "../../ports/path"
 import enumWidth from "../../scalar/enum_width"
@@ -11,12 +10,12 @@ import symbolicWidth from "../../scalar/symbolic_width"
 import { invalid_parameter_type } from "../program/const"
 import leaf from "./leaf"
 
-import type { Input } from "./model"
+import type { Input, Walked } from "./model"
 
-export type Output = u64
+export type Output = Walked
 
 export default function walk(in: Input): Output {
-    const { program, target, types, type_id, path, index, proof } = in
+    const { types, type_id, path, index, proof } = in
 
     const row = integers.widen(type_id)
     const shape = kind(types.kinds[row])
@@ -28,13 +27,19 @@ export default function walk(in: Input): Output {
         const object = shape == Kind.Object
         const children = object ? types.field_types : types.children
 
-        host.reserveSymbolicParameter(program, target, count)
+        const initial: Walked = {
+            rows: in.rows.push({
+                type_id,
+                fields: count
+            })[0],
+            index
+        }
 
         return loop({
             field: 0,
-            next_index: index
+            walked: initial
         }, {
-            while: state => state.field < count,
+            while: state => state.field < count && state.walked.diagnostic == null,
             next: state => {
                 const label: string? = match object {
                     true => types.field_names[first + state.field],
@@ -46,25 +51,28 @@ export default function walk(in: Input): Output {
                     index: state.field
                 })
 
-                state.next_index = walk({
-                    program,
-                    target: host.symbolicParameterField(target, state.field),
+                state.walked = walk({
                     types,
                     type_id: children[first + state.field],
                     path: child_path,
-                    index: state.next_index,
-                    proof
+                    index: state.walked.index,
+                    proof,
+                    rows: state.walked.rows
                 })
                 state.field += 1
             },
-            return: state => state.next_index
+            return: state => state.walked
         })
     }
 
     if (shape == Kind.Scalar && start == scalar_void) {
-        host.reserveSymbolicParameter(program, target, 0)
-
-        return index
+        return {
+            rows: in.rows.push({
+                type_id,
+                fields: 0
+            })[0],
+            index
+        }
     }
 
     const publication = leaf({
@@ -83,21 +91,19 @@ export default function walk(in: Input): Output {
         }
     })
 
-    if (publication != null) {
-        host.publishSymbolicParameter(
-            program,
-            target,
-            publication.type_id,
-            publication.path,
-            publication.symbol,
-            publication.declaration,
-            publication.domain
-        )
-
-        return index + 1
+    if (publication == null) {
+        return {
+            rows: in.rows,
+            index,
+            diagnostic: invalid_parameter_type
+        }
     }
 
-    host.rejectSymbolicProgram(program, invalid_parameter_type)
-
-    return index
+    return {
+        rows: in.rows.push({
+            ...publication,
+            fields: 0
+        })[0],
+        index: index + 1
+    }
 }

@@ -4,6 +4,7 @@ export {
     checkSymbolicUnit,
     ensureSymbolicGraph,
     markSymbolicQueryPrefix,
+    publishSymbolicParameter,
     publishSymbolicProgramResult,
     publishSymbolicQuery,
     rejectSymbolicProgram,

@@ -11,7 +11,6 @@ const fingerprint = compiler.input_fingerprint;
 const publication = compiler.input_generation;
 const generation = @import("shared_generation.zig");
 const generated = publication.generated;
-const source_fields = .{ .paths = "path", .sources = "source" };
 const Prepared = if (generated) @import("generation_execution_abi").layouts.@"zig:generation_host".PreparedGeneration else void;
 pub const resolveNative = compiler.native_lookup.Resolver(&.{ @This(), Generation, InputSnapshot, interface_inputs, collection }).resolve;
 
@@ -72,9 +71,11 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
         .roots = project.roots.len,
     };
 
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
-    return workflow.executeIn(empty.allocator(), &input) catch |err| return frame.failure orelse err;
+    defer arena.deinit();
+
+    return workflow.executeIn(arena.allocator(), &input) catch |err| return frame.failure orelse err;
 }
 
 const Generation = struct {
@@ -193,11 +194,8 @@ const Generation = struct {
     fn hashFrame(self: *const Generation, digests: []analysis.project.ModuleDigest) !fingerprint.Frame {
         const rule = @import("generated_input_frame_fingerprint");
         const memory = @import("zx").memory;
-        const Input = std.meta.Child(rule.Input);
-        const Modules = std.meta.Child(@FieldType(Input, "modules"));
-        const rows = memory.borrowReadFields(source_fields, self.inputs.modules);
+        const paths = memory.borrowTextColumn("path", self.inputs.modules);
         const interfaces = memory.borrowTextColumn("source", self.interfaces.bindings);
-        var cache = FileDigest{ .files = &self.resident.files };
         var arena = std.heap.ArenaAllocator.init(self.allocator);
 
         defer arena.deinit();
@@ -206,8 +204,8 @@ const Generation = struct {
             .generator = &self.resident.digest,
             .manifest = self.manifest_source,
             .modules = &.{
-                .cache = @ptrCast(&cache),
-                .rows = &rows.bind(std.meta.Child(@FieldType(Modules, "rows"))),
+                .paths = @ptrCast(&paths),
+                .digests = try fileDigests(&self.resident.files, arena.allocator(), self.inputs.modules),
             },
             .interfaces = @ptrCast(&interfaces),
             .interface_count = self.interfaces.bindings.len,
@@ -236,12 +234,9 @@ const Generation = struct {
         if (comptime !generated) return fingerprint.seedOutput(frame, partitions, self.inputs.sources, self.inputs.templates, files);
 
         const rule = @import("generated_input_output_fingerprint");
-        const Input = std.meta.Child(rule.Input);
-        const Rows = std.meta.Child(@FieldType(Input, "sources"));
         const memory = @import("zx").memory;
-        const sources = memory.borrowReadFields(source_fields, self.inputs.sources);
-        const templates = memory.borrowReadFields(source_fields, self.inputs.templates);
-        var cache = FileDigest{ .files = files };
+        const sources = memory.borrowTextColumn("path", self.inputs.sources);
+        const templates = memory.borrowTextColumn("path", self.inputs.templates);
         var arena = std.heap.ArenaAllocator.init(self.allocator);
 
         defer arena.deinit();
@@ -249,9 +244,14 @@ const Generation = struct {
         const digest = try rule.executeIn(arena.allocator(), &.{
             .frame = frame,
             .partitions = partitions,
-            .cache = @ptrCast(&cache),
-            .sources = &sources.bind(Rows),
-            .templates = &templates.bind(Rows),
+            .sources = &.{
+                .paths = @ptrCast(&sources),
+                .digests = try fileDigests(files, arena.allocator(), self.inputs.sources),
+            },
+            .templates = &.{
+                .paths = @ptrCast(&templates),
+                .digests = try fileDigests(files, arena.allocator(), self.inputs.templates),
+            },
         });
 
         std.debug.assert(digest.len == @sizeOf(fingerprint.Digest));
@@ -393,17 +393,17 @@ const Generation = struct {
 
         self.prepareFingerprints() catch |err| return self.fail(err);
 
-        self.prepared = .{ .digest = &self.digest, .interfaces_loaded = self.interfaces.failure == null };
+        const interfaces_loaded = self.interfaces.failure == null;
+
+        self.previous = if (interfaces_loaded) self.resident.exactAnalysis(&self.digest) else null;
+
+        self.prepared = .{
+            .digest = &self.digest,
+            .interfaces_loaded = interfaces_loaded,
+            .analysis_available = self.previous != null,
+        };
 
         return &self.prepared;
-    }
-
-    pub fn lookupGenerationAnalysis(handle: *anyopaque) bool {
-        const self = borrow(handle);
-
-        self.previous = self.resident.exactAnalysis(&self.digest);
-
-        return self.previous != null;
     }
     pub fn restoreGenerationAnalysis(handle: *anyopaque) Error![]const u8 {
         const self = borrow(handle);
@@ -417,15 +417,14 @@ const Generation = struct {
     }
 };
 
-const FileDigest = struct {
-    files: *Files,
-    digest: fingerprint.Digest = undefined,
-};
+fn fileDigests(files: *Files, allocator: std.mem.Allocator, rows: anytype) ![]const []const u8 {
+    const values = try allocator.alloc(fingerprint.Digest, rows.len);
+    const digests = try allocator.alloc([]const u8, rows.len);
 
-pub fn readGenerationFileDigest(cache: *anyopaque, key: []const u8, source: []const u8) []const u8 {
-    const self: *FileDigest = @ptrCast(@alignCast(cache));
+    for (rows, values, digests) |row, *value, *digest| {
+        value.* = files.digest(row.path, row.source);
+        digest.* = value;
+    }
 
-    self.digest = self.files.digest(key, source);
-
-    return &self.digest;
+    return digests;
 }

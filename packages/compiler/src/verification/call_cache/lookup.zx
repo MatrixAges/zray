@@ -1,11 +1,12 @@
 import digest from "./digest"
 import traverse from "./traverse"
 
-import type { SymbolicValue } from "verification_host"
+import type { Layout } from "../terms/layout"
 import type { Digest as Output } from "./model"
 
 export type Input = {
-    argument: SymbolicValue,
+    argument: u8[],
+    layout: Layout,
     target: u32
 }
 
@@ -14,6 +15,7 @@ export default function (in: Input): Output {
 
     const terms = traverse({
         value: in.argument,
+        layout: in.layout,
         terms: []
     })
 

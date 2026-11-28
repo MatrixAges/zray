@@ -1,19 +1,12 @@
 import bytes from "std:bytes"
-import { readGenerationFileDigest } from "generation_host"
 import memory from "memory"
 
-import type { GenerationFileCache } from "generation_host"
-import type { SourceRows } from "./output_shape"
-
-export type Input = {
-    cache: GenerationFileCache,
-    rows: SourceRows
-}
+import type { SourceRows as Input } from "./output_shape"
 
 export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { cache, rows } = in
+    const { paths, digests } = in
 
     const parts: u8[][] = []
 
@@ -21,17 +14,16 @@ export default function (in: Input): Output {
         position: 0,
         parts
     }, {
-        while: state => state.position < rows.count,
+        while: state => state.position < digests.length,
         next: state => {
             const position = state.position
-            const path = memory.readTextColumn(rows.paths, position)
-            const source = memory.readTextColumn(rows.sources, position)
+            const path = memory.readTextColumn(paths, position)
             const path_bytes = bytes.fromText(path)
 
             const row = bytes.join(bytes.fromText(""), [
                 bytes.encodeU64Le(path_bytes.length),
                 path_bytes,
-                readGenerationFileDigest(cache, path, source)
+                digests[position]
             ])
 
             state.parts = state.parts.push(row)[0]

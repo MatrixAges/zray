@@ -34,13 +34,7 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocato
         }
     }
 
-    var observations: InterfaceObservations = .{
-        .io = io,
-        .allocator = allocator,
-        .facts = &facts,
-    };
-
-    if (!try observations.include(project.interfaces)) return .{ .roots = roots, .facts = &.{}, .context = "", .path = "" };
+    if (!try observeInterfaces(io, allocator, &facts, project.interfaces)) return .{ .roots = roots, .facts = &.{}, .context = "", .path = "" };
     try compiler.source_inputs.order.sort(Fact, files.gpa, facts.items);
 
     const here = try std.process.currentPathAlloc(io, allocator);
@@ -103,16 +97,17 @@ fn encode(allocator: std.mem.Allocator, context: []const u8, facts: []const Fact
     const rule = @import("generated_input_records_write");
     const memory = @import("zx").memory;
     const paths = memory.borrowTextColumn("path", facts);
-    const keys = memory.borrowTextColumn("key", facts);
-    var versions = SnapshotVersions{ .files = files };
+    const Row = std.meta.Child(@FieldType(std.meta.Child(rule.Input), "versions"));
+    const rows = try allocator.alloc(Row, facts.len);
+    const versions = try allocator.alloc(std.meta.Child(Row), facts.len);
+    const count = collectVersions(facts, files, rows, versions);
 
     const payload = (try rule.executeIn(allocator, &.{
         .context = context,
         .digest = fingerprint,
         .count = facts.len,
         .paths = @ptrCast(&paths),
-        .keys = @ptrCast(&keys),
-        .versions = @ptrCast(&versions),
+        .versions = rows[0..count],
     })) orelse return null;
 
     std.debug.assert(payload.len == size);
@@ -120,88 +115,81 @@ fn encode(allocator: std.mem.Allocator, context: []const u8, facts: []const Fact
     return payload;
 }
 
-const Version = if (source.binary_records) @import("generation_execution_abi").layouts.@"zig:generation_host".SnapshotVersion else void;
+fn collectVersions(facts: []const Fact, files: *const Files, rows: anytype, versions: anytype) usize {
+    for (facts, rows, versions, 0..) |fact, *row, *out, index| {
+        const version = files.version(fact.key) orelse return index;
+        const modified = source.timestamp(version.metadata.mtime);
+        const changed = source.timestamp(version.metadata.ctime);
+        const read = source.timestamp(version.read);
 
-const SnapshotVersions = struct {
-    files: *const Files,
-    row: Version = undefined,
-};
-
-pub fn readSnapshotVersion(cache: *anyopaque, key: []const u8) ?*const Version {
-    const self: *SnapshotVersions = @ptrCast(@alignCast(cache));
-    const version = self.files.version(key) orelse return null;
-    const modified = source.timestamp(version.metadata.mtime);
-    const changed = source.timestamp(version.metadata.ctime);
-    const read = source.timestamp(version.read);
-
-    self.row = .{
-        .inode = version.metadata.inode,
-        .size = version.metadata.size,
-        .mtime_low = modified.low,
-        .ctime_low = changed.low,
-        .read_low = read.low,
-        .mtime_high = modified.high,
-        .ctime_high = changed.high,
-        .read_high = read.high,
-    };
-
-    return &self.row;
-}
-
-const InterfaceObservations = struct {
-    io: std.Io,
-    allocator: std.mem.Allocator,
-    facts: *std.ArrayList(Fact),
-    fn include(self: *InterfaceObservations, declarations: []const manifest.Interface) !bool {
-        const existing = self.facts.items.len;
-
-        if (comptime !source.binary_records) {
-            for (declarations) |interface| {
-                const matching = seed_interfaces.find("key", interface.path, self.facts.items[0..existing]);
-
-                if (!try self.append(matching, interface.path)) return false;
-            }
-
-            return true;
-        }
-
-        if (declarations.len == 0) return true;
-        // The observed prefix stays borrowed while the interface rows are appended.
-        try self.facts.ensureUnusedCapacity(self.allocator, declarations.len);
-
-        const rule = @import("generated_observe_input_interfaces");
-        const memory = @import("zx").memory;
-        const paths = memory.borrowTextColumn("path", declarations);
-        const keys = memory.borrowTextColumn("key", self.facts.items);
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-        return rule.executeIn(empty.allocator(), &.{
-            .target = @ptrCast(self),
-            .paths = @ptrCast(&paths),
-            .count = declarations.len,
-            .keys = @ptrCast(&keys),
-            .existing = existing,
-        });
-    }
-    fn append(self: *InterfaceObservations, matching: ?usize, path: []const u8) !bool {
-        const fact = if (matching) |row|
-            self.facts.items[row]
-
-        else observed: {
-            const key = try std.fs.path.resolve(self.allocator, &.{path});
-            const stat = std.Io.Dir.cwd().statFile(self.io, path, .{}) catch return false;
-
-            break :observed Fact.init(key, key, Files.metadata(stat));
+        out.* = .{
+            .inode = version.metadata.inode,
+            .size = version.metadata.size,
+            .mtime_low = modified.low,
+            .ctime_low = changed.low,
+            .read_low = read.low,
+            .mtime_high = modified.high,
+            .ctime_high = changed.high,
+            .read_high = read.high,
         };
 
-        try self.facts.append(self.allocator, fact);
+        row.* = out;
+    }
+
+    return facts.len;
+}
+
+fn observeInterfaces(io: std.Io, allocator: std.mem.Allocator, facts: *std.ArrayList(Fact), declarations: []const manifest.Interface) !bool {
+    const existing = facts.items.len;
+
+    if (comptime !source.binary_records) {
+        for (declarations) |interface| {
+            const matching = seed_interfaces.find("key", interface.path, facts.items[0..existing]);
+
+            if (!try appendInterface(io, allocator, facts, interface.path, matching)) return false;
+        }
 
         return true;
     }
-};
 
-pub fn recordInputInterface(handle: *anyopaque, path: []const u8, matching: ?u64) error{OutOfMemory}!bool {
-    const self: *InterfaceObservations = @ptrCast(@alignCast(handle));
+    if (declarations.len == 0) return true;
 
-    return self.append(if (matching) |row| @intCast(row) else null, path);
+    const rule = @import("generated_observe_input_interfaces");
+    const memory = @import("zx").memory;
+    const paths = memory.borrowTextColumn("path", declarations);
+    const keys = memory.borrowTextColumn("key", facts.items);
+    var arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer arena.deinit();
+
+    const observations = try rule.executeIn(arena.allocator(), &.{
+        .paths = @ptrCast(&paths),
+        .count = declarations.len,
+        .keys = @ptrCast(&keys),
+        .existing = existing,
+    });
+
+    for (observations) |observation| {
+        const matching: ?usize = if (observation.matching) |row| @intCast(row) else null;
+
+        if (!try appendInterface(io, allocator, facts, observation.path, matching)) return false;
+    }
+
+    return true;
+}
+
+fn appendInterface(io: std.Io, allocator: std.mem.Allocator, facts: *std.ArrayList(Fact), path: []const u8, matching: ?usize) !bool {
+    const fact = if (matching) |row|
+        facts.items[row]
+
+    else observed: {
+        const key = try std.fs.path.resolve(allocator, &.{path});
+        const stat = std.Io.Dir.cwd().statFile(io, path, .{}) catch return false;
+
+        break :observed Fact.init(key, key, Files.metadata(stat));
+    };
+
+    try facts.append(allocator, fact);
+
+    return true;
 }

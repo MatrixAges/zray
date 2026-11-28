@@ -1,19 +1,21 @@
 <Module>
     <Type from="publish_shape" as="Interfaces" />
 
-    <Args in={Interfaces.Source} out={string} />
+    <Args in={Interfaces.Source} out={Interfaces.SourcePlan} />
 
-    <If on={$in.text != null}>
-        <Return value={$in.text} />
+    <If on={$in.source != null}>
+        <Return
+            value={{
+                source: $in.source,
+                read_path: null
+            }}
+        />
     </If>
 
-    <Call
-        fn="host.loadNativeText"
-        in={[
-            $in.loader,
-            $in.path
-        ]}
+    <Return
+        value={{
+            source: "",
+            read_path: $in.path
+        }}
     />
-
-    <Return value={$ctx.loadNativeText} />
 </Module>

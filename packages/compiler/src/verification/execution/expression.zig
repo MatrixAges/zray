@@ -97,7 +97,7 @@ pub fn evaluateSymbolicOperand(handle: *anyopaque, slot: Operand, expression: u3
 
     outcome.* = .{
         .safe = value.safe,
-        .text = if (value.value == .scalar) value.value.scalar else null,
+        .text = value.value.scalar,
     };
 
     return outcome;

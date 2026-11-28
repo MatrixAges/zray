@@ -1,21 +1,4 @@
-import type { OptionalStringBuffer, U32Buffer } from "memory"
-
 export type Read = {
     keys: string?[],
     values: u32[]
-}
-
-export type Write = {
-    keys: OptionalStringBuffer,
-    values: U32Buffer
-}
-
-export type Table = {
-    current: Read,
-    target: Write
-}
-
-export type Bind = Table & {
-    key: string,
-    value: u32
 }

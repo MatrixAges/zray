@@ -1,4 +1,3 @@
-import type { InterfaceLoader } from "generation_host"
 import type { ReadColumn, TextColumn } from "memory"
 import type { Aliases } from "./model"
 
@@ -9,7 +8,6 @@ export type Sources = {
 }
 
 export type Registration = {
-    loader: InterfaceLoader,
     aliases: Aliases,
     paths: TextColumn,
     modules: TextColumn,
@@ -17,15 +15,35 @@ export type Registration = {
     sources: Sources
 }
 
+export type Binding = {
+    index: u64,
+    name: string,
+    path: string,
+    module: string,
+    source: string,
+    read_path?: string,
+    resolve_members: bool
+}
+
 export type Traversal = {
     request: Registration,
     row: u64,
     external: u64,
-    internal: u64
+    internal: u64,
+    bindings: Binding[]
+}
+
+export type Plan = {
+    external: u64,
+    bindings: Binding[]
 }
 
 export type Source = {
-    loader: InterfaceLoader,
     path: string,
-    text?: string
+    source?: string
+}
+
+export type SourcePlan = {
+    source: string,
+    read_path?: string
 }

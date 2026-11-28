@@ -3,7 +3,7 @@ const zx = @import("zx");
 const frontend = @import("frontend");
 const Conditions = @import("conditions.zig");
 const Evidence = @import("solver/publication/evidence/output.zig");
-pub const writeEvidenceProgramTypes = Evidence.programTypes;
+pub const writeEvidence = Evidence.write;
 
 pub const Options = struct {
     solver: ?[]const u8 = null,
@@ -27,11 +27,6 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
         .diagnostic => Conditions.Query{ .feasibility = "", .correctness = "", .inputs = &.{} },
     };
 
-    var evidence_bytes: std.Io.Writer.Allocating = .init(allocator);
-
-    defer evidence_bytes.deinit();
-
-    var evidence = Evidence.init(&evidence_bytes);
     const symbols = zx.memory.borrowTextColumn("symbol", query.inputs);
     const paths = zx.memory.borrowTextColumn("path", query.inputs);
 
@@ -43,7 +38,6 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
         .correctness = query.correctness,
         .bindings = &.{ .symbols = @ptrCast(&symbols), .paths = @ptrCast(&paths), .count = query.inputs.len },
         .evidence = &.{
-            .writer = @ptrCast(&evidence),
             .sources = @ptrCast(&sources),
             .entry = entry,
             .version = program.version,

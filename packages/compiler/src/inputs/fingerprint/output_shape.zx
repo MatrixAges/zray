@@ -1,17 +1,14 @@
-import type { GenerationFileCache } from "generation_host"
 import type { TextColumn } from "memory"
 import type { Pair } from "./model"
 
 export type SourceRows = {
     paths: TextColumn,
-    sources: TextColumn,
-    count: u64
+    digests: u8[][]
 }
 
 export type OutputFingerprint = {
     frame: u8[],
     partitions: u32,
-    cache: GenerationFileCache,
     sources: SourceRows,
     templates: SourceRows
 }
@@ -22,15 +19,10 @@ export type OutputParts = {
     templates: u8[]
 }
 
-export type ModuleRows = {
-    cache: GenerationFileCache,
-    rows: SourceRows
-}
-
 export type Frame = {
     generator: u8[],
     manifest: string,
-    modules: ModuleRows,
+    modules: SourceRows,
     interfaces: TextColumn,
     interface_count: u64
 }

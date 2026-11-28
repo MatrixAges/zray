@@ -1,11 +1,13 @@
 export type SymbolicProgram = mutable_opaque
 
-export type ParameterTarget = mutable_opaque
-
-export declare function symbolicParameterField(
-    target: ParameterTarget,
-    index: u64
-): ParameterTarget
+export type Parameter = {
+    type_id: u32,
+    fields: u64,
+    path?: string,
+    symbol?: string,
+    declaration?: string,
+    domain?: string
+}
 
 export declare function ensureSymbolicGraph(program: SymbolicProgram): void
     throws { OutOfMemory }
@@ -40,18 +42,7 @@ export declare function rejectSymbolicReturn(program: SymbolicProgram, message: 
 export declare function publishSymbolicProgramResult(program: SymbolicProgram): bool
     throws { OutOfMemory, InvalidSource }
 
-export declare function reserveSymbolicParameter(
-    program: SymbolicProgram,
-    target: ParameterTarget,
-    count: u64
-): void throws { OutOfMemory }
-
 export declare function publishSymbolicParameter(
     program: SymbolicProgram,
-    target: ParameterTarget,
-    type_id: u32,
-    path: string,
-    symbol: string,
-    declaration: string?,
-    domain: string?
+    rows: Parameter[]
 ): void throws { OutOfMemory }

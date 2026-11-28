@@ -1,4 +1,8 @@
 const std = @import("std");
+const Program = @import("zx").ir.Program;
+const Source = @import("frontend").project.Source;
+const Binding = @import("../../../conditions.zig").Input;
+const native = @import("output_execution_abi").layouts.@"zig:verification_report_host";
 const Allocating = std.Io.Writer.Allocating;
 const Error = std.mem.Allocator.Error;
 const Self = @This();
@@ -21,10 +25,34 @@ pub fn finish(handle: *anyopaque) Error![]const u8 {
     return self.bytes.written();
 }
 
-pub fn programTypes(handle: *anyopaque, name: []const u8, input: *const anyopaque) Error!void {
-    const program: *const @import("zx").ir.Program = @ptrCast(@alignCast(input));
+pub fn write(allocator: std.mem.Allocator, sources: *const anyopaque, entry: []const u8, version: u32, inputs: *const anyopaque, program_handle: *const anyopaque, fields: []const *const native.EvidenceField) Error![]const u8 {
+    var bytes: Allocating = .init(allocator);
 
-    try borrow(handle).writeField(name, &program.types);
+    defer bytes.deinit();
+
+    var output = Self.init(&bytes);
+    const source_rows: *const []const Source = @ptrCast(@alignCast(sources));
+    const input_rows: *const []const Binding = @ptrCast(@alignCast(inputs));
+    const program: *const Program = @ptrCast(@alignCast(program_handle));
+
+    try begin(&output);
+
+    for (fields) |member| {
+        const name = member.name;
+
+        switch (member.kind) {
+            .Sources => try output.writeField(name, source_rows),
+            .Entry => try output.writeField(name, entry),
+            .Version => try output.writeField(name, version),
+            .Types => try output.writeField(name, &program.types),
+            .Inputs => try output.writeField(name, input_rows),
+            .Program => try output.writeField(name, program),
+        }
+    }
+
+    _ = try finish(&output);
+
+    return bytes.toOwnedSlice();
 }
 
 pub fn field(comptime Value: type, comptime indirect: bool) fn (*anyopaque, []const u8, if (indirect) *const anyopaque else Value) Error!void {

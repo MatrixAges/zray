@@ -1,4 +1,5 @@
 const std = @import("std");
+const Scanning = @import("../partition/scanning.zig");
 const generated = @import("parser_options").generated_parser;
 const worker = if (generated) @import("generated_bootstrap_output_worker") else void;
 const Input = if (generated) std.meta.Child(worker.Input) else void;
@@ -36,9 +37,16 @@ pub fn eachHash(arenas: Arenas, request: Request, hash_output: HashOutput) !void
     return spread(arenas, &work, Work.run);
 }
 
+pub fn eachScan(arenas: Arenas, request: Request, scan_output: Scanning.Columns) !void {
+    var work: Work = .{ .request = request, .scan_output = scan_output };
+
+    return spread(arenas, &work, Work.run);
+}
+
 const Work = struct {
     request: Request,
     hash_output: ?HashOutput = null,
+    scan_output: ?Scanning.Columns = null,
     next: std.atomic.Value(usize) = .init(0),
     failure: std.atomic.Value(u32) = .init(0),
     fn run(self: *Work, arena: *std.heap.ArenaAllocator) void {
@@ -51,14 +59,17 @@ const Work = struct {
 
             const input: Input = .{
                 .jobs = &self.request,
-                .allocator = @ptrCast(&allocator),
                 .row = row,
             };
 
-            const outcome = worker.executeIn(allocator, &input) catch unreachable;
+            const outcome = worker.executeIn(allocator, &input) catch |err| {
+                self.fail(@intFromError(Scanning.failure(err)));
+
+                return;
+            };
 
             if (outcome.code != 0) {
-                _ = self.failure.cmpxchgStrong(0, outcome.code, .monotonic, .monotonic);
+                self.fail(outcome.code);
 
                 return;
             }
@@ -69,7 +80,22 @@ const Work = struct {
                 @memcpy(output.paths[start..][0..marked.paths.len], marked.paths);
                 @memcpy(output.hashes[start..][0..marked.hashes.len], marked.hashes);
             };
+
+            if (outcome.scanned) |scanned| {
+                Scanning.valid(scanned.status) catch |err| {
+                    self.fail(@intFromError(err));
+
+                    return;
+                };
+
+                const start: usize = @intCast(scanned.offset);
+
+                self.scan_output.?.range(start, start + scanned.rows.len).publish(scanned.rows);
+            }
         }
+    }
+    fn fail(self: *Work, code: u32) void {
+        _ = self.failure.cmpxchgStrong(0, code, .monotonic, .monotonic);
     }
 };
 

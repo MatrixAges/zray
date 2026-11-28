@@ -48,9 +48,12 @@ const Source = struct {
     leaves: std.ArrayList([]const u8) = .empty,
     pub fn lookup(self: *Source, allocator: Allocator, target: u32, argument: terms.Value) Allocator.Error!Lookup(Key) {
         const entry = @import("generated_lookup_symbolic_call");
+        const Input = std.meta.Child(entry.Input);
+        const layout = terms.Value.layout(std.meta.Child(@FieldType(Input, "layout")));
 
-        const input: std.meta.Child(entry.Input) = .{
-            .argument = @ptrCast(&argument),
+        const input: Input = .{
+            .argument = std.mem.asBytes(&argument),
+            .layout = &layout,
             .target = target,
         };
 

@@ -29,11 +29,10 @@ pub fn appendDefinition(self: *Self, definition: Definition) void {
 
 /// Every composite is assembled from evaluations whose scalar leaves are already bound.
 pub fn retain(self: *Self, program: zx.ir.Program, type_id: zx.ir.TypeId, input: terms.Value, span: zx.Span) zx.Error!terms.Value {
-    if (input == .fields) return input;
-
+    const text = input.scalar orelse return input;
     const width = terms.symbolicWidth(program.typeOf(type_id)) orelse return self.reporter.fail(.unsupported, span, "symbolic graph requires boolean, enum or fixed-width integer values");
 
-    return .{ .scalar = try self.bind(input.scalar, width, .{ .file_name = program.file_name, .span = span }) };
+    return .{ .scalar = try self.bind(text, width, .{ .file_name = program.file_name, .span = span }) };
 }
 
 pub fn select(self: *Self, program: zx.ir.Program, type_id: zx.ir.TypeId, condition: []const u8, yes: terms.Value, no: terms.Value, span: zx.Span) zx.Error!terms.Value {

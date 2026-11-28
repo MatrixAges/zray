@@ -20,15 +20,20 @@ pub fn ends(table: *const Table, count: usize) @import("root.zig").Ends {
     return .{ .children = @intCast(result.children), .fields = @intCast(result.fields), .names = @intCast(result.names) };
 }
 
-pub fn writeFirst(delta: *const Table, destination: []u32, child_offset: u32, field_offset: u32, name_offset: u32) void {
+pub fn writeFirst(allocator: std.mem.Allocator, delta: *const Table, destination: []u32, child_offset: u32, field_offset: u32, name_offset: u32) std.mem.Allocator.Error!void {
     const offsets: Offsets = .{ .children = child_offset, .fields = field_offset, .names = name_offset };
-    const target = destination;
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
-    first.executeIn(scratch.allocator(), &FirstInput{
+    defer arena.deinit();
+
+    const rebased = first.executeIn(arena.allocator(), &FirstInput{
         .kinds = delta.kinds,
         .first = delta.first,
-        .target = @ptrCast(&target),
         .offsets = &offsets,
-    }) catch unreachable;
+    }) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => unreachable,
+    };
+
+    @memmove(destination, rebased);
 }

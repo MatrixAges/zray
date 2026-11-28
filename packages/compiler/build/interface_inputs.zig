@@ -5,8 +5,7 @@ const Resident = @import("resident/state.zig");
 const Interface = @import("generation_manifest.zig").Interface;
 const Native = compiler.project.NativeInterface;
 const generated = compiler.input_generation.generated;
-const Binding = if (generated) @import("generation_execution_abi").layouts.@"zig:generation_host".NativeBinding else SeedBinding;
-const SeedBinding = struct { index: usize, name: []const u8, path: []const u8, module: []const u8, source: []const u8, resolve_members: bool };
+const Binding = struct { index: usize, name: []const u8, path: []const u8, module: []const u8, source: []const u8, resolve_members: bool };
 const Error = std.mem.Allocator.Error;
 
 pub const Result = struct {
@@ -50,9 +49,9 @@ const Loader = struct {
             return "";
         };
     }
-    fn write(self: *Loader, row: *const Binding) Error!void {
-        self.bindings[@intCast(row.index)] = .{
-            .specifier = try self.resident.retainText(self.owned, row.name),
+    fn write(self: *Loader, row: Binding, temporary_name: bool) Error!void {
+        self.bindings[row.index] = .{
+            .specifier = if (temporary_name) try self.owned.dupe(u8, row.name) else try self.resident.retainText(self.owned, row.name),
             .path = try self.resident.retainText(self.owned, row.path),
             .source = row.source,
             .namespace = if (row.resolve_members) &.{compiler.native_lookup.marker} else &.{},
@@ -72,15 +71,30 @@ const Loader = struct {
 
         declared.fill(&input);
 
-        input.loader = @ptrCast(self);
-
         const specifiers = aliases.bind(std.meta.Child(@FieldType(Input, "aliases")));
         const files = views.bind(std.meta.Child(@FieldType(Input, "sources")));
 
         input.aliases = &specifiers;
         input.sources = &files;
 
-        return @intCast(try rule.executeIn(self.scratch, &input));
+        var arena = std.heap.ArenaAllocator.init(self.scratch);
+
+        defer arena.deinit();
+
+        const plan = try rule.executeIn(arena.allocator(), &input);
+
+        for (plan.bindings) |row| {
+            try self.write(.{
+                .index = @intCast(row.index),
+                .name = row.name,
+                .path = row.path,
+                .module = row.module,
+                .source = if (row.read_path) |path| try self.read(path) else row.source,
+                .resolve_members = row.resolve_members,
+            }, row.index >= plan.external);
+        }
+
+        return @intCast(plan.external);
     }
     fn seed(self: *Loader, declarations: []const Interface, sources: []const compiler.project.Source) !usize {
         const Job = struct { source: ?usize, binding: usize, name: []const u8 };
@@ -90,28 +104,16 @@ const Loader = struct {
         for (declarations, jobs) |entry, job| {
             const source = if (job.source) |row| sources[row].source else try self.read(entry.path);
 
-            try self.write(&.{
+            try self.write(.{
                 .index = job.binding,
                 .name = job.name,
                 .path = entry.path,
                 .module = entry.module,
                 .source = source,
                 .resolve_members = entry.resolve_members == true,
-            });
+            }, false);
         }
 
         return external;
     }
 };
-
-pub fn loadNativeText(handle: *anyopaque, path: []const u8) Error![]const u8 {
-    const self: *Loader = @ptrCast(@alignCast(handle));
-
-    return self.read(path);
-}
-
-pub fn writeNativeBinding(handle: *anyopaque, input: *const Binding) Error!void {
-    const self: *Loader = @ptrCast(@alignCast(handle));
-
-    return self.write(input);
-}

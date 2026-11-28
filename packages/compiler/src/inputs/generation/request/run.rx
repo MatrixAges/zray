@@ -54,7 +54,7 @@
         module="analyze"
         in={{
             request: $in.request,
-            interfaces_loaded: $ctx.prepare.interfaces_loaded
+            analysis_available: $ctx.prepare.analysis_available
         }}
     />
 

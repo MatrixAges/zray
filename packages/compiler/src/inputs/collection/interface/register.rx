@@ -1,7 +1,7 @@
 <Module>
     <Type from="publish_shape" as="Interfaces" />
 
-    <Args in={Interfaces.Registration} out={u64} />
+    <Args in={Interfaces.Registration} out={Interfaces.Plan} />
 
     <Call fn="count" in={$in.aliases} />
 
@@ -12,10 +12,16 @@
                 request: $in,
                 row: 0,
                 external: 0,
-                internal: $ctx.count
+                internal: $ctx.count,
+                bindings: []
             }}
         />
     </Loop>
 
-    <Return value={$ctx.count} />
+    <Return
+        value={{
+            external: $ctx.count,
+            bindings: $ctx.next.bindings
+        }}
+    />
 </Module>

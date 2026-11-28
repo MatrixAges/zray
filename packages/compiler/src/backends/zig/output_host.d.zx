@@ -37,10 +37,6 @@ export type BootstrapMirror = mutable_opaque
 
 export type BootstrapPartitionJobs = opaque
 
-export type BootstrapPartitionScan = opaque
-
-export type BootstrapWorkerAllocator = opaque
-
 export type BootstrapWriter = opaque
 
 export enum PartitionFile {
@@ -158,13 +154,6 @@ export declare function renderPartitionFile(
     target: BootstrapPartitionJobs,
     row: u64,
     file: PartitionFile
-): u32
-
-export declare function scanPartitionRange(
-    target: BootstrapPartitionScan,
-    allocator: BootstrapWorkerAllocator,
-    first: u64,
-    end: u64
 ): u32
 
 export declare function writeBootstrapFile(

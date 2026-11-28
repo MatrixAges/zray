@@ -9,17 +9,17 @@ import type { Batch as Input, BatchOutput, Row } from "./model"
 export type Output = BatchOutput
 
 export default function (in: Input): Output {
-    const { sources, index, count, need_inline_names } = in
+    const { sources, index, first, end, need_inline_names } = in
 
     const empty: Row[] = []
     const empty_inline: u8[][] = []
 
     return loop({
-        row: 0,
+        row: first,
         status: Status.Valid,
         rows: empty
     }, {
-        while: state => state.row < count && state.status == Status.Valid,
+        while: state => state.row < end && state.status == Status.Valid,
         next: state => {
             const source = memory.readTextColumn(sources, state.row)
             const scanned = references({

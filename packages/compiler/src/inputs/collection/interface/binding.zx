@@ -1,26 +1,29 @@
-import memory from "memory"
-
 import { internal_prefix } from "../const"
 
-import type { NativeBinding as Output } from "generation_host"
-import type { Output as Plan } from "./publish"
+import type { Output as Publication } from "./publish"
+import type { Binding, SourcePlan, Traversal as Output } from "./publish_shape"
 
-export type Input = Plan.Pick("index", "alias", "path", "module", "namespaces") & {
-    row: u64,
-    source: string
+export type Input = {
+    plan: Publication,
+    source: SourcePlan
 }
 
 export default function (in: Input): Output {
-    const { index, alias, path, module, namespaces, row, source } = in
+    const { index, alias, path, module, resolve_members, next } = in.plan
 
     const name = alias ?? `${internal_prefix}${module}`
 
-    return {
+    const binding: Binding = {
         index,
         name,
         path,
         module,
-        source,
-        resolve_members: memory.readColumnOptionalBool(namespaces, row) ?? false
+        ...in.source,
+        resolve_members
+    }
+
+    return {
+        ...next,
+        bindings: next.bindings.push(binding)[0]
     }
 }

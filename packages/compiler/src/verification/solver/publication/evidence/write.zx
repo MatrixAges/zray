@@ -1,23 +1,14 @@
 import json from "verification_report_host"
-
-import {
-    sources_field,
-    entry_field,
-    ir_version_field,
-    types_field,
-    inputs_field,
-    ir_field
-} from "./const"
+import { EvidenceFieldKind as Kind } from "verification_report_host"
 
 import type {
-    EvidenceOutput,
-    EvidenceSources,
+    EvidenceField,
     EvidenceInputs,
-    EvidenceProgram
+    EvidenceProgram,
+    EvidenceSources
 } from "verification_report_host"
 
 export type Input = {
-    writer: EvidenceOutput,
     sources: EvidenceSources,
     entry: string,
     version: u32,
@@ -28,15 +19,39 @@ export type Input = {
 export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { writer } = in
+    const fields: EvidenceField[] = [
+        {
+            kind: Kind.Sources,
+            name: "sources"
+        },
+        {
+            kind: Kind.Entry,
+            name: "entry"
+        },
+        {
+            kind: Kind.Version,
+            name: "ir_version"
+        },
+        {
+            kind: Kind.Types,
+            name: "types"
+        },
+        {
+            kind: Kind.Inputs,
+            name: "inputs"
+        },
+        {
+            kind: Kind.Program,
+            name: "ir"
+        }
+    ]
 
-    json.beginEvidence(writer)
-    json.writeEvidenceSources(writer, sources_field, in.sources)
-    json.writeEvidenceText(writer, entry_field, in.entry)
-    json.writeEvidenceNumber(writer, ir_version_field, in.version)
-    json.writeEvidenceProgramTypes(writer, types_field, in.program)
-    json.writeEvidenceInputs(writer, inputs_field, in.inputs)
-    json.writeEvidenceProgram(writer, ir_field, in.program)
-
-    return json.finishEvidence(writer)
+    return json.writeEvidence(
+        in.sources,
+        in.entry,
+        in.version,
+        in.inputs,
+        in.program,
+        fields
+    )
 }

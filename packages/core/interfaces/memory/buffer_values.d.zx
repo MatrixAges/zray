@@ -20,14 +20,3 @@ export declare function namedRowsView(
 ): NamedRows
 
 export declare function u8ListViews(source: U8ListBuffer): u8[][]
-
-export declare function writeOptionalString(
-    target: OptionalStringBuffer,
-    index: u64,
-    value: string?
-): void throws { IndexOutOfBounds }
-
-export declare function copyU32s(
-    target: U32Buffer,
-    source: u32[]
-): void throws { IndexOutOfBounds }

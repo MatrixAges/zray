@@ -9,27 +9,23 @@
             ...$in.pick([
                 "buckets",
                 "indexed",
-                "count",
-                "capacity"
+                "count"
             ]),
             keys: $in.digests,
-            rebuilt: null,
             required: $in.count
         }}
     />
 
     <Call
-        fn="../../core/bytes/index/borrowed/lookup"
+        fn="../../core/bytes/index/borrowed/probe_slice"
         in={{
             keys: $in.digests,
-            buckets: $in.bucket_view,
-            rebuilt: $ctx.refresh.buckets,
-            text: $in.digest,
-            capacity: $ctx.refresh.capacity
+            buckets: $ctx.refresh.buckets ?? $in.buckets,
+            text: $in.digest
         }}
     />
 
-    <If on={$ctx.lookup.entry != 0}>
+    <If on={$ctx.probe_slice.entry != 0}>
         <Call
             fn="identity"
             in={{
@@ -39,7 +35,7 @@
                     "name",
                     "version"
                 ]),
-                row: $ctx.lookup.entry - 1
+                row: $ctx.probe_slice.entry - 1
             }}
         />
 
@@ -56,7 +52,7 @@
         <Return
             value={{
                 action: Archive.Action.Existing,
-                row: $in.first + $ctx.lookup.entry - 1,
+                row: $in.first + $ctx.probe_slice.entry - 1,
                 buckets: $ctx.refresh.buckets
             }}
         />

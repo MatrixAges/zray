@@ -2,7 +2,6 @@ import memory from "memory"
 
 import find from "./find"
 
-import type { ReadColumn } from "memory"
 import type { Traversal as Input } from "./publish_shape"
 
 export type Output = {
@@ -10,7 +9,7 @@ export type Output = {
     alias?: string,
     path: string,
     module: string,
-    namespaces: ReadColumn,
+    resolve_members: bool,
     source?: string,
     next: Input
 }
@@ -35,13 +34,13 @@ export default function (in: Input): Output {
         alias,
         path,
         module,
-        namespaces,
+        resolve_members: memory.readColumnOptionalBool(namespaces, row) ?? false,
         source: match {
             source_row != null => memory.readTextColumn(sources.bodies, source_row),
             _ => null
         },
         next: {
-            request,
+            ...in,
             row: row + 1,
             external: in.external + (alias != null ? 1 : 0),
             internal: in.internal + (alias == null ? 1 : 0)

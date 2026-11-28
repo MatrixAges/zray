@@ -1,14 +1,19 @@
-import type { SymbolicProgram, ParameterTarget } from "verification_program_host"
+import type { Parameter } from "verification_program_host"
 import type { Ports } from "../program/model"
 
 export type Input = {
-    program: SymbolicProgram,
-    target: ParameterTarget,
     types: Ports,
     type_id: u32,
     path: string,
     index: u64,
-    proof: bool
+    proof: bool,
+    rows: Parameter[]
+}
+
+export type Walked = {
+    rows: Parameter[],
+    index: u64,
+    diagnostic?: string
 }
 
 export type Leaf = Input.Pick("type_id", "path", "index", "proof") & {

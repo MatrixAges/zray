@@ -55,7 +55,7 @@ pub fn evaluateClause(handle: *anyopaque, row: u64) zx.Error!*const native.Claus
     const clause = conditions.program.contracts.at(@intCast(row));
     const outcome = try conditions.evaluateContract(clause, frame.value);
 
-    frame.clause = .{ .safe = outcome.safe, .predicate = outcome.value.scalar };
+    frame.clause = .{ .safe = outcome.safe, .predicate = outcome.value.scalar.? };
 
     return &frame.clause;
 }

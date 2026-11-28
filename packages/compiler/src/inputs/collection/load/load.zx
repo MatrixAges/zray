@@ -1,56 +1,55 @@
-import { readGenerationDocument } from "generation_host"
 import memory from "memory"
 
-import type { DocumentReader } from "generation_host"
 import type { ReadColumn, TextColumn } from "memory"
 
-export type Entries = {
+export type Input = {
     paths: TextColumn,
-    relatives: TextColumn,
     texts: ReadColumn,
-    kinds: ReadColumn,
+    relatives: TextColumn,
     retained: ReadColumn,
+    kinds: ReadColumn,
     count: u64
+}
+
+export type Read = {
+    relative: string,
+    retain: bool
 }
 
 export type Document = {
     path: string,
     text: string,
+    read?: Read,
     kind: u8
-}
-
-export type Input = {
-    reader: DocumentReader,
-    entries: Entries
 }
 
 export type Output = Document[]
 
 export default function (in: Input): Output {
-    const { reader, entries } = in
-
     const empty: Document[] = []
 
     return loop({
         row: 0,
         documents: empty
     }, {
-        while: state => state.row < entries.count,
+        while: state => state.row < in.count,
         next: state => {
             const row = state.row
-            const path = memory.readTextColumn(entries.paths, row)
-            const cached = memory.readOptionalTextColumn(entries.texts, row)
-            const text = cached ?? readGenerationDocument(
-                reader,
-                memory.readTextColumn(entries.relatives, row),
-                path,
-                memory.readColumnBool(entries.retained, row)
-            )
+            const cached = memory.readOptionalTextColumn(in.texts, row)
+
+            const read: Read? = match {
+                cached == null => {
+                    relative: memory.readTextColumn(in.relatives, row),
+                    retain: memory.readColumnBool(in.retained, row)
+                },
+                _ => null
+            }
 
             state.documents = state.documents.push({
-                path,
-                text,
-                kind: memory.readColumnU8(entries.kinds, row)
+                path: memory.readTextColumn(in.paths, row),
+                text: cached ?? "",
+                read,
+                kind: memory.readColumnU8(in.kinds, row)
             })[0]
 
             state.row += 1

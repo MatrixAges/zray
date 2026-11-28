@@ -20,12 +20,6 @@ export declare function readU64View(
 
 export declare function u64ViewSlice(source: U64View): u64[]
 
-export declare function writeU32(
-    target: U32Buffer,
-    index: u64,
-    value: u32
-): void throws { IndexOutOfBounds }
-
 export declare function readU8(
     target: U8Buffer,
     index: u64

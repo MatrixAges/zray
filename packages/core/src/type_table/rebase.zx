@@ -1,24 +1,22 @@
-import memory from "memory"
-
 import kind from "./kind"
 import { Kind } from "./model"
-
-import type { U32Buffer } from "memory"
 
 export type Input = {
     kinds: u8[],
     first: u32[],
-    target: U32Buffer,
     children: u32,
     fields: u32,
     names: u32
 }
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    const result = loop({
-        index: 0
+    const first: u32[] = []
+
+    return loop({
+        index: 0,
+        first
     }, {
         while: state => state.index < in.kinds.length,
         next: state => {
@@ -31,8 +29,9 @@ export default function (in: Input): Output {
                 _ => 0
             }
 
-            memory.writeU32(in.target, index, in.first[index] + offset)
+            state.first = state.first.push(in.first[index] + offset)[0]
             state.index += 1
-        }
+        },
+        return: state => state.first
     })
 }

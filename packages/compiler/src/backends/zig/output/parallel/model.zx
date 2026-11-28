@@ -1,9 +1,10 @@
-import type { ReadColumn } from "memory"
+import type { Index } from "core/bytes/index/model"
+import type { ReadColumn, TextColumn } from "memory"
 import type {
     BootstrapPartitionJobs,
-    BootstrapPartitionScan,
     BootstrapWriter
 } from "output_host"
+import type { BatchOutput } from "../../partition/scanning/model"
 import type { Sources } from "../assembly/model"
 
 export type Sections = {
@@ -12,8 +13,13 @@ export type Sections = {
 }
 
 export type Scan = {
-    target: BootstrapPartitionScan,
+    sources: TextColumn,
+    index: Index,
     length: u64
+}
+
+export type Scanned = BatchOutput & {
+    offset: u64
 }
 
 export type Render = {

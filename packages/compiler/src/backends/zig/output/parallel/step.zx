@@ -3,21 +3,21 @@ import memory from "memory"
 import host from "output_host"
 
 import render from "../../partition/emission/render"
+import scanBatch from "../../partition/scanning/batch"
 import { batch_size } from "../../partition/scanning/const"
 import mark from "../assembly/mark"
 
-import type { BootstrapWorkerAllocator } from "output_host"
-import type { Marked, Work } from "./model"
+import type { Marked, Scanned, Work } from "./model"
 
 export type Input = {
     jobs: Work,
-    allocator: BootstrapWorkerAllocator,
     row: u64
 }
 
 export type Output = {
     code: u32,
-    marked?: Marked
+    marked?: Marked,
+    scanned?: Scanned
 }
 
 export default function (in: Input): Output {
@@ -50,9 +50,20 @@ export default function (in: Input): Output {
         const remaining = scan.length - first
         const end = first + (remaining < batch_size ? remaining : batch_size)
 
+        const batch = scanBatch({
+            sources: scan.sources,
+            index: scan.index,
+            first,
+            end,
+            need_inline_names: true
+        })
+
         return {
-            code: host.scanPartitionRange(scan.target, in.allocator, first, end),
-            marked: null
+            code: 0,
+            scanned: {
+                ...batch,
+                offset: first
+            }
         }
     }
 

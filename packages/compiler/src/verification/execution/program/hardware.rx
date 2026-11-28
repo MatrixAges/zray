@@ -16,14 +16,31 @@
     <Call
         fn="../parameter/walk"
         in={{
-            program: $in.program,
-            target: $in.target,
             types: $in.types,
             type_id: $in.input,
             path: "in",
             index: 0,
-            proof: false
+            proof: false,
+            rows: []
         }}
+    />
+
+    <If on={$ctx.walk.diagnostic != null}>
+        <Call
+            fn="index.rejectSymbolicProgram"
+            in={[
+                $in.program,
+                $ctx.walk.diagnostic
+            ]}
+        />
+    </If>
+
+    <Call
+        fn="index.publishSymbolicParameter"
+        in={[
+            $in.program,
+            $ctx.walk.rows
+        ]}
     />
 
     <Call

@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import rebase from "./rebase"
 
 import type { Input as Rebase } from "./rebase"
@@ -10,10 +8,10 @@ export type Input = Rebase.Omit("children", "fields", "names") & {
     offsets?: Offsets
 }
 
-export type Output = void
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    const { offsets, first, target, kinds } = in
+    const { offsets, first, kinds } = in
 
     if (offsets != null) {
         const { children, fields, names } = offsets
@@ -21,16 +19,13 @@ export default function (in: Input): Output {
         const shifted = children != 0 || fields != 0 || names != 0
 
         if (shifted) {
-            rebase({
+            return rebase({
                 kinds,
                 first,
-                target,
                 ...offsets
             })
-
-            return
         }
     }
 
-    memory.copyU32s(target, first)
+    return first
 }

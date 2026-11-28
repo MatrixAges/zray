@@ -6,7 +6,6 @@ export {
     registerGenerationInterfaces,
     fingerprintGenerationInputs,
     invalidateGenerationStamp,
-    lookupGenerationAnalysis,
     restoreGenerationAnalysis,
     prepareGenerationTemplates,
     prepareGenerationModules,

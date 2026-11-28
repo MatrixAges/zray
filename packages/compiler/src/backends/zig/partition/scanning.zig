@@ -12,6 +12,22 @@ pub const Columns = struct {
     callees: [][]const u32,
     variants: [][]const []const u8,
     inline_names: ?[][]const []const u8 = null,
+    pub fn range(self: Columns, first: usize, end: usize) Columns {
+        return .{
+            .callees = self.callees[first..end],
+            .variants = self.variants[first..end],
+            .inline_names = if (self.inline_names) |names| names[first..end] else null,
+        };
+    }
+
+    pub fn publish(self: Columns, rows: anytype) void {
+        for (rows, self.callees, self.variants, 0..) |row, *callees, *variants, index| {
+            callees.* = row.callees;
+            variants.* = row.variants;
+
+            if (self.inline_names) |names| names[index] = row.inline_names;
+        }
+    }
 };
 
 index: Index,
@@ -51,7 +67,8 @@ pub fn scan(self: *const Self, allocator: std.mem.Allocator, files: anytype, out
     const input: Input = .{
         .sources = @ptrCast(&sources),
         .index = &self.index,
-        .count = files.len,
+        .first = 0,
+        .end = files.len,
         .need_inline_names = output.inline_names != null,
     };
 
@@ -59,15 +76,10 @@ pub fn scan(self: *const Self, allocator: std.mem.Allocator, files: anytype, out
 
     try valid(result.status);
 
-    for (result.rows, output.callees, output.variants, 0..) |row, *callees, *variants, index| {
-        callees.* = row.callees;
-        variants.* = row.variants;
-
-        if (output.inline_names) |names| names[index] = row.inline_names;
-    }
+    output.publish(result.rows);
 }
 
-fn valid(status: anytype) Error!void {
+pub fn valid(status: anytype) Error!void {
     return switch (status) {
         .Valid => {},
         .UnterminatedImport => error.UnterminatedImport,
@@ -76,7 +88,7 @@ fn valid(status: anytype) Error!void {
     };
 }
 
-fn failure(err: anyerror) Error {
+pub fn failure(err: anyerror) Error {
     return switch (err) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
         else => @panic("invalid partition scan input"),

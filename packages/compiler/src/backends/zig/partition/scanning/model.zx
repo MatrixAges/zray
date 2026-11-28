@@ -40,7 +40,8 @@ export type Row = {
 export type Batch = {
     sources: TextColumn,
     index: Index,
-    count: u64,
+    first: u64,
+    end: u64,
     need_inline_names: bool
 }
 

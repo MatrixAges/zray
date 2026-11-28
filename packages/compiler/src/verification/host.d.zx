@@ -38,13 +38,11 @@ export declare function symbolicText(value: SymbolicValue): string?
 
 export declare function symbolicFieldCount(value: SymbolicValue): u64
 
-export declare function sameSymbolicFields(left: SymbolicValue, right: SymbolicValue): bool
-
 export declare function symbolicField(value: SymbolicValue, index: u64): SymbolicValue
 
 export declare function targetSymbolicField(value: SymbolicTarget, index: u64): SymbolicTarget
 
-export declare function reuseSymbolicFields(target: SymbolicTarget, source: SymbolicValue): void
+export declare function reuseSymbolicFields(target: SymbolicTarget, source: u8[]): void
 
 export declare function reserveSymbolicFields(
     graph: SelectionGraph,

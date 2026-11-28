@@ -16,6 +16,7 @@ const Frame = struct {
 pub fn select(graph: *Graph, program: *const zx.ir.Program, type_id: zx.ir.TypeId, condition: []const u8, yes: *const Value, no: *const Value, span: zx.Span) zx.Error!Value {
     const Request = std.meta.Child(entry.Input);
     const types = zx.ir.TypeTable.borrow(std.meta.Child(@FieldType(Request, "types")), program.types);
+    const layout = Value.layout(std.meta.Child(@FieldType(Request, "layout")));
     const frame: Frame = .{ .graph = graph, .program = program, .span = span };
     var result: Value = undefined;
 
@@ -24,8 +25,9 @@ pub fn select(graph: *Graph, program: *const zx.ir.Program, type_id: zx.ir.TypeI
         .types = &types,
         .type_id = @backingInt(type_id),
         .condition = condition,
-        .yes = @ptrCast(yes),
-        .no = @ptrCast(no),
+        .yes = std.mem.asBytes(yes),
+        .no = std.mem.asBytes(no),
+        .layout = &layout,
         .result = @ptrCast(&result),
     };
 
@@ -41,17 +43,11 @@ pub fn select(graph: *Graph, program: *const zx.ir.Program, type_id: zx.ir.TypeI
 }
 
 pub fn symbolicText(handle: *const anyopaque) ?[]const u8 {
-    const value = read(handle);
-
-    return if (value.* == .scalar) value.scalar else null;
+    return read(handle).scalar;
 }
 
 pub fn symbolicFieldCount(handle: *const anyopaque) u64 {
     return read(handle).fields.len;
-}
-
-pub fn sameSymbolicFields(left: *const anyopaque, right: *const anyopaque) bool {
-    return read(left).fields.ptr == read(right).fields.ptr;
 }
 
 pub fn symbolicField(handle: *const anyopaque, index: u64) *const Source {
@@ -62,8 +58,8 @@ pub fn targetSymbolicField(handle: *anyopaque, index: u64) *Target {
     return @ptrCast(&write(handle).fields[@intCast(index)]);
 }
 
-pub fn reuseSymbolicFields(target: *anyopaque, source: *const anyopaque) void {
-    write(target).* = read(source).*;
+pub fn reuseSymbolicFields(target: *anyopaque, source: []const u8) void {
+    write(target).* = read(source.ptr).*;
 }
 
 pub fn reserveSymbolicFields(graph: *const anyopaque, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {

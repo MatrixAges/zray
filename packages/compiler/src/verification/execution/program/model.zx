@@ -1,5 +1,5 @@
 import type { Table } from "core/type_table/model"
-import type { ParameterTarget, SymbolicProgram } from "verification_program_host"
+import type { SymbolicProgram } from "verification_program_host"
 
 export type Ports = Table.Pick(
     "kinds",
@@ -12,7 +12,6 @@ export type Ports = Table.Pick(
 
 export type Entry = {
     program: SymbolicProgram,
-    target: ParameterTarget,
     types: Ports,
     input: u32,
     type_only: bool,

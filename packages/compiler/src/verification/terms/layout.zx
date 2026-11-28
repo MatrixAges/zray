@@ -1,0 +1,5 @@
+export type Layout = {
+    width: u64,
+    text: u64,
+    children: u64
+}

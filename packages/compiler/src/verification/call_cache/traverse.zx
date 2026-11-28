@@ -1,37 +1,41 @@
-import host from "verification_host"
+import memory from "memory"
+import columns from "memory/columns"
 
-import type { SymbolicValue } from "verification_host"
+import type { Layout } from "../terms/layout"
 
 export type Input = {
-    value: SymbolicValue,
+    value: u8[],
+    layout: Layout,
     terms: string[]
 }
 
 export type Output = string[]
 
 export default function traverse(in: Input): Output {
-    const { value } = in
+    const { value, layout } = in
 
-    const text = host.symbolicText(value)
+    const text = columns.readBorrowedRowOptionalText(value, layout.text)
 
     if (text != null) {
         return in.terms.push(text)[0]
     }
 
-    const count = host.symbolicFieldCount(value)
+    const width = layout.width
+    const children = columns.readBorrowedRowList(value, layout.children, width)
 
     return loop({
-        index: 0,
+        offset: 0,
         terms: in.terms
     }, {
-        while: state => state.index < count,
+        while: state => state.offset < children.length,
         next: state => {
             state.terms = traverse({
-                value: host.symbolicField(value, state.index),
+                value: memory.borrowU8Range(children, state.offset, width),
+                layout,
                 terms: state.terms
             })
 
-            state.index += 1
+            state.offset += width
         },
         return: state => state.terms
     })

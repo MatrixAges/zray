@@ -78,7 +78,6 @@ fn runEntry(comptime rule: type, frame: *Frame) zx.Error!void {
 
     const request: Input = .{
         .program = @ptrCast(frame),
-        .target = @ptrCast(&conditions.input),
         .types = &types,
         .input = @backingInt(conditions.program.input_type),
         .type_only = conditions.program.type_only,
@@ -168,28 +167,29 @@ pub fn publishSymbolicProgramResult(handle: *anyopaque) zx.Error!bool {
     return true;
 }
 
-pub fn reserveSymbolicParameter(handle: *anyopaque, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
-    const conditions = Frame.borrow(handle).conditions;
-    const fields = try conditions.allocator.alloc(terms.Value, @intCast(count));
-
-    targetValue(target).* = .{ .fields = fields };
-}
-
-pub fn symbolicParameterField(target: *anyopaque, index: u64) *native.ParameterTarget {
-    return @ptrCast(&targetValue(target).fields[@intCast(index)]);
-}
-
-pub fn publishSymbolicParameter(handle: *anyopaque, target: *anyopaque, type_id: u32, path: []const u8, symbol: []const u8, declaration: ?[]const u8, domain: ?[]const u8) std.mem.Allocator.Error!void {
+pub fn publishSymbolicParameter(handle: *anyopaque, rows: []const *const native.Parameter) std.mem.Allocator.Error!void {
     const frame = Frame.borrow(handle);
+    var remaining = rows;
+
+    frame.conditions.input = try parameter(frame, &remaining);
+}
+
+fn parameter(frame: *Frame, rows: *[]const *const native.Parameter) std.mem.Allocator.Error!terms.Value {
+    const source = rows.*[0];
+    rows.* = rows.*[1..];
     const conditions = frame.conditions;
 
-    if (declaration) |text| try conditions.declarations.append(conditions.allocator, text);
-    if (domain) |text| try conditions.declarations.append(conditions.allocator, text);
-    try conditions.inputs.append(frame.result_allocator, .{ .symbol = symbol, .path = path, .type_id = @fromBackingInt(type_id) });
+    if (source.symbol) |symbol| {
+        if (source.declaration) |text| try conditions.declarations.append(conditions.allocator, text);
+        if (source.domain) |text| try conditions.declarations.append(conditions.allocator, text);
+        try conditions.inputs.append(frame.result_allocator, .{ .symbol = symbol, .path = source.path.?, .type_id = @fromBackingInt(source.type_id) });
 
-    targetValue(target).* = .{ .scalar = symbol };
-}
+        return .{ .scalar = symbol };
+    }
 
-fn targetValue(target: *anyopaque) *terms.Value {
-    return @ptrCast(@alignCast(target));
+    const fields = try conditions.allocator.alloc(terms.Value, @intCast(source.fields));
+
+    for (fields) |*field| field.* = try parameter(frame, rows);
+
+    return .{ .fields = fields };
 }

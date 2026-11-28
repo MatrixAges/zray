@@ -1,4 +1,5 @@
 const std = @import("std");
+const zx = @import("zx");
 const parallel = @import("../output/parallel.zig");
 const File = @import("placement.zig").File;
 const Scanner = @import("../partition.zig").Scanning;
@@ -22,12 +23,20 @@ pub fn run(allocator: std.mem.Allocator, arenas: parallel.Arenas, functions: []c
     const batches = std.math.divCeil(usize, functions.len, Scanner.batch_size) catch unreachable;
 
     if (comptime generated) {
-        try parallel.each(arenas, .{
+        const sources = zx.memory.borrowTextColumn("source", functions);
+        const Scan = std.meta.Child(@typeInfo(@FieldType(parallel.Request, "scan")).optional.child);
+        const index = zx.columns.borrow(std.meta.Child(@FieldType(Scan, "index")), &scanner.index);
+
+        try parallel.eachScan(arenas, .{
             .count = batches,
             .hash = null,
             .render = null,
             .write = null,
-            .scan = &.{ .target = @ptrCast(&self), .length = functions.len },
+            .scan = &.{ .sources = @ptrCast(&sources), .index = &index, .length = functions.len },
+        }, .{
+            .callees = self.callees,
+            .variants = self.variants,
+            .inline_names = self.inline_names,
         });
     } else {
         try parallel.eachSeed(arenas, batches, &self);
@@ -49,13 +58,4 @@ fn scan(self: *const Self, allocator: std.mem.Allocator, first: usize, end: usiz
         .variants = self.variants[first..end],
         .inline_names = self.inline_names[first..end],
     });
-}
-
-pub fn scanPartitionRange(handle: *const anyopaque, resource: *const anyopaque, first: u64, end: u64) u32 {
-    const self: *const Self = @ptrCast(@alignCast(handle));
-    const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
-
-    self.scan(allocator.*, @intCast(first), @intCast(end)) catch |err| return @intFromError(err);
-
-    return 0;
 }

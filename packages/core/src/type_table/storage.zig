@@ -128,7 +128,7 @@ pub fn appendDelta(self: *Self, allocator: std.mem.Allocator, delta: Table) Erro
     const name_offset: u32 = @intCast(self.names.items.len);
 
     if (comptime schema.generated) {
-        @import("publication.zig").writeFirst(&delta, firsts, child_offset, field_offset, name_offset);
+        try @import("publication.zig").writeFirst(allocator, &delta, firsts, child_offset, field_offset, name_offset);
     } else {
         for (delta.kinds, delta.first, firsts) |code, first, *destination| {
             const kind: model.Kind = @fromBackingInt(@intCast(code));

@@ -336,39 +336,10 @@ inline fn borrowRange(comptime T: type, source: []const T, first: u64, count: u6
     return source[@intCast(first)..][0..@intCast(count)];
 }
 
-pub inline fn copyU32s(target: *anyopaque, source: []const u32) error{IndexOutOfBounds}!void {
-    return copySlice(u32, target, source);
-}
-
-inline fn copySlice(comptime T: type, target: *anyopaque, source: []const T) error{IndexOutOfBounds}!void {
-    const buffer: *const []T = @ptrCast(@alignCast(target));
-
-    if (buffer.len != source.len) return error.IndexOutOfBounds;
-
-    @memmove(buffer.*, source);
-}
-
-pub inline fn writeU32(target: *anyopaque, index: u64, value: u32) error{IndexOutOfBounds}!void {
-    return write(u32, target, index, value);
-}
-
 pub const SourceSpan = struct {
     start: usize,
     end: usize,
 };
-
-pub inline fn writeOptionalString(target: *anyopaque, index: u64, value: ?[]const u8) error{IndexOutOfBounds}!void {
-    return write(?[]const u8, target, index, value);
-}
-
-// The caller exclusively lends a descriptor for a mutable slice for the duration of the call.
-inline fn write(comptime T: type, target: *anyopaque, index: u64, value: T) error{IndexOutOfBounds}!void {
-    const buffer: *const []T = @ptrCast(@alignCast(target));
-
-    if (index >= buffer.len) return error.IndexOutOfBounds;
-
-    buffer.*[@intCast(index)] = value;
-}
 
 pub inline fn readU8(target: *const anyopaque, index: u64) error{IndexOutOfBounds}!u8 {
     return read(u8, target, index);

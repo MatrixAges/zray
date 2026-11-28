@@ -137,9 +137,7 @@ pub const Archives = struct {
             .names = @ptrCast(&names),
             .versions = @ptrCast(&versions),
             .digests = @ptrCast(&digests),
-            .buckets = @ptrCast(&self.buckets),
-            .bucket_view = @ptrCast(&self.buckets),
-            .capacity = self.buckets.len,
+            .buckets = self.buckets,
             .indexed = self.indexed,
             .first = first,
             .count = archives.len,
@@ -154,11 +152,15 @@ pub const Archives = struct {
         };
 
         if (selected.buckets) |updated| {
-            const next = try self.allocator.dupe(u32, updated);
+            if (updated.len == self.buckets.len) {
+                @memcpy(self.buckets, updated);
+            } else {
+                const next = try self.allocator.dupe(u32, updated);
 
-            self.allocator.free(self.buckets);
+                self.allocator.free(self.buckets);
 
-            self.buckets = next;
+                self.buckets = next;
+            }
         }
 
         self.indexed = archives.len;

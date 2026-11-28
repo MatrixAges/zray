@@ -161,10 +161,6 @@
             "entry": "core/bytes/index/borrowed/probe_slice.zx"
         },
         {
-            "specifier": "core/bytes/index/borrowed/lookup",
-            "entry": "core/bytes/index/borrowed/lookup.zx"
-        },
-        {
             "specifier": "core/bytes/index/borrowed/refresh",
             "entry": "core/bytes/index/borrowed/refresh.zx"
         }

@@ -12,23 +12,11 @@
     />
 
     <Task name="source_files" out={$ctx.files}>
-        <Call
-            fn="files"
-            in={{
-                cache: $in.cache,
-                rows: $in.sources
-            }}
-        />
+        <Call fn="files" in={$in.sources} />
     </Task>
 
     <Task name="template_files" out={$ctx.files}>
-        <Call
-            fn="files"
-            in={{
-                cache: $in.cache,
-                rows: $in.templates
-            }}
-        />
+        <Call fn="files" in={$in.templates} />
     </Task>
 
     <Call

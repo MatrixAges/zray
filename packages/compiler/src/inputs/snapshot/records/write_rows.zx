@@ -1,6 +1,5 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
-import { readSnapshotVersion } from "generation_host"
 import memory from "memory"
 
 import type { WriteRows as Input } from "./write_shape"
@@ -8,54 +7,47 @@ import type { WriteRows as Input } from "./write_shape"
 export type Output = u8[]?
 
 export default function (in: Input): Output {
-    const { count, paths, keys, versions } = in
+    const { count, paths, versions } = in
+
+    if (versions.length != count) {
+        return null
+    }
 
     const parts: u8[][] = []
 
     const collected = loop({
         index: 0,
-        complete: true,
         parts
     }, {
-        while: state => state.complete && state.index < count,
+        while: state => state.index < count,
         next: state => {
             const index = state.index
-            const key = memory.readTextColumn(keys, index)
-            const version = readSnapshotVersion(versions, key)
+            const version = versions[index]
+            const path = memory.readTextColumn(paths, index)
 
-            if (version == null) {
-                state.complete = false
-            } else {
-                const path = memory.readTextColumn(paths, index)
+            const row = bytes.join(bytes.fromText(""), [
+                bytes.encodeU64Le(version.inode),
+                bytes.encodeU64Le(version.size),
+                bytes.encodeU64Le(version.mtime_low),
+                bytes.encodeU64Le(version.ctime_low),
+                bytes.encodeU64Le(version.read_low),
+                bytes.encodeU32Le(memory.i32Bits(
+                    version.mtime_high
+                )),
+                bytes.encodeU32Le(memory.i32Bits(
+                    version.ctime_high
+                )),
+                bytes.encodeU32Le(memory.i32Bits(version.read_high)),
+                bytes.encodeU32Le(integers.narrow(path.length)),
+                bytes.fromText(path)
+            ])
 
-                const row = bytes.join(bytes.fromText(""), [
-                    bytes.encodeU64Le(version.inode),
-                    bytes.encodeU64Le(version.size),
-                    bytes.encodeU64Le(version.mtime_low),
-                    bytes.encodeU64Le(version.ctime_low),
-                    bytes.encodeU64Le(version.read_low),
-                    bytes.encodeU32Le(memory.i32Bits(
-                        version.mtime_high
-                    )),
-                    bytes.encodeU32Le(memory.i32Bits(
-                        version.ctime_high
-                    )),
-                    bytes.encodeU32Le(memory.i32Bits(version.read_high)),
-                    bytes.encodeU32Le(integers.narrow(path.length)),
-                    bytes.fromText(path)
-                ])
-
-                state.parts = state.parts.push(row)[0]
-            }
+            state.parts = state.parts.push(row)[0]
 
             state.index += 1
         },
-        return: state => state
+        return: state => state.parts
     })
 
-    if (!collected.complete) {
-        return null
-    }
-
-    return bytes.join(bytes.fromText(""), collected.parts)
+    return bytes.join(bytes.fromText(""), collected)
 }
