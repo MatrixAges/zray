@@ -4,24 +4,11 @@
     <Args in={Emission.Execute} out={u32} />
 
     <Call
-        fn="execute_model.readAstOrigin"
-        in={[
-            $in.writer,
-            $in.origin
-        ]}
-    />
-
-    <Call
         module="build"
-        in={{
-            ...$in.omit([
-                "frame",
-                "writer",
-                "origin"
-            ]),
-            base: $ctx.readAstOrigin.expression_base,
-            capture: $ctx.readAstOrigin.capture
-        }}
+        in={$in.omit([
+            "frame",
+            "writer"
+        ])}
     />
 
     <Call

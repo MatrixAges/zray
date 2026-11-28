@@ -36,7 +36,7 @@ export declare function recordIterationTransfer(
 ): void throws { OutOfMemory }
 
 export declare function reserveIterationProjection(
-    history: IterationProjectionFrame,
+    frame: IterationResourceFrame,
     fresh: u64
 ): IterationProjectionStamp throws { OutOfMemory }
 

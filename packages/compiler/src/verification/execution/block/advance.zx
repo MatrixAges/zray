@@ -1,10 +1,10 @@
 import { smt_false } from "../../scalar/const"
 
-import type { Traversal } from "./model"
+import type { Step, Traversal } from "./model"
 
 export type Input = {
     current: Traversal,
-    next?: string
+    next: Step
 }
 
 export type Output = Traversal
@@ -12,18 +12,19 @@ export type Output = Traversal
 export default function (in: Input): Output {
     const next_row = in.current.row + 1
 
-    if (in.next == null) {
+    if (in.next.path == null) {
         return {
             ...in.current,
             path: smt_false,
             row: next_row,
-            running: false
+            running: false,
+            unsupported: in.next.unsupported
         }
     }
 
     return {
         ...in.current,
-        path: in.next,
+        path: in.next.path,
         row: next_row,
         running: next_row < in.current.end
     }

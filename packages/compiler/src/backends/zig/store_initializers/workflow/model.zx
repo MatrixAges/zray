@@ -1,4 +1,4 @@
-import type { TextColumn, U64Buffer } from "memory"
+import type { TextColumn } from "memory"
 import type { ApplicationInitializers } from "output_host"
 
 export enum Status {
@@ -14,9 +14,7 @@ export type Plan = {
     source_end: u64,
     linked: u64[],
     expected: u8[][],
-    keys: TextColumn,
-    buckets: U64Buffer,
-    capacity: u64
+    keys: TextColumn
 }
 
 export type Input = {
@@ -28,9 +26,8 @@ export type Input = {
 
 export type Emitted = {
     status: Status,
-    values: u32[]
+    values: u32[],
+    buckets: u64[]
 }
 
-export type Coverage = Input & {
-    values: u32[]
-}
+export type Coverage = Input.Omit("target") & Emitted.Omit("status")

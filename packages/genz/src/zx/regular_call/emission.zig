@@ -3,7 +3,6 @@ const zx = @import("zx");
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const reference = @import("../functions/reference.zig");
-const OriginBuffer = @import("../construction/publication.zig").OriginBuffer;
 const entry = @import("generated_regular_call_emit");
 const Input = std.meta.Child(entry.Input);
 
@@ -17,12 +16,12 @@ pub const Request = struct {
 
 pub fn lower(self: *Lower, request: Request) Lower.Error!node.ExpressionId {
     const target = reference.prepare(self, request.function, .regular);
-    var origin: OriginBuffer = undefined;
 
     const input: Input = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
+        .base = @intCast(self.builder.nodes.expressions.tags.items.len),
+        .capture = if (self.capture) |capture| &.{ .name = capture.name, .label = capture.label, .failure = @backingInt(capture.failure) } else null,
         .target = zx.columns.pointer(@FieldType(Input, "target"), &target),
         .value = @backingInt(request.value),
         .store = if (request.store) |store| @backingInt(store) else null,

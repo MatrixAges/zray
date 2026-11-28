@@ -1,11 +1,10 @@
 import type { AstOriginBuffer, AstWriter } from "ast_rows"
-import type { Lowering, TaskWorker, TaskWorkerUsage } from "lowering_host"
+import type { Lowering, TaskWorker, TaskWorkerBody } from "lowering_host"
 import type { Input as WorkerFinish, Output as Final } from "../finish_model"
 
 export type Input = {
     worker: TaskWorker,
     lower: Lowering,
-    worker_lower: Lowering,
     writer: AstWriter,
     origin: AstOriginBuffer,
     captures: u32[],
@@ -28,7 +27,7 @@ export type Publication = Reservation & {
 }
 
 export type Discard = Input.Pick("writer", "origin", "process", "captures") & {
-    usage: TaskWorkerUsage
+    body: TaskWorkerBody.Omit("value")
 }
 
 export type Finish = WorkerFinish.Omit("declaration_base", "bases") & Reservation & {

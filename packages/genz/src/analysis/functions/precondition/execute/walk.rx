@@ -1,16 +1,27 @@
 <Module>
     <Type from="model" as="Contract" />
 
-    <Args in={Contract.Input} out={void} />
+    <Args in={Contract.Input} out={u64} />
 
     <Loop on={$in.running}>
         <Call
             module="next"
             in={{
-                ...$in,
+                source: $in,
                 index: 0,
-                running: $in.kinds.length != 0
+                running: $in.kinds.length != 0,
+                spans: []
             }}
         />
     </Loop>
+
+    <Call
+        fn="../../../statements/rows.tailAstPackedStatements"
+        in={[
+            $in.writer,
+            $ctx.next.spans
+        ]}
+    />
+
+    <Return value={$ctx.tailAstPackedStatements} />
 </Module>

@@ -32,7 +32,8 @@ export type NodeSort = {
 export type CacheView = {
     keys: string?[],
     values: u32[],
-    full: bool
+    full: bool,
+    node_count: u64
 }
 
 export type GraphCapacity = {
@@ -99,8 +100,6 @@ export declare function readHardwareCache(build: HardwareBuild): CacheView
 
 export declare function growHardwareCache(build: HardwareBuild): void
     throws { OutOfMemory }
-
-export declare function hardwareNodeCount(build: HardwareBuild): u64
 
 export declare function appendHardwareTerm(
     build: HardwareBuild,

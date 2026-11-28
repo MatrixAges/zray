@@ -12,8 +12,8 @@
     <Call
         fn="coverage"
         in={{
-            ...$in,
-            values: $ctx.emit.values
+            ...$in.omit(["target"]),
+            ...$ctx.emit.omit(["status"])
         }}
     />
 

@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Block" />
 
-    <Args in={Block.Statement} out={string?} />
+    <Args in={Block.Statement} out={Block.Step} />
 
     <Call fn="prepare" in={$in} />
 
@@ -18,7 +18,11 @@
                 }}
             />
 
-            <Return value={$ctx.bind} />
+            <Return
+                value={{
+                    path: $ctx.bind
+                }}
+            />
         </Case>
 
         <Case value={Block.StatementKind.Constant}>
@@ -33,7 +37,11 @@
                 }}
             />
 
-            <Return value={$ctx.bind} />
+            <Return
+                value={{
+                    path: $ctx.bind
+                }}
+            />
         </Case>
 
         <Case value={Block.StatementKind.Destructure}>
@@ -45,7 +53,11 @@
                 }}
             />
 
-            <Return value={$ctx.destructure} />
+            <Return
+                value={{
+                    path: $ctx.destructure
+                }}
+            />
         </Case>
 
         <Case value={Block.StatementKind.Result}>
@@ -59,7 +71,11 @@
                 }}
             />
 
-            <Return value={$ctx.result} />
+            <Return
+                value={{
+                    path: $ctx.result
+                }}
+            />
         </Case>
 
         <Case value={Block.StatementKind.Branch}>
@@ -71,7 +87,11 @@
                 }}
             />
 
-            <Return value={$ctx.branch} />
+            <Return
+                value={{
+                    path: $ctx.branch
+                }}
+            />
         </Case>
 
         <Case value={Block.StatementKind.Switch}>
@@ -83,7 +103,11 @@
                 }}
             />
 
-            <Return value={$ctx.select} />
+            <Return
+                value={{
+                    path: $ctx.select
+                }}
+            />
         </Case>
 
         <Case value={Block.StatementKind.Parallel}>
@@ -95,13 +119,19 @@
                 }}
             />
 
-            <Return value={$ctx.run} />
+            <Return
+                value={{
+                    path: $ctx.run
+                }}
+            />
         </Case>
 
         <Default>
-            <Call fn="index.rejectSymbolicStatement" in={$in.block} />
-
-            <Return value={$ctx.rejectSymbolicStatement} />
+            <Return
+                value={{
+                    unsupported: true
+                }}
+            />
         </Default>
     </Switch>
 </Module>

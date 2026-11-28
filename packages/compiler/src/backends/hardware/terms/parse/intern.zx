@@ -14,6 +14,7 @@ export default function (in: Input): Output {
     const { build, key } = in
 
     const cache = host.readHardwareCache(build)
+    const node_count = cache.node_count
 
     const found = lookup({
         keys: cache.keys,
@@ -39,7 +40,7 @@ export default function (in: Input): Output {
     }
 
     const valid = space({
-        node_count: host.hardwareNodeCount(build),
+        node_count,
         width: in.width
     })
 

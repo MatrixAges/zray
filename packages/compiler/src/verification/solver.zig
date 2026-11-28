@@ -3,6 +3,7 @@ const zx = @import("zx");
 const frontend = @import("frontend");
 const Conditions = @import("conditions.zig");
 const Evidence = @import("solver/publication/evidence/output.zig");
+pub const writeEvidenceProgramTypes = Evidence.programTypes;
 
 pub const Options = struct {
     solver: ?[]const u8 = null,
@@ -46,7 +47,6 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
             .sources = @ptrCast(&sources),
             .entry = entry,
             .version = program.version,
-            .types = @ptrCast(&program.types),
             .inputs = @ptrCast(&query.inputs),
             .program = @ptrCast(&program),
         },

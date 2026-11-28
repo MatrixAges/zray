@@ -12,7 +12,6 @@ import {
 import type {
     EvidenceOutput,
     EvidenceSources,
-    EvidenceTypes,
     EvidenceInputs,
     EvidenceProgram
 } from "verification_report_host"
@@ -22,7 +21,6 @@ export type Input = {
     sources: EvidenceSources,
     entry: string,
     version: u32,
-    types: EvidenceTypes,
     inputs: EvidenceInputs,
     program: EvidenceProgram
 }
@@ -36,7 +34,7 @@ export default function (in: Input): Output {
     json.writeEvidenceSources(writer, sources_field, in.sources)
     json.writeEvidenceText(writer, entry_field, in.entry)
     json.writeEvidenceNumber(writer, ir_version_field, in.version)
-    json.writeEvidenceTypes(writer, types_field, in.types)
+    json.writeEvidenceProgramTypes(writer, types_field, in.program)
     json.writeEvidenceInputs(writer, inputs_field, in.inputs)
     json.writeEvidenceProgram(writer, ir_field, in.program)
 

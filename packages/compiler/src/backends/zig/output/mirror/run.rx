@@ -4,15 +4,25 @@
     <Args in={Mirror.Input} out={void} />
 
     <Call fn="host.hashBootstrapFiles" in={$in.target} />
-    <Call fn="host.compareBootstrapFiles" in={$in.target} />
 
-    <If on={$ctx.compareBootstrapFiles.changed.length != 0}>
+    <Call
+        fn="../select"
+        in={{
+            paths: $ctx.hashBootstrapFiles.path_bytes,
+            hashes: $ctx.hashBootstrapFiles.hashes,
+            previous_paths: $in.previous_bytes,
+            previous_hashes: $in.previous_hashes,
+            present: $in.previous_paths != null
+        }}
+    />
+
+    <If on={$ctx.select.changed.length != 0}>
         <Call
             fn="../parents"
-            in={$ctx.compareBootstrapFiles.pick([
-                "paths",
-                "changed"
-            ])}
+            in={{
+                paths: $ctx.hashBootstrapFiles.paths,
+                changed: $ctx.select.changed
+            }}
         />
 
         <Call
@@ -23,15 +33,22 @@
             ]}
         />
 
-        <Call fn="host.writeBootstrapChanges" in={$in.target} />
+        <Call
+            fn="host.writeBootstrapChanges"
+            in={[
+                $in.target,
+                $ctx.select.changed
+            ]}
+        />
     </If>
 
-    <If on={!$ctx.compareBootstrapFiles.aligned}>
+    <If on={!$ctx.select.aligned}>
         <Call
             module="trim"
             in={{
-                ...$in,
-                previous_paths: $ctx.compareBootstrapFiles.previous_paths
+                target: $in.target,
+                paths: $ctx.hashBootstrapFiles.path_bytes,
+                previous_paths: $in.previous_paths
             }}
         />
 

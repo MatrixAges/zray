@@ -1,12 +1,16 @@
-import type { SymbolicExpression, SymbolicInvocation } from "verification_host"
+import type { CallSafety, SymbolicInvocation } from "verification_host"
 import type { Input as Description } from "../../graph/call"
 
 export type Input = Description & {
-    frame: SymbolicExpression,
     call: SymbolicInvocation
 }
 
 export type Solve = {
     call: SymbolicInvocation,
     argument_safe: string
+}
+
+export type Outcome = {
+    safety?: CallSafety,
+    diagnostic?: string
 }

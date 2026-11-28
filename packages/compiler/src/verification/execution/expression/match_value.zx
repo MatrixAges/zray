@@ -22,11 +22,8 @@ export default function (in: Input): Output {
     }
 
     if (subject_value != null && subject_value.text == null) {
-        host.rejectSymbolicExpression(frame, unsupported_message)
-
         return {
-            scalar: null,
-            safe: null
+            diagnostic: unsupported_message
         }
     }
 
@@ -44,9 +41,10 @@ export default function (in: Input): Output {
 
     const combined = loop({
         row: end,
-        no_safe: fallback.safe
+        no_safe: fallback.safe,
+        supported: true
     }, {
-        while: state => state.row > first,
+        while: state => state.supported && state.row > first,
         next: state => {
             state.row -= 1
 
@@ -89,24 +87,29 @@ export default function (in: Input): Output {
 
                 state.no_safe = host.retainSymbolicExpression(frame, safe)
             } else {
-                host.rejectSymbolicExpression(frame, unsupported_message)
+                state.supported = false
             }
-        },
-        return: state => state.no_safe
+        }
     })
+
+    if (!combined.supported) {
+        return {
+            diagnostic: unsupported_message
+        }
+    }
 
     if (subject_value != null) {
         return {
             scalar: null,
             safe: conjunction({
                 left: subject_value.safe,
-                right: combined
+                right: combined.no_safe
             })
         }
     }
 
     return {
         scalar: null,
-        safe: combined
+        safe: combined.no_safe
     }
 }

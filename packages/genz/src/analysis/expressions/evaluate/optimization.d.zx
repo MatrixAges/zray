@@ -8,24 +8,23 @@ export declare function clipSortTarget(frame: SortFrame, target: u32): u32 throw
 
 export declare function bindSortWorkerNames(
     frame: SortWorkerFrame,
-    left: u32,
-    right: u32,
     names: u8[][]
 ): void
 
 export declare function registerSortParameters(frame: SortWorkerFrame): void
     throws { OutOfMemory }
 
-export declare function readSortOperand(frame: SortWorkerFrame, index: u64): void
+export declare function readSortOperand(frame: SortWorkerFrame, index: u64, raw: u32): void
     throws { OutOfMemory }
 
-export declare function readSortWorkerFacts(frame: SortWorkerFrame): SortWorkerFacts
+export declare function finishSortWorker(frame: SortWorkerFrame): SortWorkerResult
     throws { OutOfMemory }
 
 export declare function bindTaskCaptureNames(worker: TaskWorker, first: u32): void
     throws { OutOfMemory }
 
-export declare function readTaskWorkerUsage(worker: TaskWorker): TaskWorkerUsage
+export declare function lowerTaskWorker(worker: TaskWorker, body: u32): TaskWorkerBody
+    throws { OutOfMemory }
 
 export declare function readTaskReferenceBody(worker: TaskWorker): u64 throws { OutOfMemory }
 

@@ -1,0 +1,26 @@
+import type { Walk } from "./model"
+
+export type Input = {
+    cursor: Walk,
+    span?: u64
+}
+
+export type Output = Walk
+
+export default function (in: Input): Output {
+    const { cursor, span } = in
+
+    const index = cursor.index + 1
+
+    const spans = match {
+        span != null => cursor.spans.push(span)[0],
+        _ => cursor.spans
+    }
+
+    return {
+        source: cursor.source,
+        index,
+        running: index < cursor.source.kinds.length,
+        spans
+    }
+}

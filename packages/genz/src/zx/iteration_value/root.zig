@@ -3,9 +3,10 @@ const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const analysis = @import("../iteration_layout.zig");
+const generated = @import("genz_options").generated_analysis;
 const Self = @This();
 
-pub const Statements = if (@import("genz_options").generated_analysis)
+pub const Statements = if (generated)
     @import("../../node/blocks.zig").Sequence
 
 else
@@ -19,6 +20,7 @@ symbols: @import("../members.zig") = .empty,
 cache: @import("../expression_map.zig").Map(ir.ExprId) = .empty,
 reads: @import("../counter.zig") = .empty,
 transfers: @import("../transfers.zig") = .empty,
+projection_stamp: if (generated) @import("../expressions/evaluate.zig").Api.IterationProjectionStamp else void = undefined,
 argument: ?struct { id: ir.ExprId, value: node.ExpressionId } = null,
 pub fn represented(self: *const Self, id: ir.TypeId) bool {
     return analysis.represented(self.lowering, id) or self.buffered(id);

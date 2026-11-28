@@ -31,14 +31,12 @@ pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.E
     defer scratch.deinit();
 
     const temporary = buffered.allocator();
-    var timeline: Timeline = .{ .context = context };
 
     const preparation: Prepare = .{
         .source = &request,
         .resources = &.{
             .frame = @ptrCast(self),
             .context = @ptrCast(context),
-            .history = @ptrCast(&timeline),
         },
     };
 
@@ -76,19 +74,13 @@ pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.E
     return @fromBackingInt(root);
 }
 
-const Timeline = struct {
-    context: *Context,
-    stamp: Api.IterationProjectionStamp = undefined,
-};
-
 pub fn reserveIterationProjection(handle: *anyopaque, fresh: u64) Lower.Error!*const Api.IterationProjectionStamp {
-    const timeline: *Timeline = @ptrCast(@alignCast(handle));
-    const self = timeline.context.lowering;
-
-    timeline.stamp = .{ .serial = self.serial, .history_count = timeline.context.transfers.len() };
-
+    const context: *Context = @ptrCast(@alignCast(handle));
+    const self = context.lowering;
+    const serial = self.serial;
     const reserved = std.math.cast(usize, fresh) orelse return error.OutOfMemory;
-    self.serial = std.math.add(usize, self.serial, reserved) catch return error.OutOfMemory;
+    self.serial = std.math.add(usize, serial, reserved) catch return error.OutOfMemory;
+    context.projection_stamp = .{ .serial = serial, .history_count = context.transfers.len() };
 
-    return &timeline.stamp;
+    return &context.projection_stamp;
 }

@@ -1,7 +1,6 @@
 export {
     bindTaskCaptureNames,
-    lowerExpression,
+    lowerTaskWorker,
     lowerType,
-    readTaskWorkerUsage,
     readTaskReferenceBody
 } from "lowering_host"

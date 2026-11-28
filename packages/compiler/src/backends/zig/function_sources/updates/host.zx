@@ -1,5 +1,4 @@
 export {
-    tryRecordCachedSource,
-    recordCachedPrefix,
+    recordCachedRows,
     accountCachedSources
 } from "output_host"

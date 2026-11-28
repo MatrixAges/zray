@@ -90,13 +90,20 @@ pub fn prepareOwnershipIdentities(handle: *anyopaque) Error!void {
     self.identities = try Identity.bodies(ctx.temporary, input.program, ctx.calls.active, &self.shared_identity, input.basis.contents);
 }
 
-pub fn prepareOwnershipReplay(handle: *anyopaque) Error!void {
+pub fn prepareOwnershipReplay(handle: *anyopaque) Error!bool {
     const self = borrow(handle);
     const ctx = self.ctx;
     const memo = ctx.memo;
     const previous = if (memo.trace) |*trace| trace else null;
     const key = Identity.combine(&self.shared_identity, std.mem.sliceAsBytes(ctx.exported));
+
     ctx.replay.* = try .init(ctx.temporary, memo.arena.child_allocator, previous, key, self.identities, ctx.calls.callees);
+
+    if (ctx.replay.trace == null) return false;
+
+    self.active = .{ .replay = .init(ctx.workspace) };
+
+    return true;
 }
 
 pub fn prepareOwnershipBodies(handle: *anyopaque) Error!void {
@@ -151,16 +158,6 @@ pub fn finishOwnershipRound(handle: *anyopaque, publish: bool) void {
     if (publish) self.result = self.active.round.plans.result();
 
     self.close();
-}
-
-pub fn beginOwnershipReplay(handle: *anyopaque) bool {
-    const self = borrow(handle);
-
-    if (self.ctx.replay.trace == null) return false;
-
-    self.active = .{ .replay = .init(self.ctx.workspace) };
-
-    return true;
 }
 
 pub fn scanOwnershipReplay(handle: *anyopaque, phase: Api.ReplayPhase, recovered: ?u32) Error!Api.ReplayPhase {

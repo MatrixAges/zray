@@ -76,12 +76,10 @@
     />
 
     <Call
-        fn="index.lowerExpression"
+        fn="index.lowerTaskWorker"
         in={[
-            $in.worker_lower,
-            $in.body_expr,
-            false,
-            null
+            $in.worker,
+            $in.body_expr
         ]}
     />
 
@@ -95,7 +93,6 @@
     />
 
     <Call fn="../../rows.astStatementCount" in={$in.writer} />
-    <Call fn="index.readTaskWorkerUsage" in={$in.worker} />
 
     <Call
         module="discard"
@@ -104,7 +101,7 @@
             origin: $in.origin,
             captures: $in.captures,
             process: $in.process,
-            usage: $ctx.readTaskWorkerUsage
+            body: $ctx.lowerTaskWorker.omit(["value"])
         }}
     />
 
@@ -134,7 +131,7 @@
             origin: $in.origin,
             name: $ctx.reserve_slot,
             slot: $ctx.auxiliaryDeclarationCount,
-            value: $ctx.lowerExpression,
+            value: $ctx.lowerTaskWorker.value,
             output_type: $ctx.lowerType,
             errors: $in.errors,
             parameters_first: $ctx.prepare.first,

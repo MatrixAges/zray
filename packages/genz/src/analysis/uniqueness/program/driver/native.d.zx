@@ -48,7 +48,7 @@ export declare function prepareOwnershipStorage(in: Execution): void
 export declare function prepareOwnershipIdentities(in: Execution): void
     throws { OutOfMemory }
 
-export declare function prepareOwnershipReplay(in: Execution): void
+export declare function prepareOwnershipReplay(in: Execution): bool
     throws { OutOfMemory }
 
 export declare function prepareOwnershipBodies(in: Execution): void
@@ -80,8 +80,6 @@ export declare function visitOwnershipBody(
 ): void throws { OutOfMemory }
 
 export declare function finishOwnershipRound(in: Execution, publish: bool): void
-
-export declare function beginOwnershipReplay(in: Execution): bool
 
 export declare function scanOwnershipReplay(
     in: Execution,

@@ -1,9 +1,8 @@
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { Input as Start } from "../model"
 
-export type Input = Start.Omit("bases") & {
-    writer: AstWriter,
-    origin: AstOriginBuffer
+export type Input = Start & {
+    writer: AstWriter
 }
 
 export type Output = {

@@ -16,19 +16,6 @@ pub const OriginBuffer = struct {
     capture: Ast.AstCapture = undefined,
 };
 
-pub const Scratch = struct {
-    arena: *std.heap.ArenaAllocator,
-    memory: *std.heap.BufferFirstAllocator,
-};
-
-pub fn releaseAstScratch(handle: *const anyopaque) void {
-    const scratch: *const Scratch = @ptrCast(@alignCast(handle));
-
-    scratch.memory.fixed_buffer_allocator.reset();
-
-    _ = scratch.arena.reset(.free_all);
-}
-
 pub fn readAstOrigin(writer: *anyopaque, buffer: *anyopaque) *const Ast.AstOrigin {
     const self = borrow(writer);
     const target: *OriginBuffer = @ptrCast(@alignCast(buffer));

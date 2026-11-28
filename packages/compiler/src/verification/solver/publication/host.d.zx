@@ -2,8 +2,6 @@ export type EvidenceOutput = mutable_opaque
 
 export type EvidenceSources = opaque
 
-export type EvidenceTypes = opaque
-
 export type EvidenceInputs = opaque
 
 export type EvidenceProgram = opaque
@@ -28,10 +26,10 @@ export declare function writeEvidenceNumber(
     value: u32
 ): void throws { OutOfMemory }
 
-export declare function writeEvidenceTypes(
+export declare function writeEvidenceProgramTypes(
     writer: EvidenceOutput,
     name: string,
-    value: EvidenceTypes
+    value: EvidenceProgram
 ): void throws { OutOfMemory }
 
 export declare function writeEvidenceInputs(

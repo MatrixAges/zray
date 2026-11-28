@@ -1,25 +1,19 @@
-import host from "verification_host"
-
 import { unsupported_message } from "./const"
 
-import type { BinaryFinish as Input, Outcome as Output } from "./model"
+import type { Result as Input } from "../../scalar/model"
+import type { Outcome as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { frame, result } = in
-
-    const value = result.value
+    const { value, safe } = in
 
     if (value == null) {
-        host.rejectSymbolicExpression(frame, unsupported_message)
-
         return {
-            scalar: null,
-            safe: null
+            diagnostic: unsupported_message
         }
     }
 
     return {
         scalar: value,
-        safe: result.safe
+        safe
     }
 }

@@ -36,10 +36,16 @@ export type Prepared = {
     symbol?: u32
 }
 
+export type Step = {
+    path?: string,
+    unsupported?: bool
+}
+
 export type Traversal = Path & {
     row: u64,
     end: u64,
-    running: bool
+    running: bool,
+    unsupported?: bool
 }
 
 export type Cases = {

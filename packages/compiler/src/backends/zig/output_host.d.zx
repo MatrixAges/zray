@@ -1,5 +1,3 @@
-export type CachedSourceRows = opaque
-
 export type FunctionSources = mutable_opaque
 
 export type FunctionSourceWorker = mutable_opaque
@@ -28,14 +26,9 @@ export type InitializerCandidate = {
 }
 
 export type SourceReuse = {
-    target: CachedSourceRows,
     count: u64,
     stored: u64[],
     ordered: bool,
-    held: u64,
-    discarded: u64,
-    failures: u64,
-    last_failure?: u64,
     hits: u64,
     pending: u64
 }
@@ -56,27 +49,21 @@ export enum PartitionFile {
     Modules
 }
 
-export type BootstrapOutputPlan = {
+export type BootstrapHashes = {
     paths: string[],
-    changed: u32[],
-    aligned: bool,
-    previous_paths?: string[]
+    path_bytes: u8[][],
+    hashes: u64[]
 }
 
 export type BootstrapPartition = mutable_opaque
 
-export declare function recordCachedPrefix(target: CachedSourceRows, count: u64): void
-    throws { OutOfMemory }
+export declare function recordCachedRows(
+    batch: FunctionSources,
+    first: u64,
+    end: u64
+): bool
 
-export declare function tryRecordCachedSource(target: CachedSourceRows, row: u64): bool
-
-export declare function accountCachedSources(
-    target: CachedSourceRows,
-    held: u64,
-    discarded: u64,
-    failures: u64,
-    last: u64?
-): void
+export declare function accountCachedSources(batch: FunctionSources): void
 
 export declare function findFunctionSource(
     worker: FunctionSourceWorker,
@@ -146,16 +133,16 @@ export declare function emitLibraryInitializer(
     InvalidNominalOrigin
 }
 
-export declare function hashBootstrapFiles(target: BootstrapMirror): void
-    throws { BootstrapOutput }
-
-export declare function compareBootstrapFiles(target: BootstrapMirror): BootstrapOutputPlan
+export declare function hashBootstrapFiles(target: BootstrapMirror): BootstrapHashes
     throws { BootstrapOutput }
 
 export declare function createBootstrapFolders(target: BootstrapMirror, paths: u8[][]): void
     throws { BootstrapOutput }
 
-export declare function writeBootstrapChanges(target: BootstrapMirror): void
+export declare function writeBootstrapChanges(
+    target: BootstrapMirror,
+    changed: u32[]
+): void
     throws { BootstrapOutput }
 
 export declare function listBootstrapFiles(target: BootstrapMirror): string[]

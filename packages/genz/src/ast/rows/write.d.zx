@@ -4,8 +4,6 @@ export type AstOriginBuffer = mutable_opaque
 
 export type AstSequence = mutable_opaque
 
-export type AstScratch = opaque
-
 export type AstBlockRows = {
     tags: ExpressionsKind[],
     offsets: u32[],
@@ -224,8 +222,6 @@ export declare function joinAstDeclarationRows(
     starts: u32[],
     counts: u32[]
 ): u64 throws { OutOfMemory }
-
-export declare function releaseAstScratch(scratch: AstScratch): void
 
 export declare function appendOwnedAstFields(writer: AstWriter, rows: FieldRows): void
     throws { OutOfMemory }

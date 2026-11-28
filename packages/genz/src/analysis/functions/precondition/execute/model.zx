@@ -1,30 +1,28 @@
-import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
 import type { ContractKind } from "core/contract_table/model"
-import type { Lowering, PreconditionFrame } from "lowering_host"
+import type { Lowering } from "lowering_host"
 
 export type Input = {
-    frame: PreconditionFrame,
+    parent: Lowering,
     predicate: Lowering,
     writer: AstWriter,
     origin: AstOriginBuffer,
-    body: AstSequence,
     kinds: ContractKind[],
     predicates: u32[]
 }
 
-export type Frame = PreconditionFrame
-
-export type Walk = Input & {
+export type Walk = {
+    source: Input,
     index: u64,
-    running: bool
+    running: bool,
+    spans: u64[]
 }
 
 export type Lower = Input.Pick(
-    "frame",
+    "parent",
     "predicate",
     "writer",
-    "origin",
-    "body"
+    "origin"
 ) & {
     expression: u32
 }

@@ -24,6 +24,11 @@ export type SymbolicOutcome = {
     text?: string
 }
 
+export type CallSafety = {
+    argument: string,
+    callee: string
+}
+
 export type ClauseTerm = {
     safe: string,
     predicate: string
@@ -87,12 +92,6 @@ export declare function saveSymbolicParallel(block: SymbolicBlock, index: u64): 
 
 export declare function bindSymbolicParallel(block: SymbolicBlock, index: u64, symbol: u32): void
 
-export declare function rejectSymbolicStatement(block: SymbolicBlock): string?
-    throws { InvalidSource }
-
-export declare function rejectSymbolicExpression(frame: SymbolicExpression, message: string): void
-    throws { InvalidSource }
-
 export declare function loadSymbolicReference(frame: SymbolicExpression, symbol: u32): void
     throws { InvalidSource }
 
@@ -124,7 +123,7 @@ export declare function runSymbolicExpressionCall(
     frame: SymbolicExpression,
     target: u32,
     argument: u32
-): string throws { OutOfMemory, InvalidSource }
+): CallSafety throws { OutOfMemory, InvalidSource }
 
 export declare function evaluateSymbolicCallArgument(call: SymbolicInvocation): string
     throws { OutOfMemory, InvalidSource }

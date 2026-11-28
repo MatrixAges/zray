@@ -4,28 +4,13 @@
     <Args in={Emission.Execute} out={u32} />
 
     <Call
-        fn="execute_model.readAstOrigin"
-        in={[
-            $in.writer,
-            $in.origin
-        ]}
-    />
-
-    <Call fn="execute_model.astFieldCount" in={$in.writer} />
-
-    <Call
         module="build"
-        in={{
-            context: {
-                ...$ctx.readAstOrigin,
-                field_base: $ctx.astFieldCount
-            },
-            ...$in.pick([
-                "value",
-                "target",
-                "plan"
-            ])
-        }}
+        in={$in.pick([
+            "context",
+            "value",
+            "target",
+            "plan"
+        ])}
     />
 
     <Call

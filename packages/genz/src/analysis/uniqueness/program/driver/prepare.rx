@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Driver" />
 
-    <Args in={Driver.Input} out={void} />
+    <Args in={Driver.Input} out={bool} />
 
     <Call fn="index.prepareOwnershipStorage" in={$in.frame} />
 
@@ -10,8 +10,10 @@
 
         <If on={$in.recording}>
             <Call fn="index.prepareOwnershipReplay" in={$in.frame} />
+
+            <Return value={$ctx.prepareOwnershipReplay} />
         </If>
     </If>
 
-    <Call fn="index.prepareOwnershipBodies" in={$in.frame} />
+    <Return value={false} />
 </Module>

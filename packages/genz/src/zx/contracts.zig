@@ -5,17 +5,8 @@ const Lower = @import("lower.zig");
 const generated = @import("genz_options").generated_analysis;
 const scope = @import("functions/scope.zig");
 const publication = @import("construction/publication.zig");
-const Sequence = @import("../node/blocks.zig").Sequence;
 const Error = Lower.Error;
-
-const Frame = struct {
-    lowering: *Lower,
-    statements: Sequence,
-    predicate: Lower = undefined,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-};
+const borrow = @import("expressions/evaluate.zig").borrow;
 
 pub fn preconditions(self: *Lower) Error!node.Block {
     if (!generated) return @import("contracts/seed.zig").lower(self);
@@ -26,36 +17,33 @@ pub fn preconditions(self: *Lower) Error!node.Block {
 
     const entry = @import("generated_lower_preconditions");
     const Input = std.meta.Child(entry.Input);
-    var frame: Frame = .{ .lowering = self, .statements = self.builder.statementSequence(self.workspace) };
+    var predicate: Lower = undefined;
     var origin: publication.OriginBuffer = .{};
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
 
-    defer frame.statements.deinit();
     defer scratch.deinit();
 
     const input: Input = .{
-        .frame = @ptrCast(&frame),
-        .predicate = @ptrCast(&frame.predicate),
+        .parent = @ptrCast(self),
+        .predicate = @ptrCast(&predicate),
         .writer = @ptrCast(self),
         .origin = @ptrCast(&origin),
-        .body = @ptrCast(&frame.statements),
         .kinds = zx.columns.slice(@FieldType(Input, "kinds"), kinds),
         .predicates = self.program.contracts.predicates,
     };
 
-    entry.executeIn(memory.allocator(), &input) catch |err| return publication.failure(err);
+    const span = entry.executeIn(memory.allocator(), &input) catch |err| return publication.failure(err);
 
-    return self.builder.finishStatements(&frame.statements);
+    return publication.unpackSpan(span);
 }
 
-pub fn openPreconditionScope(handle: *anyopaque, index: u64) Error!void {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
+pub fn openPreconditionScope(parent: *anyopaque, child: *anyopaque, index: u64) Error!void {
+    const self = borrow(parent);
     const contracts = &self.program.contracts;
     const row: usize = @intCast(index);
-    const predicate = &frame.predicate;
+    const predicate = borrow(child);
 
     predicate.* = scope.inherit(self, .Predicate);
 
@@ -65,8 +53,6 @@ pub fn openPreconditionScope(handle: *anyopaque, index: u64) Error!void {
     try scope.reserve(predicate, self.allocator, .Predicate);
 }
 
-pub fn publishPreconditionScope(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
-
-    scope.publish(frame.lowering, &frame.predicate, .Predicate);
+pub fn publishPreconditionScope(parent: *anyopaque, child: *anyopaque) void {
+    scope.publish(borrow(parent), borrow(child), .Predicate);
 }

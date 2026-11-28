@@ -231,8 +231,9 @@ pub fn createJobs(owned: std.mem.Allocator, jobs: Jobs) generating.Error![][]con
             .cached = jobs.batch.cache != null,
         };
 
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const success = entry.executeIn(empty.allocator(), &input) catch |err| return generationError(err);
+        var buffer: [1024]u8 = undefined;
+        var buffered = std.heap.BufferFirstAllocator.init(&buffer, temporary);
+        const success = entry.executeIn(buffered.allocator(), &input) catch |err| return generationError(err);
 
         if (!success) return error.OutOfMemory;
 
@@ -331,19 +332,33 @@ pub fn readFunctionSources(handle: *anyopaque) generating.Error!*const SourceReu
     cached.plan = plan;
 
     cached.view = .{
-        .target = @ptrCast(&cached.rows),
         .count = count,
         .stored = plan.stored,
         .ordered = plan.ordered,
-        .held = plan.held,
-        .discarded = plan.discarded,
-        .failures = plan.failures,
-        .last_failure = plan.last_failure,
         .hits = plan.reused.len,
         .pending = plan.pending.len,
     };
 
     return &cached.view;
+}
+
+pub fn recordCachedRows(handle: *anyopaque, first: u64, end: u64) bool {
+    const cached = &Frame.borrow(handle).cached.?;
+
+    cache_updates.record(&cached.rows, @intCast(first), @intCast(end)) catch return false;
+
+    return true;
+}
+
+pub fn accountCachedSources(handle: *anyopaque) void {
+    const cached = &Frame.borrow(handle).cached.?;
+    const plan = cached.plan;
+    const cache = cached.rows.cache;
+    cache.reused += @intCast(plan.held);
+    cache.discarded += @intCast(plan.discarded);
+    cache.io_errors += @intCast(plan.failures);
+
+    if (plan.last_failure) |index| cache.last_io_error = cached.rows.fetched[@intCast(index)].failure.?;
 }
 
 pub fn restoreFunctionSources(handle: *anyopaque) std.mem.Allocator.Error!void {

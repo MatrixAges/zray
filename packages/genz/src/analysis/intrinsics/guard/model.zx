@@ -1,4 +1,4 @@
-import type { AstSequence, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { State as Context } from "../../../ast/context/model"
 import type { Capture } from "../../../ast/expressions/fallible"
 import type { Columns as Forms } from "../../../ast/expressions/forms/model"
@@ -29,6 +29,5 @@ export type Output = {
 
 export type Publication = {
     writer: AstWriter,
-    body: AstSequence,
     fragment: Output
 }

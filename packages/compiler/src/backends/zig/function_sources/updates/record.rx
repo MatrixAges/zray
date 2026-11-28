@@ -5,21 +5,22 @@
 
     <If on={$in.ordered}>
         <Call
-            fn="host.recordCachedPrefix"
+            fn="host.recordCachedRows"
             in={[
-                $in.target,
+                $in.batch,
+                0,
                 $in.count
             ]}
         />
 
-        <Return value={true} />
+        <Return value={$ctx.recordCachedRows} />
     </If>
 
     <Loop on={$in.remaining != 0 && $in.failure == null}>
         <Call
             module="adopt"
             in={{
-                target: $in.target,
+                batch: $in.batch,
                 stored: $in.stored,
                 remaining: $in.stored.length,
                 failure: null
@@ -29,9 +30,10 @@
 
     <If on={$ctx.adopt.failure != null}>
         <Call
-            fn="host.recordCachedPrefix"
+            fn="host.recordCachedRows"
             in={[
-                $in.target,
+                $in.batch,
+                0,
                 $ctx.adopt.failure
             ]}
         />
@@ -39,16 +41,7 @@
         <Return value={false} />
     </If>
 
-    <Call
-        fn="host.accountCachedSources"
-        in={[
-            $in.target,
-            $in.held,
-            $in.discarded,
-            $in.failures,
-            $in.last_failure
-        ]}
-    />
+    <Call fn="host.accountCachedSources" in={$in.batch} />
 
     <Return value={true} />
 </Module>

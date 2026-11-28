@@ -38,10 +38,13 @@ export declare function emitValuePrototype(body: ValueFunction): void
 
 export declare function emitValueBody(body: ValueFunction): void throws { OutOfMemory }
 
-export declare function openPreconditionScope(frame: PreconditionFrame, index: u64): void
-    throws { OutOfMemory }
+export declare function openPreconditionScope(
+    parent: Lowering,
+    predicate: Lowering,
+    index: u64
+): void throws { OutOfMemory }
 
-export declare function publishPreconditionScope(frame: PreconditionFrame): void
+export declare function publishPreconditionScope(parent: Lowering, predicate: Lowering): void
 export declare function startAnalysisBasis(work: AnalysisWork): bool
 
 export declare function buildAnalysisBasis(work: AnalysisWork): void

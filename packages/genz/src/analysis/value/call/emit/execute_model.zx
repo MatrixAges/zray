@@ -1,13 +1,10 @@
-import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { AstSequence, AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
 import type { Input, Output } from "./model"
 
-export { astFieldCount, readAstOrigin } from "ast_rows"
-
-export type Execute = Input.Omit("context") & {
+export type Execute = Input & {
     frame: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     body?: AstSequence
 }
 

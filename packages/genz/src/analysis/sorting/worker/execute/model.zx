@@ -1,4 +1,4 @@
-import type { AstOriginBuffer, AstScratch, AstWriter } from "ast_rows"
+import type { AstOriginBuffer, AstWriter } from "ast_rows"
 import type { Lowering, SortWorkerFrame } from "lowering_host"
 import type { Input as WorkerInput, Output as WorkerOutput } from "../model"
 
@@ -7,7 +7,6 @@ export type Input = WorkerInput.Pick("child", "errors") & {
     writer: AstWriter,
     lower: Lowering,
     worker: Lowering,
-    scratch: AstScratch,
     origin: AstOriginBuffer,
     body_expr: u32,
     output_type: u32
@@ -21,6 +20,7 @@ export type Publication = {
 }
 
 export type OperandCursor = Input.Pick("frame") & {
+    raw: u32[],
     count: u64,
     row: u64,
     running: bool

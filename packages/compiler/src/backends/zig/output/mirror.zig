@@ -8,7 +8,7 @@ const file_manifest = @import("manifest.zig");
 const manifest_name = file_manifest.name;
 const Failure = @import("failure.zig");
 const native = if (ledger.available) @import("output_execution_abi").layouts.@"zig:output_host" else struct {};
-const Plan = if (ledger.available) native.BootstrapOutputPlan else void;
+const Hashes = if (ledger.available) native.BootstrapHashes else void;
 const stamp_name = @import("../../../inputs/generation.zig").stamp_name;
 
 /// Publishes a generated tree while preserving unchanged files and their timestamps.
@@ -45,7 +45,9 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Alloca
 
         const input: std.meta.Child(entry.Input) = .{
             .target = @ptrCast(&frame),
-            .paths = @ptrCast(&frame.hashing.paths),
+            .previous_paths = if (frame.previous) |previous| previous.paths else null,
+            .previous_bytes = if (frame.previous) |previous| previous.paths else &.{},
+            .previous_hashes = if (frame.previous) |previous| previous.hashes else &.{},
         };
 
         entry.executeIn(resource, &input) catch |err| {
@@ -63,7 +65,7 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Alloca
         const changed = frame.selected.?.value.changed;
 
         if (changed.len != 0) try frame.parentsSeed();
-        try frame.writeChanged();
+        try frame.writeChanged(changed);
         if (!frame.selected.?.value.aligned) try frame.trimSeed();
         try frame.commit();
     }
@@ -80,7 +82,7 @@ const Frame = struct {
     arenas: ?parallel.Arenas = null,
     hashing: Hashing = undefined,
     selected: ?ledger.Changes = null,
-    plan: Plan = undefined,
+    hashed: Hashes = undefined,
     failure: Failure = .{},
     fn fromHandle(handle: *anyopaque) *@This() {
         return @ptrCast(@alignCast(handle));
@@ -125,7 +127,10 @@ const Frame = struct {
             .present = previous != null,
         });
 
-        try file_manifest.write(ledger.manifest_write, self.workspace, &self.manifest.writer, paths, hashes);
+        try self.prepareManifest();
+    }
+    fn prepareManifest(self: *Frame) !void {
+        try file_manifest.write(ledger.manifest_write, self.workspace, &self.manifest.writer, self.hashing.paths, self.hashing.hashes);
     }
     fn parentsSeed(self: *Frame) !void {
         var temporary = std.heap.ArenaAllocator.init(self.workspace);
@@ -136,8 +141,7 @@ const Frame = struct {
 
         for (folders) |folder| try self.directory.createDirPath(self.io, folder);
     }
-    fn writeChanged(self: *Frame) !void {
-        const changed = self.selected.?.value.changed;
+    fn writeChanged(self: *Frame, changed: []const u32) !void {
         const output: Writer = .{ .io = self.io, .directory = self.directory };
 
         if (comptime !ledger.available) return parallel.eachSeed(self.arenas.?, changed.len, &SeedWriting{ .output = output, .files = self.files, .changed = changed });
@@ -190,27 +194,19 @@ const Frame = struct {
     }
 };
 
-pub fn hashBootstrapFiles(handle: *anyopaque) Failure.Error!void {
+pub fn hashBootstrapFiles(handle: *anyopaque) Failure.Error!*const Hashes {
     const frame = Frame.fromHandle(handle);
 
     frame.hash() catch |err| return frame.failure.save(err);
-}
+    frame.prepareManifest() catch |err| return frame.failure.save(err);
 
-pub fn compareBootstrapFiles(handle: *anyopaque) Failure.Error!*const Plan {
-    const frame = Frame.fromHandle(handle);
-
-    frame.compare() catch |err| return frame.failure.save(err);
-
-    const selection = frame.selected.?.value;
-
-    frame.plan = .{
+    frame.hashed = .{
         .paths = frame.hashing.paths,
-        .changed = selection.changed,
-        .aligned = selection.aligned,
-        .previous_paths = if (frame.previous) |previous| previous.paths else null,
+        .path_bytes = frame.hashing.paths,
+        .hashes = frame.hashing.hashes,
     };
 
-    return &frame.plan;
+    return &frame.hashed;
 }
 
 pub fn createBootstrapFolders(handle: *anyopaque, folders: []const []const u8) Failure.Error!void {
@@ -219,10 +215,10 @@ pub fn createBootstrapFolders(handle: *anyopaque, folders: []const []const u8) F
     for (folders) |folder| frame.directory.createDirPath(frame.io, folder) catch |err| return frame.failure.save(err);
 }
 
-pub fn writeBootstrapChanges(handle: *anyopaque) Failure.Error!void {
+pub fn writeBootstrapChanges(handle: *anyopaque, changed: []const u32) Failure.Error!void {
     const frame = Frame.fromHandle(handle);
 
-    frame.writeChanged() catch |err| return frame.failure.save(err);
+    frame.writeChanged(changed) catch |err| return frame.failure.save(err);
 }
 
 pub fn listBootstrapFiles(handle: *anyopaque) Failure.Error![]const []const u8 {

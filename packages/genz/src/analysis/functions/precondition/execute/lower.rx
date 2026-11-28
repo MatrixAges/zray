@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Contract" />
 
-    <Args in={Contract.Lower} out={void} />
+    <Args in={Contract.Lower} out={u64} />
 
     <Call
         fn="index.lowerExpression"
@@ -36,10 +36,17 @@
         module="../../../intrinsics/guard/append"
         in={{
             writer: $in.writer,
-            body: $in.body,
             fragment: $ctx.build
         }}
     />
 
-    <Call fn="index.publishPreconditionScope" in={$in.frame} />
+    <Call
+        fn="index.publishPreconditionScope"
+        in={[
+            $in.parent,
+            $in.predicate
+        ]}
+    />
+
+    <Return value={$ctx.append} />
 </Module>

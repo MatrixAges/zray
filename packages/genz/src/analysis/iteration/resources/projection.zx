@@ -4,7 +4,6 @@ import { IterationResource } from "lowering_host"
 import { Requirement } from "../projection/model"
 
 import type {
-    IterationProjectionFrame,
     IterationResourceFrame,
     Lowering
 } from "lowering_host"
@@ -13,7 +12,6 @@ import type { Plan } from "../projection/model"
 export type Input = {
     frame: Lowering,
     context: IterationResourceFrame,
-    history: IterationProjectionFrame,
     plan: Plan
 }
 
@@ -35,7 +33,7 @@ export default function (in: Input): Output {
     }, {
         while: state => state.row < in.plan.operations.length,
         next: state => {
-            const { frame, context, history, plan } = in
+            const { frame, context, plan } = in
             const id = plan.values[state.row]
             const value = match plan.requirements[state.row] {
                 Requirement.None => 0,
@@ -55,7 +53,7 @@ export default function (in: Input): Output {
             }
 
             const stamp =
-                host.reserveIterationProjection(history, plan.fresh[state.row])
+                host.reserveIterationProjection(context, plan.fresh[state.row])
 
             state.prepared = state.prepared.push(value)[0]
             state.serials = state.serials.push(stamp.serial)[0]

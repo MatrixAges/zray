@@ -3,6 +3,16 @@
 
     <Args in={Expression.Input} out={Expression.Outcome} />
 
+    <Call fn="depth" in={$in.depth} />
+
+    <If on={$ctx.depth != null}>
+        <Return
+            value={{
+                diagnostic: $ctx.depth
+            }}
+        />
+    </If>
+
     <Call fn="prepare" in={$in} />
 
     <If
@@ -149,17 +159,19 @@
                 }}
             />
 
-            <Call module="../../scalar/binary" />
+            <If on={$ctx.binary_prepare.operands != null}>
+                <Call module="../../scalar/binary" in={$ctx.binary_prepare.operands} />
 
-            <Call
-                fn="binary_finish"
-                in={{
-                    frame: $in.frame,
-                    result: $ctx.binary
+                <Call fn="binary_finish" />
+
+                <Return value={$ctx.binary_finish} />
+            </If>
+
+            <Return
+                value={{
+                    diagnostic: $ctx.binary_prepare.diagnostic
                 }}
             />
-
-            <Return value={$ctx.binary_finish} />
         </Case>
 
         <Case value={Expression.ExpressionKind.Call}>
@@ -172,10 +184,17 @@
                 ]}
             />
 
+            <Call
+                fn="../../scalar/conjunction"
+                in={{
+                    left: $ctx.runSymbolicExpressionCall.argument,
+                    right: $ctx.runSymbolicExpressionCall.callee
+                }}
+            />
+
             <Return
                 value={{
-                    scalar: null,
-                    safe: $ctx.runSymbolicExpressionCall
+                    safe: $ctx.conjunction
                 }}
             />
         </Case>
@@ -235,12 +254,10 @@
         </Case>
 
         <Default>
-            <Call
-                fn="index.rejectSymbolicExpression"
-                in={[
-                    $in.frame,
-                    "formal verification does not yet model this expression"
-                ]}
+            <Return
+                value={{
+                    diagnostic: "formal verification does not yet model this expression"
+                }}
             />
         </Default>
     </Switch>

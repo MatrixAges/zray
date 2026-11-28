@@ -14,7 +14,7 @@ const Frame = struct {
     temporary: std.mem.Allocator,
     worker: Lower = undefined,
     names: ?reuse.Names = null,
-    usage: Api.TaskWorkerUsage = undefined,
+    body: Api.TaskWorkerBody = undefined,
     fn borrow(handle: *anyopaque) *Frame {
         return @ptrCast(@alignCast(handle));
     }
@@ -50,7 +50,6 @@ pub fn lower(self: *Lower, id: ir.ExprId, process: bool) Lower.Error!node.Expres
     const input: Input = .{
         .worker = @ptrCast(&frame),
         .lower = @ptrCast(self),
-        .worker_lower = @ptrCast(&frame.worker),
         .writer = @ptrCast(self),
         .origin = @ptrCast(&origin),
         .captures = view.slice(@FieldType(Input, "captures"), task.captures),
@@ -75,11 +74,13 @@ pub fn bindTaskCaptureNames(handle: *anyopaque, first: u32) Lower.Error!void {
     frame.names = reuse.bindNames(self, frame.captures, names[first..][0..frame.captures.len], saved);
 }
 
-pub fn readTaskWorkerUsage(handle: *anyopaque) *const Api.TaskWorkerUsage {
+pub fn lowerTaskWorker(handle: *anyopaque, id: u32) Lower.Error!*const Api.TaskWorkerBody {
     const frame = Frame.borrow(handle);
     const worker = &frame.worker;
+    const value = try worker.expr(@fromBackingInt(id));
 
-    frame.usage = .{
+    frame.body = .{
+        .value = @backingInt(value),
         .uses_allocator = worker.uses_allocator,
         .uses_io = worker.uses_io,
         .uses_process = worker.uses_process,
@@ -87,7 +88,7 @@ pub fn readTaskWorkerUsage(handle: *anyopaque) *const Api.TaskWorkerUsage {
         .names = worker.names,
     };
 
-    return &frame.usage;
+    return &frame.body;
 }
 
 pub fn readTaskReferenceBody(handle: *anyopaque) Lower.Error!u64 {

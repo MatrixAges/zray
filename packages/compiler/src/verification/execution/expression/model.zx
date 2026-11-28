@@ -3,7 +3,6 @@ import { ExpressionKind } from "core/expression_table/kinds"
 import type { Expressions } from "core/expression_table/model"
 import type { Table } from "core/type_table/model"
 import type { SymbolicExpression } from "verification_host"
-import type { Result } from "../../scalar/model"
 
 export { ExpressionKind } from "core/expression_table/kinds"
 
@@ -75,13 +74,9 @@ export type Prepared = {
     second: u32
 }
 
-export type BinaryFinish = {
-    frame: SymbolicExpression,
-    result: Result
-}
-
 export type Outcome = {
     scalar?: string,
     safe?: string,
-    projection?: u32
+    projection?: u32,
+    diagnostic?: string
 }

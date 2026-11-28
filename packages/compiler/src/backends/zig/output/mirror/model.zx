@@ -1,11 +1,12 @@
-import type { U8ListBuffer } from "memory"
 import type { BootstrapMirror } from "output_host"
 
 export type Input = {
     target: BootstrapMirror,
-    paths: U8ListBuffer
+    previous_paths?: string[],
+    previous_bytes: u8[][],
+    previous_hashes: u64[]
 }
 
-export type Trimming = Input & {
-    previous_paths?: string[]
+export type Trimming = Input.Pick("target", "previous_paths") & {
+    paths: u8[][]
 }

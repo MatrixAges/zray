@@ -1,12 +1,12 @@
-import indexSlot from "core/bytes/index/column"
 import memory from "memory"
 
+import probe from "../index_slots/probe"
 import { Status } from "./model"
 
 import type { Coverage as Input, Status as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { plan, paths, types, values } = in
+    const { plan, paths, types, values, buckets } = in
 
     return loop({
         row: 0,
@@ -15,15 +15,12 @@ export default function (in: Input): Output {
         while: state => state.status == Status.Ready && state.row < paths.length,
         next: state => {
             const key = paths[state.row]
-            const found = match {
-                plan.capacity != 0 => indexSlot({
-                    ...plan.pick([
-                        "keys",
-                        "buckets",
-                        "capacity"
-                    ]),
+            const found: u64? = match {
+                buckets.length != 0 => probe({
+                    keys: plan.keys,
+                    buckets,
                     key
-                }),
+                }).row,
                 plan.count == 0 => null,
                 memory.readTextColumn(plan.keys, 0) == key => 0,
                 _ => null

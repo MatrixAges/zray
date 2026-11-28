@@ -8,8 +8,13 @@ import { SymbolicOperand } from "verification_host"
 import numeric from "../../scalar/numeric"
 import { unsupported_message } from "./const"
 
-import type { Binary as Output } from "../../scalar/model"
+import type { Binary } from "../../scalar/model"
 import type { TypedPayload as Input } from "./model"
+
+export type Output = {
+    operands?: Binary,
+    diagnostic?: string
+}
 
 export default function (in: Input): Output {
     const { frame, columns, payload, types } = in
@@ -40,36 +45,25 @@ export default function (in: Input): Output {
     const right_text = right_operand.text
 
     if (left_text == null || right_text == null) {
-        host.rejectSymbolicExpression(frame, unsupported_message)
-
         return {
+            diagnostic: unsupported_message
+        }
+    }
+
+    return {
+        operands: {
             operator: columns.binary_operators[payload],
             width,
             signed,
             comparable,
             left: {
-                value: "",
+                value: left_text,
                 safe: left_operand.safe
             },
             right: {
-                value: "",
+                value: right_text,
                 safe: right_operand.safe
             }
-        }
-    }
-
-    return {
-        operator: columns.binary_operators[payload],
-        width,
-        signed,
-        comparable,
-        left: {
-            value: left_text,
-            safe: left_operand.safe
-        },
-        right: {
-            value: right_text,
-            safe: right_operand.safe
         }
     }
 }

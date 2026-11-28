@@ -18,6 +18,7 @@ pub const Frame = struct {
     target: ir.TypeId,
     span: zx.Span,
     aggregate_fields: []Value = &.{},
+    call_safety: native.CallSafety = undefined,
     slots: [std.enums.values(Operand).len]Evaluation = undefined,
     outcomes: [std.enums.values(Operand).len]native.SymbolicOutcome = undefined,
     pub fn borrow(handle: *anyopaque) *@This() {
@@ -57,6 +58,8 @@ pub fn execute(evaluator: *Expressions, id: ir.ExprId, target: ir.TypeId, span: 
 
     const outcome = zx.columns.invoke(rule.executeIn, evaluator.allocator, &input) catch |err| return @import("context.zig").failure(err);
 
+    if (outcome.diagnostic) |message| return evaluator.reporter.fail(.unsupported, span, message);
+
     if (outcome.projection) |index| {
         const source = frame.at(.First);
 
@@ -73,12 +76,6 @@ pub fn execute(evaluator: *Expressions, id: ir.ExprId, target: ir.TypeId, span: 
     }
 
     return frame.at(.Result).*;
-}
-
-pub fn rejectSymbolicExpression(handle: *anyopaque, message: []const u8) error{InvalidSource}!void {
-    const frame = Frame.borrow(handle);
-
-    return @errorCast(frame.evaluator.reporter.fail(.unsupported, frame.span, message));
 }
 
 pub fn loadSymbolicReference(handle: *anyopaque, symbol: u32) error{InvalidSource}!void {

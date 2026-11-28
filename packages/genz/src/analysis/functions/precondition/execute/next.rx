@@ -4,11 +4,12 @@
 
     <Args in={Contract.Walk} out={Contract.Walk} />
 
-    <If on={$in.kinds[$in.index] == Table.ContractKind.Requires}>
+    <If on={$in.source.kinds[$in.index] == Table.ContractKind.Requires}>
         <Call
             fn="index.openPreconditionScope"
             in={[
-                $in.frame,
+                $in.source.parent,
+                $in.source.predicate,
                 $in.index
             ]}
         />
@@ -16,23 +17,34 @@
         <Call
             module="lower"
             in={{
-                ...$in.pick([
-                    "frame",
+                ...$in.source.pick([
+                    "parent",
                     "predicate",
                     "writer",
-                    "origin",
-                    "body"
+                    "origin"
                 ]),
-                expression: $in.predicates[$in.index]
+                expression: $in.source.predicates[$in.index]
             }}
         />
+
+        <Call
+            fn="advance"
+            in={{
+                cursor: $in,
+                span: $ctx.lower
+            }}
+        />
+
+        <Return value={$ctx.advance} />
     </If>
 
-    <Return
-        value={{
-            ...$in,
-            index: $in.index + 1,
-            running: $in.index + 1 < $in.kinds.length
+    <Call
+        fn="advance"
+        in={{
+            cursor: $in,
+            span: null
         }}
     />
+
+    <Return value={$ctx.advance} />
 </Module>

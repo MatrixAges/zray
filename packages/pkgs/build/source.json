@@ -153,10 +153,6 @@
             "entry": "core/bytes/index/const.zx"
         },
         {
-            "specifier": "core/bytes/index/column",
-            "entry": "core/bytes/index/column.zx"
-        },
-        {
             "specifier": "core/bytes/index/borrowed/probe",
             "entry": "core/bytes/index/borrowed/probe.zx"
         },

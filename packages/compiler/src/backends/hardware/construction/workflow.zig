@@ -170,6 +170,7 @@ pub fn readHardwareCache(handle: *anyopaque) *const native.CacheView {
         .keys = view.keys,
         .values = view.values,
         .full = cache.count == cache.limit,
+        .node_count = frame.nodes.count(),
     };
 
     return &frame.cache_view;
@@ -179,10 +180,6 @@ pub fn growHardwareCache(handle: *anyopaque) std.mem.Allocator.Error!void {
     const terms = &Frame.borrow(handle).terms;
 
     try terms.cache.ensureTotalCapacity(terms.scratch, terms.cache.count + 1);
-}
-
-pub fn hardwareNodeCount(handle: *anyopaque) u64 {
-    return Frame.borrow(handle).nodes.count();
 }
 
 pub fn appendHardwareTerm(handle: *anyopaque, position: u64, key: []const u8, kind: native.Kind, width: u16, boolean: bool, first: u64, second: u32, third: u32, operator: u8, extra: u16, signed: bool) std.mem.Allocator.Error!u32 {

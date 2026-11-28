@@ -4,6 +4,7 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const view = @import("../../node/view.zig");
 const rows = @import("../construction/publication.zig");
+const context = @import("../construction/context.zig");
 const evaluate = @import("../expressions/evaluate.zig");
 const generated = @import("genz_options").generated_analysis;
 const seed = @import("root_seed.zig");
@@ -36,7 +37,6 @@ fn launch(self: *Lower, id: ir.ExprId, concurrent: bool, name: ?[]const u8) Lowe
     var scratch: std.heap.ArenaAllocator = .init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory: std.heap.BufferFirstAllocator = .init(&buffer, scratch.allocator());
-    var origin: rows.OriginBuffer = .{};
 
     defer scratch.deinit();
 
@@ -50,7 +50,7 @@ fn launch(self: *Lower, id: ir.ExprId, concurrent: bool, name: ?[]const u8) Lowe
 
     const input: Input = .{
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
+        .bases = &context.snapshot(std.meta.Child(@FieldType(Input, "bases")), self),
         .worker = @backingInt(worker),
         .process = process,
         .concurrent = concurrent,

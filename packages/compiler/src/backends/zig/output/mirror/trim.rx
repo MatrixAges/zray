@@ -3,13 +3,13 @@
 
     <Args in={Mirror.Trimming} out={string[]} />
 
-    <Call fn="wanted" in={$in.paths} />
+    <Call fn="../../path_index" in={$in.paths} />
 
     <If on={$in.previous_paths != null}>
         <Call
             fn="trim"
             in={{
-                index: $ctx.wanted,
+                index: $ctx.path_index,
                 files: $in.previous_paths,
                 preserve_fingerprint: false
             }}
@@ -23,7 +23,7 @@
     <Call
         fn="trim"
         in={{
-            index: $ctx.wanted,
+            index: $ctx.path_index,
             files: $ctx.listBootstrapFiles,
             preserve_fingerprint: true
         }}

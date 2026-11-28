@@ -2,10 +2,9 @@
     <Type from="model" as="Guard" />
     <Type from="../../statements/rows" as="AST" />
 
-    <Args in={Guard.Publication} out={void} />
+    <Args in={Guard.Publication} out={u64} />
 
     <Call fn="../../statements/rows.requireAllocation" in={$in.fragment.valid} />
-    <Call fn="../../../ast/statements/empty_variables" in={{}} />
 
     <Call
         fn="../../statements/rows.appendExpressionRows"
@@ -28,13 +27,26 @@
     />
 
     <Call
-        fn="../../statements/rows.appendStatementSequence"
+        fn="../../statements/rows.publishAstBasicStatements"
         in={[
             $in.writer,
-            $in.body,
-            $in.fragment.roots,
-            $ctx.empty_variables,
-            AST.AstSequenceMode.BorrowingText
+            $in.fragment.roots.pick([
+                "tags",
+                "offsets",
+                "discard",
+                "assignment_target",
+                "assignment_value",
+                "branch_condition",
+                "branch_yes_start",
+                "branch_yes_len",
+                "branch_no_start",
+                "branch_no_len",
+                "branch_capture",
+                "branch_capture_reference",
+                "branch_error_capture"
+            ])
         ]}
     />
+
+    <Return value={$ctx.publishAstBasicStatements} />
 </Module>

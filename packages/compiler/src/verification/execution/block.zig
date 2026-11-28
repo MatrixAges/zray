@@ -67,7 +67,11 @@ fn within(conditions: *Conditions, scope: *const Scope, environment: []?terms.Va
 
     defer if (frame.completed.len != 0) conditions.allocator.free(frame.completed);
 
-    return walk.executeIn(conditions.allocator, &input) catch |err| return Session.failure(err);
+    const continuation = walk.executeIn(conditions.allocator, &input) catch |err| return Session.failure(err);
+
+    if (continuation) |next_path| return next_path;
+
+    return conditions.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "verification does not yet model this statement");
 }
 
 pub fn evaluateSymbolicStatement(handle: *anyopaque, expression: ?u32) zx.Error!*const native.SymbolicOutcome {
@@ -140,10 +144,4 @@ pub fn bindSymbolicParallel(handle: *anyopaque, index: u64, symbol: u32) void {
     const frame = Frame.borrow(handle);
 
     frame.evaluator.environment[symbol] = frame.completed[@intCast(index)].value;
-}
-
-pub fn rejectSymbolicStatement(handle: *anyopaque) error{InvalidSource}!?[]const u8 {
-    const reporter = Frame.borrow(handle).evaluator.reporter;
-
-    return @errorCast(reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "verification does not yet model this statement"));
 }

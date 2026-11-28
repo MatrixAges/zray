@@ -5,7 +5,15 @@
 
     <Call module="driver/prepare" in={$in} />
 
-    <Call fn="../replay/shortcut/attempt" in={$in.frame} />
+    <Call fn="driver/index.prepareOwnershipBodies" in={$in.frame} />
+
+    <Call
+        fn="../replay/shortcut/attempt"
+        in={{
+            frame: $in.frame,
+            available: $ctx.prepare
+        }}
+    />
 
     <If on={!$ctx.attempt}>
         <Call fn="driver/index.prepareOwnershipWorkers" in={$in.frame} />

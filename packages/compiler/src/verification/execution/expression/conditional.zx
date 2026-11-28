@@ -33,11 +33,8 @@ export default function (in: Input): Output {
     const condition = first.text
 
     if (condition == null) {
-        host.rejectSymbolicExpression(frame, unsupported_message)
-
         return {
-            scalar: null,
-            safe: null
+            diagnostic: unsupported_message
         }
     }
 

@@ -35,8 +35,6 @@ export type LoopResultFrame = opaque
 
 export type TransformFrame = mutable_opaque
 
-export type IterationProjectionFrame = mutable_opaque
-
 export type IterationResultApplication = mutable_opaque
 
 export type IterationProjectionStamp = {
@@ -54,8 +52,7 @@ export type SortComparator = {
     process: bool
 }
 
-export type SortWorkerFacts = {
-    raw: u32[],
+export type SortWorkerResult = {
     elements: u32[],
     used: bool[],
     uses_allocator: bool,
@@ -72,7 +69,8 @@ export type SortWorkerFacts = {
 
 export type TaskWorker = mutable_opaque
 
-export type TaskWorkerUsage = {
+export type TaskWorkerBody = {
+    value: u32,
     uses_allocator: bool,
     uses_io: bool,
     uses_process: bool,

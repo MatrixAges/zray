@@ -69,8 +69,6 @@ export enum StoredType {
     ViewType
 }
 
-export type PreconditionFrame = mutable_opaque
-
 export type AnalysisWork = mutable_opaque
 
 export type BasisWork = mutable_opaque

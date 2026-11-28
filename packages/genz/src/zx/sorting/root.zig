@@ -31,7 +31,6 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.Transform) Error!node.Expres
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory: std.heap.BufferFirstAllocator = .init(&buffer, scratch.allocator());
     var origin: rows.OriginBuffer = .{};
-    const resource: rows.Scratch = .{ .arena = &scratch, .memory = &memory };
 
     defer scratch.deinit();
 
@@ -54,7 +53,6 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.Transform) Error!node.Expres
         .lower = @ptrCast(self),
         .body = @ptrCast(&frame.body),
         .origin = @ptrCast(&origin),
-        .scratch = @ptrCast(&resource),
         .target = @backingInt(value.target),
         .environment = @backingInt(value.initial.?),
         .list_type = @backingInt(list_type),

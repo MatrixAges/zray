@@ -26,6 +26,8 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
 
     const application = &options.analysis.value.ir;
     var scratch = std.heap.ArenaAllocator.init(bundle.arena.child_allocator);
+    var buffer: [4096]u8 = undefined;
+    var buffered = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
 
     defer scratch.deinit();
 
@@ -49,8 +51,7 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
         .types = application.stores.types,
     };
 
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-    const status = workflow.executeIn(fixed.allocator(), &input) catch |err| return failure(err);
+    const status = workflow.executeIn(buffered.allocator(), &input) catch |err| return failure(err);
 
     switch (status) {
         .DuplicateInitializer => return error.DuplicateInitializer,
@@ -73,7 +74,6 @@ const Application = struct {
     files: []modules.File = undefined,
     entries: []modules.StoreInitializer = undefined,
     keys: zx.memory.TextColumn = undefined,
-    buckets: []u64 = &.{},
     plan: Plan = undefined,
     candidate: Candidate = undefined,
     linked_source: Initializer = undefined,
@@ -95,8 +95,6 @@ const Application = struct {
 
         @memcpy(self.files[0..self.existing.len], self.existing);
 
-        if (count > 1) self.buckets = try frontend.project.source_index.Map.bucketsFor(self.scratch, count);
-
         self.plan = .{
             .count = count,
             .owned = options.initializers.len,
@@ -104,8 +102,6 @@ const Application = struct {
             .linked = selection.indices,
             .expected = expected,
             .keys = @ptrCast(&self.keys),
-            .buckets = @ptrCast(&self.buckets),
-            .capacity = self.buckets.len,
         };
     }
 };

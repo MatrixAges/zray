@@ -4,29 +4,7 @@
 
     <Args in={Start.Input} out={Start.Output} />
 
-    <Call fn="../../rows.astFieldCount" in={$in.writer} />
-
-    <Call
-        fn="../../rows.readAstOrigin"
-        in={[
-            $in.writer,
-            $in.origin
-        ]}
-    />
-
-    <Call
-        module="../build"
-        in={{
-            ...$in.omit([
-                "writer",
-                "origin"
-            ]),
-            bases: {
-                ...$ctx.readAstOrigin,
-                field_base: $ctx.astFieldCount
-            }
-        }}
-    />
+    <Call module="../build" in={$in.omit(["writer"])} />
 
     <Call fn="../../rows.requireAllocation" in={$ctx.build.valid} />
 

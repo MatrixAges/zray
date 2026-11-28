@@ -24,11 +24,8 @@ export default function (in: Input): Output {
     const text = operand.text
 
     if (text == null) {
-        host.rejectSymbolicExpression(frame, unsupported_message)
-
         return {
-            scalar: null,
-            safe: null
+            diagnostic: unsupported_message
         }
     }
 
@@ -51,11 +48,8 @@ export default function (in: Input): Output {
     const value = evaluated.value
 
     if (value == null) {
-        host.rejectSymbolicExpression(frame, unsupported_message)
-
         return {
-            scalar: null,
-            safe: null
+            diagnostic: unsupported_message
         }
     }
 

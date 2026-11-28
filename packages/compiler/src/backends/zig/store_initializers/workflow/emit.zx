@@ -1,23 +1,41 @@
-import indexSlot from "core/bytes/index/column"
+import capacityFor from "core/bytes/index/fixed_capacity"
 import host from "output_host"
 import { InitializerOrigin } from "output_host"
 
+import probe from "../index_slots/probe"
 import compatible from "../validation/names"
 import { invalid_candidate, duplicate_identity } from "./const"
 import { Status } from "./model"
 
+import type { Output as Slot } from "../index_slots/probe"
 import type { Emitted as Output, Input } from "./model"
 
 export default function (in: Input): Output {
+    const { target, plan } = in
+
+    const capacity = match {
+        plan.count > 1 => capacityFor(plan.count),
+        _ => 0
+    }
+
+    const empty_buckets: u64[] = []
+
+    const buckets = loop(empty_buckets, {
+        while: items => items.length < capacity,
+        next: items => {
+            items = items.push(0)[0]
+        }
+    })
+
     const empty: u32[] = []
 
     return loop({
         row: 0,
-        values: empty
+        values: empty,
+        buckets
     }, {
         while: state => state.row < in.plan.count,
         next: state => {
-            const { target, plan } = in
             const row = state.row
             const origin = match {
                 row < plan.owned => InitializerOrigin.Owned,
@@ -40,22 +58,23 @@ export default function (in: Input): Output {
                 state.row = invalid_candidate
             } else {
                 const { identity, type_id } = candidate
-                const previous = match {
-                    plan.capacity != 0 => indexSlot({
-                        ...plan.pick([
-                            "keys",
-                            "buckets",
-                            "capacity"
-                        ]),
-                        key: identity,
-                        insert: row
+                const slot: Slot? = match {
+                    capacity != 0 => probe({
+                        keys: plan.keys,
+                        buckets: state.buckets,
+                        key: identity
                     }),
                     _ => null
                 }
 
-                if (previous == null) {
+                if (slot == null || slot.row == null) {
                     state.values = state.values.push(type_id)[0]
                     host.emitApplicationInitializer(target, row)
+
+                    if (slot != null) {
+                        state.buckets[slot.index] = row + 1
+                    }
+
                     state.row += 1
                 } else {
                     state.row = duplicate_identity
@@ -68,7 +87,8 @@ export default function (in: Input): Output {
                 duplicate_identity => Status.DuplicateInitializer,
                 _ => Status.Ready
             },
-            values: state.values
+            values: state.values,
+            buckets: state.buckets
         })
     })
 }

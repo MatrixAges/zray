@@ -137,15 +137,6 @@ pub inline fn u64View(source: *anyopaque, shape: anytype) std.meta.Child(@TypeOf
     return @ptrCast(source);
 }
 
-pub inline fn allocateU64Buffer(resource: *const anyopaque, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
-    try allocateViews(u64, column_set.borrowAllocator(resource), target, count);
-}
-
-fn allocateViews(comptime T: type, allocator: std.mem.Allocator, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
-    const output: *[]T = @ptrCast(@alignCast(target));
-    output.* = try allocator.alloc(T, std.math.cast(usize, count) orelse return error.OutOfMemory);
-}
-
 pub inline fn u8ListViews(source: *const anyopaque) []const []const u8 {
     const view: *const []const []const u8 = @ptrCast(@alignCast(source));
 
@@ -216,18 +207,6 @@ pub const ListColumn = rows.ListColumn;
 pub const borrowProjectedText = rows.borrowProjectedText;
 pub const borrowTextColumn = rows.borrowText;
 pub const borrowTextSlice = rows.borrowTextSlice;
-
-pub fn bindTextView(target: *anyopaque, source: *const anyopaque, shape: anytype) std.meta.Child(@TypeOf(shape)) {
-    const view: *TextColumn = @ptrCast(@alignCast(target));
-    view.* = borrowTextSlice(stringViews(source));
-
-    return @ptrCast(view);
-}
-
-pub inline fn textColumnView(source: *anyopaque, shape: anytype) std.meta.Child(@TypeOf(shape)) {
-    return @ptrCast(source);
-}
-
 pub const borrowIndirectTextColumn = rows.borrowIndirectText;
 pub const borrowReadColumn = rows.borrowColumn;
 pub const borrowNestedColumn = rows.borrowNested;
@@ -391,29 +370,6 @@ pub fn allocateFilledU32Buffer(resource: *const anyopaque, target: *anyopaque, c
     output.* = items;
 }
 
-pub inline fn swapU64Buffers(left: *anyopaque, right: *anyopaque) void {
-    swapBuffers(u64, left, right);
-}
-
-pub inline fn releaseU64Buffer(resource: *const anyopaque, target: *anyopaque) void {
-    releaseBuffer(u64, resource, target);
-}
-
-inline fn swapBuffers(comptime T: type, left: *anyopaque, right: *anyopaque) void {
-    const first: *[]T = @ptrCast(@alignCast(left));
-    const second: *[]T = @ptrCast(@alignCast(right));
-
-    std.mem.swap([]T, first, second);
-}
-
-inline fn releaseBuffer(comptime T: type, resource: *const anyopaque, target: *anyopaque) void {
-    const output: *[]T = @ptrCast(@alignCast(target));
-
-    column_set.borrowAllocator(resource).free(output.*);
-
-    output.* = &.{};
-}
-
 pub inline fn writeU64(target: *anyopaque, index: u64, value: u64) error{IndexOutOfBounds}!void {
     return write(u64, target, index, value);
 }
@@ -422,21 +378,6 @@ pub const SourceSpan = struct {
     start: usize,
     end: usize,
 };
-
-pub inline fn clearU64Buffer(target: *anyopaque) void {
-    const output: *const []u64 = @ptrCast(@alignCast(target));
-
-    @memset(output.*, 0);
-}
-
-pub inline fn bindU32Range(source: *const anyopaque, target: *anyopaque, first: u64, count: u64) error{IndexOutOfBounds}!void {
-    const input: *const []u32 = @ptrCast(@alignCast(source));
-    const output: *[]u32 = @ptrCast(@alignCast(target));
-
-    if (first > input.len or count > input.len - first) return error.IndexOutOfBounds;
-
-    output.* = input.*[@intCast(first)..][0..@intCast(count)];
-}
 
 pub inline fn writeOptionalString(target: *anyopaque, index: u64, value: ?[]const u8) error{IndexOutOfBounds}!void {
     return write(?[]const u8, target, index, value);

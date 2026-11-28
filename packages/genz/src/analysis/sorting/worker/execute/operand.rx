@@ -7,7 +7,8 @@
         fn="index.readSortOperand"
         in={[
             $in.frame,
-            $in.row
+            $in.row,
+            $in.raw[$in.row]
         ]}
     />
 

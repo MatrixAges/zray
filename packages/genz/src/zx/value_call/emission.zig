@@ -6,7 +6,7 @@ const policy = @import("policy.zig");
 const reference = @import("../functions/reference.zig");
 const Variant = @import("../functions/requests.zig").Variant;
 const Sequence = @import("../../node/blocks.zig").Sequence;
-const OriginBuffer = @import("../construction/publication.zig").OriginBuffer;
+const context = @import("../construction/context.zig");
 const entry = @import("generated_value_call_emit");
 const Input = std.meta.Child(entry.Input);
 const Plan = std.meta.Child(@typeInfo(@FieldType(Input, "plan")).optional.child);
@@ -26,7 +26,6 @@ pub fn emit(self: *Lower, body: ?*Sequence, arguments: Arguments) Lower.Error!no
     defer scratch.deinit();
 
     const allocator = buffered.allocator();
-    var origin: OriginBuffer = undefined;
     const plan: Plan = if (arguments.plan) |selected| zx.columns.view(Plan, selected) else undefined;
 
     const variant: Variant = if (arguments.plan) |selected| switch (selected.variant) {
@@ -39,7 +38,7 @@ pub fn emit(self: *Lower, body: ?*Sequence, arguments: Arguments) Lower.Error!no
     const input: Input = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
+        .context = &context.snapshot(std.meta.Child(@FieldType(Input, "context")), self),
         .body = if (body) |sequence| @ptrCast(sequence) else null,
         .value = @backingInt(arguments.value),
         .target = if (arguments.function != null) &target else null,

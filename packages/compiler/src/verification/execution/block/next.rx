@@ -7,7 +7,8 @@
         module="step"
         in={$in.omit([
             "end",
-            "running"
+            "running",
+            "unsupported"
         ])}
     />
 

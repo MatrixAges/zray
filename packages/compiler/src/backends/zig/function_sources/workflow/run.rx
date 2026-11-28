@@ -16,10 +16,13 @@
 
         <Call
             module="../updates/record"
-            in={$ctx.readFunctionSources.omit([
-                "hits",
-                "pending"
-            ])}
+            in={{
+                ...$ctx.readFunctionSources.omit([
+                    "hits",
+                    "pending"
+                ]),
+                batch: $in.batch
+            }}
         />
 
         <If on={!$ctx.record}>

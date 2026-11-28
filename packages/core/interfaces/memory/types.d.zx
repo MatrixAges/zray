@@ -12,7 +12,6 @@ export type OptionalStringBuffer = mutable_opaque
 export type U8ListBuffer = mutable_opaque
 export type NamedRows = opaque
 export type NamedColumns = opaque
-export type TextColumnBuffer = mutable_opaque
 export type NamedRowViewBuffer = mutable_opaque
 export type TextSlots = mutable_opaque
 export type OptionalTextSlots = mutable_opaque

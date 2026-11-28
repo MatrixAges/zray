@@ -1,13 +1,10 @@
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
 import type { Input, Output } from "./model"
 
-export { readAstOrigin } from "ast_rows"
-
-export type Execute = Input.Omit("base", "capture") & {
+export type Execute = Input & {
     frame: Lowering,
-    writer: AstWriter,
-    origin: AstOriginBuffer
+    writer: AstWriter
 }
 
 export type Publish = Execute.Pick(

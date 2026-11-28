@@ -59,9 +59,16 @@
         module="../../intrinsics/guard/append"
         in={{
             writer: $in.ast.writer,
-            body: $in.ast.sequence,
             fragment: $ctx.check_bounds
         }}
+    />
+
+    <Call
+        fn="../../statements/rows.appendAstSequenceSpan"
+        in={[
+            $in.ast.sequence,
+            $ctx.append
+        ]}
     />
 
     <Call

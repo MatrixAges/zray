@@ -17,7 +17,7 @@
     <Call
         fn="../discard"
         in={{
-            ...$in.usage,
+            ...$in.body,
             process: $in.process,
             captures: $in.captures,
             bases: {

@@ -11,5 +11,5 @@ export {
     lowerExpression,
     lowerType,
     readSortOperand,
-    readSortWorkerFacts
+    finishSortWorker
 } from "lowering_host"

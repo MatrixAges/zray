@@ -29,8 +29,6 @@
         fn="index.bindSortWorkerNames"
         in={[
             $in.frame,
-            $ctx.prepare.left,
-            $ctx.prepare.right,
             [
                 $ctx.prepare.left_name,
                 $ctx.prepare.right_name,
@@ -39,7 +37,6 @@
         ]}
     />
 
-    <Call fn="../../rows.releasePreparation" in={$in.scratch} />
     <Call fn="index.registerSortParameters" in={$in.frame} />
 
     <Call
@@ -59,6 +56,10 @@
             module="operand"
             in={{
                 frame: $in.frame,
+                raw: [
+                    $ctx.prepare.left,
+                    $ctx.prepare.right
+                ],
                 count: $ctx.prepare_operands,
                 row: 0,
                 running: $ctx.prepare_operands != 0
@@ -75,7 +76,7 @@
         ]}
     />
 
-    <Call fn="index.readSortWorkerFacts" in={$in.frame} />
+    <Call fn="index.finishSortWorker" in={$in.frame} />
 
     <Call
         fn="../../rows.readAstOrigin"
@@ -95,24 +96,24 @@
             errors: $in.errors,
             output_type: $ctx.lowerType,
             value: $ctx.lowerExpression,
-            raw: $ctx.readSortWorkerFacts.raw,
-            elements: $ctx.readSortWorkerFacts.elements,
-            used: $ctx.readSortWorkerFacts.used,
-            uses_allocator: $ctx.readSortWorkerFacts.uses_allocator,
-            uses_io: $ctx.readSortWorkerFacts.uses_io,
-            uses_process: $ctx.readSortWorkerFacts.uses_process,
-            uses_environment: $ctx.readSortWorkerFacts.uses_environment,
+            raw: $ctx.operand.raw,
+            elements: $ctx.finishSortWorker.elements,
+            used: $ctx.finishSortWorker.used,
+            uses_allocator: $ctx.finishSortWorker.uses_allocator,
+            uses_io: $ctx.finishSortWorker.uses_io,
+            uses_process: $ctx.finishSortWorker.uses_process,
+            uses_environment: $ctx.finishSortWorker.uses_environment,
             references: {
-                start: $ctx.readSortWorkerFacts.references_start,
-                count: $ctx.readSortWorkerFacts.references_count
+                start: $ctx.finishSortWorker.references_start,
+                count: $ctx.finishSortWorker.references_count
             },
             left: {
-                start: $ctx.readSortWorkerFacts.left_start,
-                count: $ctx.readSortWorkerFacts.left_count
+                start: $ctx.finishSortWorker.left_start,
+                count: $ctx.finishSortWorker.left_count
             },
             right: {
-                start: $ctx.readSortWorkerFacts.right_start,
-                count: $ctx.readSortWorkerFacts.right_count
+                start: $ctx.finishSortWorker.right_start,
+                count: $ctx.finishSortWorker.right_count
             },
             bases: {
                 ...$ctx.readAstOrigin,

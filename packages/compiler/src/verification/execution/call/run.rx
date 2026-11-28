@@ -1,17 +1,31 @@
 <Module>
     <Type from="model" as="Call" />
 
-    <Args in={Call.Input} out={string} />
+    <Args in={Call.Input} out={Call.Outcome} />
 
     <Call fn="prepare" in={$in} />
+
+    <If on={$ctx.prepare != null}>
+        <Return
+            value={{
+                diagnostic: $ctx.prepare
+            }}
+        />
+    </If>
+
+    <Call fn="host.evaluateSymbolicCallArgument" in={$in.call} />
 
     <Call
         fn="solve"
         in={{
             call: $in.call,
-            argument_safe: $ctx.prepare
+            argument_safe: $ctx.evaluateSymbolicCallArgument
         }}
     />
 
-    <Return value={$ctx.solve} />
+    <Return
+        value={{
+            safety: $ctx.solve
+        }}
+    />
 </Module>

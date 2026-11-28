@@ -1,8 +1,6 @@
 export {
     AstPayloadOwnership,
     readAstOrigin,
-    releaseAstScratch as releasePreparation,
-    releaseAstScratch as releaseDeclarations,
     astExpressionCount,
     auxiliaryDeclarationCount,
     appendAstExpressionHeaders,

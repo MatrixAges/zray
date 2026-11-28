@@ -4,6 +4,7 @@ const ir = zx.ir;
 const calls = @import("../calls.zig");
 const Cache = @import("../call_cache.zig").Cache;
 const Expression = @import("expression.zig").Frame;
+const native = @import("output_execution_abi").layouts.@"zig:verification_host";
 const rule = @import("generated_run_symbolic_expression_call");
 
 const Invocation = struct {
@@ -17,7 +18,7 @@ const Invocation = struct {
     }
 };
 
-pub fn runSymbolicExpressionCall(handle: *anyopaque, target: u32, argument: u32) zx.Error![]const u8 {
+pub fn runSymbolicExpressionCall(handle: *anyopaque, target: u32, argument: u32) zx.Error!*const native.CallSafety {
     const frame = Expression.borrow(handle);
     const evaluator = frame.evaluator;
     const function = evaluator.program.functions.at(target);
@@ -30,7 +31,6 @@ pub fn runSymbolicExpressionCall(handle: *anyopaque, target: u32, argument: u32)
     };
 
     const input: std.meta.Child(rule.Input) = .{
-        .frame = @ptrCast(frame),
         .call = @ptrCast(&invocation),
         .calls = function.expressions.call_functions,
         .target = target,
@@ -39,7 +39,21 @@ pub fn runSymbolicExpressionCall(handle: *anyopaque, target: u32, argument: u32)
         .depth = evaluator.call_depth,
     };
 
-    return rule.executeIn(evaluator.allocator, &input) catch |err| return @import("context.zig").failure(err);
+    var result_arena = std.heap.ArenaAllocator.init(evaluator.allocator);
+    var buffer: [1024]u8 = undefined;
+    var result_memory = std.heap.BufferFirstAllocator.init(&buffer, result_arena.allocator());
+
+    defer result_arena.deinit();
+
+    const outcome = rule.executeIn(result_memory.allocator(), &input) catch |err| return @import("context.zig").failure(err);
+
+    if (outcome.diagnostic) |message| return evaluator.reporter.fail(.unsupported, frame.span, message);
+
+    const safety = outcome.safety.?;
+
+    frame.call_safety = .{ .argument = safety.argument, .callee = safety.callee };
+
+    return &frame.call_safety;
 }
 
 pub fn evaluateSymbolicCallArgument(handle: *anyopaque) zx.Error![]const u8 {

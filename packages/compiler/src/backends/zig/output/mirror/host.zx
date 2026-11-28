@@ -1,6 +1,5 @@
 export {
     hashBootstrapFiles,
-    compareBootstrapFiles,
     createBootstrapFolders,
     writeBootstrapChanges,
     listBootstrapFiles,

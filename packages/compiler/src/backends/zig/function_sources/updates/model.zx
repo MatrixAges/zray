@@ -1,8 +1,10 @@
-import type { SourceReuse } from "output_host"
+import type { FunctionSources, SourceReuse } from "output_host"
 
-export type Record = SourceReuse.Omit("hits", "pending")
+export type Record = SourceReuse.Omit("hits", "pending") & {
+    batch: FunctionSources
+}
 
-export type Adoption = Record.Pick("target", "stored") & {
+export type Adoption = Record.Pick("batch", "stored") & {
     remaining: u64,
     failure?: u64
 }

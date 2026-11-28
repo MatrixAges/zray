@@ -13,8 +13,6 @@
         }}
     />
 
-    <Call fn="../rows.releasePreparation" in={$in.scratch} />
-
     <Call
         fn="index.materializeElementType"
         in={[
@@ -53,8 +51,6 @@
             sort: $ctx.publish.sort
         }}
     />
-
-    <Call fn="../rows.releaseDeclarations" in={$in.scratch} />
 
     <Call
         fn="index.publishTaskEffects"
