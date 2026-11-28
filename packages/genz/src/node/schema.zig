@@ -1,8 +1,8 @@
 const std = @import("std");
 const view = @import("view.zig");
 const generated = @import("genz_options").generated;
-const printer = if (generated) @import("generated_printer") else void;
-pub const Source = if (generated) std.meta.Child(@FieldType(std.meta.Child(printer.Input), "source")) else void;
+const printer = if (generated) @import("generated_printer_module_range") else void;
+pub const Ast = if (generated) std.meta.Child(std.meta.Elem(@FieldType(std.meta.Child(printer.Input), "ast"))) else void;
 pub const Expressions = table("expressions");
 pub const Statements = table("statements");
 pub const Declarations = table("declarations");
@@ -10,7 +10,7 @@ pub const Fields = table("fields");
 pub const Arms = table("arms");
 
 fn table(comptime name: []const u8) type {
-    return if (generated) std.meta.Child(@FieldType(Source, name)) else void;
+    return if (generated) std.meta.Child(@FieldType(Ast, name)) else void;
 }
 
 pub fn element(comptime Layout: type, comptime name: []const u8) type {

@@ -3,7 +3,17 @@
 
     <Args in={Printer.Render} out={u8[][]} />
 
-    <Call fn="chunks" in={$in.source} />
+    <Call
+        fn="chunks"
+        in={{
+            ast: [$in.source.omit([
+                "first",
+                "count"
+            ])],
+            first: $in.source.first,
+            count: $in.source.count
+        }}
+    />
 
     <Return value={$ctx.chunks} />
 </Module>

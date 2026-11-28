@@ -10,64 +10,61 @@ export type Input = {
 export type Output = bool
 
 export default function (in: Input): Output {
-    const left = in.left
-    const right = in.right
+    const kind = in.left.kind
 
-    if (left.kind != right.kind) {
+    if (kind != in.right.kind) {
         return false
     }
 
-    const condition = (
-        match left.kind {
-            Kind.Scalar => true,
-            Kind.Optional => true,
-            Kind.List => true,
-            _ => false
-        }
-    )
-
-    if (condition) {
-        return left.first == right.first
+    const first_only = match kind {
+        Kind.Scalar => true,
+        Kind.Optional => true,
+        Kind.List => true,
+        _ => false
     }
 
-    if (left.kind == Kind.Task) {
-        return left.first == right.first && left.second == right.second
+    if (first_only) {
+        return in.left.first == in.right.first
     }
 
-    if (left.kind == Kind.NativeReference) {
-        return left.label == right.label && left.first == right.first
+    if (kind == Kind.Task) {
+        return in.left.first == in.right.first && in.left.second == in.right.second
     }
 
-    if (left.kind == Kind.Enumeration && left.label != right.label) {
+    if (kind == Kind.NativeReference) {
+        return in.left.label == in.right.label && in.left.first == in.right.first
+    }
+
+    if (kind == Kind.Enumeration && in.left.label != in.right.label) {
         return false
     }
 
-    if (left.count != right.count) {
+    const count = in.left.count
+
+    if (count != in.right.count) {
         return false
     }
 
-    return loop({
-        left,
-        right,
-        index: 0,
-        equal: true
-    }, {
-        while: current => current.equal && current.index < current.left.count,
-        next: current => {
-            const a = current.left.offset + current.index
-            const b = current.right.offset + current.index
-            const equal = match current.left.kind {
-                Kind.Object =>
-                    current.left.field_names[a] == current.right.field_names[b] &&
-                    current.left.field_types[a] == current.right.field_types[b],
-                Kind.Tuple =>
-                    current.left.children[a] == current.right.children[b],
-                _ => current.left.names[a] == current.right.names[b]
+    const matched = loop(0, {
+        while: index => {
+            const a = in.left.offset + index
+            const b = in.right.offset + index
+
+            return match {
+                index >= count => false,
+                _ => match kind {
+                    Kind.Object =>
+                        in.left.field_names[a] == in.right.field_names[b] &&
+                        in.left.field_types[a] == in.right.field_types[b],
+                    Kind.Tuple => in.left.children[a] == in.right.children[b],
+                    _ => in.left.names[a] == in.right.names[b]
+                }
             }
-
-            current.equal = equal
-            current.index += 1
         },
-        return: state => state.equal
+        next: index => {
+            index += 1
+        }
     })
+
+    return matched == count
 }

@@ -4,17 +4,16 @@ import one from "./one"
 
 import type { Destination } from "./model"
 
-export type Input = {
-    target: Destination,
+export type Input = Destination & {
     indices: u32[]
 }
 
 export type Output = u8[][]?
 
 export default function (in: Input): Output {
-    const { target, indices } = in
+    const { ast, indices } = in
 
-    const count = target.source.declarations.tags.length
+    const count = ast[0].declarations.tags.length
 
     const valid = loop({
         position: 0,
@@ -33,7 +32,7 @@ export default function (in: Input): Output {
     }
 
     return indices.map(row => one({
-        ...target,
+        ast,
         row
     }))[0]
 }

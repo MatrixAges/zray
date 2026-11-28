@@ -1,29 +1,17 @@
-import { Knowledge } from "./model"
 import index from "./slot_index"
 import visit from "./visit"
 
 import type { Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    if (!in.request.raw) {
-        const destination = index({
+    const destination = match {
+        in.request.raw => null,
+        _ => index({
             first: in.context.metadata.usage.plan.slot_first,
             symbols: in.context.metadata.usage.symbols,
             node: in.request.node,
             slot: in.request.slot
         })
-
-        if (destination != null) {
-            const value = in.state.known[destination]
-
-            if (value != Knowledge.Unknown) {
-                return {
-                    known: in.state.known,
-                    reads: in.state.reads,
-                    value
-                }
-            }
-        }
     }
 
     return visit({
@@ -33,6 +21,7 @@ export default function (in: Input): Output {
         },
         known: in.state.known,
         reads: in.state.reads,
-        request: in.request
+        request: in.request,
+        destination
     })
 }

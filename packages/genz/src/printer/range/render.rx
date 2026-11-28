@@ -6,8 +6,8 @@
     <Call
         fn="count"
         in={{
-            first: $in.source.first,
-            available: $in.source.declarations.tags.length,
+            first: $in.first,
+            available: $in.ast[0].declarations.tags.length,
             count: $in.count
         }}
     />
@@ -16,7 +16,8 @@
         <Call
             fn="../chunks"
             in={{
-                ...$in.source,
+                ast: $in.ast,
+                first: $in.first,
                 count: $ctx.count
             }}
         />

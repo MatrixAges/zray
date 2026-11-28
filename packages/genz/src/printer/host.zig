@@ -7,7 +7,6 @@ const Range = @import("../node/stored.zig").Declarations;
 const generated = @import("generated_printer_module_range");
 const module = @import("module.zig");
 const Input = @typeInfo(generated.Input).pointer.child;
-const Source = schema.Source;
 const selection = @import("generated_printer_selection");
 const Selection = std.meta.Child(selection.Input);
 const Ranges = std.meta.Child(@typeInfo(@FieldType(Selection, "ranges")).optional.child);
@@ -40,14 +39,12 @@ fn render(
     const fields = view.members(schema.Fields, &nodes.field_columns);
     const arms = view.members(schema.Arms, &nodes.arm_columns);
 
-    const source = Source{
+    const ast = schema.Ast{
         .expressions = &expressions,
         .statements = &statements,
         .declarations = &declaration_rows,
         .fields = &fields,
         .arms = &arms,
-        .first = if (shape == .range) rows.start else 0,
-        .count = if (shape == .range) rows.len else 0,
     };
 
     var arena = zx.Arena.init(workspace);
@@ -59,7 +56,7 @@ fn render(
     defer output.deinit();
 
     if (comptime shape == .range) {
-        try write(arena.allocator(), &source, &output);
+        try write(arena.allocator(), &ast, rows, &output);
     } else {
         const starts = if (shape == .scoped) zx.memory.borrowReadColumn(u32, "start", rows) else {};
         const lengths = if (shape == .scoped) zx.memory.borrowReadColumn(u32, "len", rows) else {};
@@ -71,7 +68,7 @@ fn render(
         } else undefined;
 
         const input: Selection = .{
-            .source = zx.columns.pointer(@FieldType(Selection, "source"), &source),
+            .ast = &.{&ast},
             .ranges = if (shape == .scoped) &ranges else null,
             .indices = if (shape == .indices) rows else null,
         };
@@ -85,10 +82,11 @@ fn render(
     return output.finish();
 }
 
-fn write(allocator: std.mem.Allocator, source: *const Source, output: *zx.memory.ByteWriter) std.mem.Allocator.Error!void {
+fn write(allocator: std.mem.Allocator, ast: *const schema.Ast, range: Range, output: *zx.memory.ByteWriter) std.mem.Allocator.Error!void {
     const input: Input = .{
-        .source = zx.columns.pointer(@FieldType(Input, "source"), source),
-        .count = source.count,
+        .ast = &.{ast},
+        .first = range.start,
+        .count = range.len,
     };
 
     const chunks = zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| return failure(err);

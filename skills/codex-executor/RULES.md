@@ -8,12 +8,12 @@ Shared operational, architecture, governance, verification, and response rules f
 
 - **Full-Delegation Mode**: You are authorized and expected to execute tasks end-to-end autonomously — code edits, debugging/reproducers, `zig build`, `bootstrap-stage`, single/full package tests (`zig build test`, `test-verification`), 3-stage self-compilation, cold benchmarks, governance audits, artifact cleanup, and wave documentation updates.
 - **Parallel vs. Solo Heavy-Build Gate**:
-    - **During parallel waves (2–3 concurrent slots)**: ONLY edit code inside your `--owns` scope and run fast narrow static checks (`zig ast-check`, per-file `zxc fmt "$f" --check`, per-file `zxc lint "$f"`, `git diff --check`). **NEVER** run full `zig build`, `bootstrap-stage`, `zig build test`, `test-verification`, 3-stage bootstraps, or benchmarks concurrently while other workers are active.
+    - **During parallel waves (2–6 concurrent slots)**: ONLY edit code inside your `--owns` scope and run fast narrow static checks (`zig ast-check`, per-file `zxc fmt "$f" --check`, per-file `zxc lint "$f"`, `git diff --check`). **NEVER** run full `zig build`, `bootstrap-stage`, `zig build test`, `test-verification`, 3-stage bootstraps, or benchmarks concurrently while other workers are active.
     - **Solo (single active slot, after all parallel workers finish)**: Full builds, full test suites, 3-stage bootstraps, cold benchmarks, and full-wave closeouts are allowed ONLY when running solo in an uncontended slot.
 - **Always Non-Resident (`ZXC_RESIDENT_GENERATOR=0`)**:
     - Set `export ZXC_RESIDENT_GENERATOR=0` before running any `zig`, `zxc`, or `zxc-bootstrap` command so no `--serve` daemon leaks.
 - **Process & Workspace Hygiene**:
-    - Do NOT leave persistent background daemons, dev servers, file watchers, `&`/`nohup` orphan jobs, infinite `sleep`/polling loops, or nested subagents running; bound probes cleanly (e.g., 30s timeout on full-manifest smoke probes) and ensure no `zxc-bootstrap --serve` processes remain before exiting.
+    - Do NOT leave persistent background daemons, dev servers, file watchers, `&`/`nohup` orphan jobs, infinite `sleep`/polling loops, or nested subagents running; **Codex built-in `multi_agent` / `multi_agent_v2` subagents are unconditionally disabled and strictly forbidden for ALL Codex executors regardless of model** (`gpt-6.2-sol`, `gpt-6.2-astra`, etc.); bound probes cleanly (e.g., 30s timeout on full-manifest smoke probes) and ensure no `zxc-bootstrap --serve` processes remain before exiting.
     - NEVER delete `/tmp/codex-executor-runs` (or active brief files `/tmp/wave*_brief*.md`).
     - Do NOT run `git commit` or `git push` unless explicitly instructed in the task brief.
     - Stay strictly within declared `--owns` paths (when provided).

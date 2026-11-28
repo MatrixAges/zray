@@ -7,9 +7,7 @@
         <Call
             fn="ranges"
             in={{
-                target: {
-                    source: $in.source
-                },
+                ast: $in.ast,
                 ranges: $in.ranges
             }}
         />
@@ -21,9 +19,7 @@
         <Call
             fn="indices"
             in={{
-                target: {
-                    source: $in.source
-                },
+                ast: $in.ast,
                 indices: $in.indices
             }}
         />

@@ -12,7 +12,7 @@ export type Output = u8[]
 
 export default function (in: Input): Output {
     const rendered = chunks({
-        ...in.source,
+        ast: in.ast,
         first: in.row,
         count: 1
     })

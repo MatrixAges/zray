@@ -6,9 +6,9 @@ description: >-
     gpt-6.2-sol, high reasoning effort, and fast service tier by default; or
     gpt-6.2-astra with high effort strictly for high-order thinking/research
     tasks) while Antigravity acts as the
-    orchestrator. Supports up to 3 concurrent executor sessions and automatic
+    orchestrator. Supports up to 6 concurrent executor sessions and automatic
     same-topic session reuse. Use when the user asks to invoke local Codex as an
-    executor, run codex-cli tasks, schedule up to 3 parallel workers, or iterate
+    executor, run codex-cli tasks, schedule up to 6 parallel workers, or iterate
     on Codex sessions via resume.
 ---
 
@@ -21,7 +21,7 @@ independent verification, and completion accounting.
 ## Outcome & Role Boundary
 
 - **Orchestrator (Antigravity)**: sets high-level direction, plans task waves,
-  enforces disjoint file ownership, dispatches up to 3 concurrent workers (or a
+  enforces disjoint file ownership, dispatches up to 6 concurrent workers (or a
   single uncontended serial worker for full-wave verification), monitors
   layered liveness (`<= 15m` checkpoints), performs independent acceptance
   (inspecting `git diff`, SHA-256 receipts, benchmarks, test results, and
@@ -41,7 +41,7 @@ independent verification, and completion accounting.
 
 ## Defaults & Hard Constraints
 
-- **Default command**: `codex exec --yolo -m gpt-6.2-sol -c 'model_reasoning_effort="high"' -c 'service_tier="fast"' --disable sleep_tool --disable goals --disable multi_agent`
+- **Default command**: `codex exec --yolo -m gpt-6.2-sol -c 'model_reasoning_effort="high"' -c 'service_tier="fast"' --disable sleep_tool --disable goals --disable multi_agent --disable multi_agent_v2`
 - **Model tiering & token budget**:
     - **Default (`gpt-6.2-sol`, `high`, `fast`)**: mandatory default for all
       routine implementation, bulk refactoring, migration, debugging, builds,
@@ -51,11 +51,12 @@ independent verification, and completion accounting.
       high-order thinking / deep research tasks (complex architecture or
       compiler/type-system design, stubborn root-cause analysis after standard
       attempts stall, algorithm/paper synthesis and optimization strategy).
+      **Codex built-in `multi_agent` and `multi_agent_v2` are unconditionally disabled for ALL models** (`gpt-6.2-sol`, `gpt-6.2-astra`, or any custom `-m`) — workers must NEVER spawn built-in Codex subagents; research tasks run single-agent and implementation is dispatched externally to `gpt-6.2-sol` workers by the Orchestrator.
       **Forbidden** for routine coding, mechanical refactors, boilerplate, or
       standard verification because it consumes significantly more tokens; always
       reuse its `-t <topic>` session and keep briefs tightly scoped.
 - **Wrapper & shared rulebook**: [run_codex.sh](./scripts/run_codex.sh) and [RULES.md](./RULES.md). Always keep task briefs concise: reference `skills/codex-executor/RULES.md` by path instead of repeating shared boilerplate (parallel/solo gates, `ZXC_RESIDENT_GENERATOR=0`, repo gotchas, 7-step closeout checklist, `OUTCOME` format) in every prompt.
-- **Concurrency cap**: max **3 concurrent executor sessions** (`MAX_CONCURRENT=3`),
+- **Concurrency cap**: max **6 concurrent executor sessions** (`MAX_CONCURRENT=6`),
   enforced via slot/topic/session/ownership `flock` locks.
 - **Full-delegation safety redlines (no leaked daemons / infinite waits / no concurrent heavy runs)**:
   Codex workers are authorized to run `zig build`, full test suites
@@ -64,7 +65,7 @@ independent verification, and completion accounting.
   probes cleanly, and never leave persistent daemons, dev servers, file
   watchers, `&`/`nohup` orphan jobs, infinite `sleep`/polling loops, or nested
   background subagents running. **No concurrent full builds/tests**: during a
-  parallel coding wave (2–3 concurrent workers), workers MUST NOT run full builds
+  parallel coding wave (2–6 concurrent workers), workers MUST NOT run full builds
   (`zig build`, `bootstrap-stage`), full test suites (`zig build test`,
   `test-verification`), 3-stage bootstraps, or benchmarks simultaneously—concurrent
   workers only edit code and run fast narrow static checks (`zig ast-check`,
@@ -72,8 +73,8 @@ independent verification, and completion accounting.
   test suites, 3-stage bootstraps, and cold benchmarks MUST execute **solo (single
   active slot)** only after all concurrent workers complete, supervised by
   Orchestrator `<= 15m` checkpoints. `run_codex.sh` disables `sleep_tool`,
-  `goals`, and `multi_agent` at the CLI level and injects this policy on new
-  sessions.
+  `goals`, `multi_agent`, and `multi_agent_v2` at the CLI level and injects
+  this policy on new sessions.
 - **No `--worktree`**: creating Git worktrees or passing `--worktree` is
   **forbidden** (rejected with exit code `2`). Workers operate directly in
   `WORKDIR` under disjoint `--owns` scopes.
@@ -109,10 +110,10 @@ Every initial task brief references [RULES.md](./RULES.md) by path and passes on
 
 Standard `OUTCOME / SUMMARY / FILES_MODIFIED / VERIFICATION / BLOCKERS` return formatting is defined in [RULES.md](./RULES.md).
 
-## Canonical Wave Loop (Up to 3 Concurrent Sessions)
+## Canonical Wave Loop (Up to 6 Concurrent Sessions)
 
 1. **Pre-flight**: inspect `--list-sessions -C <workdir>` and `--list-active`.
-2. **Dispatch independent wave**: launch up to 3 independent tasks in parallel
+2. **Dispatch independent wave**: launch up to 6 independent tasks in parallel
    with distinct `-t <topic>` and strictly disjoint `--owns <path>` flags
    (`WaitMsBeforeAsync: 5000`, `NotificationTimeoutSeconds: 600`):
     ```bash
@@ -148,7 +149,7 @@ S=skills/codex-executor/scripts/run_codex.sh
 Test foo_test failed with <error>. Fix and re-run pytest tests/test_auth.py.
 EOF
 
-# Inspect live slot (1-3) or completed RUN_DIR
+# Inspect live slot (1-6) or completed RUN_DIR
 "$S" --inspect 1
 "$S" --inspect /tmp/codex-executor-runs/20261127-120000-12345 [--json]
 

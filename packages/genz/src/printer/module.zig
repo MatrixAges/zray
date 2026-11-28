@@ -3,7 +3,7 @@ pub const available = @import("genz_options").generated;
 const zx = @import("zx");
 const generated = @import("generated_printer_module_range");
 const Input = std.meta.Child(generated.Input);
-const Source = std.meta.Child(@FieldType(Input, "source"));
+const Ast = std.meta.Child(std.meta.Elem(@FieldType(Input, "ast")));
 
 pub fn render(allocator: std.mem.Allocator, workspace: std.mem.Allocator, comptime Module: type, module: anytype) std.mem.Allocator.Error![]u8 {
     var output: zx.memory.ByteWriter = .{ .allocator = allocator };
@@ -39,25 +39,23 @@ pub fn write(output: *zx.memory.ByteWriter, workspace: std.mem.Allocator, compti
     } else .{zx.columns.view(std.meta.Child(@FieldType(Module, "expressions")), module.expressions)};
 
     const declarations = zx.columns.view(std.meta.Child(@FieldType(Module, "declarations")), module.declarations);
-    const expression_columns = project(std.meta.Child(@FieldType(Source, "expressions")), expression_views);
-    const statement_columns = project(std.meta.Child(@FieldType(Source, "statements")), if (@hasField(Module, "statements")) .{zx.columns.view(std.meta.Child(@FieldType(Module, "statements")), module.statements)} else .{});
-    const declaration_columns = project(std.meta.Child(@FieldType(Source, "declarations")), .{declarations});
-    const field_columns = project(std.meta.Child(@FieldType(Source, "fields")), if (@hasField(Module, "fields")) .{zx.columns.view(std.meta.Child(@FieldType(Module, "fields")), module.fields)} else .{});
-    const arm_columns = project(std.meta.Child(@FieldType(Source, "arms")), if (@hasField(Module, "arms")) .{zx.columns.view(std.meta.Child(@FieldType(Module, "arms")), module.arms)} else .{});
-    const first = if (@hasField(Module, "first")) module.first else 0;
+    const expression_columns = project(std.meta.Child(@FieldType(Ast, "expressions")), expression_views);
+    const statement_columns = project(std.meta.Child(@FieldType(Ast, "statements")), if (@hasField(Module, "statements")) .{zx.columns.view(std.meta.Child(@FieldType(Module, "statements")), module.statements)} else .{});
+    const declaration_columns = project(std.meta.Child(@FieldType(Ast, "declarations")), .{declarations});
+    const field_columns = project(std.meta.Child(@FieldType(Ast, "fields")), if (@hasField(Module, "fields")) .{zx.columns.view(std.meta.Child(@FieldType(Module, "fields")), module.fields)} else .{});
+    const arm_columns = project(std.meta.Child(@FieldType(Ast, "arms")), if (@hasField(Module, "arms")) .{zx.columns.view(std.meta.Child(@FieldType(Module, "arms")), module.arms)} else .{});
 
-    const source: Source = .{
+    const ast: Ast = .{
         .expressions = &expression_columns,
         .statements = &statement_columns,
         .declarations = &declaration_columns,
         .fields = &field_columns,
         .arms = &arm_columns,
-        .first = first,
-        .count = 0,
     };
 
     const input: Input = .{
-        .source = &source,
+        .ast = &.{&ast},
+        .first = if (@hasField(Module, "first")) module.first else 0,
         .count = if (@hasField(Module, "count")) module.count else null,
     };
 

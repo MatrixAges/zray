@@ -44,6 +44,8 @@ export default function (in: Input): Output {
         observe: false
     }
 
+    const sites = in.plan.sites
+
     const loop_initial = {
         states,
         root: 0
@@ -57,8 +59,10 @@ export default function (in: Input): Output {
                 root: integers.narrow(current.root)
             }
             const base = integers.widen(query.plan.slot_first[current.root])
-            const first = integers.widen(query.plan.first[current.root])
-            const end = integers.widen(query.plan.first[current.root + 1])
+            const first_site = integers.widen(query.plan.first[current.root])
+            const end_site = integers.widen(query.plan.first[current.root + 1])
+            const slot_count = query.plan.slot_first[current.root + 1] -
+                query.plan.slot_first[current.root]
             const home = match {
                 current.root < query.symbols => query.def_loop[current.root],
                 _ => query.nodes.repeated[current.root - query.symbols]
@@ -66,44 +70,31 @@ export default function (in: Input): Output {
 
             const loop_initial_1 = {
                 states: current.states,
-                index: first
-            }
-
-            const loop_scope_1 = {
-                query,
-                base,
-                home,
-                first,
-                end,
-                count: query.plan.slot_first[current.root + 1] -
-                    query.plan.slot_first[current.root]
+                index: first_site
             }
 
             current.states = loop(loop_initial_1, {
-                while: site => site.index < loop_scope_1.end,
+                while: site => site.index < end_site,
                 next: site => {
-                    const sites = loop_scope_1.query.plan.sites
-                    const index = site.index
+                    const left = site.index
+                    const left_role = sites.role[left]
 
-                    if (sites.role[index] != Role.observe) {
-                        const first_slot = integers.widen(sites.lo[index])
+                    if (left_role != Role.observe) {
+                        const first_slot = integers.widen(sites.lo[left])
                         const observed = observe({
                             states: site.states,
-                            query: loop_scope_1.query,
-                            base: loop_scope_1.base,
-                            site: index,
-                            repeated: loop_scope_1.query.nodes
-                                .repeated[
-                                    integers.widen(
-                                        sites.top[index]
-                                    )
-                                ] != loop_scope_1.home,
+                            query,
+                            base,
+                            site: left,
+                            repeated: query.nodes
+                                .repeated[integers.widen(
+                                    sites.top[left]
+                                )] != home,
                             first: first_slot,
                             end: integers.widen(
                                 match {
-                                    sites.hi[index] < loop_scope_1.count =>
-                                        sites.hi[index],
-                                    _ => loop_scope_1.count
+                                    sites.hi[left] < slot_count => sites.hi[left],
+                                    _ => slot_count
                                 }
                             )
                         })
@@ -111,23 +102,12 @@ export default function (in: Input): Output {
                         const loop_initial_2 = {
                             states: observed.states,
                             active: observed.active,
-                            index: loop_scope_1.first
-                        }
-
-                        const loop_scope_2 = {
-                            query: loop_scope_1.query,
-                            base: loop_scope_1.base,
-                            count: loop_scope_1.count,
-                            site: index,
-                            end: loop_scope_1.end
+                            index: first_site
                         }
 
                         site.states = loop(loop_initial_2, {
-                            while: pair =>
-                                pair.active != 0 && pair.index < loop_scope_2.end,
+                            while: pair => pair.active != 0 && pair.index < end_site,
                             next: pair => {
-                                const sites = loop_scope_2.query.plan.sites
-                                const left = loop_scope_2.site
                                 const right = pair.index
                                 const first = match {
                                     sites.lo[left] > sites.lo[right] => sites.lo[left],
@@ -138,8 +118,8 @@ export default function (in: Input): Output {
                                     _ => sites.hi[right]
                                 }
                                 const end = match {
-                                    last < loop_scope_2.count => last,
-                                    _ => loop_scope_2.count
+                                    last < slot_count => last,
+                                    _ => slot_count
                                 }
                                 const same = sites.edge[left] == sites.edge[right] &&
                                     sites.delta[left] == sites.delta[right]
@@ -151,15 +131,18 @@ export default function (in: Input): Output {
                                 )
 
                                 if (competing && !exclusive({
-                                    query: loop_scope_2.query,
+                                    query,
                                     left,
                                     right
                                 })) {
                                     const ordered = before({
-                                        query: loop_scope_2.query,
+                                        query,
                                         observation: right,
                                         consumer: left
                                     })
+
+                                    const end_slot = integers.widen(end)
+                                    const right_role = sites.role[right]
 
                                     const result_initial = {
                                         states: pair.states,
@@ -167,44 +150,27 @@ export default function (in: Input): Output {
                                         slot: integers.widen(first)
                                     }
 
-                                    const result_scope = {
-                                        query: loop_scope_2.query,
-                                        base: loop_scope_2.base,
-                                        left,
-                                        right,
-                                        ordered,
-                                        end: integers.widen(end)
-                                    }
-
                                     const result = loop(result_initial, {
                                         while: slot =>
-                                            slot.active != 0 &&
-                                            slot.slot < result_scope.end,
+                                            slot.active != 0 && slot.slot < end_slot,
                                         next: slot => {
-                                            const position = result_scope.base + slot.slot
-                                            const left_role =
-                                                result_scope.query.plan.sites
-                                                .role[result_scope.left]
-                                            const right_role =
-                                                result_scope.query.plan.sites
-                                                .role[result_scope.right]
-
+                                            const position = base + slot.slot
                                             const used =
                                                 slot.states[position] != Usage.Shared &&
                                                 consumes({
-                                                    query: result_scope.query,
-                                                    site: result_scope.left,
+                                                    query,
+                                                    site: left,
                                                     slot: slot.slot,
                                                     kind: left_role
                                                 })
                                             const contested = match {
                                                 !used => false,
-                                                !result_scope.ordered => true,
+                                                !ordered => true,
                                                 _ =>
                                                     right_role != Role.observe &&
                                                     consumes({
-                                                        query: result_scope.query,
-                                                        site: result_scope.right,
+                                                        query,
+                                                        site: right,
                                                         slot: slot.slot,
                                                         kind: right_role
                                                     })

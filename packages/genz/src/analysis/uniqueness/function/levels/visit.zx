@@ -14,22 +14,14 @@ export type Input = {
     environment: Environment,
     known: Knowledge[],
     reads: Read[],
-    request: Request
+    request: Request,
+    destination?: u64
 }
 
 export default function visit(in: Input): Output {
     const context = in.environment.context
-    const request = in.request
 
-    const destination = match {
-        request.raw => null,
-        _ => index({
-            first: context.metadata.usage.plan.slot_first,
-            symbols: context.metadata.usage.symbols,
-            node: request.node,
-            slot: request.slot
-        })
-    }
+    const { request, destination } = in
 
     const cached = destination == null ? Knowledge.Unknown : in.known[destination]
 
@@ -70,6 +62,11 @@ export default function visit(in: Input): Output {
             )]
     }
 
+    const slots = {
+        first: context.metadata.usage.plan.slot_first,
+        symbols: context.metadata.usage.symbols
+    }
+
     const first: Output = match {
         child != null => visit({
             ...in,
@@ -77,7 +74,12 @@ export default function visit(in: Input): Output {
                 node: child,
                 slot: dependency.child_slot,
                 raw: false
-            }
+            },
+            destination: index({
+                ...slots,
+                node: child,
+                slot: dependency.child_slot
+            })
         }),
         dependency.read_table != null => {
             known: in.known,
@@ -94,6 +96,30 @@ export default function visit(in: Input): Output {
             reads: in.reads,
             value: base
         }
+    }
+
+    const completion = {
+        context,
+        request,
+        destination,
+        ...dependency.pick([
+            "operation",
+            "linear_root",
+            "empty"
+        ])
+    }
+
+    const leaf = (
+        - child == null
+        - and !dependency.paired
+        - and dependency.arms_count == 0
+    )
+
+    if (leaf) {
+        return complete({
+            ...completion,
+            result: first
+        })
     }
 
     const initial = match {
@@ -127,7 +153,12 @@ export default function visit(in: Input): Output {
                 node: right_node,
                 slot: request.slot,
                 raw: false
-            }
+            },
+            destination: index({
+                ...slots,
+                node: right_node,
+                slot: request.slot
+            })
         })
     }
 
@@ -154,6 +185,8 @@ export default function visit(in: Input): Output {
     }, {
         while: state => state.cursor < arm_count,
         next: state => {
+            const node = results[first_arm + state.cursor]
+
             const child = visit({
                 environment,
                 ...state.pick([
@@ -161,11 +194,15 @@ export default function visit(in: Input): Output {
                     "reads"
                 ]),
                 request: {
-                    node:
-                        results[first_arm + state.cursor],
+                    node,
                     slot,
                     raw: false
-                }
+                },
+                destination: index({
+                    ...slots,
+                    node,
+                    slot
+                })
             })
 
             state = {
@@ -185,14 +222,7 @@ export default function visit(in: Input): Output {
     })
 
     return complete({
-        context,
-        request,
-        destination,
-        ...dependency.pick([
-            "operation",
-            "linear_root",
-            "empty"
-        ]),
+        ...completion,
         result
     })
 }

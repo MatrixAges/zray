@@ -17,7 +17,7 @@ export type Input = Step
 export type Output = Frame[]
 
 export default function (in: Input): Output {
-    return match in.source.expressions.tags[integers.widen(in.frame.id)] {
+    return match in.ast[0].expressions.tags[integers.widen(in.frame.id)] {
         ExpressionsKind.Identifier => literal(in),
         ExpressionsKind.NullValue => literal(in),
         ExpressionsKind.Unit => literal(in),

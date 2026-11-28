@@ -12,7 +12,7 @@ export type Input = Step
 export type Output = Frame[]
 
 export default function (in: Input): Output {
-    const tree = in.source.statements
+    const tree = in.ast[0].statements
     const kind = tree.tags[integers.widen(in.frame.id)]
     const id = tree.offsets[integers.widen(in.frame.id)]
     const row = integers.widen(id)
@@ -56,7 +56,7 @@ export default function (in: Input): Output {
 
         const block =
             kind == StatementsKind.Expression &&
-            in.source.expressions.tags[integers.widen(
+            in.ast[0].expressions.tags[integers.widen(
                 value
             )] == ExpressionsKind.Block
 

@@ -1,8 +1,8 @@
 import type { ReadColumn } from "memory/columns"
-import type { Source } from "../model"
+import type { Ast } from "../model"
 
 export type Destination = {
-    source: Source,
+    ast: Ast[]
 }
 
 export type Ranges = {

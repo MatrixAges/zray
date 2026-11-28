@@ -1,17 +1,13 @@
 import integers from "std:integer"
 import code from "core/type_table/code"
-
-import equal from "../entries/equal"
-import row from "../entries/row"
+import { Kind } from "core/type_table/model"
 
 import type { Table } from "core/type_table/model"
-import type { Entry } from "../entries/model"
-import type { Search } from "./model"
+import type { Candidate, Search } from "./model"
 
 export type Input = {
     table: Table,
-    entry: Entry,
-    direct: bool,
+    candidate: Candidate,
     offset: u64,
     previous: u32
 }
@@ -19,38 +15,75 @@ export type Input = {
 export type Output = Search
 
 export default function (in: Input): Output {
-    const expected = code(in.entry.kind)
+    const { table, candidate } = in
+
+    const expected = code(candidate.kind)
+    const rows = table.kinds.length
+    const task = candidate.kind == Kind.Task
+
+    const direct = match candidate.kind {
+        Kind.Scalar => true,
+        Kind.Optional => true,
+        Kind.List => true,
+        Kind.Task => true,
+        _ => false
+    }
+
+    const count = match candidate.kind {
+        Kind.Object => candidate.fields.names.length,
+        Kind.Tuple => candidate.children.length,
+        Kind.ErrorSet => candidate.names.length,
+        _ => 0
+    }
 
     const state = loop({
-        table: in.table,
-        entry: in.entry,
-        direct: in.direct,
-        count: in.table.kinds.length,
         index: 0,
         found: false,
         id: in.previous
     }, {
-        while: current => !current.found && current.index < current.count,
+        while: current => !current.found && current.index < rows,
         next: current => {
-            const table = current.table
-            const position = current.index
-            const shape =
-                match {
-                    current.direct => table.first[position] == current.entry.first,
-                    _ => integers.widen(
-                        table.second[position]
-                    ) == current.entry.count
+            const index = current.index
+            const same_kind = table.kinds[index] == expected
+            const same_shape = match {
+                !same_kind => false,
+                direct => table.first[index] == candidate.first,
+                _ => integers.widen(table.second[index]) == count
+            }
+
+            if (same_shape) {
+                if (direct) {
+                    current.found = !task || table.second[index] == candidate.second
+                } else {
+                    const first = integers.widen(table.first[index])
+                    const matched = loop(0, {
+                        while: item => {
+                            const offset = first + item
+
+                            return match {
+                                item >= count => false,
+                                _ => match candidate.kind {
+                                    Kind.Object =>
+                                        table.field_names[offset] ==
+                                        candidate.fields.names[item] &&
+                                        table.field_types[offset] ==
+                                        candidate.fields.types[item],
+                                    Kind.Tuple =>
+                                        table.children[offset] ==
+                                        candidate.children[item],
+                                    _ => table.names[offset] == candidate.names[item]
+                                }
+                            }
+                        },
+                        next: item => {
+                            item += 1
+                        }
+                    })
+
+                    current.found = matched == count
                 }
 
-            if (table.kinds[position] == expected && shape) {
-                current.found = equal({
-                    left: row({
-                        table,
-                        index: position
-                    }),
-                    right: current.entry
-                })
-                current.id = integers.narrow(in.offset + current.index)
+                current.id = integers.narrow(in.offset + index)
             }
 
             current.index += 1

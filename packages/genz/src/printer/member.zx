@@ -24,7 +24,7 @@ export default function (in: Input): Output {
     }
 
     if (in.frame.action == Action.Arm) {
-        const arms = in.source.arms
+        const arms = in.ast[0].arms
         const value = arms.value[row]
 
         const opening: Frame[] = [
@@ -77,7 +77,7 @@ export default function (in: Input): Output {
         ])[0]
     }
 
-    const fields = in.source.fields
+    const fields = in.ast[0].fields
 
     if (in.frame.action == Action.ObjectField) {
         return [

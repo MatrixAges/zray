@@ -1,6 +1,5 @@
 import { Kind } from "core/type_table/model"
 
-import candidate from "../entries/candidate"
 import scan from "./scan"
 
 import type { Tables } from "core/type_table/model"
@@ -14,32 +13,18 @@ export type Input = {
 export type Output = Search
 
 export default function (in: Input): Output {
-    if (
-        in.candidate.kind == Kind.Enumeration || in.candidate.kind == Kind.NativeReference
-    ) {
+    const { tables, candidate } = in
+
+    if (candidate.kind == Kind.Enumeration || candidate.kind == Kind.NativeReference) {
         return {
             found: false,
             id: 0
         }
     }
 
-    const entry = candidate(in.candidate)
-
-    const direct =
-        (
-            match entry.kind {
-                Kind.Scalar => true,
-                Kind.Optional => true,
-                Kind.List => true,
-                Kind.Task => true,
-                _ => false
-            }
-        )
-
     const base = scan({
-        table: in.tables.base,
-        entry,
-        direct,
+        table: tables.base,
+        candidate,
         offset: 0,
         previous: 0
     })
@@ -49,10 +34,9 @@ export default function (in: Input): Output {
     }
 
     return scan({
-        table: in.tables.delta,
-        entry,
-        direct,
-        offset: in.tables.base.kinds.length,
+        table: tables.delta,
+        candidate,
+        offset: tables.base.kinds.length,
         previous: base.id
     })
 }

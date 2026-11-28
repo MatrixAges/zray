@@ -545,3 +545,6 @@
 {"text":"改成全权委托codex执行者模式，放开之前的一些限制，主agent控制大方向验收即可，尽可能的都让codex执行者做"}
 {"text":"但是要避免并发时同时跑全量构建或测试，应该并发完成后单独跑"}
 {"text":"不要每次都发送一大堆文本给codex执行者 公共的部分写在codex执行者的RULES md里，在给codex的启动提示词里提及路径就行了"}
+{"text":"放开限制最多允许并发6个codex执行者"}
+{"text":"另外 astra作为research时，禁止使用codex自带的子agent作为worker"}
+{"text":"关闭codex执行者的的multi agent 无论用什么模型"}

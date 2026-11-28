@@ -5,7 +5,7 @@ MODEL="gpt-6.2-sol"
 EFFORT="high"
 SERVICE_TIER="fast"
 SERVICE_TIER_EXPLICIT=0
-MAX_CONCURRENT=3
+MAX_CONCURRENT=6
 WORKDIR="$(pwd)"
 WORKDIR_EXPLICIT=0
 PROMPT_FILE=""
@@ -34,11 +34,11 @@ usage() {
 Usage: run_codex.sh [OPTIONS]
 
 Run local codex-cli non-interactively with --yolo as an orchestrator executor.
-Supports up to 3 concurrent executor sessions (slot/topic/session/ownership locks),
+Supports up to 6 concurrent executor sessions (slot/topic/session/ownership locks),
 automatic same-topic session reuse via ~/.cache/codex-executor/sessions.json,
 layered liveness inspection, structured run receipts, supports full-delegation
 execution (builds, tests, 3-stage bootstraps, benchmarks, docs, cleanup) while
-disabling sleep_tool/goals/multi_agent and forbidding --worktree.
+disabling sleep_tool/goals/multi_agent/multi_agent_v2 (all models) and forbidding --worktree.
 Reads prompt from --prompt-file or stdin.
 
 Options:
@@ -49,8 +49,8 @@ Options:
       --owns <PATH>           Declare exclusive file/dir ownership in workdir (repeatable)
       --new-session           Force a fresh session even if --topic has a saved session
       --list-sessions         List saved topic -> session mappings (filtered by -C if given)
-      --list-active           List currently running concurrent executor slots (max 3)
-      --inspect <SLOT|DIR>    Inspect active slot (1-3) or past RUN_DIR (events/receipt/stderr)
+      --list-active           List currently running concurrent executor slots (max 6)
+      --inspect <SLOT|DIR>    Inspect active slot (1-6) or past RUN_DIR (events/receipt/stderr)
       --json                  Emit JSON for --list-active or --inspect
       --json-summary          Emit receipt.json to stdout instead of key=value summary
       --forget-topic <SLUG>   Remove saved session mapping for (workdir, slug)
@@ -162,6 +162,12 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --extra-config)
+      case "${2:-}" in
+        *multi_agent*)
+          echo "ERROR: Enabling multi_agent/multi_agent_v2 is forbidden for all models by codex-executor policy." >&2
+          exit 2
+          ;;
+      esac
       EXTRA_CONFIGS+=("${2:-}")
       shift 2
       ;;
@@ -665,6 +671,7 @@ COMMON_ARGS=(
   --disable sleep_tool
   --disable goals
   --disable multi_agent
+  --disable multi_agent_v2
   --json
   -o "$LAST_MSG_FILE"
 )
@@ -1047,7 +1054,7 @@ receipt = {
         "model": model,
         "effort": effort,
         "service_tier": service_tier,
-        "disabled_features": ["sleep_tool", "goals", "multi_agent"],
+        "disabled_features": ["sleep_tool", "goals", "multi_agent", "multi_agent_v2"],
     },
     "started_at": run_meta.get("started_at"),
     "completed_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),

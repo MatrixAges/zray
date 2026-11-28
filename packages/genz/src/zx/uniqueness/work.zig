@@ -144,7 +144,7 @@ pub fn advance(self: *Self, comptime kind: Memo.Kind, phase: Round.Phase, frame:
         .following = following,
         .outputs = @ptrCast(&frame.outputs),
         .active = frame.active,
-        .callers = frame.callers,
+        .callers = if (previous) |value| frame.callers[value.body] else &.{},
         .previous = if (previous != null) &feedback else null,
     };
 

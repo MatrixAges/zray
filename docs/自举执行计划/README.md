@@ -61,9 +61,10 @@ flowchart TD
 
 > 按 [AGENTS.md](../../AGENTS.md) 规范：Wave 1–100 按 **每 5 波一档** 完整留存，Wave 101 起 **每波一档**。
 
-| 当前波次 | `mutable_opaque` | `opaque` | 业务 `.d.zx` 声明 | RX `host.*` | Store（非 CLI） | `U32Buffer`（`src`） | `void` ZX（授权 setter / 其他） |
+| 波次     | `mutable_opaque` | `opaque` | 业务 `.d.zx` 声明 | RX `host.*` | Store（非 CLI） | `U32Buffer`（`src`） | `void` ZX（授权 setter / 其他） |
 | -------- | ---------------: | -------: | ----------------: | ----------: | --------------: | -------------------: | ------------------------------: |
 | Wave 106 |               46 |       82 |             1,009 |         199 |        50（36） |                   25 |                   76（45 / 31） |
+| Wave 107 |               46 |       82 |             1,009 |         199 |        50（36） |                   25 |                   76（45 / 31） |
 
 ### 历史 5 波归档（Waves 1–100）
 
@@ -95,4 +96,5 @@ flowchart TD
 - [Wave 103](waves/wave-103.md)（`ebae849a7` · 已完成）
 - [Wave 104](waves/wave-104.md)（`03d85d08a` · 已完成）
 - [Wave 105](waves/wave-105.md)（`02b0c6d0b` · 已完成）
-- [Wave 106](waves/wave-106.md)（已完成 · 累计 CPU 排入 Wave 107 定位优化）
+- [Wave 106](waves/wave-106.md)（`b3af303c4` · 已完成）
+- [Wave 107](waves/wave-107.md)（已验收 · 冷生成 CPU 配对中位数减少 2.28 秒）

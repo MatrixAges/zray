@@ -1,7 +1,7 @@
 # Wave Scheduling & Delegation Patterns
 
 Patterns adapted from multi-agent orchestration (Orca & Herdr) for running up to
-3 concurrent Codex executors safely inside a shared workspace without Git
+6 concurrent Codex executors safely inside a shared workspace without Git
 worktrees.
 
 ## 0. Task Eligibility & Execution Boundaries (Full-Delegation Mode)
@@ -9,7 +9,7 @@ worktrees.
 Delegate end-to-end execution cleanly while preventing orphan daemons and resource contention:
 
 - **Delegate to Codex executors**:
-    - _During parallel waves (2–3 concurrent slots)_: coding, refactoring, and fast narrow static checks (`zig ast-check`, `zxc fmt --check`, `zxc lint`, `git diff --check`) ONLY—**no concurrent full builds (`zig build`, `bootstrap-stage`), full tests (`zig build test`, `test-verification`), 3-stage bootstraps, or benchmarks**.
+    - _During parallel waves (2–6 concurrent slots)_: coding, refactoring, and fast narrow static checks (`zig ast-check`, `zxc fmt --check`, `zxc lint`, `git diff --check`) ONLY—**no concurrent full builds (`zig build`, `bootstrap-stage`), full tests (`zig build test`, `test-verification`), 3-stage bootstraps, or benchmarks**.
     - _Solo (single active slot, after all parallel workers finish)_: debugging/reproducers requiring builds, `zig build`, `bootstrap-stage`, full package tests (`zig build test`, `test-verification`), 3-stage bootstraps, cold benchmarks, governance audits, cleanup, and wave doc updates — always setting `export ZXC_RESIDENT_GENERATOR=0` and cleaning up child processes before exit.
 - **Keep on the Orchestrator**: high-level wave decomposition, disjoint
   `--owns` / serial scheduling, `<= 15m` liveness checkpoints, independent final
@@ -21,19 +21,21 @@ Delegate end-to-end execution cleanly while preventing orphan daemons and resour
   implementation, refactor, and verification waves; escalate to `--research`
   (`gpt-6.2-astra`, `high`, `default` tier) **only** for high-order
   architecture, algorithm, or stubborn root-cause research tasks, then route the
-  resulting implementation plan back to `gpt-6.2-sol` workers.
+  resulting implementation plan back to `gpt-6.2-sol` workers. **Codex built-in
+  `multi_agent` and `multi_agent_v2` are unconditionally disabled for ALL models**
+  (`gpt-6.2-sol`, `gpt-6.2-astra`, or any `-m`).
 
 ## 1. DAG Wave Decomposition
 
 - **Encode only real dependencies**: group independent tasks into parallel waves
-  of at most **3 workers** (`MAX_CONCURRENT=3`).
+  of at most **6 workers** (`MAX_CONCURRENT=6`).
 - **Prefer shallow wide waves**: keep dependency chains shallow (<= 3-4 sequential
   waves) rather than long serial handoffs.
-- **Dispatch the full ready wave before waiting**: issue up to 3 parallel
+- **Dispatch the full ready wave before waiting**: issue up to 6 parallel
   `run_codex.sh` calls in a single turn (`WaitMsBeforeAsync: 5000`,
   `NotificationTimeoutSeconds: 600`), then stop and wait for reactive wakeups.
-- **Queue overflow tasks**: if > 3 tasks are ready, dispatch the first 3 and
-  launch the 4th+ only after a slot frees up (exit code `3` rejects a 4th
+- **Queue overflow tasks**: if > 6 tasks are ready, dispatch the first 6 and
+  launch the 7th+ only after a slot frees up (exit code `3` rejects a 7th
   concurrent call).
 
 ## 2. Disjoint Ownership Without Worktrees
@@ -46,7 +48,7 @@ Because `--worktree` is forbidden, concurrent workers edit the same workspace:
 - **Shared integration files**: files touched by multiple modules (e.g.,
   `index.ts`, `mod.rs`, `Cargo.toml`, `package.json`, shared schemas/registries)
   must NOT be edited by parallel Wave 1 workers. Instead:
-    - Wave 1 (parallel, max 3): each worker builds its isolated module + unit tests.
+    - Wave 1 (parallel, max 6): each worker builds its isolated module + unit tests.
     - Wave 2 (single sequential worker): one integration worker wires shared exports,
       barrels, or manifests and runs full integration tests.
 - **No overlapping edits**: if two subtasks touch the same file, run them

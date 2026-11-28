@@ -4,15 +4,14 @@ import one from "./one"
 
 import type { Destination, Ranges } from "./model"
 
-export type Input = {
-    target: Destination,
+export type Input = Destination & {
     ranges: Ranges
 }
 
 export type Output = u8[][]
 
 export default function (in: Input): Output {
-    const { target, ranges } = in
+    const { ast, ranges } = in
 
     const chunks: u8[][] = []
 
@@ -32,7 +31,7 @@ export default function (in: Input): Output {
                 while: current => current.row - first < count,
                 next: current => {
                     const chunk = one({
-                        ...target,
+                        ast,
                         row: current.row
                     })
 

@@ -12,7 +12,7 @@ state and event-stream progress:
 S=skills/codex-executor/scripts/run_codex.sh
 "$S" --list-active
 "$S" --list-active --json
-"$S" --inspect 1          # active slot 1..3
+"$S" --inspect 1          # active slot 1..6
 "$S" --inspect <RUN_DIR>  # completed or failed run directory
 ```
 
@@ -67,7 +67,7 @@ When `STATUS=failed` (or worker reports `OUTCOME: failed` / `OUTCOME: blocked`):
 | -------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------- |
 | `0`            | Codex exited cleanly                                                   | Verify diff/tests independently; inspect `OUTCOME` and `USAGE` |
 | `2`            | Invalid CLI args or forbidden `--worktree`                             | Fix invocation flags (never use `--worktree`)                  |
-| `3`            | Concurrency limit (3), active topic/session lock, or `--owns` conflict | Check `--list-active`; wait for slot or fix disjoint `--owns`  |
+| `3`            | Concurrency limit (6), active topic/session lock, or `--owns` conflict | Check `--list-active`; wait for slot or fix disjoint `--owns`  |
 | `127`          | `codex` binary missing from `PATH`                                     | Install/repair `@openai/codex`                                 |
 | Other non-zero | Codex runtime/auth/task failure                                        | Run `--inspect <RUN_DIR>` and `codex doctor`                   |
 

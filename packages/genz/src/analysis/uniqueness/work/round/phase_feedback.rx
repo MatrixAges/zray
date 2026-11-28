@@ -10,14 +10,14 @@
             in={{
                 ...$in.pick([
                     "active",
-                    "outputs"
+                    "outputs",
+                    "callers"
                 ]),
                 ...$in.previous.pick([
                     "body",
                     "levels",
                     "changed"
-                ]),
-                callers: $in.callers[$in.previous.body]
+                ])
             }}
         />
 
@@ -36,7 +36,7 @@
             in={{
                 active: $in.active,
                 changed: $in.previous.changed,
-                callers: $in.callers[$in.previous.body],
+                callers: $in.callers,
                 demand_body: $in.previous.body
             }}
         />

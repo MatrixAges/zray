@@ -4,15 +4,20 @@ import type { Fields, Arms } from "./model/members"
 import type { Statements } from "./model/statements"
 import type { Token } from "./model/token"
 
-export type Source = {
+export type Ast = {
     expressions: Expressions
     statements: Statements
     declarations: Declarations
     fields: Fields
     arms: Arms
+}
+
+export type Range = {
     first: u32
     count: u32
 }
+
+export type Source = Ast & Range
 
 export type Render = {
     source: Source
@@ -83,7 +88,8 @@ export type Frame = {
     number: u64
 }
 
+// The slice shares one read-only AST table across all frames.
 export type Step = {
-    source: Source,
+    ast: Ast[],
     frame: Frame
 }

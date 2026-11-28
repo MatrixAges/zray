@@ -62,7 +62,7 @@ export type Plan = {
 
 export type Advance = Request & Notify.Pick("active") & {
     outputs: AtomicRows,
-    callers: u64[][],
+    callers: u64[],
     previous?: Feedback
 }
 

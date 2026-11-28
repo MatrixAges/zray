@@ -37,11 +37,11 @@ export default function (in: Input): Output {
     ]
 
     const zero: u32 = 0
+    const tags = in.ast[0].statements.tags
 
     return loop({
         frames: opening,
         index: zero,
-        source: in.source,
         block: in.frame,
         frame
     }, {
@@ -49,7 +49,6 @@ export default function (in: Input): Output {
         next: current => {
             const id = current.block.id + current.index
 
-            const tags = current.source.statements.tags
             const separated = match {
                 current.index == 0 => false,
                 _ => tags[integers.widen(id - 1)] != StatementsKind.Constant ||

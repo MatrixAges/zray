@@ -17,14 +17,17 @@ import quoted from "./text/quoted"
 import source from "./text/source"
 import token from "./text/token"
 
-import type { Frame, Source } from "./model"
+import type { Ast, Frame, Range } from "./model"
 
-export type Input = Source
+export type Input = Range & {
+    ast: Ast[]
+}
 
 export type Output = u8[][]
 
 export default function (in: Input): Output {
-    const ast = in
+    const { ast, first, count } = in
+
     const at: u8[] = [ascii_at]
     const chunks: u8[][] = []
     const stack: Frame[] = []
@@ -36,7 +39,7 @@ export default function (in: Input): Output {
         depth: zero,
         next: zero
     }, {
-        while: current => current.next < ast.count || current.stack.length != 0,
+        while: current => current.next < count || current.stack.length != 0,
         next: current => {
             const root = current.stack.length == 0
             const frame: Frame = match {
@@ -44,7 +47,7 @@ export default function (in: Input): Output {
                     action: Action.Declaration,
                     token: Token.Empty,
                     bytes: ByteSource.None,
-                    id: ast.first + current.next,
+                    id: first + current.next,
                     count: 0,
                     index: 0,
                     number: 0
@@ -84,7 +87,7 @@ export default function (in: Input): Output {
 
                 if (condition) {
                     const name = source({
-                        source: ast,
+                        ast,
                         frame
                     })
 
@@ -126,7 +129,7 @@ export default function (in: Input): Output {
                     }
                 } else {
                     const step = {
-                        source: ast,
+                        ast,
                         frame
                     }
                     const frames = match frame.action {
@@ -157,7 +160,7 @@ export default function (in: Input): Output {
         }
     })
 
-    if (ast.count != 0) {
+    if (count != 0) {
         return result.chunks.push(bytes.fromText(token(Token.Newline)))[0]
     }
 
