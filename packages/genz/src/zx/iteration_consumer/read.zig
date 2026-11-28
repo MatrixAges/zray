@@ -14,7 +14,6 @@ pub fn lower(self: *Lower, symbol: ir.SymbolId, root: ir.ExprId, state: node.Exp
     var arena = std.heap.ArenaAllocator.init(self.workspace);
     var storage: [1024]u8 = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&storage, arena.allocator());
-    var origin: rows.OriginBuffer = .{};
 
     defer arena.deinit();
 
@@ -35,7 +34,6 @@ pub fn lower(self: *Lower, symbol: ir.SymbolId, root: ir.ExprId, state: node.Exp
     const input: Input = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .source = &source,
         .state = @backingInt(state),
     };

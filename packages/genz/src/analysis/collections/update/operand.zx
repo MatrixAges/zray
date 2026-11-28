@@ -19,7 +19,6 @@ export default function (in: Input): Output {
     return bindOperand({
         frame: ast.lower,
         writer: ast.writer,
-        origin: ast.origin,
         sequence: ast.sequence,
         value
     })

@@ -37,7 +37,6 @@
         in={{
             frame: $in.ast.lower,
             writer: $in.ast.writer,
-            origin: $in.ast.origin,
             sequence: $in.ast.sequence,
             value: $ctx.execute
         }}

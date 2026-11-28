@@ -16,7 +16,7 @@ export default function (in: Input): Output {
     }
 
     const field_base = astFieldCount(in.writer)
-    const current = readAstOrigin(in.writer, in.origin)
+    const current = readAstOrigin(in.writer)
 
     return {
         choice: in.choice,

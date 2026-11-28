@@ -13,9 +13,23 @@
 
     <Call fn="host.analyzeMixedZXBody" in={$in.body} />
 
-    <If on={$ctx.analyzeMixedZXBody}>
+    <If on={$ctx.analyzeMixedZXBody != null}>
         <If on={$in.setter}>
-            <Call fn="authorize_setter" in={$in.body} />
+            <Call fn="authorize_setter" in={$ctx.analyzeMixedZXBody} />
+
+            <If on={$ctx.authorize_setter != null}>
+                <Call
+                    fn="host.rejectMixedZXSetter"
+                    in={[
+                        $in.body,
+                        $ctx.authorize_setter
+                    ]}
+                />
+
+                <Else>
+                    <Call fn="host.installMixedZXSetter" in={$in.body} />
+                </Else>
+            </If>
         </If>
 
         <Call fn="host.linkMixedZXBody" in={$in.body} />

@@ -21,7 +21,6 @@ export default function (in: Input): Output {
         const first = bindOperand({
             frame: ast.lower,
             writer: ast.writer,
-            origin: ast.origin,
             sequence: ast.sequence,
             value: start
         })
@@ -31,7 +30,6 @@ export default function (in: Input): Output {
         const second = bindOperand({
             frame: ast.lower,
             writer: ast.writer,
-            origin: ast.origin,
             sequence: ast.sequence,
             value: count
         })
@@ -42,7 +40,6 @@ export default function (in: Input): Output {
         const value = bindOperand({
             frame: ast.lower,
             writer: ast.writer,
-            origin: ast.origin,
             sequence: ast.sequence,
             value: replacement
         })
@@ -63,7 +60,6 @@ export default function (in: Input): Output {
         const bound = bindOperand({
             frame: ast.lower,
             writer: ast.writer,
-            origin: ast.origin,
             sequence: ast.sequence,
             value
         })

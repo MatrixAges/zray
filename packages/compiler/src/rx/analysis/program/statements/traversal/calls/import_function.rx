@@ -5,17 +5,15 @@
 
     <Call fn="../host.prepareBodyImport" in={$in} />
 
-    <If on={$ctx.prepareBodyImport}>
+    <If on={$ctx.prepareBodyImport.addition}>
         <Call fn="../host.appendBodyFunctionTail" in={$in} />
     </If>
 
-    <Call fn="../host.bodyHasInitializers" in={$in} />
-
-    <If on={$ctx.bodyHasInitializers}>
+    <If on={$ctx.prepareBodyImport.needs_initializers}>
         <Call fn="../host.linkBodyInitializers" in={$in} />
     </If>
 
-    <If on={$ctx.prepareBodyImport}>
+    <If on={$ctx.prepareBodyImport.addition}>
         <Call fn="../host.appendBodyFunctionEntry" in={$in} />
     </If>
 </Module>

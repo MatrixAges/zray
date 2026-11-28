@@ -31,7 +31,6 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.ExpressionRow, items: []cons
     defer body.deinit();
 
     var frame: Frame = .{ .lowering = self, .body = &body, .type_id = value.type_id };
-    var origin: publication.OriginBuffer = undefined;
     const execute = @import("generated_lower_sequence_elements");
     const Input = std.meta.Child(execute.Input);
     const selected = value.value == .tuple and self.state_active and self.state_plan.selected[@backingInt(value.type_id)];
@@ -39,7 +38,6 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.ExpressionRow, items: []cons
     const input: Input = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .sequence = @ptrCast(&body),
         .batch = @ptrCast(&frame),
         .kind = zx.columns.view(@FieldType(Input, "kind"), self.program.expressions.kinds[@backingInt(id)]),

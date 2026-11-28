@@ -5,14 +5,8 @@
 
     <Call fn="../state/lookup" in={$in.lookup} />
 
-    <If on={$ctx.lookup != null}>
-        <Call
-            fn="index.restoreCachedNative"
-            in={[
-                $in.frame,
-                $ctx.lookup
-            ]}
-        />
+    <If on={$ctx.lookup}>
+        <Call fn="index.restoreCachedNative" in={$in.frame} />
 
         <Return value={$ctx.restoreCachedNative} />
     </If>

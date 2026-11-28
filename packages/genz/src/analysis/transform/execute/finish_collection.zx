@@ -35,7 +35,6 @@ export default function (in: Input): Output {
     return finishStored({
         frame: ast.lower,
         writer: ast.writer,
-        origin: ast.origin,
         span,
         value: owned,
         guard: null

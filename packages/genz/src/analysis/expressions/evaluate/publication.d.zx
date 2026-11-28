@@ -1,6 +1,3 @@
-export declare function prepareDirectAstRow(target: DirectAstRows, position: u64): u64
-    throws { OutOfMemory }
-
 export declare function finishGeneratedAst(
     frame: Lowering,
     serial: u64?,

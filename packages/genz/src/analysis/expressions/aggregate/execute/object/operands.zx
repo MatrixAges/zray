@@ -16,7 +16,6 @@ import type { Input as ObjectInput, Observed } from "./model"
 export type Input = ObjectInput.Pick(
     "frame",
     "writer",
-    "origin",
     "sequence",
     "evaluation"
 )
@@ -24,7 +23,7 @@ export type Input = ObjectInput.Pick(
 export type Output = Observed
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, sequence, evaluation } = in
+    const { frame, writer, sequence, evaluation } = in
 
     const names: u8[][] = []
     const values: u32[] = []
@@ -40,7 +39,7 @@ export default function (in: Input): Output {
     }, {
         while: state => state.index < evaluation.length,
         next: state => {
-            const current = readAstOrigin(writer, origin)
+            const current = readAstOrigin(writer)
 
             const reserved = fresh({
                 serial: current.serial,

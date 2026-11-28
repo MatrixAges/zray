@@ -10,14 +10,13 @@ import emitIndex from "./emit_index"
 import emitLength from "./emit_length"
 import { ReadAction } from "./model"
 
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
 import type { StateQueries } from "./model"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     state?: StateQueries,
     action: ReadAction,
     iteration: bool,
@@ -31,7 +30,7 @@ export type Input = {
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, operand, iteration } = in
+    const { frame, writer, operand, iteration } = in
 
     if (in.action == ReadAction.Length) {
         const result_type = match {
@@ -78,7 +77,6 @@ export default function (in: Input): Output {
         return emitIndex({
             frame,
             writer,
-            origin,
             values: items,
             position
         })
@@ -93,7 +91,6 @@ export default function (in: Input): Output {
     const value = emitIndex({
         frame,
         writer,
-        origin,
         values: target,
         position
     })

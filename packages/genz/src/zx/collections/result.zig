@@ -22,12 +22,10 @@ pub fn lower(frame: *Collection, value: node.ExpressionId) Lower.Error!node.Expr
     const types = self.program.typeOf(frame.operation.?.result_type).tuple;
     const type_table = zx.ir.TypeTable.borrow(std.meta.Child(@FieldType(Conversion, "types")), self.program.types);
     const bases = @import("../construction/context.zig").snapshot(Bases, self);
-    var origin: publication.OriginBuffer = .{};
 
     const input: Input = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .body = @ptrCast(&frame.body),
         .source = &.{ .value = @backingInt(value), .bases = &bases },
         .preparation = &.{

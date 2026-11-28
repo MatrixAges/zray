@@ -1,4 +1,4 @@
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { Input as Block } from "../../control/block_terminates"
 import type { Input as Policy } from "./policy"
 
@@ -6,5 +6,4 @@ export type Input = {
     transaction: Policy,
     body: Block,
     writer: AstWriter,
-    origin: AstOriginBuffer
 }

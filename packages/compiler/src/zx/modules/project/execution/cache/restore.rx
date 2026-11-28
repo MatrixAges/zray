@@ -15,14 +15,8 @@
 
     <Call fn="../../../semantic_cache/state/lookup" in={$in.lookup} />
 
-    <If on={$ctx.lookup != null}>
-        <Call
-            fn="index.restoreCachedProjectBody"
-            in={[
-                $in.body,
-                $ctx.lookup
-            ]}
-        />
+    <If on={$ctx.lookup}>
+        <Call fn="index.restoreCachedProjectBody" in={$in.body} />
 
         <Return value={$ctx.restoreCachedProjectBody} />
     </If>

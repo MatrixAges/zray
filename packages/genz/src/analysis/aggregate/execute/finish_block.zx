@@ -2,13 +2,12 @@ import { finishAstSequence } from "ast_rows"
 
 import finishStored from "./finish_stored"
 
-import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { AstSequence, AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     sequence: AstSequence,
     value: u32
 }
@@ -16,12 +15,11 @@ export type Input = {
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, sequence, value } = in
+    const { frame, writer, sequence, value } = in
 
     return finishStored({
         frame,
         writer,
-        origin,
         span: finishAstSequence(writer, sequence),
         value,
         guard: null

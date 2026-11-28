@@ -1,20 +1,15 @@
-import { mixedResultIsZX } from "rx_project_host"
-
-import type { MixedWorkspace } from "rx_project_host"
-
 export type Input = {
-    workspace: MixedWorkspace,
-    rows: u64,
+    zx_results: bool[],
     first: u64
 }
 
 export type Output = u64
 
 export default function (in: Input): Output {
-    const { workspace, rows, first } = in
+    const { zx_results, first } = in
 
     return loop(first, {
-        while: row => row < rows && !mixedResultIsZX(workspace, row),
+        while: row => row < zx_results.length && !zx_results[row],
         next: row => {
             row += 1
         }

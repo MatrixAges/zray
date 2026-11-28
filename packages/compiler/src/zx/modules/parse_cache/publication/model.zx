@@ -1,7 +1,5 @@
-import type { ParseCacheEntry } from "project_host"
-
 export type Publication = {
-    results: ParseCacheEntry?[],
+    ready: bool[],
     worker_failed: bool
 }
 

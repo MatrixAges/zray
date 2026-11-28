@@ -16,7 +16,6 @@ export default function (in: Input): Output {
             bindAddress({
                 frame,
                 writer: in.writer,
-                origin: in.origin,
                 sequence: in.body,
                 value: emitCast({
                     writer: in.writer,
@@ -33,7 +32,6 @@ export default function (in: Input): Output {
             bindAddress({
                 frame,
                 writer: in.writer,
-                origin: in.origin,
                 sequence: in.body,
                 value: host.lowerAggregate(frame, operand, Representation.Value)
             }),

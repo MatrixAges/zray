@@ -5,21 +5,13 @@
 
     <Call fn="../../rows.astDeclarationCount" in={$in.writer} />
     <Call fn="../../rows.astFieldCount" in={$in.writer} />
-
-    <Call
-        fn="../../rows.readAstOrigin"
-        in={[
-            $in.writer,
-            $in.origin
-        ]}
-    />
+    <Call fn="../../rows.readAstOrigin" in={$in.writer} />
 
     <Call
         module="../build"
         in={{
             ...$in.omit([
                 "writer",
-                "origin",
                 "slot"
             ]),
             declaration_base: $ctx.astDeclarationCount,

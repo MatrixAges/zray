@@ -25,12 +25,9 @@ pub fn lower(self: *Lower, id: ir.ExprId, consumer: ?Consumer) Lower.Error!?node
         .consumer = if (consumer) |value| &.{ .symbol = @backingInt(value.symbol), .result = @backingInt(value.result) } else null,
     };
 
-    var origin: publication.OriginBuffer = .{};
-
     const input: Input = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .analysis = &analysis,
     };
 

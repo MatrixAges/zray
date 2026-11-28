@@ -16,14 +16,7 @@
         <Return value={0} />
     </If>
 
-    <Call
-        fn="../rows.readAstOrigin"
-        in={[
-            $in.writer,
-            $in.origin
-        ]}
-    />
-
+    <Call fn="../rows.readAstOrigin" in={$in.writer} />
     <Call fn="../rows.astFieldCount" in={$in.writer} />
 
     <Call
@@ -31,7 +24,6 @@
         in={{
             ...$in.omit([
                 "writer",
-                "origin"
             ]),
             bases: {
                 ...$ctx.readAstOrigin,

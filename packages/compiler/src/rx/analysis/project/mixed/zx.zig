@@ -9,7 +9,7 @@ const Body = @import("body.zig");
 const generated = @import("rx_options").generated_graph;
 const Signature = frontend.project.signature_project.Module;
 const Parse = frontend.project.ParseCache.ModuleResult;
-const ParseHandle = if (generated) @import("rx_execution_abi").layouts.@"zig:rx_project_host".MixedZXParse else anyopaque;
+const Analysis = if (generated) @import("rx_execution_abi").layouts.@"zig:rx_project_host".MixedZXAnalysis else void;
 const Binding = std.meta.Child(@FieldType(frontend.ResolvedImports, "imports"));
 
 /// A module ready for analysis: its parse and the functions its imports bind, which the shared tables already hold.
@@ -62,10 +62,9 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
 
         try Body.run(rule, &input);
     } else {
-        const parsed = try work.preparation.open();
-
-        try work.preparation.check(parsed);
-        try work.preparation.bind(parsed, true);
+        try work.preparation.open();
+        try work.preparation.check();
+        try work.preparation.bind(true);
         if (!try work.run()) return work.report();
 
         if (setter != null) {
@@ -87,10 +86,9 @@ pub fn prepare(state: *State, bindings: std.mem.Allocator, cache: *frontend.proj
 
         try Body.run(rule, &input);
     } else {
-        const parsed = try preparation.open();
-
-        if (checking) try preparation.check(parsed);
-        try preparation.bind(parsed, checking);
+        try preparation.open();
+        if (checking) try preparation.check();
+        try preparation.bind(checking);
     }
 
     return preparation.result;
@@ -103,33 +101,34 @@ const Preparation = struct {
     sources: []const frontend.project.Source,
     index: usize,
     source: []const u8 = undefined,
+    parsed: *const Parse = undefined,
     signature: Signature = undefined,
     result: Prepared = undefined,
     fn borrow(handle: *anyopaque) *Preparation {
         return @ptrCast(@alignCast(handle));
     }
-    fn open(self: *Preparation) State.Error!*const Parse {
+    fn open(self: *Preparation) State.Error!void {
         const state = self.state;
         const index = self.index;
         const path = state.graph.modules.items(.path)[index];
 
         self.source = self.sources[state.graph.sources.at(index).zx].source;
         self.signature = state.signature(index) orelse return state.fail(.{ .offset = 0, .line = 1, .column = 1 }, "source module signature is missing");
-
-        return self.cache.getModule(self.source, path);
-    }
-    fn check(self: *Preparation, parsed: *const Parse) State.Error!void {
-        if (try parsed.check(self.allocator)) |issue| return diagnostic(self.state, self.source, issue);
+        self.parsed = try self.cache.getModule(self.source, path);
     }
 
-    fn bind(self: *Preparation, parsed: *const Parse, checked: bool) State.Error!void {
+    fn check(self: *Preparation) State.Error!void {
+        if (try self.parsed.check(self.allocator)) |issue| return diagnostic(self.state, self.source, issue);
+    }
+
+    fn bind(self: *Preparation, checked: bool) State.Error!void {
         const collector = @import("imports.zig");
-        const bindings = try collector.collect(self.state, self.allocator, parsed, self.index, &self.signature, self.source);
+        const bindings = try collector.collect(self.state, self.allocator, self.parsed, self.index, &self.signature, self.source);
 
         self.result = .{
             .index = self.index,
             .source = self.source,
-            .parsed = parsed,
+            .parsed = self.parsed,
             .type_imports = self.signature.type_imports,
             .constant_imports = self.signature.constant_imports,
             .imports = bindings.functions,
@@ -147,6 +146,7 @@ const Serial = struct {
     setter: ?target.Setter,
     destination: Finished.Destination,
     outcome: Outcome = undefined,
+    analysis: Analysis = undefined,
     fn borrow(handle: *anyopaque) *Serial {
         return @ptrCast(@alignCast(handle));
     }
@@ -179,32 +179,33 @@ const Serial = struct {
     }
 };
 
-pub fn openMixedZXPreparation(handle: *anyopaque) State.Error!*const ParseHandle {
-    return @ptrCast(try Preparation.borrow(handle).open());
+pub fn openMixedZXPreparation(handle: *anyopaque) State.Error!void {
+    try Preparation.borrow(handle).open();
 }
 
-pub fn checkMixedZXPreparation(handle: *anyopaque, parsed: *const anyopaque) State.Error!void {
-    try Preparation.borrow(handle).check(@ptrCast(@alignCast(parsed)));
+pub fn checkMixedZXPreparation(handle: *anyopaque) State.Error!void {
+    try Preparation.borrow(handle).check();
 }
 
-pub fn bindMixedZXPreparation(handle: *anyopaque, parsed: *const anyopaque, checked: bool) State.Error!void {
-    try Preparation.borrow(handle).bind(@ptrCast(@alignCast(parsed)), checked);
+pub fn bindMixedZXPreparation(handle: *anyopaque, checked: bool) State.Error!void {
+    try Preparation.borrow(handle).bind(checked);
 }
 
-pub fn analyzeMixedZXBody(handle: *anyopaque) std.mem.Allocator.Error!bool {
-    return Serial.borrow(handle).run();
+pub fn analyzeMixedZXBody(handle: *anyopaque) std.mem.Allocator.Error!?*const Analysis {
+    const work = Serial.borrow(handle);
+
+    if (!try work.run()) return null;
+
+    work.analysis = .{
+        .declared = work.preparation.signature.signature.has_store,
+        .slots = work.outcome.analyzed.result.value.ir.stores.count(),
+    };
+
+    return &work.analysis;
 }
 
 pub fn reportMixedZXBody(handle: *anyopaque) State.Error!void {
     return Serial.borrow(handle).report();
-}
-
-pub fn mixedZXSetterDeclared(handle: *anyopaque) bool {
-    return Serial.borrow(handle).preparation.signature.signature.has_store;
-}
-
-pub fn mixedZXSetterSlots(handle: *anyopaque) u64 {
-    return Serial.borrow(handle).outcome.analyzed.result.value.ir.stores.count();
 }
 
 pub fn rejectMixedZXSetter(handle: *anyopaque, message: []const u8) State.Error!void {

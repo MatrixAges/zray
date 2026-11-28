@@ -1,13 +1,20 @@
-import type { Table, Bind } from "core/bytes/map/model"
 import type { TextColumn } from "memory"
 import type { Sort } from "../binary/model"
 
-export type Inputs = Table & {
+export type Inputs = {
+    capacity: u64,
     names: TextColumn,
     count: u64
 }
 
-export type Definition = Bind & {
+export type Definition = {
+    keys: string?[],
+    key: string,
     width: u16,
     sort: Sort
+}
+
+export type Placement = {
+    slot: u64,
+    fresh: bool
 }

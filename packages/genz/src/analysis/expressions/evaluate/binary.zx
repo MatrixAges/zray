@@ -10,7 +10,7 @@ import { requireAllocation } from "memory"
 
 import emitBinary from "../../operators/emit"
 
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { BinaryOperator } from "core/expression_table/kinds"
 import type { Table } from "core/type_table/model"
 import type { Lowering } from "lowering_host"
@@ -19,7 +19,6 @@ import type { BinaryExpressions } from "./model"
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     expressions: BinaryExpressions,
     types: Table,
     operator: BinaryOperator,
@@ -30,7 +29,7 @@ export type Input = {
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, expressions, types, operator, left_ir, right_ir } = in
+    const { frame, writer, expressions, types, operator, left_ir, right_ir } = in
 
     const left = host.lowerExpression(frame, left_ir, false, null)
     const right = host.lowerExpression(frame, right_ir, false, null)
@@ -39,7 +38,7 @@ export default function (in: Input): Output {
 
     const operand_type = host.lowerType(frame, type_id, false)
 
-    const current = readAstOrigin(writer, origin)
+    const current = readAstOrigin(writer)
 
     const output = emitBinary({
         expressions,

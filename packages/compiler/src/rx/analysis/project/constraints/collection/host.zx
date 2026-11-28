@@ -1,9 +1,5 @@
 export {
     commitConstraintPort,
-    constraintBindingEnd,
-    constraintInputUsed,
-    constraintPortFixed,
-    constraintTaskEnd,
     defaultConstraintOutput,
     forwardConstraintShortcut,
     inferConstraintBody,

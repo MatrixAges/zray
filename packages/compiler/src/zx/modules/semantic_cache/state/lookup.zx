@@ -1,9 +1,6 @@
 import version from "./version"
 
-import type { CacheEntry } from "project_host"
-
 export type Candidate = {
-    entry: CacheEntry,
     source: u8[],
     context: u8[]
 }
@@ -14,21 +11,19 @@ export type Input = {
     context: u8[]
 }
 
-export type Output = CacheEntry?
+export type Output = bool
 
 export default function (in: Input): Output {
     const { candidate, source, context } = in
 
     if (candidate == null) {
-        return null
+        return false
     }
 
-    const valid = version({
+    return version({
         cached_source: candidate.source,
         source,
         cached_context: candidate.context,
         context
     })
-
-    return valid ? candidate.entry : null
 }

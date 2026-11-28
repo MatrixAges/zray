@@ -107,7 +107,6 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
     const state = self.state_symbols.current();
     const stack = self.stack_symbols.current();
     const initial_plan: *const @TypeOf(frame.initial) = &frame.initial;
-    var origin: @import("construction/publication.zig").OriginBuffer = .{};
 
     const state_view: Index = .{
         .keys = @ptrCast(&state.keys.items),
@@ -150,7 +149,6 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
     const input: Input = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .body_seq = @ptrCast(&frame.body),
         .loop_frame = @ptrCast(frame),
         .loop_state = zx.columns.pointer(@FieldType(Input, "loop_state"), state_info),

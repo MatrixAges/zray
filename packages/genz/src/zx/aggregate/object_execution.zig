@@ -22,7 +22,6 @@ const Frame = struct {
 pub fn lower(self: *Lower, temporary: std.mem.Allocator, id: ir.ExprId, source: Object, layout_only: bool) Error!node.ExpressionId {
     const type_id = self.program.expression(id).type_id;
     const field_indices = source.fields.indices[0..source.fields.len];
-    var origin: publication.OriginBuffer = undefined;
 
     var frame: Frame = .{
         .lowering = self,
@@ -36,7 +35,6 @@ pub fn lower(self: *Lower, temporary: std.mem.Allocator, id: ir.ExprId, source: 
     const input: std.meta.Child(entry.Input) = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .sequence = @ptrCast(&frame.body),
         .batch = @ptrCast(&frame),
         .id = @backingInt(id),

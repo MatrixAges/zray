@@ -4,6 +4,8 @@ export {
     bindMixedZXPreparation,
     analyzeMixedZXBody,
     reportMixedZXBody,
+    rejectMixedZXSetter,
+    installMixedZXSetter,
     linkMixedZXBody,
     bindMixedRXBody,
     lowerMixedRXBody,

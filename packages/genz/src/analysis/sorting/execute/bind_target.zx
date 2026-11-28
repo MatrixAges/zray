@@ -7,7 +7,7 @@ import type { Target as Input } from "./model"
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, lower, writer, origin, body, target, selected } = in
+    const { frame, lower, writer, body, target, selected } = in
 
     const raw = host.lowerExpression(lower, target, false, null)
     const qualified = selected ? host.clipSortTarget(frame, raw) : raw
@@ -15,7 +15,6 @@ export default function (in: Input): Output {
     return bindOperand({
         frame: lower,
         writer,
-        origin,
         sequence: body,
         value: qualified
     })

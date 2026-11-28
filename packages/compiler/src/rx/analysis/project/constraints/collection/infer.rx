@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="Collection" />
+
+    <Args in={Collection.Body} out={Collection.ConstraintBody} />
+
+    <If on={$in.shortcut}>
+        <Call fn="host.forwardConstraintShortcut" in={$in.frame} />
+
+        <Return value={$ctx.forwardConstraintShortcut} />
+    </If>
+
+    <Call fn="host.inferConstraintBody" in={$in.frame} />
+
+    <If on={!$ctx.inferConstraintBody.returned}>
+        <Call fn="host.defaultConstraintOutput" in={$in.frame} />
+    </If>
+
+    <Return value={$ctx.inferConstraintBody} />
+</Module>

@@ -8,7 +8,6 @@
             module="prepare_member"
             in={{
                 writer: $in.writer,
-                origin: $in.origin,
                 capture: $in.source.bases.capture,
                 preparation: $in.preparation,
                 members: [],

@@ -73,12 +73,10 @@ fn run(self: *Lower, body: *Sequence, list: ir.TypeId, operation: Operation, val
     const allocator = buffered.allocator();
     var boundary: conversion.Capture = undefined;
     const prepared: ?conversion.Input = if (!decision.passthrough and !decision.discard and !decision.stored) try conversion.prepareMode(self, allocator, @fromBackingInt(decision.type_id), @fromBackingInt(value), zx.columns.view(conversion.PlanningMode, decision.mode), conversion.captureBoundary(self, &boundary)) else null;
-    var origin: @import("../construction/publication.zig").OriginBuffer = undefined;
 
     const call: Call = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .body = @ptrCast(body),
         .choice = &bound,
         .conversion = if (prepared) |*item| zx.columns.pointer(std.meta.Child(@FieldType(Call, "conversion")), item) else null,

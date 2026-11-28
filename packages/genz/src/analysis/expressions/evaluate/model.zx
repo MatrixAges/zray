@@ -1,4 +1,4 @@
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type {
     BinaryOperator,
     ExpressionKind,

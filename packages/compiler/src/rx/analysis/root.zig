@@ -11,7 +11,6 @@ const callees = @import("project/mixed/callees.zig");
 const imports = @import("project/mixed/imports.zig");
 
 pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
-    @import("selection.zig"),
     @import("project/type_imports.zig"),
     @import("project/contracts/source.zig"),
     @import("store/references.zig"),

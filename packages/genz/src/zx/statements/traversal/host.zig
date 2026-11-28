@@ -96,13 +96,11 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     const types = ir.TypeTable.borrow(Types, self.program.types);
     const schedule = zx.columns.view(Schedule, plan);
     const stack = self.stack_symbols.current();
-    var origin: rows.OriginBuffer = .{};
     const reference = &frame;
 
     const context: Context = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .sequence = @ptrCast(&frame.sequence),
         .control = &control,
         .expressions = &expressions,

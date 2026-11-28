@@ -27,6 +27,7 @@ const Request = struct {
     span: zx.Span,
     fingerprint: [32]u8,
     slot: entries.Pending,
+    cached: ?*const entries.Entry = null,
     result: Loaded.Result = undefined,
     fn borrow(handle: *anyopaque) *Request {
         return @ptrCast(@alignCast(handle));
@@ -55,11 +56,14 @@ pub fn load(self: *Self, allocator: std.mem.Allocator, entry: Native, current: C
         const Lookup = std.meta.Child(@FieldType(Input, "lookup"));
         const Candidate = std.meta.Child(@FieldType(Lookup, "candidate"));
         const cached = self.items.get(entry.key());
+
+        request.cached = cached;
+
         const candidate = if (cached) |stored| stored.digestView(std.meta.Child(Candidate)) else null;
 
         const input: Input = .{
             .frame = @ptrCast(&request),
-            .slot = @ptrCast(&request.slot),
+            .slot = &request.slot.installView(std.meta.Child(@FieldType(Input, "slot")), entry.key()),
             .lookup = &.{
                 .candidate = if (candidate) |*value| value else null,
                 .source = &request.fingerprint,
@@ -87,7 +91,7 @@ pub fn load(self: *Self, allocator: std.mem.Allocator, entry: Native, current: C
 
 fn seed(request: *Request) zx.Error!void {
     if (entries.find(&request.cache.items, request.native.key(), &request.fingerprint, &empty_context)) |cached| {
-        if (try restoreCachedNative(request, cached)) {
+        if (try restoreEntry(request, cached)) {
             cached.native_admitted = true;
             request.cache.reused += 1;
 
@@ -106,10 +110,14 @@ fn seed(request: *Request) zx.Error!void {
     entries.commitSeed(&request.slot, position);
 }
 
-pub fn restoreCachedNative(handle: *anyopaque, candidate: *anyopaque) std.mem.Allocator.Error!bool {
+pub fn restoreCachedNative(handle: *anyopaque) std.mem.Allocator.Error!bool {
     const request = Request.borrow(handle);
+
+    return restoreEntry(request, request.cached.?);
+}
+
+fn restoreEntry(request: *Request, cached: *const entries.Entry) std.mem.Allocator.Error!bool {
     const entry = request.native.*;
-    const cached: *const entries.Entry = @ptrCast(@alignCast(candidate));
 
     request.result = restoring.restore(request.allocator, &cached.result.value, entry, request.current, cached.native_admitted) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,

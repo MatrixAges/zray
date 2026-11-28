@@ -2,7 +2,6 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const node = @import("../node.zig");
 const Lower = @import("lower.zig");
-const OriginBuffer = @import("construction/publication.zig").OriginBuffer;
 pub const declaration = @import("store/transaction.zig").declaration;
 
 pub fn adapter(self: *Lower, invocation: @FieldType(@FieldType(ir.ExpressionRow, "value"), "call")) Lower.Error!node.ExpressionId {
@@ -11,11 +10,9 @@ pub fn adapter(self: *Lower, invocation: @FieldType(@FieldType(ir.ExpressionRow,
     const entry = @import("generated_store_adapter");
     const Input = std.meta.Child(entry.Input);
     const slots = self.program.functions.stores[@backingInt(invocation.function)];
-    var origin: OriginBuffer = .{};
 
     const input: Input = .{
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .frame = @ptrCast(self),
         .mapping = invocation.stores,
         .readable = slots.readable,

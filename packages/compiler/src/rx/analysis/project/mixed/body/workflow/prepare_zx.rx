@@ -6,20 +6,13 @@
     <Call fn="host.openMixedZXPreparation" in={$in.source} />
 
     <If on={$in.check}>
-        <Call
-            fn="host.checkMixedZXPreparation"
-            in={[
-                $in.source,
-                $ctx.openMixedZXPreparation
-            ]}
-        />
+        <Call fn="host.checkMixedZXPreparation" in={$in.source} />
     </If>
 
     <Call
         fn="host.bindMixedZXPreparation"
         in={[
             $in.source,
-            $ctx.openMixedZXPreparation,
             $in.check
         ]}
     />

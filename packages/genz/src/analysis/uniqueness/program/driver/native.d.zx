@@ -10,11 +10,6 @@ export type FlowQueue = {
     count: u64
 }
 
-export type FlowLayers = {
-    order: u32[],
-    ends: u64[]
-}
-
 export enum RoundKind {
     Settle,
     Demand,
@@ -96,9 +91,7 @@ export declare function publishOwnershipReplay(in: Execution): void throws { Out
 
 export declare function finishOwnershipReplay(in: Execution): void
 
-export declare function initializeFlow(flow: FlowExecution): void throws { OutOfMemory }
-
-export declare function planFlow(flow: FlowExecution): FlowLayers? throws { OutOfMemory }
+export declare function initializeFlow(flow: FlowExecution): bool[][] throws { OutOfMemory }
 
 export declare function reserveFlowMemo(flow: FlowExecution): void throws { OutOfMemory }
 
@@ -106,6 +99,7 @@ export declare function openFlowWorkers(flow: FlowExecution): bool[] throws { Ou
 
 export declare function solveFlowLayer(
     flow: FlowExecution,
+    order: u32[],
     first: u64,
     end: u64
 ): void throws { OutOfMemory }

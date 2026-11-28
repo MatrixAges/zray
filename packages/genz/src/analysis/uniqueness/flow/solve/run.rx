@@ -4,9 +4,17 @@
     <Args in={Flow.Input} out={void} />
 
     <Call fn="index.initializeFlow" in={$in.flow} />
-    <Call fn="index.planFlow" in={$in.flow} />
 
-    <If on={$ctx.planFlow == null}>
+    <Call
+        module="../../layers/plan"
+        in={{
+            ...$in.functions,
+            held: $ctx.initializeFlow,
+            remembered: $in.remembered
+        }}
+    />
+
+    <If on={$ctx.plan == null}>
         <Call fn="index.openRecursiveFlow" in={$in.flow} />
 
         <Loop on={$in.running}>
@@ -28,20 +36,21 @@
                 <Call fn="index.reserveFlowMemo" in={$in.flow} />
             </If>
 
-            <If on={$ctx.planFlow.order.length != 0}>
+            <If on={$ctx.plan.order.length != 0}>
                 <Call fn="index.openFlowWorkers" in={$in.flow} />
 
                 <Loop on={$in.running}>
                     <Call
                         module="layer"
                         in={{
-                            ...$in,
-                            order: $ctx.planFlow.order,
-                            ends: $ctx.planFlow.ends,
+                            flow: $in.flow,
+                            remembered: $in.remembered,
+                            order: $ctx.plan.order,
+                            ends: $ctx.plan.ends,
                             hits: $ctx.openFlowWorkers,
                             layer: 0,
                             first: 0,
-                            running: $ctx.planFlow.ends.length != 0
+                            running: $ctx.plan.ends.length != 0
                         }}
                     />
                 </Loop>

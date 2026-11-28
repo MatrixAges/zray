@@ -28,7 +28,6 @@ export default function (in: Input): Output {
         const comparison = binary({
             frame: context.frame,
             writer: context.writer,
-            origin: context.origin,
             expressions: binary_expressions,
             types: context.types,
             operator: BinaryOperator.Equal,
@@ -63,7 +62,6 @@ export default function (in: Input): Output {
         const comparison = binary({
             frame: context.frame,
             writer: context.writer,
-            origin: context.origin,
             expressions: binary_expressions,
             types: context.types,
             operator: BinaryOperator.Equal,

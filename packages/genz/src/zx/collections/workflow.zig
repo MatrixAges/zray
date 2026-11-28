@@ -60,14 +60,11 @@ pub fn run(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_only
 
     defer frame.body.deinit();
 
-    var origin: publication.OriginBuffer = undefined;
-
     const input: std.meta.Child(entry.Input) = .{
         .frame = @ptrCast(&frame),
         .ast = &.{
             .lower = @ptrCast(self),
             .writer = @ptrCast(self),
-            .origin = @ptrCast(&origin),
             .sequence = @ptrCast(&frame.body),
         },
         .represented = lists.selected(self, frame.source_type),

@@ -6,14 +6,13 @@ import futureLabel from "../../tasks/future/label"
 import { Kind as LabelKind } from "../../tasks/future/label"
 import complete from "./future_complete"
 
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { ExpressionKind } from "core/expression_table/kinds"
 import type { Lowering } from "lowering_host"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     kinds: ExpressionKind[],
     child: u32,
     cancel: bool
@@ -22,14 +21,14 @@ export type Input = {
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, kinds, child, cancel: canceling } = in
+    const { frame, writer, kinds, child, cancel: canceling } = in
 
     host.publishTaskEffects(frame, false, true, false)
 
     const inline_task = kinds[integers.widen(child)] == ExpressionKind.Task
 
     if (inline_task) {
-        const current = readAstOrigin(writer, origin)
+        const current = readAstOrigin(writer)
 
         const generated = futureLabel({
             kind: LabelKind.Future,
@@ -45,7 +44,6 @@ export default function (in: Input): Output {
         return complete({
             frame,
             writer,
-            origin,
             started,
             value: null,
             name: retained,
@@ -58,7 +56,6 @@ export default function (in: Input): Output {
     return complete({
         frame,
         writer,
-        origin,
         started: 0,
         value: operand,
         name: null,

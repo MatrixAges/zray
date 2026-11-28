@@ -71,12 +71,10 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
     const context_symbol = if (has_context) @backingInt(transform.parameters[1]) else 0;
     const context_used = has_context and self.used[context_symbol];
     const element_symbol: u32 = if (transform.kind == .filter) @backingInt(transform.parameters[0]) else 0;
-    var origin: publication.OriginBuffer = .{};
 
     const ast: Ast = .{
         .writer = @ptrCast(self),
         .lower = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .body = @ptrCast(&frame.body),
         .loop = @ptrCast(&frame.loop),
         .binding = @ptrCast(&frame.binding),

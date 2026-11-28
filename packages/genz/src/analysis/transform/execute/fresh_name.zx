@@ -3,22 +3,21 @@ import host from "lowering_host"
 
 import fresh from "../../../ast/fresh"
 
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
 
 export type Input = {
     lower: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     prefix: string
 }
 
 export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { lower, writer, origin, prefix } = in
+    const { lower, writer, prefix } = in
 
-    const current = readAstOrigin(writer, origin)
+    const current = readAstOrigin(writer)
 
     const generated = fresh({
         serial: current.serial,

@@ -12,7 +12,6 @@ pub fn lower(self: *Lower, invocations: @FieldType(ir.StatementRow, "parallel"))
     var scratch: std.heap.ArenaAllocator = .init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory: std.heap.BufferFirstAllocator = .init(&buffer, scratch.allocator());
-    var origin: rows.OriginBuffer = .{};
     const allocator = memory.allocator();
     const arguments = try allocator.alloc(u32, invocations.len);
     const functions = try allocator.alloc(u32, invocations.len);
@@ -32,7 +31,6 @@ pub fn lower(self: *Lower, invocations: @FieldType(ir.StatementRow, "parallel"))
     const input: std.meta.Child(entry.Input) = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .arguments = arguments,
         .functions = functions,
         .symbols = invocations.symbols[0..invocations.len],

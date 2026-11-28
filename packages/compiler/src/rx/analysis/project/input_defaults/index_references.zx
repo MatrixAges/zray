@@ -1,8 +1,9 @@
 import integers from "std:integer"
+import { scalar_void } from "core/type_table/const"
 import memory from "memory"
-import { constraintVoidNode } from "rx_project_host"
 
 import representative from "../../inference/forest/borrowed_root"
+import find from "../../inference/known/find"
 import mark from "./mark"
 
 import type { Index } from "./model"
@@ -33,7 +34,10 @@ export default function (in: Input): Output {
         count
     })
 
-    const candidate = constraintVoidNode(in.frame)
+    const candidate = find({
+        known: in.default_known,
+        type_id: scalar_void
+    })
 
     if (candidate != null) {
         const root = representative({

@@ -1,0 +1,28 @@
+<Module>
+    <Type from="host" as="Cache" />
+
+    <Args in={Cache.CacheInstall} out={Cache.CacheProbe} />
+
+    <Call fn="probe" in={$in.omit(["slot"])} />
+
+    <If on={$ctx.probe.row != 0}>
+        <Return value={$ctx.probe} />
+    </If>
+
+    <Call
+        fn="host.reserveCacheSlot"
+        in={[
+            $in.slot,
+            $ctx.probe.bucket
+        ]}
+    />
+
+    <Call fn="host.stageCacheSlot" in={$in.slot} />
+
+    <Return
+        value={{
+            bucket: $ctx.reserveCacheSlot,
+            row: 0
+        }}
+    />
+</Module>

@@ -30,7 +30,6 @@
             in={{
                 frame: $in.frame,
                 writer: $in.writer,
-                origin: $in.origin,
                 span: $ctx.tailAstPackedStatements,
                 value: $ctx.prepare.value,
                 guard: null
@@ -48,13 +47,7 @@
         }}
     />
 
-    <Call
-        fn="workflow.readAstOrigin"
-        in={[
-            $in.writer,
-            $in.origin
-        ]}
-    />
+    <Call fn="workflow.readAstOrigin" in={$in.writer} />
 
     <Call
         module="../../iteration/scope/build"

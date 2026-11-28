@@ -3,8 +3,6 @@ export {
     buildAnalysisBasis,
     collectAnalysisFacts,
     joinAnalysisBasis,
-    checkAnalysisFacts,
-    checkAnalysisBasis,
     planAnalysis,
     planAnalysisConcurrent,
     analyzeEntryFlags,
@@ -15,3 +13,4 @@ export {
     buildBasisReturns,
     buildBasisEffects
 } from "lowering_host"
+export { requireAllocation } from "memory"

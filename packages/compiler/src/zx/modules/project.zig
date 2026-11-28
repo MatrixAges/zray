@@ -359,8 +359,9 @@ pub const Project = struct {
 
         if (comptime generated_parser) {
             const paths = zx.memory.borrowTextColumn("path", self.units);
+            const duplicate = try self.unit_indices.registerPaths(self.arena.child_allocator, &paths);
 
-            return self.unit_indices.registerPaths(&paths) == null;
+            return duplicate == null;
         }
 
         for (self.units, 0..) |unit, index| {

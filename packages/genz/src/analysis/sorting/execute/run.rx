@@ -34,7 +34,6 @@
         module="../functions/publish"
         in={{
             writer: $in.writer,
-            origin: $in.origin,
             child: $ctx.materializeElementType,
             errors: $in.errors
         }}
@@ -68,7 +67,6 @@
             "frame",
             "lower",
             "writer",
-            "origin",
             "body",
             "target",
             "selected"
@@ -90,7 +88,6 @@
             ...$in.pick([
                 "lower",
                 "writer",
-                "origin",
                 "body",
                 "selected",
                 "reusable"
@@ -104,7 +101,6 @@
         in={$in.pick([
             "lower",
             "writer",
-            "origin",
             "body",
             "environment"
         ])}
@@ -124,7 +120,6 @@
         in={{
             writer: $in.writer,
             lower: $in.lower,
-            origin: $in.origin,
             body: $in.body,
             name: $ctx.reserve_slot,
             source: $ctx.readListItems,
@@ -156,7 +151,6 @@
         in={{
             frame: $in.lower,
             writer: $in.writer,
-            origin: $in.origin,
             sequence: $in.body,
             value: $ctx.emit_owned
         }}

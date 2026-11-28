@@ -9,7 +9,7 @@ import type { Branches as Input } from "./model"
 export type Output = u8[][]
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, body, tasks } = in
+    const { frame, writer, body, tasks } = in
 
     const futures: u8[][] = []
 
@@ -19,7 +19,7 @@ export default function (in: Input): Output {
     }, {
         while: state => state.index < tasks.length,
         next: state => {
-            const current = readAstOrigin(writer, origin)
+            const current = readAstOrigin(writer)
 
             const generated = futureLabel({
                 kind: LabelKind.Future,

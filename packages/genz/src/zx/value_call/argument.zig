@@ -47,12 +47,9 @@ pub fn borrow(self: *Lower, body: anytype, id: ir.ExprId) Error!node.ExpressionI
     else
         &.{};
 
-    var origin: @import("../construction/publication.zig").OriginBuffer = undefined;
-
     const input: Input = .{
         .lowering = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .sequence = @ptrCast(body),
         .route = &route,
         .id = row,

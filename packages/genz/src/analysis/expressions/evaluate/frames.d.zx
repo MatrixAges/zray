@@ -52,8 +52,6 @@ export enum ModuleRequestForm {
     Value
 }
 
-export type DirectAstRows = mutable_opaque
-
 export enum StoredType {
     None,
     AbiType,

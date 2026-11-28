@@ -3,14 +3,7 @@
 
     <Args in={Sort.Execute} out={Sort.Result} />
 
-    <Call
-        fn="../rows.readAstOrigin"
-        in={[
-            $in.writer,
-            $in.origin
-        ]}
-    />
-
+    <Call fn="../rows.readAstOrigin" in={$in.writer} />
     <Call fn="../rows.astFieldCount" in={$in.writer} />
 
     <Call
@@ -19,7 +12,6 @@
             ...$in.omit([
                 "writer",
                 "lower",
-                "origin",
                 "body"
             ]),
             bases: {

@@ -8,13 +8,8 @@ const enabled = @import("rx_options").generated_graph;
 const Result = union(enum) { exhaustive: bool, diagnostic: Diagnostic };
 const rule = if (enabled) @import("generated_rx_selection_check") else void;
 const Input = if (enabled) std.meta.Child(rule.Input) else void;
-const Labels = if (enabled) std.meta.Child(@FieldType(Input, "labels")) else void;
-const View = if (enabled) std.meta.Child(@FieldType(Labels, "current")) else void;
-
-const Reader = struct {
-    cases: []const ?*const zx.ir.Program,
-    current: View = undefined,
-};
+const Label = if (enabled) std.meta.Elem(@FieldType(Input, "labels")) else void;
+const View = if (enabled) std.meta.Child(std.meta.Child(Label)) else void;
 
 pub fn check(allocator: std.mem.Allocator, types: zx.ir.TypeTable, subject: *const zx.ir.Program, attribute: rx.ast.Attribute, cases: []const ?*const zx.ir.Program, sources: []const Prepared.Case) std.mem.Allocator.Error!Result {
     if (comptime !enabled) return seed(types, subject, attribute, cases, sources);
@@ -27,7 +22,17 @@ pub fn check(allocator: std.mem.Allocator, types: zx.ir.TypeTable, subject: *con
 
     const temporary = scratch.allocator();
     const target = types.get(subject.output_type);
-    var reader: Reader = .{ .cases = cases };
+    const labels = try temporary.alloc(Label, cases.len);
+    const views = try temporary.alloc(View, cases.len);
+
+    for (cases, labels, views) |program, *label_view, *view| {
+        if (program) |value| {
+            view.* = labelView(value);
+            label_view.* = view;
+        } else {
+            label_view.* = null;
+        }
+    }
 
     const input: Input = .{
         .subject = &.{
@@ -35,14 +40,10 @@ pub fn check(allocator: std.mem.Allocator, types: zx.ir.TypeTable, subject: *con
             .enum_members = if (target == .enumeration) target.enumeration.members.len else null,
             .case_count = cases.len,
         },
-        .labels = &.{
-            .programs = @ptrCast(&reader),
-            .current = &reader.current,
-            .count = cases.len,
-        },
+        .labels = labels,
     };
 
-    const result = zx.columns.invoke(rule.executeValue, temporary, &input) catch |err| switch (@as(anyerror, err)) {
+    const result = rule.executeIn(temporary, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
@@ -58,17 +59,12 @@ pub fn check(allocator: std.mem.Allocator, types: zx.ir.TypeTable, subject: *con
     return .{ .exhaustive = result.coverage.exhaustive };
 }
 
-pub fn borrowFlowSelectionLabel(handle: *anyopaque, row: u64) bool {
-    const reader: *Reader = @ptrCast(@alignCast(handle));
-    const program = reader.cases[@intCast(row)] orelse return false;
-
-    reader.current = .{
+fn labelView(program: *const zx.ir.Program) View {
+    return .{
         .control = zx.columns.pointer(@FieldType(View, "control"), program.body.control),
         .expressions = zx.columns.pointer(@FieldType(View, "expressions"), &program.expressions),
         .root = if (program.body.root) |root| @backingInt(root) else null,
     };
-
-    return true;
 }
 
 fn seed(types: zx.ir.TypeTable, subject: *const zx.ir.Program, attribute: rx.ast.Attribute, cases: []const ?*const zx.ir.Program, sources: []const Prepared.Case) Result {

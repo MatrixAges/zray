@@ -6,12 +6,6 @@ export declare function advanceLengthSlot(target: ColumnLengths, slot: u64, coun
 
 export declare function shrinkLengthSlot(target: ColumnLengths, slot: u64, count: u64): void
 
-export declare function writeColumnBytes(
-    target: WriteColumn,
-    index: u64,
-    value: u8[]
-): void throws { IndexOutOfBounds }
-
 export declare function borrowTransferGroup(
     groups: ColumnTransfers,
     group: u64,

@@ -11,27 +11,25 @@ const fields = @import("../../node/import_fields.zig");
 const Ast = @import("execution_abi").layouts.@"zig:ast_rows";
 const borrow = @import("../expressions/evaluate.zig").borrow;
 
-pub const OriginBuffer = struct {
-    origin: Ast.AstOrigin = undefined,
-    capture: Ast.AstCapture = undefined,
-};
-
-pub fn readAstOrigin(writer: *anyopaque, buffer: *anyopaque) *const Ast.AstOrigin {
+pub fn readAstOrigin(allocator: std.mem.Allocator, writer: *anyopaque) Lower.Error!*const Ast.AstOrigin {
     const self = borrow(writer);
-    const target: *OriginBuffer = @ptrCast(@alignCast(buffer));
+    const origin = try allocator.create(Ast.AstOrigin);
 
-    if (self.capture) |capture| {
-        target.capture = .{ .name = capture.name, .label = capture.label, .failure = @backingInt(capture.failure) };
-    }
+    const snapshot = if (self.capture) |capture| captured: {
+        const result = try allocator.create(Ast.AstCapture);
+        result.* = .{ .name = capture.name, .label = capture.label, .failure = @backingInt(capture.failure) };
 
-    target.origin = .{
+        break :captured result;
+    } else null;
+
+    origin.* = .{
         .expression_base = @intCast(self.builder.nodes.expressions.tags.items.len),
         .statement_base = @intCast(self.builder.nodes.statements.tags.items.len),
         .serial = self.serial,
-        .capture = if (self.capture == null) null else &target.capture,
+        .capture = snapshot,
     };
 
-    return &target.origin;
+    return origin;
 }
 
 pub fn appendExpressionRows(writer: *anyopaque, source: *const Ast.ExpressionRows, forms: ?*const Ast.ExpressionForms, mode: Ast.AstPayloadOwnership) Lower.Error!void {
@@ -421,6 +419,15 @@ pub fn finishAstSequence(writer: *anyopaque, handle: *anyopaque) Lower.Error!u64
     const target: *Sequence = @ptrCast(@alignCast(handle));
 
     return packSpan(try target.finish(borrow(writer).allocator));
+}
+
+pub fn takeAstSequence(writer: *anyopaque, handle: *anyopaque) Lower.Error!u64 {
+    const target: *Sequence = @ptrCast(@alignCast(handle));
+    const span = try target.finish(borrow(writer).allocator);
+
+    target.clearRetainingCapacity();
+
+    return packSpan(span);
 }
 
 pub fn joinAstSpans(writer: *anyopaque, first: u64, second: u64) Lower.Error!u64 {

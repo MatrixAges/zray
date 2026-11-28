@@ -1,4 +1,4 @@
-import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { AstSequence, AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
 import type { U64Buffer } from "memory"
 import type { Input as Routing } from "../route"
@@ -6,7 +6,6 @@ import type { Input as Routing } from "../route"
 export type Input = {
     lowering: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     sequence: AstSequence,
     route: Routing,
     id: u32,
@@ -22,7 +21,6 @@ export type Output = u32
 export type Object = {
     lowering: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     sequence: AstSequence,
     type_id: u32,
     evaluation: u32[],
@@ -46,7 +44,6 @@ export type ObjectBorrow = {
 export type Tuple = {
     lowering: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     sequence: AstSequence,
     type_id: u32,
     items: u32[]

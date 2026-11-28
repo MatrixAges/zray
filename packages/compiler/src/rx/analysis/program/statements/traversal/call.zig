@@ -1,6 +1,7 @@
 const Invocation = @import("../invocation.zig");
 const State = @import("host.zig").State;
 const Error = @import("../../statements.zig").Error;
+const Import = @import("rx_execution_abi").layouts.@"zig:rx_project_host".BodyImport;
 
 pub fn prepareBodyCall(handle: *anyopaque, item: u32) bool {
     const state = State.borrow(handle);
@@ -37,22 +38,23 @@ pub fn resolveBodyCallStores(handle: *anyopaque) Error!void {
     try state.call.resolveStores(state.statements.builder);
 }
 
-pub fn prepareBodyImport(handle: *anyopaque) Error!bool {
+pub fn prepareBodyImport(handle: *anyopaque) Error!*const Import {
     const state = State.borrow(handle);
 
     try Invocation.Import.prepare(state.statements.builder, state.call.call, &state.call.function);
 
-    return state.call.function.addition != null;
+    state.imported = .{
+        .addition = state.call.function.addition != null,
+        .needs_initializers = state.call.function.needs_initializers,
+    };
+
+    return &state.imported;
 }
 
 pub fn appendBodyFunctionTail(handle: *anyopaque) Error!void {
     const state = State.borrow(handle);
 
     try state.call.function.appendTail(state.statements.builder);
-}
-
-pub fn bodyHasInitializers(handle: *anyopaque) bool {
-    return State.borrow(handle).call.function.needs_initializers;
 }
 
 pub fn linkBodyInitializers(handle: *anyopaque) Error!void {

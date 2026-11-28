@@ -3,7 +3,7 @@
 
     <Args in={Staging.Publication} out={Staging.Plan} />
 
-    <Call fn="select" in={$in.results} />
+    <Call fn="select" in={$in.ready} />
 
     <Return
         value={{

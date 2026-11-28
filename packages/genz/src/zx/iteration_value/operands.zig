@@ -8,12 +8,10 @@ pub const Output = entry.Output;
 
 pub fn lower(context: *Context, allocator: std.mem.Allocator, operands: []const ir.ExprId, fields: ?[]const u32, observe: bool) Lower.Error!Output {
     const lowering = context.lowering;
-    var origin: publication.OriginBuffer = undefined;
 
     const input: std.meta.Child(entry.Input) = .{
         .frame = @ptrCast(lowering),
         .writer = @ptrCast(lowering),
-        .origin = @ptrCast(&origin),
         .context = @ptrCast(context),
         .operands = @ptrCast(operands),
         .fields = fields,

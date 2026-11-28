@@ -11,7 +11,7 @@ import literal from "./literal"
 import operator from "./operator"
 import store from "./store"
 
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { Table } from "core/type_table/model"
 import type { Lowering } from "lowering_host"
 import type { Expressions, StoreContext } from "./model"
@@ -19,7 +19,6 @@ import type { Expressions, StoreContext } from "./model"
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     store: StoreContext,
     expressions: Expressions,
     types: Table,
@@ -31,7 +30,7 @@ export type Input = {
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, expressions, types, id, kind, type_id } = in
+    const { frame, writer, expressions, types, id, kind, type_id } = in
 
     const payload = integers.widen(expressions.payloads[integers.widen(id)])
     const result_type = host.lowerType(frame, type_id, false)
@@ -77,7 +76,6 @@ export default function (in: Input): Output {
     const read_base = {
         frame,
         writer,
-        origin,
         state,
         expressions: read_expressions,
         row: id,
@@ -134,7 +132,6 @@ export default function (in: Input): Output {
         ExpressionKind.AwaitTask => future({
             frame,
             writer,
-            origin,
             kinds: expressions.kinds,
             child: expressions.awaits[payload],
             cancel: false
@@ -142,7 +139,6 @@ export default function (in: Input): Output {
         ExpressionKind.CancelTask => future({
             frame,
             writer,
-            origin,
             kinds: expressions.kinds,
             child: expressions.cancellations[payload],
             cancel: true
@@ -152,7 +148,6 @@ export default function (in: Input): Output {
         ExpressionKind.Unary => operator({
             frame,
             writer,
-            origin,
             expressions,
             types,
             id,
@@ -161,7 +156,6 @@ export default function (in: Input): Output {
         ExpressionKind.Binary => operator({
             frame,
             writer,
-            origin,
             expressions,
             types,
             id,

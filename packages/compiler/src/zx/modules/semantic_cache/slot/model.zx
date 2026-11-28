@@ -1,5 +1,0 @@
-import type { CacheSlot } from "project_host"
-
-export type Install = {
-    slot: CacheSlot
-}

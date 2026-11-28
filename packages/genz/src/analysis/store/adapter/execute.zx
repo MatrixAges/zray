@@ -1,8 +1,7 @@
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
 import type { Input as Fragment } from "./model"
 
 export type Input = Fragment.Omit("bases", "declaration_base") & {
     writer: AstWriter,
-    origin: AstOriginBuffer
 }

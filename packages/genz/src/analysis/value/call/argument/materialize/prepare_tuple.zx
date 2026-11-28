@@ -22,7 +22,6 @@ export default function (in: Input): Output {
             const bound = bindOperand({
                 frame: in.lowering,
                 writer: in.writer,
-                origin: in.origin,
                 sequence: in.sequence,
                 value
             })
@@ -35,7 +34,7 @@ export default function (in: Input): Output {
 
     const retained = retainAstIds(in.writer, values)
     const layout = host.materializeType(in.lowering, in.type_id, StoredType.AbiLayout)
-    const current = readAstOrigin(in.writer, in.origin)
+    const current = readAstOrigin(in.writer)
 
     const publication: Output = {
         writer: in.writer,

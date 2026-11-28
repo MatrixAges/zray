@@ -30,7 +30,6 @@ export default function (in: Input): Output {
         const result = bindOperand({
             frame: ast.lower,
             writer: ast.writer,
-            origin: ast.origin,
             sequence: ast.body,
             value: in.result
         })
@@ -38,14 +37,12 @@ export default function (in: Input): Output {
         const name = freshName({
             lower: ast.lower,
             writer: ast.writer,
-            origin: ast.origin,
             prefix: index
         })
 
         const bound = bindOperand({
             frame: ast.lower,
             writer: ast.writer,
-            origin: ast.origin,
             sequence: ast.loop,
             value: callback
         })

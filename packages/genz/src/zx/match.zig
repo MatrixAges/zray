@@ -59,7 +59,6 @@ fn lowerMode(self: *Lower, selection: ir.MatchRow, layout: bool) Lower.Error!nod
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Labels, "types")), self.program.types);
     const nodes = self.builder.nodes;
     const positions: zx.memory.ColumnLengths = &.{ &nodes.expressions.tags.items.len, &nodes.arm_columns.fields.value.values.items.len };
-    var origin: @import("construction/publication.zig").OriginBuffer = undefined;
 
     const labels: Labels = .{
         .expressions = &expressions,
@@ -71,7 +70,6 @@ fn lowerMode(self: *Lower, selection: ir.MatchRow, layout: bool) Lower.Error!nod
     const input: Input = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .binary_expressions = &binary_expressions,
         .selection = @ptrCast(&frame),
         .source = &labels,

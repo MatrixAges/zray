@@ -36,13 +36,10 @@ fn run(lowering: *Lower, temporary: std.mem.Allocator, scope: ir.ScopeRow, layou
 
     defer sequence.deinit();
 
-    var origin: @import("../construction/publication.zig").OriginBuffer = undefined;
-
     const input: Input = .{
         .frame = @ptrCast(lowering),
         .writer = @ptrCast(lowering),
         .sequence = @ptrCast(&sequence),
-        .origin = @ptrCast(&origin),
         .result = @backingInt(scope.result),
         .layout = layout,
         .selection = &selection,

@@ -21,7 +21,6 @@
                     "parent",
                     "predicate",
                     "writer",
-                    "origin"
                 ]),
                 expression: $in.source.predicates[$in.index]
             }}

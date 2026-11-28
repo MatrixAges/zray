@@ -1,4 +1,4 @@
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { ContractKind } from "core/contract_table/model"
 import type { Lowering } from "lowering_host"
 
@@ -6,7 +6,6 @@ export type Input = {
     parent: Lowering,
     predicate: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     kinds: ContractKind[],
     predicates: u32[]
 }
@@ -22,7 +21,6 @@ export type Lower = Input.Pick(
     "parent",
     "predicate",
     "writer",
-    "origin"
 ) & {
     expression: u32
 }

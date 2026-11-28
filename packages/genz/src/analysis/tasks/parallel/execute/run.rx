@@ -9,19 +9,12 @@
         in={$in.pick([
             "frame",
             "writer",
-            "origin",
             "body",
             "tasks"
         ])}
     />
 
-    <Call
-        fn="../../rows.readAstOrigin"
-        in={[
-            $in.writer,
-            $in.origin
-        ]}
-    />
+    <Call fn="../../rows.readAstOrigin" in={$in.writer} />
 
     <Call
         fn="../labels"
@@ -129,7 +122,6 @@
         in={{
             frame: $in.frame,
             writer: $in.writer,
-            origin: $in.origin,
             span: $ctx.finishAstSequence,
             value: $ctx.result,
             guard: null

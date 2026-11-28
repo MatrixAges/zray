@@ -6,6 +6,9 @@ const aggregate = @import("../aggregate.zig");
 const Context = @import("../iteration_value/root.zig");
 const evaluation = @import("../expressions/evaluate.zig");
 const generated = @import("genz_options").generated_analysis;
+const Consumer = @import("../iteration_consumer.zig").Consumer;
+const publication = @import("../construction/publication.zig");
+const Api = evaluation.Api;
 
 const Plan = struct {
     preparation: enum { BufferedConsumer, DeepConsumer, Consumer, ConvertedConsumer, Unit, Reserve, Block, Layout, Pointer },
@@ -22,7 +25,7 @@ pub const Prefix = struct {
 };
 
 pub const Result = struct {
-    consumer: ?@import("../iteration_consumer.zig").Consumer,
+    consumer: ?Consumer,
     deep: bool,
     context: *Context,
     converted: bool,
@@ -34,25 +37,19 @@ pub const Result = struct {
     changed_name: []const u8,
     mode: Mode,
     pub fn lower(config: Result, self: *Lower, body: *Context.Statements, state: node.ExpressionId, previous: Prefix) Lower.Error!node.ExpressionId {
-        const frame: Publication = .{
-            .config = config,
-            .lowering = self,
-            .body = body,
-            .state = state,
-            .prefix = previous,
-        };
-
         if (generated) {
             const execute = @import("generated_publish_loop_result");
             const Input = std.meta.Child(execute.Input);
-            const publication = @import("../construction/publication.zig");
-            var origin: publication.OriginBuffer = .{};
 
             const input: Input = .{
-                .target = @ptrCast(&frame),
+                .context = @ptrCast(config.context),
+                .consumer = if (config.consumer) |consumer| &.{
+                    .symbol = @backingInt(consumer.symbol),
+                    .result = @backingInt(consumer.result),
+                    .layout = consumer.layout,
+                } else null,
                 .frame = @ptrCast(self),
                 .writer = @ptrCast(self),
-                .origin = @ptrCast(&origin),
                 .body = @ptrCast(body),
                 .changed_name = config.changed_name,
                 .type_id = @backingInt(config.type_id),
@@ -75,6 +72,14 @@ pub const Result = struct {
 
             return evaluation.invokeWith(self, execute, &input);
         }
+
+        const frame: Publication = .{
+            .config = config,
+            .lowering = self,
+            .body = body,
+            .state = state,
+            .prefix = previous,
+        };
 
         const actions = config.seedPlan();
         const prepared = try frame.prepare(actions.preparation);
@@ -137,9 +142,6 @@ const Publication = struct {
     body: *Context.Statements,
     state: node.ExpressionId,
     prefix: Prefix,
-    fn borrow(target: *const anyopaque) *const Publication {
-        return @ptrCast(@alignCast(target));
-    }
     fn prepare(self: *const Publication, action: Preparation) Lower.Error!node.ExpressionId {
         return switch (action) {
             .BufferedConsumer => self.deep(true),
@@ -160,16 +162,7 @@ const Publication = struct {
             @import("../iteration_value/result.zig").lower(self.lowering, consumer, self.state);
     }
     fn project(self: *const Publication, converted: bool) Lower.Error!node.ExpressionId {
-        const lowering = self.lowering;
-        const consumer = self.config.consumer.?;
-        const value = try @import("../iteration_consumer.zig").read(lowering, consumer, consumer.result, self.state);
-
-        if (!converted) return value;
-
-        const bound = try aggregate.bind(lowering, self.body, value);
-        const type_id = lowering.program.expression(consumer.result).type_id;
-
-        return @import("../state_value/conversion.zig").convert(lowering, self.body, type_id, bound, .pointer);
+        return readProjection(self.lowering, self.body, self.config.consumer.?, self.state, converted);
     }
     fn reserve(self: *const Publication) Lower.Error!node.ExpressionId {
         const lowering = self.lowering;
@@ -178,14 +171,7 @@ const Publication = struct {
         return self.state;
     }
     fn wrap(self: *const Publication, action: Preparation) Lower.Error!node.ExpressionId {
-        const lowering = self.lowering;
-        var inner: Context.Statements = if (generated) lowering.builder.statementSequence(lowering.workspace) else .empty;
-
-        defer if (generated) inner.deinit();
-
-        const value = if (action == .Block) self.state else try @import("../state_value/conversion.zig").convert(lowering, &inner, self.config.type_id, self.state, if (action == .Layout) .layout else .pointer);
-
-        return aggregate.finish(lowering, &inner, value);
+        return wrapResult(self.lowering, self.config.type_id, self.state, action);
     }
     fn guard(self: *const Publication) Lower.Error!node.ExpressionId {
         return self.lowering.builder.identifier(self.config.changed_name);
@@ -212,18 +198,63 @@ const Publication = struct {
     }
 };
 
-pub fn consumeDeepLoopResult(handle: *const anyopaque, buffered: bool) Lower.Error!u32 {
-    return @backingInt(try Publication.borrow(handle).deep(buffered));
+fn readProjection(lowering: *Lower, body: *Context.Statements, consumer: Consumer, state: node.ExpressionId, converted: bool) Lower.Error!node.ExpressionId {
+    const value = try @import("../iteration_consumer.zig").read(lowering, consumer, consumer.result, state);
+
+    if (!converted) return value;
+
+    const bound = try aggregate.bind(lowering, body, value);
+    const type_id = lowering.program.expression(consumer.result).type_id;
+
+    return @import("../state_value/conversion.zig").convert(lowering, body, type_id, bound, .pointer);
 }
 
-pub fn consumeLoopProjection(handle: *const anyopaque, converted: bool) Lower.Error!u32 {
-    return @backingInt(try Publication.borrow(handle).project(converted));
+fn wrapResult(lowering: *Lower, type_id: ir.TypeId, state: node.ExpressionId, action: Preparation) Lower.Error!node.ExpressionId {
+    var inner: Context.Statements = if (generated) lowering.builder.statementSequence(lowering.workspace) else .empty;
+
+    defer if (generated) inner.deinit();
+
+    const value = if (action == .Block) state else try @import("../state_value/conversion.zig").convert(lowering, &inner, type_id, state, if (action == .Layout) .layout else .pointer);
+
+    return aggregate.finish(lowering, &inner, value);
 }
 
-pub fn wrapLoopResult(handle: *const anyopaque, layout: bool) Lower.Error!u32 {
-    return @backingInt(try Publication.borrow(handle).wrap(if (layout) .Layout else .Pointer));
+fn readConsumer(consumer: *const Api.LoopConsumer) Consumer {
+    return .{ .symbol = @fromBackingInt(consumer.symbol), .result = @fromBackingInt(consumer.result), .layout = consumer.layout };
 }
 
-pub fn convertLoopResult(handle: *const anyopaque) Lower.Error!u32 {
-    return @backingInt(try Publication.borrow(handle).convert(true));
+pub fn consumeDeepLoopResult(handle: *anyopaque, consumer: *const Api.LoopConsumer, state: u32) Lower.Error!u32 {
+    return @backingInt(try @import("../iteration_value/result.zig").lower(evaluation.borrow(handle), readConsumer(consumer), @fromBackingInt(state)));
+}
+
+pub fn consumeBufferedLoopResult(allocator: std.mem.Allocator, handle: *anyopaque, consumer: *const Api.LoopConsumer, state: u32) Lower.Error!*const Api.LoopConsumption {
+    const context: *Context = @ptrCast(@alignCast(handle));
+    var body = context.lowering.builder.statementSequence(allocator);
+    const result = try allocator.create(Api.LoopConsumption);
+    const value = try @import("../iteration_value/result.zig").buffered(context, &body, readConsumer(consumer), @fromBackingInt(state));
+
+    result.* = .{ .value = @backingInt(value), .spans = body.parts.items, .tail = body.last };
+
+    return result;
+}
+
+pub fn consumeLoopProjection(allocator: std.mem.Allocator, handle: *anyopaque, consumer: *const Api.LoopConsumer, state: u32, converted: bool) Lower.Error!*const Api.LoopConsumption {
+    const lowering = evaluation.borrow(handle);
+    var body = lowering.builder.statementSequence(allocator);
+    const result = try allocator.create(Api.LoopConsumption);
+    const value = try readProjection(lowering, &body, readConsumer(consumer), @fromBackingInt(state), converted);
+
+    result.* = .{ .value = @backingInt(value), .spans = body.parts.items, .tail = body.last };
+
+    return result;
+}
+
+pub fn wrapLoopResult(handle: *anyopaque, type_id: u32, state: u32, layout: bool) Lower.Error!u32 {
+    return @backingInt(try wrapResult(evaluation.borrow(handle), @fromBackingInt(type_id), @fromBackingInt(state), if (layout) .Layout else .Pointer));
+}
+
+pub fn convertLoopResult(handle: *anyopaque, type_id: u32, state: u32) Lower.Error!u32 {
+    const context: *Context = @ptrCast(@alignCast(handle));
+
+    return @backingInt(try @import("../iteration_value/conversion.zig").convert(context, @fromBackingInt(type_id), @fromBackingInt(state), true));
 }

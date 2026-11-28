@@ -11,7 +11,7 @@ import type { Invocations as Input } from "./model"
 export type Output = Record[]
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, arguments: calls, functions, symbols } = in
+    const { frame, writer, arguments: calls, functions, symbols } = in
 
     const records: Record[] = []
 
@@ -21,7 +21,7 @@ export default function (in: Input): Output {
     }, {
         while: state => state.index < calls.length,
         next: state => {
-            const lead_origin = readAstOrigin(writer, origin)
+            const lead_origin = readAstOrigin(writer)
 
             const lead = leadNames({
                 frame,
@@ -40,7 +40,7 @@ export default function (in: Input): Output {
                 functions[state.index]
             )
 
-            const thread_origin = readAstOrigin(writer, origin)
+            const thread_origin = readAstOrigin(writer)
 
             const thread_label = label({
                 serial: thread_origin.serial,

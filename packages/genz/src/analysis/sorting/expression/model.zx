@@ -1,5 +1,5 @@
 import type {
-    AstOriginBuffer,
+
     AstSequence,
     AstSequenceMode,
     AstWriter,
@@ -64,7 +64,6 @@ export type Output = {
 export type Execute = Input.Omit("bases") & {
     writer: AstWriter,
     lower: Lowering,
-    origin: AstOriginBuffer,
     body: AstSequence
 }
 

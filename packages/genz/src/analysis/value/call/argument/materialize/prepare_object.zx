@@ -11,7 +11,7 @@ export default function (in: Input): Output {
     const object_type =
         host.materializeType(source.lowering, source.type_id, StoredType.AbiLayout)
 
-    const current = readAstOrigin(source.writer, source.origin)
+    const current = readAstOrigin(source.writer)
     const first = astFieldCount(source.writer)
     const empty: u32[] = []
 

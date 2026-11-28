@@ -1,4 +1,4 @@
-import type { AstCapture, AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { AstCapture, AstSequence, AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
 import type { Input as Bases } from "../../../ast/context/model"
 import type {
@@ -35,7 +35,6 @@ export type Preparation = {
 export type Execution = {
     frame: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     body: AstSequence,
     source: Input.Omit("members"),
     preparation: Preparation
@@ -57,7 +56,6 @@ export type Publication = Member.Pick("state", "value") & {
 
 export type PrepareCursor = {
     writer: AstWriter,
-    origin: AstOriginBuffer,
     capture?: AstCapture,
     preparation: Preparation,
     members: Conversion?[],

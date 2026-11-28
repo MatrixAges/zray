@@ -12,12 +12,10 @@ pub fn lower(context: *Context, id: zx.ir.ExprId) Lower.Error!node.ExpressionId 
     const self = context.lowering;
     const program: *const zx.ir.Program = &self.program;
     const expressions = zx.columns.borrow(std.meta.Child(@FieldType(Input, "expressions")), &program.expressions);
-    var origin: publication.OriginBuffer = undefined;
 
     return evaluation.invokeWith(self, entry, &.{
         .lower = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .context = @ptrCast(context),
         .expressions = &expressions,
         .id = @backingInt(id),

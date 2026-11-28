@@ -4,13 +4,19 @@ const Collection = @import("../collection.zig");
 const Defaults = @import("../../input_defaults.zig");
 const Input = @import("../../workflow/solve/abi.zig").Collection;
 const Columns = std.meta.Child(@FieldType(Input, "default_columns"));
+const layouts = @import("rx_execution_abi").layouts.@"zig:rx_project_host";
+const Module = layouts.ConstraintModule;
+const Body = layouts.ConstraintBody;
 
 pub const Frame = struct {
     state: *Collection = undefined,
     input: Input = undefined,
     parents: []u32 = undefined,
     edges: std.meta.Child(@FieldType(Columns, "edges")) = undefined,
+    known: std.meta.Child(@FieldType(Input, "default_known")) = undefined,
     columns: Columns = undefined,
+    module: Module = undefined,
+    body: Body = undefined,
     pub fn bind(self: *Frame, state: *Collection) void {
         self.state = state;
 
@@ -19,54 +25,65 @@ pub const Frame = struct {
             .modules = state.modules.len,
             .parents = @ptrCast(&self.parents),
             .default_columns = &self.columns,
+            .default_known = &self.known,
         };
     }
 
     fn borrow(handle: *anyopaque) *Frame {
         return @ptrCast(@alignCast(handle));
     }
+    fn summarize(self: *Frame) *const Body {
+        const state = self.state;
+
+        self.body = .{
+            .returned = state.walker.returned,
+            .used = state.expression.input_used,
+            .binding_end = state.requests.bindings.len,
+            .task_end = state.requests.tasks.items.len,
+        };
+
+        return &self.body;
+    }
 };
 
-pub fn openConstraintModule(handle: *anyopaque, row: u64) bool {
-    return Frame.borrow(handle).state.open(@intCast(row));
+pub fn openConstraintModule(handle: *anyopaque, row: u64) *const Module {
+    const frame = Frame.borrow(handle);
+    const index: usize = @intCast(row);
+    const shortcut = frame.state.open(index);
+
+    frame.module = .{
+        .shortcut = shortcut,
+        .fixed = frame.state.states.items(.input_fixed)[index],
+    };
+
+    return &frame.module;
 }
 
 pub fn releaseConstraintScope(handle: *anyopaque) void {
     Frame.borrow(handle).state.scope.reset(0);
 }
 
-pub fn forwardConstraintShortcut(handle: *anyopaque) zx.Error!void {
-    try Frame.borrow(handle).state.walker.forwardShortcut();
+pub fn forwardConstraintShortcut(handle: *anyopaque) zx.Error!*const Body {
+    const frame = Frame.borrow(handle);
+
+    try frame.state.walker.forwardShortcut();
+
+    return frame.summarize();
 }
 
-pub fn inferConstraintBody(handle: *anyopaque) zx.Error!bool {
-    const walker = &Frame.borrow(handle).state.walker;
+pub fn inferConstraintBody(handle: *anyopaque) zx.Error!*const Body {
+    const frame = Frame.borrow(handle);
+    const walker = &frame.state.walker;
 
     try walker.inferBody();
 
-    return walker.returned;
+    return frame.summarize();
 }
 
 pub fn defaultConstraintOutput(handle: *anyopaque) zx.Error!void {
     const state = Frame.borrow(handle).state;
 
     try Defaults.default(state.graph, state.walker.output);
-}
-
-pub fn constraintPortFixed(handle: *anyopaque, row: u64) bool {
-    return Frame.borrow(handle).state.states.items(.input_fixed)[@intCast(row)];
-}
-
-pub fn constraintInputUsed(handle: *anyopaque) bool {
-    return Frame.borrow(handle).state.expression.input_used;
-}
-
-pub fn constraintBindingEnd(handle: *anyopaque) u64 {
-    return Frame.borrow(handle).state.requests.bindings.len;
-}
-
-pub fn constraintTaskEnd(handle: *anyopaque) u64 {
-    return Frame.borrow(handle).state.requests.tasks.items.len;
 }
 
 pub fn commitConstraintPort(handle: *anyopaque, row: u64, fixed: bool, binding_end: u64, task_end: u64) void {
@@ -91,19 +108,13 @@ pub fn openConstraintDefaults(handle: *anyopaque) void {
         .right = @ptrCast(edges.items(.expected)),
     };
 
+    frame.known = graph.pending.known_types.borrow(@TypeOf(frame.known));
+
     frame.columns = .{
         .inputs = @ptrCast(state.states.items(.input)),
         .fixed = state.states.items(.input_fixed),
         .edges = &frame.edges,
     };
-}
-
-pub fn constraintVoidNode(handle: *anyopaque) ?u32 {
-    const graph = Frame.borrow(handle).state.graph;
-    const void_type = @import("frontend").types.scalarId(.void);
-    const node = graph.pending.known_types.get(void_type) orelse return null;
-
-    return @backingInt(node);
 }
 
 pub fn defaultConstraintInput(handle: *anyopaque, input: u32) zx.Error!void {

@@ -9,16 +9,18 @@ import type { Body, Input } from "./model"
 export type Output = Body?
 
 export default function (in: Input): Output {
-    const { traversal, context, scope, index, route } = in
+    const { traversal, context, statement, route } = in
+    const { control } = context
 
-    const source = host.statementResult(traversal, scope, index)
+    const payload = integers.widen(control.statement_payloads[statement])
+
+    const source = control.results[payload]
 
     if (source == null) {
         return {
             span: resultPublish({
                 frame: context.frame,
                 writer: context.writer,
-                origin: context.origin,
                 sequence: context.sequence,
                 transaction: context.transaction,
                 value: null
@@ -31,8 +33,20 @@ export default function (in: Input): Output {
     const fuse = integers.andBits(bits, integers.widenByte(fuse_route)) != 0
     const by_value = context.value_output
 
+    const previous: u64? = match {
+        fuse => integers.widen(control.statement_payloads[statement - 1]),
+        _ => null
+    }
+
     const fused: u32? = match {
-        fuse => host.fuseStatementResult(traversal, scope, index, source, by_value),
+        previous != null =>
+            host.fuseStatementResult(
+                context.frame,
+                control.constant_symbols[previous],
+                control.constant_values[previous],
+                source,
+                by_value
+            ),
         _ => null
     }
 
@@ -64,7 +78,6 @@ export default function (in: Input): Output {
         span: resultPublish({
             frame: context.frame,
             writer: context.writer,
-            origin: context.origin,
             sequence: context.sequence,
             transaction: context.transaction,
             value: output

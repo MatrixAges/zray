@@ -1,4 +1,4 @@
-import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { AstSequence, AstWriter } from "ast_rows"
 import type { ExpressionKind } from "core/expression_table/kinds"
 import type { Lowering } from "lowering_host"
 import type { U32Buffer } from "memory"
@@ -38,7 +38,6 @@ export type Input = {
     frame: Lowering,
     writer: AstWriter,
     sequence: AstSequence,
-    origin: AstOriginBuffer,
     result: u32,
     layout: bool,
     selection: Selection,

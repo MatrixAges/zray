@@ -59,9 +59,19 @@ export type PortGraph = mutable_opaque
 
 export type ConstraintCollection = mutable_opaque
 
-export type FlowTraversal = mutable_opaque
+export type ConstraintModule = {
+    shortcut: bool,
+    fixed: bool
+}
 
-export type SelectionLabels = mutable_opaque
+export type ConstraintBody = {
+    returned: bool,
+    used: bool,
+    binding_end: u64,
+    task_end: u64
+}
+
+export type FlowTraversal = mutable_opaque
 
 export type DeclarationTarget = mutable_opaque
 
@@ -90,6 +100,11 @@ export enum FlowPublish {
 export type ParallelTaskWork = mutable_opaque
 
 export type BodyStatements = mutable_opaque
+
+export type BodyImport = {
+    addition: bool,
+    needs_initializers: bool
+}
 
 export type ExpressionLink = mutable_opaque
 
@@ -175,8 +190,6 @@ export type MixedPreparation = mutable_opaque
 
 export type MixedWorkspace = mutable_opaque
 
-export type MixedCandidate = opaque
-
 export type MixedCallees = mutable_opaque
 
 export type MixedImports = mutable_opaque
@@ -192,9 +205,12 @@ export type MixedImportRows = {
 
 export type MixedZXPreparation = mutable_opaque
 
-export type MixedZXParse = opaque
-
 export type MixedZXBody = mutable_opaque
+
+export type MixedZXAnalysis = {
+    declared: bool,
+    slots: u64
+}
 
 export type MixedRXBody = mutable_opaque
 

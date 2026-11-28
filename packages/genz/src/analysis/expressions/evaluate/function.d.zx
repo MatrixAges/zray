@@ -49,13 +49,9 @@ export declare function startAnalysisBasis(work: AnalysisWork): bool
 
 export declare function buildAnalysisBasis(work: AnalysisWork): void
 
-export declare function collectAnalysisFacts(work: AnalysisWork): void
+export declare function collectAnalysisFacts(work: AnalysisWork): bool
 
-export declare function joinAnalysisBasis(work: AnalysisWork): void
-
-export declare function checkAnalysisFacts(work: AnalysisWork): void throws { OutOfMemory }
-
-export declare function checkAnalysisBasis(work: AnalysisWork): void throws { OutOfMemory }
+export declare function joinAnalysisBasis(work: AnalysisWork): bool
 
 export declare function planAnalysis(work: AnalysisWork): void throws { OutOfMemory }
 

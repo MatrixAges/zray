@@ -11,9 +11,8 @@ pub const Entry = struct {
     native_admitted: bool = false,
     context_digest: [32]u8,
     result: Artifact.Result,
-    pub fn digestView(self: *Entry, comptime Layout: type) Layout {
+    pub fn digestView(self: *const Entry, comptime Layout: type) Layout {
         return .{
-            .entry = @ptrCast(self),
             .source = &self.result.value.source_digest,
             .context = &self.context_digest,
         };
@@ -69,12 +68,21 @@ pub const Pending = struct {
     entries: *Map,
     value: ?Entry = null,
     added: ?NewSlot = null,
-    probe: Probe = undefined,
+    install: if (generated) ABI.CacheInstall else void = undefined,
     const NewSlot = struct { entry: *Entry, key: []const u8 };
 
     fn borrow(handle: *anyopaque) *Pending {
         return @ptrCast(@alignCast(handle));
     }
+    pub fn installView(self: *Pending, comptime Layout: type, key: []const u8) Layout {
+        return .{
+            .slot = @ptrCast(self),
+            .key = key,
+            .keys = self.entries.keys.items,
+            .buckets = self.entries.buckets,
+        };
+    }
+
     pub fn cancel(self: *Pending) void {
         if (self.added) |added| {
             self.allocator.destroy(added.entry);
@@ -82,16 +90,6 @@ pub const Pending = struct {
         }
     }
 };
-
-pub fn probeCacheSlot(handle: *anyopaque) *const Probe {
-    const slot = Pending.borrow(handle);
-    const bucket = slot.entries.position(slot.value.?.result.value.path).slot;
-    const row: u64 = if (slot.entries.buckets.len == 0) 0 else slot.entries.buckets[bucket];
-
-    slot.probe = .{ .bucket = bucket, .row = row };
-
-    return &slot.probe;
-}
 
 pub fn reserveCacheSlot(handle: *anyopaque, previous: u64) std.mem.Allocator.Error!u64 {
     const slot = Pending.borrow(handle);
@@ -133,11 +131,11 @@ pub fn replaceCacheSlot(handle: *anyopaque, row: u64) void {
 }
 
 pub fn prepareSeed(slot: *Pending) std.mem.Allocator.Error!Probe {
-    const found = probeCacheSlot(slot);
+    const found = slot.entries.position(slot.value.?.result.value.path);
 
-    if (found.row != 0) return found.*;
+    if (found.row) |row| return .{ .bucket = found.slot, .row = row + 1 };
 
-    const position = try reserveCacheSlot(slot, found.bucket);
+    const position = try reserveCacheSlot(slot, found.slot);
 
     try stageCacheSlot(slot);
 
@@ -163,10 +161,18 @@ fn install(allocator: std.mem.Allocator, entries: *Map, value: Entry) std.mem.Al
 
     if (comptime generated) {
         const entry = @import("generated_semantic_cache_install_entry");
-        const input: std.meta.Child(entry.Input) = .{ .slot = @ptrCast(&slot) };
+        const input = slot.installView(std.meta.Child(entry.Input), value.result.value.path);
+        var arena = std.heap.ArenaAllocator.init(allocator);
+
+        defer arena.deinit();
+
         var buffer: [128]u8 = undefined;
-        var scratch = std.heap.FixedBufferAllocator.init(&buffer);
-        const plan = try entry.executeIn(scratch.allocator(), &input);
+        var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+
+        const plan = entry.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => unreachable,
+        };
 
         commitPrepared(&slot, plan);
 

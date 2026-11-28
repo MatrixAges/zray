@@ -1,6 +1,9 @@
+import type { State as KnownTypes } from "core/integer/map/model"
 import type { U32Buffer } from "memory"
 import type { ConstraintCollection } from "rx_project_host"
 import type { Edges } from "../../../inference/assignment/model"
+
+export type { ConstraintBody } from "rx_project_host"
 
 export type DefaultColumns = {
     inputs: u32[],
@@ -12,13 +15,19 @@ export type Request = {
     frame: ConstraintCollection,
     modules: u64,
     parents: U32Buffer,
-    default_columns: DefaultColumns
+    default_columns: DefaultColumns,
+    default_known: KnownTypes
 }
 
 export type Cursor = {
     request: Request,
     row: u64,
     unused: u64
+}
+
+export type Body = {
+    frame: ConstraintCollection,
+    shortcut: bool
 }
 
 export type Defaults = Request & {

@@ -21,9 +21,6 @@ pub fn borrowStatementBinding(handle: *const anyopaque, symbol: u32, value: u32)
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const locals = @import("../value_call/locals.zig");
-
-    frame.sequence.clearRetainingCapacity();
-
     const borrowed = try locals.optionalCall(self, &frame.sequence, @fromBackingInt(symbol), @fromBackingInt(value), self.program.output_type);
 
     return if (borrowed) |id| @backingInt(id) else null;
@@ -32,6 +29,8 @@ pub fn borrowStatementBinding(handle: *const anyopaque, symbol: u32, value: u32)
 pub fn emitStatementBinding(handle: *const anyopaque, raw_symbol: u32, value: u32) ?u64 {
     const frame = Frame.borrow(handle);
     const symbol: @import("zx").ir.SymbolId = @fromBackingInt(raw_symbol);
+
+    defer frame.sequence.clearRetainingCapacity();
 
     const span = @import("../binding.zig").publish(frame.lowering, &frame.sequence, .{
         .symbol = symbol,
@@ -42,19 +41,9 @@ pub fn emitStatementBinding(handle: *const anyopaque, raw_symbol: u32, value: u3
     return rows.packSpan(span);
 }
 
-pub fn statementResult(handle: *const anyopaque, slot: u64, index: u64) ?u32 {
-    const frame = Frame.borrow(handle);
-    const source = frame.block(slot).at(@intCast(index)).result;
-
-    frame.sequence.clearRetainingCapacity();
-
-    return if (source) |id| @backingInt(id) else null;
-}
-
-pub fn fuseStatementResult(handle: *const anyopaque, slot: u64, index: u64, value: u32, by_value: bool) Lower.Error!?u32 {
-    const frame = Frame.borrow(handle);
-    const binding = frame.block(slot).at(@intCast(index - 1)).constant;
-    const fused = try @import("../iteration_consumer.zig").lower(frame.lowering, binding.symbol, binding.value, @fromBackingInt(value), by_value);
+pub fn fuseStatementResult(handle: *anyopaque, symbol: u32, binding: u32, value: u32, by_value: bool) Lower.Error!?u32 {
+    const lowering = @import("../expressions/evaluate.zig").borrow(handle);
+    const fused = try @import("../iteration_consumer.zig").lower(lowering, @fromBackingInt(symbol), @fromBackingInt(binding), @fromBackingInt(value), by_value);
 
     return if (fused) |id| @backingInt(id) else null;
 }

@@ -24,14 +24,7 @@
     />
 
     <Call fn="../../rows.astFieldCount" in={$in.writer} />
-
-    <Call
-        fn="../../rows.readAstOrigin"
-        in={[
-            $in.writer,
-            $in.origin
-        ]}
-    />
+    <Call fn="../../rows.readAstOrigin" in={$in.writer} />
 
     <Call
         fn="../prepare"
@@ -98,7 +91,6 @@
         module="discard"
         in={{
             writer: $in.writer,
-            origin: $in.origin,
             captures: $in.captures,
             process: $in.process,
             body: $ctx.lowerTaskWorker.omit(["value"])
@@ -128,7 +120,6 @@
         module="finish"
         in={{
             writer: $in.writer,
-            origin: $in.origin,
             name: $ctx.reserve_slot,
             slot: $ctx.auxiliaryDeclarationCount,
             value: $ctx.lowerTaskWorker.value,

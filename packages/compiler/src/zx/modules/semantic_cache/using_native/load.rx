@@ -18,7 +18,9 @@
 
     <If on={!$ctx.restore}>
         <Call fn="index.buildNativeCacheEntry" in={$in.frame} />
-        <Call fn="../slot/prepare" in={$in.slot} />
+
+        <Call module="../slot/prepare" in={$in.slot} />
+
         <Call fn="index.validateNativeCacheEntry" in={$in.frame} />
         <Call fn="../slot/commit" in={$ctx.prepare} />
 

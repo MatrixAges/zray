@@ -29,7 +29,6 @@
             ...$in.pick([
                 "frame",
                 "writer",
-                "origin",
                 "loop_frame",
                 "parameters",
                 "initial_plan"
@@ -102,7 +101,6 @@
             ...$in.pick([
                 "frame",
                 "writer",
-                "origin",
                 "body_seq",
                 "loop_frame",
                 "guard_info",

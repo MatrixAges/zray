@@ -2,7 +2,6 @@ const std = @import("std");
 const zx = @import("zx");
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
-const OriginBuffer = @import("../construction/publication.zig").OriginBuffer;
 const publication = @import("../construction/publication.zig");
 const generated = @import("genz_options").generated_analysis;
 const seed = @import("transaction_seed.zig");
@@ -64,11 +63,9 @@ pub fn initialize(self: *Lower) Lower.Error!node.Block {
     const entry = @import("generated_store_pending_initial");
     const Input = std.meta.Child(entry.Input);
     const block = self.program.body.block();
-    var origin: OriginBuffer = .{};
 
     const input: Input = .{
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .mode = @fromBackingInt(@backingInt(self.program.store_mode)),
         .store_count = self.program.stores.count(),
         .name = self.pending_name,
@@ -103,13 +100,10 @@ pub fn finish(self: *Lower) Lower.Error!node.Block {
         .count = self.program.stores.count(),
     };
 
-    var origin: OriginBuffer = .{};
-
     const input: Input = .{
         .transaction = &transaction,
         .body = &block,
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
     };
 
     return publication.executeSpan(self, entry, &input);

@@ -1,4 +1,4 @@
-import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { AstSequence, AstWriter } from "ast_rows"
 import type { Control as ControlTable } from "core/control_table/model"
 import type { StoreMode } from "core/function_table/complete"
 import type { Table as TypeTable } from "core/type_table/model"
@@ -48,7 +48,6 @@ export type State = {
 export type Context = {
     frame: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     sequence: AstSequence,
     control: Control,
     expressions: SelectionExpressions,

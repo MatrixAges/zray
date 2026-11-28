@@ -17,10 +17,9 @@ export type Output = u32
 
 export default function (in: Input): Output {
     const {
-        target,
+        context,
         frame,
         writer,
-        origin,
         body,
         changed_name,
         type_id,
@@ -55,7 +54,7 @@ export default function (in: Input): Output {
     const value = match completion {
         Completion.Prepared => prepared,
         Completion.GuardPrepared => prepared,
-        Completion.GuardDeep => host.convertLoopResult(target),
+        Completion.GuardDeep => host.convertLoopResult(context, type_id, state),
         Completion.GuardConstruct => host.constructValue(frame, type_id, state, null),
         _ => state
     }
@@ -81,7 +80,6 @@ export default function (in: Input): Output {
     return finishStored({
         frame,
         writer,
-        origin,
         span,
         value,
         guard: checked

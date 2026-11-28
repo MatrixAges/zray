@@ -13,7 +13,7 @@ import type { Input } from "./model"
 export type { Input as Output } from "../model"
 
 export default function (in: Input): Output {
-    const { lower, writer, origin, context, expressions, id } = in
+    const { lower, writer, context, expressions, id } = in
 
     const row = integers.widen(id)
     const payload = integers.widen(expressions.payloads[row])
@@ -29,7 +29,6 @@ export default function (in: Input): Output {
     const target = bindOperand({
         lower,
         writer,
-        origin,
         id: target_id
     })
 
@@ -53,7 +52,6 @@ export default function (in: Input): Output {
         Mode.Update => bindOperand({
             lower,
             writer,
-            origin,
             id: expressions.update_indices[payload]
         }),
         _ => {
@@ -67,13 +65,11 @@ export default function (in: Input): Output {
         Mode.Update => bindOperand({
             lower,
             writer,
-            origin,
             id: expressions.update_values[payload]
         }),
         Mode.Push => bindOperand({
             lower,
             writer,
-            origin,
             id:
                 expressions
                 .collection_arguments[integers.widen(
@@ -102,7 +98,7 @@ export default function (in: Input): Output {
         )
     }
 
-    const current = readAstOrigin(writer, origin)
+    const current = readAstOrigin(writer)
 
     return {
         mode,

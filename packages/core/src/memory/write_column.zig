@@ -260,10 +260,6 @@ pub inline fn borrowNested(comptime T: type, comptime fields: []const []const u8
     };
 }
 
-pub inline fn writeBytes(target: *anyopaque, index: u64, value: []const u8) IndexError!void {
-    return write([]const u8, target, index, value);
-}
-
 pub inline fn write(comptime T: type, target: *anyopaque, index: u64, value: T) IndexError!void {
     const column: *Column = @ptrCast(@alignCast(target));
 

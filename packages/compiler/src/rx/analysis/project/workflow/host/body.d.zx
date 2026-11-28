@@ -36,13 +36,11 @@ export declare function createBodyUnitArgument(frame: BodyStatements): void
 export declare function resolveBodyCallStores(frame: BodyStatements): void
     throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
 
-export declare function prepareBodyImport(frame: BodyStatements): bool
+export declare function prepareBodyImport(frame: BodyStatements): BodyImport
     throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
 
 export declare function appendBodyFunctionTail(frame: BodyStatements): void
     throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
-
-export declare function bodyHasInitializers(frame: BodyStatements): bool
 
 export declare function linkBodyInitializers(frame: BodyStatements): void
     throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }

@@ -33,14 +33,7 @@
         }}
     />
 
-    <Call
-        fn="../../statements/rows.readAstOrigin"
-        in={[
-            $in.ast.writer,
-            $in.ast.origin
-        ]}
-    />
-
+    <Call fn="../../statements/rows.readAstOrigin" in={$in.ast.writer} />
     <Call fn="../../statements/rows.astFieldCount" in={$in.ast.writer} />
 
     <Call

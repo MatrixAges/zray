@@ -8,7 +8,7 @@ import host from "lowering_host"
 import emitUnary from "../../operators/unary"
 import binary from "./binary"
 
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { Table } from "core/type_table/model"
 import type { Lowering } from "lowering_host"
 import type { Expressions } from "./model"
@@ -16,7 +16,6 @@ import type { Expressions } from "./model"
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     expressions: Expressions,
     types: Table,
     id: u32,
@@ -26,7 +25,7 @@ export type Input = {
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, expressions, types, id } = in
+    const { frame, writer, expressions, types, id } = in
 
     const payload = integers.widen(expressions.payloads[integers.widen(id)])
 
@@ -34,7 +33,6 @@ export default function (in: Input): Output {
         return binary({
             frame,
             writer,
-            origin,
             expressions: expressions.pick([
                 "kinds",
                 "types"

@@ -7,14 +7,13 @@ import type { Environment as Input } from "./model"
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { lower, writer, origin, body, environment } = in
+    const { lower, writer, body, environment } = in
 
     const value = host.lowerExpression(lower, environment, false, null)
 
     return bindOperand({
         frame: lower,
         writer,
-        origin,
         sequence: body,
         value
     })

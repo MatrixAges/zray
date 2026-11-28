@@ -29,13 +29,13 @@ export type Output = u64
 
 export default function (in: Input): Output {
     const { context, statement } = in
-    const { frame, writer, origin, control } = context
+    const { frame, writer, control } = context
 
     const payload = integers.widen(control.statement_payloads[statement])
     const value = control.destructure_values[payload]
     const first = integers.widen(control.destructure_first[payload])
     const count = integers.widen(control.destructure_count[payload])
-    const current = readAstOrigin(writer, origin)
+    const current = readAstOrigin(writer)
 
     const generated = destructureName({
         serial: current.serial

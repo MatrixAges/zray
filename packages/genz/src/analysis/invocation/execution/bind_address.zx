@@ -3,13 +3,12 @@ import { appendAstFieldAddresses, astExpressionCount } from "ast_rows"
 import { ExpressionsKind } from "../../../printer/model/expressions"
 import bindOperand from "../../aggregate/execute/bind_operand"
 
-import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { AstSequence, AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     sequence: AstSequence,
     value: u32
 }
@@ -22,7 +21,6 @@ export default function (in: Input): Output {
     const bound = bindOperand({
         frame: in.frame,
         writer,
-        origin: in.origin,
         sequence: in.sequence,
         value: in.value
     })

@@ -18,8 +18,6 @@ export declare function stringViews(source: StringBuffer): string[]
 
 export declare function u32View(source: U32Buffer, shape: U32View?): U32View
 
-export declare function u64View(source: U64Buffer, shape: U64View?): U64View
-
 export declare function u32Views(source: U32Buffer): u32[]
 
 export declare function optionalU32Views(source: OptionalU32Buffer): u32?[]

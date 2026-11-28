@@ -31,7 +31,6 @@ pub fn lower(self: *Lower, id: ir.ExprId, process: bool) Lower.Error!node.Expres
     var scratch: std.heap.ArenaAllocator = .init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory: std.heap.BufferFirstAllocator = .init(&buffer, scratch.allocator());
-    var origin: rows.OriginBuffer = .{};
 
     defer scratch.deinit();
 
@@ -51,7 +50,6 @@ pub fn lower(self: *Lower, id: ir.ExprId, process: bool) Lower.Error!node.Expres
         .worker = @ptrCast(&frame),
         .lower = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .captures = view.slice(@FieldType(Input, "captures"), task.captures),
         .symbol_types = self.program.symbols.types,
         .body_expr = @backingInt(task.body),

@@ -20,7 +20,6 @@ const Candidates = @import("ahead/candidates.zig");
 const generated = @import("rx_options").generated_graph;
 const Self = @This();
 const Diagnostic = @import("../../call/target.zig").Diagnostic;
-const CandidateHandle = if (Candidates.generated) @import("rx_execution_abi").layouts.@"zig:rx_project_host".MixedCandidate else anyopaque;
 
 arenas: []std.heap.ArenaAllocator = &.{},
 /// Holds the prepared bindings of the current run.
@@ -29,6 +28,7 @@ items: std.MultiArrayList(Item) = .empty,
 next_item: usize = 0,
 const Item = struct {
     position: u64,
+    zx_result: bool,
     result: Result,
 };
 
@@ -75,14 +75,18 @@ fn clearResults(self: *Self) void {
     if (comptime generated) {
         const rule = @import("generated_rx_retire_mixed_results");
         const results = self.items.items(.result);
-        var input: std.meta.Child(rule.Input) = .{ .workspace = @ptrCast(self), .rows = results.len, .first = 0 };
-        const descriptor: *const std.meta.Child(rule.Input) = &input;
+
+        var input: std.meta.Child(rule.Input) = .{
+            .zx_results = self.items.items(.zx_result),
+            .first = 0,
+        };
+
         var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        while (input.first < input.rows) {
-            const row = zx.columns.invoke(rule.executeValue, empty.allocator(), descriptor) catch unreachable;
+        while (input.first < results.len) {
+            const row = rule.executeIn(empty.allocator(), &input) catch unreachable;
 
-            if (row == input.rows) break;
+            if (row == results.len) break;
 
             results[@intCast(row)].zx.release();
 
@@ -107,10 +111,6 @@ fn clearSeed(self: *Self) void {
 
 fn borrowWorkspace(handle: *anyopaque) *Self {
     return @ptrCast(@alignCast(handle));
-}
-
-pub fn mixedResultIsZX(handle: *anyopaque, row: u64) bool {
-    return borrowWorkspace(handle).items.items(.result)[@intCast(row)] == .zx;
 }
 
 pub fn clearMixedResults(handle: *anyopaque) void {
@@ -235,7 +235,11 @@ const Preparation = struct {
         return Rx.prepare(self.state, index, module, self.derived.resolved.at(source), ids, self.arguments.module(source), self.state.functions.view());
     }
     fn append(self: *Preparation, position: u64, result: *const Result) std.mem.Allocator.Error!void {
-        try self.ahead.items.append(self.state.allocator, .{ .position = position, .result = result.* });
+        try self.ahead.items.append(self.state.allocator, .{
+            .position = position,
+            .zx_result = result.* == .zx,
+            .result = result.*,
+        });
     }
     fn appendSeed(self: *Preparation, position: usize, index: usize, action: Body.Action) std.mem.Allocator.Error!void {
         self.open(index);
@@ -267,34 +271,36 @@ pub fn openMixedCandidate(handle: *anyopaque, index: u64) void {
     Preparation.borrow(handle).open(@intCast(index));
 }
 
-pub fn prepareMixedZXCandidate(handle: *anyopaque, index: u64) std.mem.Allocator.Error!?*const CandidateHandle {
+pub fn prepareMixedZXCandidate(handle: *anyopaque, index: u64) std.mem.Allocator.Error!bool {
     const frame = Preparation.borrow(handle);
 
     const prepared = frame.prepareZX(@intCast(index)) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidSourceGraph => return null,
+        error.InvalidSourceGraph => return false,
     };
 
     frame.candidate = .{ .zx = .{ .prepared = prepared } };
 
-    return @ptrCast(&frame.candidate);
+    return true;
 }
 
-pub fn prepareMixedRXCandidate(handle: *anyopaque, index: u64) std.mem.Allocator.Error!?*const CandidateHandle {
+pub fn prepareMixedRXCandidate(handle: *anyopaque, index: u64) std.mem.Allocator.Error!bool {
     const frame = Preparation.borrow(handle);
 
     const prepared = frame.prepareRX(@intCast(index)) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidSourceGraph => return null,
+        error.InvalidSourceGraph => return false,
     };
 
     frame.candidate = .{ .rx = .{ .prepared = prepared } };
 
-    return @ptrCast(&frame.candidate);
+    return true;
 }
 
-pub fn recordMixedCandidate(handle: *anyopaque, position: u64, candidate: *const anyopaque) std.mem.Allocator.Error!void {
-    try Preparation.borrow(handle).append(position, @ptrCast(@alignCast(candidate)));
+pub fn recordMixedCandidate(handle: *anyopaque, position: u64) std.mem.Allocator.Error!void {
+    const frame = Preparation.borrow(handle);
+
+    try frame.append(position, &frame.candidate);
 }
 
 pub fn restoreMixedCandidateDiagnostic(handle: *anyopaque) void {
@@ -341,7 +347,7 @@ fn executeWindow(frame: *Preparation, reuse: *const Reuse, window: Schedule.Wind
 
     defer scratch.deinit();
 
-    const consumed = zx.columns.invoke(collect_plan.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    const consumed = collect_plan.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };

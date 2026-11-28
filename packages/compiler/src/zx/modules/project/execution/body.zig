@@ -23,6 +23,7 @@ const Body = struct {
     first_type: usize,
     declared: bool,
     check_ownership: bool,
+    cached: ?*const cache_entries.Entry = null,
     restored: ?restore.Restored = null,
     program: ir.Program = undefined,
     installation: if (generated) @import("body_install/host.zig") else void = undefined,
@@ -69,8 +70,8 @@ pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
         const Cache = std.meta.Child(std.meta.Child(@FieldType(Input, "cache")));
         const Lookup = std.meta.Child(@FieldType(Cache, "lookup"));
         const Candidate = std.meta.Child(std.meta.Child(@FieldType(Lookup, "candidate")));
-        const cached = if (cache) |store| store.entries.get(unit.path) else null;
-        const candidate = if (cached) |stored| stored.digestView(Candidate) else null;
+        body.cached = if (cache) |store| store.entries.get(unit.path) else null;
+        const candidate = if (body.cached) |stored| stored.digestView(Candidate) else null;
 
         const request: Input = .{
             .body = @ptrCast(&body),
@@ -127,7 +128,7 @@ fn seed(body: *Body, input: anytype) zx.Error!void {
             try context.compute(project.allocator, if (body.entry) project.options.context else null);
 
         if (cache_entries.find(&cache.entries, body.unit.path, &body.frame.parsed.digest, digest)) |candidate| {
-            restored = try restoreCachedProjectBody(body, candidate);
+            restored = try restoreBody(body, candidate);
         }
 
         if (restored) cache.reused += 1 else cache.analyzed += 1;
@@ -166,12 +167,16 @@ pub fn hashProjectCacheContext(handle: *anyopaque, root: bool) std.mem.Allocator
     _ = try project.cache_context.compute(project.allocator, if (root) project.options.context else null);
 }
 
-pub fn restoreCachedProjectBody(handle: *anyopaque, entry: *anyopaque) std.mem.Allocator.Error!bool {
+pub fn restoreCachedProjectBody(handle: *anyopaque) std.mem.Allocator.Error!bool {
     const self = Body.borrow(handle);
+
+    return restoreBody(self, self.cached.?);
+}
+
+fn restoreBody(self: *Body, cached: *const cache_entries.Entry) std.mem.Allocator.Error!bool {
     const project = self.project;
     const frame = self.frame;
     const path = self.unit.path;
-    const cached: *const cache_entries.Entry = @ptrCast(@alignCast(entry));
 
     self.restored = try restore.restore(cached, .{
         .allocator = project.allocator,

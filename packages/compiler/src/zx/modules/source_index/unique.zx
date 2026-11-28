@@ -1,0 +1,62 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import probe from "./probe"
+
+import type { TextColumn } from "memory"
+
+export type Input = {
+    count: u64,
+    capacity: u64,
+    source: TextColumn
+}
+
+export type Output = {
+    duplicate?: u64,
+    keys: u8[][],
+    buckets: u64[]
+}
+
+export default function (in: Input): Output {
+    const { capacity, count, source } = in
+
+    const empty: u64[] = []
+
+    const buckets = loop(empty, {
+        while: items => items.length < capacity,
+        next: items => {
+            items = items.push(0)[0]
+        }
+    })
+
+    const keys: u8[][] = []
+
+    return loop({
+        keys,
+        buckets,
+        duplicate: false
+    }, {
+        while: state => !state.duplicate && state.keys.length < count,
+        next: state => {
+            const row = state.keys.length
+            const key = bytes.fromText(memory.readTextColumn(source, row))
+            const slot = probe({
+                keys: state.keys,
+                buckets: state.buckets,
+                key
+            })
+
+            if (state.buckets[slot] == 0) {
+                state.keys = state.keys.push(key)[0]
+                state.buckets = state.buckets.with(slot, row + 1)
+            } else {
+                state.duplicate = true
+            }
+        },
+        return: state => ({
+            duplicate: state.duplicate ? state.keys.length : null,
+            keys: state.keys,
+            buckets: state.buckets
+        })
+    })
+}

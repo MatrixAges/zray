@@ -5,13 +5,12 @@ import { requireAllocation } from "memory"
 import fresh from "../../../../ast/fresh"
 import identifierRows from "../../../aggregate/binding/identifier_rows"
 
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer
 }
 
 export type Output = {
@@ -20,9 +19,9 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { frame, writer, origin } = in
+    const { frame, writer } = in
 
-    const current = readAstOrigin(writer, origin)
+    const current = readAstOrigin(writer)
 
     const generated = fresh({
         serial: current.serial,

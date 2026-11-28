@@ -11,7 +11,6 @@ const Frame = struct {
     exported: []const ir.FunctionId,
     output: *Analysis,
     thread: ?std.Thread = null,
-    facts_result: Error!void = undefined,
     fn borrow(handle: *anyopaque) *Frame {
         return @ptrCast(@alignCast(handle));
     }
@@ -90,22 +89,19 @@ pub fn buildAnalysisBasis(handle: *anyopaque) void {
     Frame.borrow(handle).basis.run();
 }
 
-pub fn collectAnalysisFacts(handle: *anyopaque) void {
+pub fn collectAnalysisFacts(handle: *anyopaque) bool {
+    Frame.borrow(handle).collect() catch return false;
+
+    return true;
+}
+
+pub fn joinAnalysisBasis(handle: *anyopaque) bool {
     const frame = Frame.borrow(handle);
 
-    frame.facts_result = frame.collect();
-}
+    frame.join();
+    frame.basis.result catch return false;
 
-pub fn joinAnalysisBasis(handle: *anyopaque) void {
-    Frame.borrow(handle).join();
-}
-
-pub fn checkAnalysisFacts(handle: *anyopaque) Error!void {
-    return Frame.borrow(handle).facts_result;
-}
-
-pub fn checkAnalysisBasis(handle: *anyopaque) Error!void {
-    return Frame.borrow(handle).basis.result;
+    return true;
 }
 
 pub fn planAnalysis(handle: *anyopaque) Error!void {

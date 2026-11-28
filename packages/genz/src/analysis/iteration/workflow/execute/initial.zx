@@ -9,7 +9,7 @@ import type { InitialOutcome as Outcome, Input } from "./model"
 export type Output = Outcome
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, body_seq, loop_frame, initial } = in
+    const { frame, writer, body_seq, loop_frame, initial } = in
 
     const admission = host.beginLoweredLoop(loop_frame)
 
@@ -42,7 +42,6 @@ export default function (in: Input): Output {
         in.initial_plan.local => bindOperand({
             frame,
             writer,
-            origin,
             sequence: body_seq,
             value
         }),

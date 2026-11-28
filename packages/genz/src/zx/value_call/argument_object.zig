@@ -20,13 +20,11 @@ pub fn materializeBorrowedObject(writer: *anyopaque, sequence: *anyopaque, id: u
 
     defer self.cache.restore(self.allocator, source.evaluation, saved);
 
-    var origin: publication.OriginBuffer = undefined;
     const entry = @import("generated_materialize_borrowed_object");
 
     const input: std.meta.Child(entry.Input) = .{
         .lowering = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .sequence = @ptrCast(sequence),
         .type_id = @backingInt(expression.type_id),
         .evaluation = @ptrCast(source.evaluation),

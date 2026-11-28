@@ -1,6 +1,5 @@
 import integers from "std:integer"
 import { ExpressionKind } from "core/expression_table/kinds"
-import { borrowFlowSelectionLabel } from "rx_project_host"
 
 import { Kind } from "./model"
 
@@ -22,13 +21,15 @@ export default function (in: Input): Output {
         text: ""
     }
 
-    if (!borrowFlowSelectionLabel(labels.programs, in.index)) {
+    const program = labels[in.index]
+
+    if (program == null) {
         return empty
     }
 
-    const { control, expressions } = labels.current
+    const { control, expressions } = program
 
-    const block = integers.widen(labels.current.root ?? 0)
+    const block = integers.widen(program.root ?? 0)
 
     const last = integers.widen(control.block_first[block]) +
         integers.widen(control.block_count[block]) - 1

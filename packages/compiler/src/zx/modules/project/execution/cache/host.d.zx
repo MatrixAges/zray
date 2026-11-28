@@ -1,4 +1,4 @@
-export declare function restoreCachedNative(frame: NativeCacheLoad, entry: CacheEntry): bool
+export declare function restoreCachedNative(frame: NativeCacheLoad): bool
     throws { OutOfMemory }
 
 export declare function buildNativeCacheEntry(frame: NativeCacheLoad): void
@@ -6,8 +6,6 @@ export declare function buildNativeCacheEntry(frame: NativeCacheLoad): void
 
 export declare function validateNativeCacheEntry(frame: NativeCacheLoad): void
     throws { OutOfMemory, InvalidSource }
-
-export declare function probeCacheSlot(slot: CacheSlot): CacheProbe
 
 export declare function reserveCacheSlot(slot: CacheSlot, previous: u64): u64
     throws { OutOfMemory }

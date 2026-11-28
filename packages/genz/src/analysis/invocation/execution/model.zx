@@ -1,4 +1,4 @@
-import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { AstSequence, AstWriter } from "ast_rows"
 import type {
     CallArgument,
     CallFrame,
@@ -11,7 +11,6 @@ export { Representation } from "lowering_host"
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     body: AstSequence,
     call: CallFrame,
     operand: u32,
@@ -31,7 +30,6 @@ export type Emission =
     Input.Pick(
         "frame",
         "writer",
-        "origin",
         "body",
         "call",
         "stores",

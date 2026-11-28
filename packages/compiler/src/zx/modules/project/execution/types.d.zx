@@ -57,20 +57,23 @@ export enum ProjectSourceAction {
     Depth
 }
 
-export type ParseCacheEntry = opaque
-
 export type ParseWorker = opaque
 
 export type NativeCacheLoad = mutable_opaque
 
 export type CacheSlot = mutable_opaque
 
+export type CacheInstall = {
+    slot: CacheSlot,
+    key: u8[],
+    keys: u8[][],
+    buckets: u64[]
+}
+
 export type CacheProbe = {
     bucket: u64,
     row: u64
 }
-
-export type CacheEntry = mutable_opaque
 
 export type SourceEntry = opaque
 

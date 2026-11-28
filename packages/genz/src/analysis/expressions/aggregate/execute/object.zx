@@ -17,13 +17,12 @@ export type Input = ObjectInput
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, sequence, batch } = in
+    const { frame, writer, sequence, batch } = in
 
     const observed = lowerOperands(
         in.pick([
             "frame",
             "writer",
-            "origin",
             "sequence",
             "evaluation"
         ])
@@ -48,7 +47,6 @@ export default function (in: Input): Output {
             ...in.pick([
                 "frame",
                 "writer",
-                "origin",
                 "sequence",
                 "batch",
                 "fields",
@@ -93,7 +91,6 @@ export default function (in: Input): Output {
     return finishBlock({
         frame,
         writer,
-        origin,
         sequence,
         value: constructed
     })

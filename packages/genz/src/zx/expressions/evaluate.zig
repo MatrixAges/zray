@@ -25,7 +25,6 @@ pub fn regular(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
     const table: *const ir.ExpressionTable = &self.program.expressions;
     const expressions = zx.columns.borrow(Expressions, table);
     const types = ir.TypeTable.borrow(Types, self.program.types);
-    var origin: @import("../construction/publication.zig").OriginBuffer = undefined;
 
     const store: Store = .{
         .queries = zx.columns.slice(@FieldType(Store, "queries"), self.state_plan.queries),
@@ -40,7 +39,6 @@ pub fn regular(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
     const input: Input = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .store = &store,
         .expressions = &expressions,
         .types = &types,
@@ -82,12 +80,10 @@ pub fn iteration(self: *Iteration, id: ir.ExprId, plan: anytype) Lower.Error!nod
     comptime view.compatible(@TypeOf(plan.route), @FieldType(Input, "route"));
 
     const probe: std.meta.Child(@FieldType(Input, "probe")) = .{ .checked = plan.probe.checked, .value = plan.probe.value };
-    var origin: @import("../construction/publication.zig").OriginBuffer = undefined;
 
     const input: Input = .{
         .frame = @ptrCast(self.lowering),
         .writer = @ptrCast(self.lowering),
-        .origin = @ptrCast(&origin),
         .expressions = &expressions,
         .id = @backingInt(id),
         .route = @fromBackingInt(@backingInt(plan.route)),
@@ -106,14 +102,12 @@ pub fn binary(self: *Lower, term: @FieldType(@FieldType(ir.ExpressionRow, "value
     const Types = std.meta.Child(@FieldType(Input, "types"));
     const expressions = zx.columns.borrow(Expressions, @as(*const ir.ExpressionTable, &self.program.expressions));
     const types = ir.TypeTable.borrow(Types, self.program.types);
-    var origin: @import("../construction/publication.zig").OriginBuffer = undefined;
 
     comptime view.compatible(@TypeOf(term.operator), @FieldType(Input, "operator"));
 
     const input: Input = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .expressions = &expressions,
         .types = &types,
         .operator = @fromBackingInt(@intCast(@backingInt(term.operator))),

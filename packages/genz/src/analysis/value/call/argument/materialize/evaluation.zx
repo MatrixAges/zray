@@ -24,7 +24,6 @@ export default function (in: Input): Output {
             const bound = bindOperand({
                 frame: in.lowering,
                 writer: in.writer,
-                origin: in.origin,
                 sequence: in.sequence,
                 value
             })

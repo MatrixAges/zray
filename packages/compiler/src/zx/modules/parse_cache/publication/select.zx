@@ -1,6 +1,4 @@
-import type { ParseCacheEntry } from "project_host"
-
-export type Input = ParseCacheEntry?[]
+export type Input = bool[]
 
 export type Output = u64[]
 
@@ -13,7 +11,7 @@ export default function (in: Input): Output {
     }, {
         while: state => state.row < in.length,
         next: state => {
-            if (in[state.row] != null) {
+            if (in[state.row]) {
                 state.rows = state.rows.push(state.row)[0]
             }
 

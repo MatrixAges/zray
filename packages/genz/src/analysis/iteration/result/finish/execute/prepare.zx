@@ -1,5 +1,5 @@
 import integers from "std:integer"
-import { readAstOrigin } from "ast_rows"
+import { appendAstSequenceSpan, readAstOrigin } from "ast_rows"
 import host from "lowering_host"
 
 import finishStored from "../../../../aggregate/execute/finish_stored"
@@ -12,36 +12,62 @@ import type { Actions as Input } from "./model"
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { target, frame, writer, origin } = in
+    const { context, consumer, frame, writer, body, state, type_id } = in
 
     if (in.preparation == Preparation.Reserve) {
-        const current = readAstOrigin(writer, origin)
+        const current = readAstOrigin(writer)
 
         host.setLoweringSerial(frame, current.serial + 1)
 
-        return in.state
+        return state
     }
 
     if (in.preparation == Preparation.Block) {
-        const current = readAstOrigin(writer, origin)
+        const current = readAstOrigin(writer)
 
         return finishStored({
             frame,
             writer,
-            origin,
             span: integers.widen(current.statement_base) * word_radix,
-            value: in.state,
+            value: state,
             guard: null
         })
     }
 
+    if (consumer != null) {
+        if (in.preparation == Preparation.DeepConsumer) {
+            return host.consumeDeepLoopResult(frame, consumer, state)
+        }
+
+        const consumed = match in.preparation {
+            Preparation.BufferedConsumer =>
+                host.consumeBufferedLoopResult(context, consumer, state),
+            _ =>
+                host.consumeLoopProjection(
+                    frame,
+                    consumer,
+                    state,
+                    in.preparation == Preparation.ConvertedConsumer
+                )
+        }
+
+        const appended = loop(0, {
+            while: row => row < consumed.spans.length,
+            next: row => {
+                appendAstSequenceSpan(body, consumed.spans[row])
+
+                row += 1
+            }
+        })
+
+        appendAstSequenceSpan(body, consumed.tail)
+
+        return consumed.value
+    }
+
     return match in.preparation {
-        Preparation.BufferedConsumer => host.consumeDeepLoopResult(target, true),
-        Preparation.DeepConsumer => host.consumeDeepLoopResult(target, false),
-        Preparation.Consumer => host.consumeLoopProjection(target, false),
-        Preparation.ConvertedConsumer => host.consumeLoopProjection(target, true),
         Preparation.Unit => emitUnit(writer),
-        Preparation.Layout => host.wrapLoopResult(target, true),
-        _ => host.wrapLoopResult(target, false)
+        Preparation.Layout => host.wrapLoopResult(frame, type_id, state, true),
+        _ => host.wrapLoopResult(frame, type_id, state, false)
     }
 }

@@ -7,26 +7,59 @@ const inputs = @import("generated_hardware_bind_inputs");
 const definition = @import("generated_hardware_publish_definition");
 
 pub fn bindInputs(terms: *Terms, symbols: []const Conditions.Input) Terms.Error!void {
-    var table = terms.variables.view();
+    if (symbols.len == 0) return;
+
+    const table = terms.variables.view();
     const names = zx.memory.borrowTextColumn("symbol", symbols);
+    var arena = std.heap.ArenaAllocator.init(terms.scratch);
+
+    defer arena.deinit();
 
     const input: std.meta.Child(inputs.Input) = .{
-        .current = &table.read(), .target = &table.target(),
-        .names = @ptrCast(&names), .count = symbols.len,
+        .capacity = table.keys.len,
+        .names = @ptrCast(&names),
+        .count = symbols.len,
     };
 
-    terms.variables.count = zx.columns.invoke(inputs.executeValue, terms.scratch, &input) catch |err| return Terms.fromSourceError(err);
+    const bound = zx.columns.invoke(inputs.executeValue, arena.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
+        error.IndexOutOfBounds, error.IntegerOverflow => return error.InvalidHardwareTerm,
+        else => unreachable,
+    };
+
+    @memcpy(table.keys, bound.keys);
+    @memcpy(table.values, bound.values);
+
+    terms.variables.count = bound.count;
 }
 
 pub fn publish(terms: *Terms, name: []const u8, width: u16, id: ir.Id, sort: ir.Sort) Terms.Error!void {
-    var table = terms.variables.view();
+    const table = terms.variables.view();
+    var arena = std.heap.ArenaAllocator.init(terms.scratch);
+
+    defer arena.deinit();
+
+    var buffer: [128]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
 
     const input: std.meta.Child(definition.Input) = .{
-        .current = &table.read(), .target = &table.target(),
-        .key = name, .value = @backingInt(id), .width = width, .sort = &.{ .width = sort.width, .boolean = sort.boolean },
+        .keys = table.keys,
+        .key = name,
+        .width = width,
+        .sort = &.{ .width = sort.width, .boolean = sort.boolean },
     };
 
-    const added = zx.columns.invoke(definition.executeValue, terms.scratch, &input) catch |err| return Terms.fromSourceError(err);
+    const placement = (zx.columns.invoke(definition.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.IndexOutOfBounds, error.IntegerOverflow, error.Overflow => return error.InvalidHardwareTerm,
+        else => unreachable,
+    }) orelse return error.InvalidHardwareTerm;
 
-    terms.variables.count += @intFromBool(added orelse return error.InvalidHardwareTerm);
+    const slot: usize = @intCast(placement.slot);
+
+    if (placement.fresh) {
+        terms.variables.fillVacant(slot, name, id);
+    } else {
+        table.values[slot] = @backingInt(id);
+    }
 }

@@ -1,0 +1,25 @@
+import probe from "../../source_index/probe"
+
+import type { CacheInstall, CacheProbe } from "project_host"
+
+export type Input = CacheInstall.Omit("slot")
+
+export type Output = CacheProbe
+
+export default function (in: Input): Output {
+    const { buckets } = in
+
+    if (buckets.length == 0) {
+        return {
+            bucket: 0,
+            row: 0
+        }
+    }
+
+    const bucket = probe(in)
+
+    return {
+        bucket,
+        row: buckets[bucket]
+    }
+}

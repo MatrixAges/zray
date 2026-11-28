@@ -1,11 +1,11 @@
 import type { ColumnLengths } from "memory"
-import type { CacheSlot, NativeCacheLoad } from "project_host"
+import type { CacheInstall, NativeCacheLoad } from "project_host"
 import type { Output as Commit } from "../slot/commit"
 import type { Input as Lookup } from "../state/lookup"
 
 export type Input = {
     frame: NativeCacheLoad,
-    slot: CacheSlot,
+    slot: CacheInstall,
     lookup: Lookup,
     usage: ColumnLengths
 }

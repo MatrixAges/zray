@@ -24,14 +24,7 @@
             }}
         />
 
-        <Call
-            fn="model.readAstOrigin"
-            in={[
-                $in.writer,
-                $in.origin
-            ]}
-        />
-
+        <Call fn="model.readAstOrigin" in={$in.writer} />
         <Call fn="model.astFieldCount" in={$in.writer} />
 
         <Call

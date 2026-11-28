@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Circuit" />
 
-    <Args in={Circuit.Definition} out={bool?} />
+    <Args in={Circuit.Definition} out={Circuit.Placement?} />
 
     <Call
         fn="definition_sort"
@@ -16,12 +16,17 @@
     </If>
 
     <Call
-        fn="../../../core/bytes/map/bind"
-        in={$in.omit([
-            "width",
-            "sort"
+        fn="../../../core/bytes/map/slot"
+        in={$in.pick([
+            "keys",
+            "key"
         ])}
     />
 
-    <Return value={$ctx.bind} />
+    <Return
+        value={{
+            slot: $ctx.slot,
+            fresh: $in.keys[$ctx.slot] == null
+        }}
+    />
 </Module>

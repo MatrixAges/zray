@@ -21,14 +21,11 @@ pub fn lower(self: *Lower, id: ir.ExprId) Error!node.ExpressionId {
     defer scratch.deinit();
     defer frame.body.deinit();
 
-    var origin: publication.OriginBuffer = undefined;
-
     const input: std.meta.Child(entry.Input) = .{
         .frame = @ptrCast(&frame),
         .ast = &.{
             .lower = @ptrCast(self),
             .writer = @ptrCast(self),
-            .origin = @ptrCast(&origin),
             .sequence = @ptrCast(&frame.body),
         },
         .represented = represented,

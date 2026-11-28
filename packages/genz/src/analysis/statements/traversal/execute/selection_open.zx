@@ -25,13 +25,13 @@ export type Input = {
 
 export default function (in: Input): Output {
     const { traversal, context, state, scope, first, placement } = in
-    const { frame, writer, origin, control } = context
+    const { frame, writer, control } = context
 
     const scope_first = state.scope_firsts[scope]
     const row = integers.widen(scope_first) + integers.widen(first)
     const payload = control.statement_payloads[row]
     const subject_ir = control.selection_subjects[integers.widen(payload)]
-    const current = readAstOrigin(writer, origin)
+    const current = readAstOrigin(writer)
 
     const generated = switchName({
         serial: current.serial
@@ -42,7 +42,7 @@ export default function (in: Input): Output {
     host.setLoweringSerial(frame, generated.serial)
 
     const subject = host.lowerExpression(frame, subject_ir, false, null)
-    const ref_origin = readAstOrigin(writer, origin)
+    const ref_origin = readAstOrigin(writer)
     const field_base = astFieldCount(writer)
 
     const ref = switchReference({

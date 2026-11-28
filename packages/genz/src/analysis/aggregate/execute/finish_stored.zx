@@ -13,14 +13,13 @@ import breakRows from "../binding/break_rows"
 import plan from "../binding/plan"
 import resultInput from "../binding/result_input"
 
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
 import type { Guard } from "../binding/model"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     span: u64,
     value: u32,
     guard?: Guard
@@ -29,10 +28,10 @@ export type Input = {
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, span, value, guard } = in
+    const { frame, writer, span, value, guard } = in
 
     const unpacked = unpackSpan(span)
-    const current = readAstOrigin(writer, origin)
+    const current = readAstOrigin(writer)
 
     const planned = plan(
         resultInput({

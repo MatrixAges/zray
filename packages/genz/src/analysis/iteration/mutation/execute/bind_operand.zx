@@ -5,24 +5,23 @@ import { requireAllocation } from "memory"
 import identifierRows from "../../../aggregate/binding/identifier_rows"
 import reference from "../../../aggregate/binding/reference"
 
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
 import type { Binding } from "../model"
 
 export type Input = {
     lower: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     id: u32
 }
 
 export type Output = Binding
 
 export default function (in: Input): Output {
-    const { lower, writer, origin, id } = in
+    const { lower, writer, id } = in
 
     const value = host.lowerExpression(lower, id, false, null)
-    const current = readAstOrigin(writer, origin)
+    const current = readAstOrigin(writer)
 
     const bound = reference({
         expression_base: current.expression_base,

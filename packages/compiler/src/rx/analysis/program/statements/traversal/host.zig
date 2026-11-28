@@ -28,6 +28,7 @@ pub const State = struct {
     writer: *Writer.Cursor = undefined,
     call: Invocation = undefined,
     call_binding_count: usize = undefined,
+    imported: @import("rx_execution_abi").layouts.@"zig:rx_project_host".BodyImport = undefined,
     control: Control = undefined,
     view: Cursor = undefined,
     cells: []u32 = undefined,

@@ -10,7 +10,6 @@ pub fn lower(self: *Lower, type_id: zx.ir.TypeId, branches: Branches) Lower.Erro
     var scratch: std.heap.ArenaAllocator = .init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory: std.heap.BufferFirstAllocator = .init(&buffer, scratch.allocator());
-    var origin: rows.OriginBuffer = .{};
 
     defer scratch.deinit();
 
@@ -23,7 +22,6 @@ pub fn lower(self: *Lower, type_id: zx.ir.TypeId, branches: Branches) Lower.Erro
     const input: std.meta.Child(entry.Input) = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .body = @ptrCast(&body),
         .type_id = @backingInt(type_id),
         .tasks = branches.tasks[0..branches.len],

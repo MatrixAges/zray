@@ -19,8 +19,11 @@
 
     <Call fn="index.collectAnalysisFacts" in={$in.work} />
     <Call fn="index.joinAnalysisBasis" in={$in.work} />
-    <Call fn="index.checkAnalysisFacts" in={$in.work} />
-    <Call fn="index.checkAnalysisBasis" in={$in.work} />
+
+    <Call
+        fn="index.requireAllocation"
+        in={$ctx.collectAnalysisFacts && $ctx.joinAnalysisBasis}
+    />
 
     <If on={$in.concurrent}>
         <Call fn="index.planAnalysisConcurrent" in={$in.work} />

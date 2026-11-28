@@ -7,7 +7,7 @@ import unpackSpan from "../../tasks/worker/execute/reference"
 import type { Emission as Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, body, call, unwrap_empty } = in
+    const { frame, writer, body, call, unwrap_empty } = in
 
     const state: u32? = match {
         in.stores => host.lowerCallStore(call),
@@ -34,7 +34,6 @@ export default function (in: Input): Output {
     return finishStored({
         frame,
         writer,
-        origin,
         span,
         value: converted,
         guard: null

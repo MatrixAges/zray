@@ -18,7 +18,6 @@ pub fn preconditions(self: *Lower) Error!node.Block {
     const entry = @import("generated_lower_preconditions");
     const Input = std.meta.Child(entry.Input);
     var predicate: Lower = undefined;
-    var origin: publication.OriginBuffer = .{};
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
@@ -29,7 +28,6 @@ pub fn preconditions(self: *Lower) Error!node.Block {
         .parent = @ptrCast(self),
         .predicate = @ptrCast(&predicate),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .kinds = zx.columns.slice(@FieldType(Input, "kinds"), kinds),
         .predicates = self.program.contracts.predicates,
     };

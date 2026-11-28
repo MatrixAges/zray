@@ -1,12 +1,14 @@
 import type { FlowExecution } from "ownership_host"
+import type { Functions } from "../../layers/model"
 import type { Advance } from "../fixpoint/model"
 
 export type Input = {
     flow: FlowExecution,
+    functions: Functions,
     remembered: bool
 }
 
-export type Layers = Input & {
+export type Layers = Input.Pick("flow", "remembered") & {
     order: u32[],
     ends: u64[],
     hits: bool[]

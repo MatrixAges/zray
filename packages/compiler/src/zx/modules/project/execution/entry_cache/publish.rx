@@ -40,16 +40,13 @@
 
             <Call
                 module="../../../semantic_cache/slot/install"
-                in={{
-                    slot: $ctx.projectCacheSlot
-                }}
             />
 
             <If on={$ctx.install.replacement != null}>
                 <Call
                     fn="index.replaceCacheSlot"
                     in={[
-                        $ctx.projectCacheSlot,
+                        $ctx.projectCacheSlot.slot,
                         $ctx.install.replacement
                     ]}
                 />
@@ -58,7 +55,7 @@
                     <Call
                         fn="index.appendCacheSlot"
                         in={[
-                            $ctx.projectCacheSlot,
+                            $ctx.projectCacheSlot.slot,
                             $ctx.install.bucket
                         ]}
                     />

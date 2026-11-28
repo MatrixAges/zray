@@ -16,13 +16,6 @@ limit: usize = 0,
 pub const View = struct {
     keys: []?[]const u8,
     values: []u32,
-    pub fn read(self: View) std.meta.Child(@FieldType(std.meta.Child(rehash.Input), "current")) {
-        return .{ .keys = self.keys, .values = self.values };
-    }
-
-    pub fn target(self: *View) std.meta.Child(@FieldType(std.meta.Child(rehash.Input), "target")) {
-        return .{ .keys = @ptrCast(&self.keys), .values = @ptrCast(&self.values) };
-    }
 };
 
 pub fn view(self: *const Self) View {
@@ -46,23 +39,31 @@ pub fn ensureTotalCapacity(self: *Self, allocator: std.mem.Allocator, count: u32
 
     next.rows.len = length;
 
-    var dest = next.view();
-
-    @memset(dest.keys, null);
+    const dest = next.view();
 
     if (self.count > 0) {
         const source = self.view();
+        var arena = std.heap.ArenaAllocator.init(allocator);
+
+        defer arena.deinit();
 
         const input: std.meta.Child(rehash.Input) = .{
-            .current = &dest.read(),
-            .target = &dest.target(),
-            .previous = &source.read(),
+            .capacity = length,
+            .keys = source.keys,
+            .values = source.values,
         };
 
-        next.count = zx.columns.invoke(rehash.executeValue, allocator, &input) catch |err| switch (err) {
-            error.OutOfMemory => return error.OutOfMemory,
-            error.IndexOutOfBounds => unreachable,
+        const rebuilt = zx.columns.invoke(rehash.executeValue, arena.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+            else => unreachable,
         };
+
+        @memcpy(dest.keys, rebuilt.keys);
+        @memcpy(dest.values, rebuilt.values);
+
+        next.count = rebuilt.count;
+    } else {
+        @memset(dest.keys, null);
     }
 
     self.deinit(allocator);

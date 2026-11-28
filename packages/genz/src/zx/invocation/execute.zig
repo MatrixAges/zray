@@ -32,7 +32,6 @@ const Frame = struct {
 
 pub fn regular(lowering: *Lower, operation: Operation, plan: Regular) Error!node.ExpressionId {
     var body = lowering.builder.statementSequence(lowering.workspace);
-    var origin: @import("../construction/publication.zig").OriginBuffer = .{};
 
     defer body.deinit();
 
@@ -47,7 +46,6 @@ pub fn regular(lowering: *Lower, operation: Operation, plan: Regular) Error!node
     const input: Input = .{
         .frame = @ptrCast(lowering),
         .writer = @ptrCast(lowering),
-        .origin = @ptrCast(&origin),
         .body = @ptrCast(&body),
         .call = @ptrCast(&frame),
         .operand = @backingInt(operation.argument),
@@ -66,7 +64,6 @@ pub fn regular(lowering: *Lower, operation: Operation, plan: Regular) Error!node
 
 pub fn value(lowering: *Lower, body: *Sequence, operation: Operation, borrowed: bool, pointer: bool) Error!node.ExpressionId {
     const plan = @import("../value_call/policy.zig").invocation(lowering, operation, borrowed, pointer);
-    var origin: @import("../construction/publication.zig").OriginBuffer = .{};
     var frame: Frame = .{ .lowering = lowering, .body = body, .operation = operation, .plan = .{ .value = plan } };
 
     const argument: CallArgument = switch (plan.argument) {
@@ -78,7 +75,6 @@ pub fn value(lowering: *Lower, body: *Sequence, operation: Operation, borrowed: 
     const input: Input = .{
         .frame = @ptrCast(lowering),
         .writer = @ptrCast(lowering),
-        .origin = @ptrCast(&origin),
         .body = @ptrCast(body),
         .call = @ptrCast(&frame),
         .operand = @backingInt(operation.argument),

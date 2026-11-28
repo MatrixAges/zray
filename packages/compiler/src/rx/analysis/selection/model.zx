@@ -1,5 +1,4 @@
 import type { Control, Expressions } from "memory/columns"
-import type { SelectionLabels } from "rx_project_host"
 
 export enum Kind {
     Default,
@@ -17,11 +16,7 @@ export type LabelView = {
     root?: u32
 }
 
-export type Labels = {
-    programs: SelectionLabels,
-    current: LabelView,
-    count: u64
-}
+export type Labels = LabelView?[]
 
 export type Label = {
     kind: Kind,

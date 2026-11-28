@@ -1,4 +1,4 @@
-import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { AstSequence, AstWriter } from "ast_rows"
 import type { TransformKind } from "core/expression_table/kinds"
 import type { Lowering, TransformFrame } from "lowering_host"
 import type { Source as RenewalSource } from "../../iteration/deferred/model"
@@ -10,7 +10,6 @@ export type Frame = TransformFrame
 export type Ast = {
     writer: AstWriter,
     lower: Lowering,
-    origin: AstOriginBuffer,
     body: AstSequence,
     loop: AstSequence,
     binding: AstSequence

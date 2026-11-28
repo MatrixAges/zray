@@ -29,7 +29,7 @@ export default function (in: Input): Output {
     }
 
     const field_base = astFieldCount(in.ast.writer)
-    const current = readAstOrigin(in.ast.writer, in.ast.origin)
+    const current = readAstOrigin(in.ast.writer)
 
     return {
         bases: {

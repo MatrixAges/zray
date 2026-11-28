@@ -3,13 +3,7 @@
 
     <Args in={Parallel.Label} out={u8[]} />
 
-    <Call
-        fn="../../../tasks/rows.readAstOrigin"
-        in={[
-            $in.writer,
-            $in.origin
-        ]}
-    />
+    <Call fn="../../../tasks/rows.readAstOrigin" in={$in.writer} />
 
     <Call
         fn="../label"

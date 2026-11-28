@@ -1,4 +1,4 @@
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { Expressions } from "core/expression_table/model"
 import type { IterationResourceFrame, Lowering } from "lowering_host"
 import type { Output as Built } from "../model"
@@ -19,7 +19,6 @@ export type Operands = Expressions.Pick(
 export type Input = {
     lower: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     context: IterationResourceFrame,
     expressions: Operands,
     id: u32

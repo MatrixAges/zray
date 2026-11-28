@@ -1,6 +1,6 @@
 import type { DefaultColumns, Request } from "../constraints/collection/model"
 
-export type Index = Request.Pick("frame", "parents") & {
+export type Index = Request.Pick("parents", "default_known") & {
     unused: u64,
     columns: DefaultColumns
 }

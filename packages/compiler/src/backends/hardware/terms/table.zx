@@ -1,0 +1,27 @@
+export type Table = {
+    keys: string?[],
+    values: u32[],
+    count: u32
+}
+
+export type Input = u64
+
+export type Output = Table
+
+export default function (in: Input): Output {
+    const keys: string?[] = []
+    const values: u32[] = []
+    const count: u32 = 0
+
+    return loop({
+        keys,
+        values,
+        count
+    }, {
+        while: state => state.keys.length < in,
+        next: state => {
+            state.keys = state.keys.push(null)[0]
+            state.values = state.values.push(0)[0]
+        }
+    })
+}

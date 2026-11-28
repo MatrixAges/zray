@@ -4,7 +4,7 @@ import host from "lowering_host"
 import binary from "../expressions/evaluate/binary"
 import { Operation } from "./model"
 
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { Table } from "core/type_table/model"
 import type { Lowering } from "lowering_host"
 import type { BinaryExpressions } from "../expressions/evaluate/model"
@@ -13,7 +13,6 @@ import type { Plan } from "./model"
 export type Input = Plan.Pick("operations", "first", "second") & {
     frame: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     binary_expressions: BinaryExpressions,
     types: Table
 }
@@ -24,7 +23,6 @@ export default function (in: Input): Output {
     const {
         frame,
         writer,
-        origin,
         binary_expressions,
         types,
         operations,
@@ -49,7 +47,6 @@ export default function (in: Input): Output {
                 Operation.Equality => binary({
                     frame,
                     writer,
-                    origin,
                     expressions: binary_expressions,
                     types,
                     operator: BinaryOperator.Equal,

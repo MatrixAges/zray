@@ -96,14 +96,7 @@
 
     <Call fn="index.outerRange" in={$ctx.outerBlock} />
     <Call fn="index.enteredRange" in={$ctx.renewal} />
-
-    <Call
-        fn="index.readAstOrigin"
-        in={[
-            $in.ast.writer,
-            $in.ast.origin
-        ]}
-    />
+    <Call fn="index.readAstOrigin" in={$in.ast.writer} />
 
     <Call
         module="../reduce/build"

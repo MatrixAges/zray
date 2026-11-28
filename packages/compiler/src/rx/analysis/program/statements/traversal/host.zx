@@ -14,7 +14,6 @@ export {
     resolveBodyCallStores,
     prepareBodyImport,
     appendBodyFunctionTail,
-    bodyHasInitializers,
     linkBodyInitializers,
     appendBodyFunctionEntry,
     emitBodyCall

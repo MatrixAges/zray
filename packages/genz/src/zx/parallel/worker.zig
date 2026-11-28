@@ -11,7 +11,6 @@ pub fn lower(self: *Lower, id: ir.FunctionId) Lower.Error!node.ExpressionId {
     var scratch: std.heap.ArenaAllocator = .init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory: std.heap.BufferFirstAllocator = .init(&buffer, scratch.allocator());
-    var origin: rows.OriginBuffer = .{};
     const index = @backingInt(id);
     const callee = try self.functionReference(id);
 
@@ -20,7 +19,6 @@ pub fn lower(self: *Lower, id: ir.FunctionId) Lower.Error!node.ExpressionId {
     const input: std.meta.Child(entry.Input) = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .callee = @backingInt(callee),
         .input_type = self.program.functions.input_types[index],
         .output_type = self.program.functions.output_types[index],

@@ -1,4 +1,4 @@
-import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { AstSequence, AstWriter } from "ast_rows"
 import type { Lowering, SortFrame } from "lowering_host"
 
 export type Input = {
@@ -6,7 +6,6 @@ export type Input = {
     writer: AstWriter,
     lower: Lowering,
     body: AstSequence,
-    origin: AstOriginBuffer,
     target: u32,
     environment: u32,
     list_type: u32,
@@ -21,7 +20,6 @@ export type Target = {
     frame: SortFrame,
     lower: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     body: AstSequence,
     target: u32,
     selected: bool
@@ -30,14 +28,13 @@ export type Target = {
 export type Reuse = Input.Pick(
     "lower",
     "writer",
-    "origin",
     "body",
     "target",
     "selected",
     "reusable"
 )
 
-export type Environment = Input.Pick("lower", "writer", "origin", "body", "environment")
+export type Environment = Input.Pick("lower", "writer", "body", "environment")
 
 export type Header = {
     writer: AstWriter,

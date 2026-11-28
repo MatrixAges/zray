@@ -1,4 +1,4 @@
-import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
+import type { AstSequence, AstWriter } from "ast_rows"
 import type { LoopAdmission, LoopFrame, Lowering } from "lowering_host"
 import type {
     Output as RenewalPlan,
@@ -24,7 +24,6 @@ export type GuardInfo = {
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     body_seq: AstSequence,
     loop_frame: LoopFrame,
     loop_state: LoopState,
@@ -50,7 +49,6 @@ export type Parameters =
     Input.Pick(
         "frame",
         "writer",
-        "origin",
         "loop_frame",
         "parameters",
         "initial_plan"
@@ -91,7 +89,6 @@ export type Emit =
     Input.Pick(
         "frame",
         "writer",
-        "origin",
         "body_seq",
         "loop_frame",
         "guard_info",

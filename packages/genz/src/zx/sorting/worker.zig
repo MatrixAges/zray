@@ -40,7 +40,6 @@ pub fn build(self: *Lower, value: ir.Transform, child: node.ExpressionId, errors
     var scratch: std.heap.ArenaAllocator = .init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory: std.heap.BufferFirstAllocator = .init(&buffer, scratch.allocator());
-    var origin: rows.OriginBuffer = .{};
 
     defer scratch.deinit();
     defer if (frame.names) |names| names.restore(self);
@@ -53,7 +52,6 @@ pub fn build(self: *Lower, value: ir.Transform, child: node.ExpressionId, errors
         .writer = @ptrCast(self),
         .lower = @ptrCast(self),
         .worker = @ptrCast(&worker),
-        .origin = @ptrCast(&origin),
         .child = @backingInt(child),
         .body_expr = @backingInt(value.body),
         .output_type = @backingInt(self.program.expression(value.body).type_id),

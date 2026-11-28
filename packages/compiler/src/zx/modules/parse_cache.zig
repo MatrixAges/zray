@@ -277,6 +277,11 @@ fn prefetchInto(self: *Self, requests: anytype, count: usize, comptime Output: t
     };
 
     if (comptime generated) {
+        const ready = try self.allocator.alloc(bool, count);
+
+        defer self.allocator.free(ready);
+        @memset(ready, false);
+
         const memory = zx.memory;
         const registered = comptime @hasField(@TypeOf(requests), "paths");
         const paths = if (registered) memory.borrowTextSlice(requests.paths) else memory.borrowTextColumn("path", requests.items);
@@ -287,13 +292,14 @@ fn prefetchInto(self: *Self, requests: anytype, count: usize, comptime Output: t
             .paths = &paths,
             .texts = &texts,
             .results = results,
+            .ready = ready,
             .output = output,
             .staging = staging,
         };
 
         parallel.spread(ParseWork, &work, ParseWork.run, workers);
 
-        return self.publishPrefetched(requests, results, output, work.failed.load(.monotonic));
+        return self.publishPrefetched(requests, &work);
     }
 
     const Seed = struct {
@@ -385,6 +391,7 @@ const ParseWork = struct {
     paths: *const zx.memory.TextColumn,
     texts: *const zx.memory.TextColumn,
     results: []?*Entry,
+    ready: []bool,
     output: BatchOutput,
     staging: []std.heap.ArenaAllocator,
     next: std.atomic.Value(usize) = .init(0),
@@ -470,8 +477,9 @@ pub fn bindParseWorkerHit(handle: *const anyopaque, index: u64, hit: u64) void {
 pub fn stageParseWorkerResult(handle: *const anyopaque, index: u64, source: []const u8, path: []const u8, digest: []const u8) bool {
     const worker = ParseWorker.borrow(handle);
     const entry = stageResult(worker.staged, worker.arena, .{ .path = path, .source = source }, digest[0..@sizeOf(Digest)].*) catch return false;
-
-    worker.work.results[@intCast(index)] = entry;
+    const row: usize = @intCast(index);
+    worker.work.results[row] = entry;
+    worker.work.ready[row] = true;
 
     return true;
 }
@@ -484,12 +492,13 @@ fn stageResult(staged: std.mem.Allocator, scratch: *zx.Arena, request: Request, 
     return entry;
 }
 
-fn publishPrefetched(self: *Self, requests: anytype, results: []const ?*Entry, output: BatchOutput, worker_failed: bool) std.mem.Allocator.Error!void {
+fn publishPrefetched(self: *Self, requests: anytype, work: *const ParseWork) std.mem.Allocator.Error!void {
     const rule = @import("generated_parse_cache_publish");
+    const results = work.results;
 
     const input: std.meta.Child(rule.Input) = .{
-        .results = @ptrCast(results),
-        .worker_failed = worker_failed,
+        .ready = work.ready,
+        .worker_failed = work.failed.load(.monotonic),
     };
 
     var committed: usize = 0;
@@ -515,7 +524,7 @@ fn publishPrefetched(self: *Self, requests: anytype, results: []const ?*Entry, o
         const path = requests.at(row).path;
         const entry = try self.adopt(path, self.entries.probe(path), results[row].?);
 
-        if (output != .none) output.bind(row, entry);
+        if (work.output != .none) work.output.bind(row, entry);
 
         committed = row + 1;
     }

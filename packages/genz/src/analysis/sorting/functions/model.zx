@@ -1,4 +1,4 @@
-import type { AstOriginBuffer, AstWriter, ExpressionExtensions as Extra } from "ast_rows"
+import type { AstWriter, ExpressionExtensions as Extra } from "ast_rows"
 import type { Input as Bases, State as Context } from "../../../ast/context/model"
 import type { Columns as Functions } from "../../../ast/declarations/function"
 import type { Columns as Forms } from "../../../ast/expressions/forms/model"
@@ -47,7 +47,6 @@ export type Output = {
 
 export type ExecuteInput = Input.Pick("child", "errors") & {
     writer: AstWriter,
-    origin: AstOriginBuffer
 }
 
 export type ExecuteOutput = Output.Pick("ordering", "sort")

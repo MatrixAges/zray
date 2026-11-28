@@ -133,10 +133,6 @@ pub inline fn u32View(source: *anyopaque, shape: anytype) std.meta.Child(@TypeOf
     return @ptrCast(source);
 }
 
-pub inline fn u64View(source: *anyopaque, shape: anytype) std.meta.Child(@TypeOf(shape)) {
-    return @ptrCast(source);
-}
-
 pub inline fn u8ListViews(source: *const anyopaque) []const []const u8 {
     const view: *const []const []const u8 = @ptrCast(@alignCast(source));
 
@@ -288,7 +284,6 @@ pub const rowBufferBytes = column.rowBufferBytes;
 pub const writeRowListCount = column.writeRowListCount;
 pub const copyRow = column.copyRow;
 pub const borrowWriteColumn = column.borrow;
-pub const writeColumnBytes = column.writeBytes;
 const scalar_column = @import("scalar.zig");
 pub const Scalar = scalar_column.Value;
 pub const readScalarKind = scalar_column.readKind;
@@ -355,10 +350,6 @@ inline fn copySlice(comptime T: type, target: *anyopaque, source: []const T) err
 
 pub inline fn writeU32(target: *anyopaque, index: u64, value: u32) error{IndexOutOfBounds}!void {
     return write(u32, target, index, value);
-}
-
-pub inline fn writeU64(target: *anyopaque, index: u64, value: u64) error{IndexOutOfBounds}!void {
-    return write(u64, target, index, value);
 }
 
 pub const SourceSpan = struct {

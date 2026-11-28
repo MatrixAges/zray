@@ -1,34 +1,36 @@
 import ints from "std:integer"
-import bind from "core/bytes/map/bind"
+import slot from "core/bytes/map/slot"
 import memory from "memory"
 
+import empty from "../terms/table"
+
+import type { Table } from "../terms/table"
 import type { Inputs as Input } from "./model"
 
-export type Output = u32
+export type Output = Table
 
 export default function (in: Input): Output {
-    const zero: u32 = 0
-
     return loop({
         row: 0,
-        count: zero
+        table: empty(in.capacity)
     }, {
         while: state => state.row < in.count,
         next: state => {
             const row = state.row
-            const inserted = bind({
-                current: in.current,
-                target: in.target,
-                key: memory.readTextColumn(in.names, row),
-                value: ints.narrow(row)
+            const key = memory.readTextColumn(in.names, row)
+            const position = slot({
+                keys: state.table.keys,
+                key
             })
 
-            if (inserted) {
-                state.count += 1
+            if (state.table.keys[position] == null) {
+                state.table.keys = state.table.keys.with(position, key)
+                state.table.count += 1
             }
 
+            state.table.values = state.table.values.with(position, ints.narrow(row))
             state.row += 1
         },
-        return: state => state.count
+        return: state => state.table
     })
 }

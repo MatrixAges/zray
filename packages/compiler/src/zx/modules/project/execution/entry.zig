@@ -197,11 +197,13 @@ pub fn extractProjectCacheArtifact(handle: *anyopaque, row: u64) std.mem.Allocat
     return .Ready;
 }
 
-pub fn projectCacheSlot(handle: *anyopaque, digest: []const u8) *ABI.CacheSlot {
-    const slot = &Entry.borrow(handle).pending.?;
+pub fn projectCacheSlot(handle: *anyopaque, digest: []const u8) *const ABI.CacheInstall {
+    const entry = Entry.borrow(handle);
+    const slot = &entry.pending.?;
     slot.value.?.context_digest = digest[0..slot.value.?.context_digest.len].*;
+    slot.install = slot.installView(ABI.CacheInstall, slot.value.?.result.value.path);
 
-    return @ptrCast(slot);
+    return &slot.install;
 }
 
 pub fn rejectProjectCacheArtifact(handle: *anyopaque) void {

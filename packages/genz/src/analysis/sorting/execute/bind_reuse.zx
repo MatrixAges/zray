@@ -8,7 +8,7 @@ import type { Reuse as Input } from "./model"
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { lower, writer, origin, body, target, selected, reusable } = in
+    const { lower, writer, body, target, selected, reusable } = in
 
     const reads_header = (
         - selected
@@ -30,7 +30,6 @@ export default function (in: Input): Output {
     return bindOperand({
         frame: lower,
         writer,
-        origin,
         sequence: body,
         value
     })

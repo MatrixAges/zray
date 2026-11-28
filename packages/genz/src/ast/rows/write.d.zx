@@ -1,7 +1,5 @@
 export type AstWriter = mutable_opaque
 
-export type AstOriginBuffer = mutable_opaque
-
 export type AstSequence = mutable_opaque
 
 export type AstBlockRows = {
@@ -79,7 +77,8 @@ export type AstOrigin = {
     capture?: AstCapture
 }
 
-export declare function readAstOrigin(writer: AstWriter, buffer: AstOriginBuffer): AstOrigin
+export declare function readAstOrigin(allocator, writer: AstWriter): AstOrigin
+    throws { OutOfMemory }
 
 export declare function appendExpressionRows(
     writer: AstWriter,

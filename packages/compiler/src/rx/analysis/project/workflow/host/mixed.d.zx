@@ -60,8 +60,6 @@ export declare function installMixedSignatures(state: MixedState): void
 export declare function reserveMixedWorkers(state: MixedPreparation): u64
     throws { OutOfMemory }
 
-export declare function mixedResultIsZX(workspace: MixedWorkspace, row: u64): bool
-
 export declare function clearMixedResults(workspace: MixedWorkspace): void
 
 export declare function resetMixedWorker(workspace: MixedWorkspace, index: u64): void
@@ -73,17 +71,16 @@ export declare function openMixedCandidate(state: MixedPreparation, index: u64):
 export declare function prepareMixedZXCandidate(
     state: MixedPreparation,
     index: u64
-): MixedCandidate? throws { OutOfMemory }
+): bool throws { OutOfMemory }
 
 export declare function prepareMixedRXCandidate(
     state: MixedPreparation,
     index: u64
-): MixedCandidate? throws { OutOfMemory }
+): bool throws { OutOfMemory }
 
 export declare function recordMixedCandidate(
     state: MixedPreparation,
-    position: u64,
-    result: MixedCandidate
+    position: u64
 ): void throws { OutOfMemory }
 
 export declare function restoreMixedCandidateDiagnostic(state: MixedPreparation): void
@@ -128,28 +125,20 @@ export declare function openMixedImport(
 export declare function rejectMixedImport(binding: MixedImports, row: u64, message: string): void
     throws { OutOfMemory, InvalidSourceGraph }
 
-export declare function openMixedZXPreparation(source: MixedZXPreparation): MixedZXParse
+export declare function openMixedZXPreparation(source: MixedZXPreparation): void
     throws { OutOfMemory, InvalidSourceGraph }
 
-export declare function checkMixedZXPreparation(
-    source: MixedZXPreparation,
-    parsed: MixedZXParse
-): void throws { OutOfMemory, InvalidSourceGraph }
+export declare function checkMixedZXPreparation(source: MixedZXPreparation): void
+    throws { OutOfMemory, InvalidSourceGraph }
 
-export declare function bindMixedZXPreparation(
-    source: MixedZXPreparation,
-    parsed: MixedZXParse,
-    checked: bool
-): void throws { OutOfMemory, InvalidSourceGraph }
+export declare function bindMixedZXPreparation(source: MixedZXPreparation, checked: bool): void
+    throws { OutOfMemory, InvalidSourceGraph }
 
-export declare function analyzeMixedZXBody(body: MixedZXBody): bool throws { OutOfMemory }
+export declare function analyzeMixedZXBody(body: MixedZXBody): MixedZXAnalysis?
+    throws { OutOfMemory }
 
 export declare function reportMixedZXBody(body: MixedZXBody): void
     throws { OutOfMemory, InvalidSourceGraph }
-
-export declare function mixedZXSetterDeclared(body: MixedZXBody): bool
-
-export declare function mixedZXSetterSlots(body: MixedZXBody): u64
 
 export declare function rejectMixedZXSetter(body: MixedZXBody, message: string): void
     throws { OutOfMemory, InvalidSourceGraph }

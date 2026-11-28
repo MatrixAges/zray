@@ -13,26 +13,18 @@ export declare function commitDeclaredPort(
     offset: u64
 ): void throws { OutOfMemory, InvalidSource }
 
-export declare function openConstraintModule(state: ConstraintCollection, row: u64): bool
+export declare function openConstraintModule(state: ConstraintCollection, row: u64): ConstraintModule
 
 export declare function releaseConstraintScope(state: ConstraintCollection): void
 
-export declare function forwardConstraintShortcut(state: ConstraintCollection): void
+export declare function forwardConstraintShortcut(state: ConstraintCollection): ConstraintBody
     throws { OutOfMemory, InvalidSource }
 
-export declare function inferConstraintBody(state: ConstraintCollection): bool
+export declare function inferConstraintBody(state: ConstraintCollection): ConstraintBody
     throws { OutOfMemory, InvalidSource }
 
 export declare function defaultConstraintOutput(state: ConstraintCollection): void
     throws { OutOfMemory, InvalidSource }
-
-export declare function constraintPortFixed(state: ConstraintCollection, row: u64): bool
-
-export declare function constraintInputUsed(state: ConstraintCollection): bool
-
-export declare function constraintBindingEnd(state: ConstraintCollection): u64
-
-export declare function constraintTaskEnd(state: ConstraintCollection): u64
 
 export declare function commitConstraintPort(
     state: ConstraintCollection,
@@ -43,8 +35,6 @@ export declare function commitConstraintPort(
 ): void
 
 export declare function openConstraintDefaults(state: ConstraintCollection): void
-
-export declare function constraintVoidNode(state: ConstraintCollection): u32?
 
 export declare function defaultConstraintInput(state: ConstraintCollection, input: u32): void
     throws { OutOfMemory, InvalidSource }
@@ -145,7 +135,6 @@ export declare function mergeFlowParallelBindings(state: FlowTraversal): void
 export declare function checkFlowSelection(state: FlowTraversal): bool
     throws { OutOfMemory, InvalidFlow }
 
-export declare function borrowFlowSelectionLabel(source: SelectionLabels, row: u64): bool
 
 export declare function finishFlowCase(
     state: FlowTraversal,

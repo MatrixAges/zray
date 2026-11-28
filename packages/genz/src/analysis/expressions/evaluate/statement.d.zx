@@ -30,16 +30,10 @@ export declare function emitStatementBinding(
     lowered: u32
 ): u64?
 
-export declare function statementResult(
-    traversal: StatementTraversal,
-    scope: u64,
-    index: u64
-): u32?
-
 export declare function fuseStatementResult(
-    traversal: StatementTraversal,
-    scope: u64,
-    index: u64,
+    frame: Lowering,
+    symbol: u32,
+    binding: u32,
     value: u32,
     by_value: bool
 ): u32? throws { OutOfMemory }

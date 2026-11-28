@@ -15,7 +15,6 @@
         in={$in.pick([
             "frame",
             "writer",
-            "origin"
         ])}
     />
 
@@ -41,7 +40,6 @@
             in={$in.pick([
                 "frame",
                 "writer",
-                "origin"
             ])}
         />
 

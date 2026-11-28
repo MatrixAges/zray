@@ -3,13 +3,12 @@ import host from "lowering_host"
 import emitFieldPath from "./emit_field_path"
 import emitIndex from "./emit_index"
 
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     value: u32,
     fields: u8[][],
     start: u64,
@@ -20,7 +19,7 @@ export type Input = {
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, value, fields, start, end, key } = in
+    const { frame, writer, value, fields, start, end, key } = in
 
     const target = emitFieldPath({
         writer,
@@ -35,7 +34,6 @@ export default function (in: Input): Output {
     return emitIndex({
         frame,
         writer,
-        origin,
         values: target,
         position: index
     })

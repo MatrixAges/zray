@@ -34,13 +34,7 @@
         }}
     />
 
-    <Call
-        fn="index.readAstOrigin"
-        in={[
-            $in.writer,
-            $in.origin
-        ]}
-    />
+    <Call fn="index.readAstOrigin" in={$in.writer} />
 
     <Call
         module="../emit/build"

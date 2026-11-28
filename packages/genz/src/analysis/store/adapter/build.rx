@@ -5,15 +5,7 @@
     <Args in={Adapter.Input} out={u32} />
 
     <Call fn="../rows.requireLoweringContext" in={$in.frame} />
-
-    <Call
-        fn="../rows.readAstOrigin"
-        in={[
-            $in.writer,
-            $in.origin
-        ]}
-    />
-
+    <Call fn="../rows.readAstOrigin" in={$in.writer} />
     <Call fn="../rows.astFieldCount" in={$in.writer} />
     <Call fn="../rows.astDeclarationCount" in={$in.writer} />
 
@@ -22,7 +14,6 @@
         in={{
             ...$in.omit([
                 "writer",
-                "origin"
             ]),
             bases: {
                 ...$ctx.readAstOrigin,

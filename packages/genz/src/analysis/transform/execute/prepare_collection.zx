@@ -20,7 +20,6 @@ export default function (in: Input): Output {
         _ => freshName({
             lower: in.ast.lower,
             writer: in.ast.writer,
-            origin: in.ast.origin,
             prefix: items
         })
     }

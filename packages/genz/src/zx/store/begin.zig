@@ -3,7 +3,6 @@ const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
-const OriginBuffer = @import("../construction/publication.zig").OriginBuffer;
 const publication = @import("../construction/publication.zig");
 
 pub fn lower(self: *Lower, statements: ir.Block, index: usize) Lower.Error!node.Block {
@@ -35,12 +34,9 @@ pub fn lower(self: *Lower, statements: ir.Block, index: usize) Lower.Error!node.
         .call_stores = self.program.expressions.call_stores,
     };
 
-    var origin: OriginBuffer = .{};
-
     const input: Input = .{
         .writer = @ptrCast(self),
         .frame = @ptrCast(self),
-        .origin = @ptrCast(&origin),
         .control = &control,
         .values = &values,
         .function_modes = zx.columns.slice(@FieldType(Input, "function_modes"), self.program.functions.store_modes),

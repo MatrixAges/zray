@@ -26,7 +26,6 @@
                 in={$in.pick([
                     "lowering",
                     "writer",
-                    "origin",
                     "sequence",
                     "type_id",
                     "items"

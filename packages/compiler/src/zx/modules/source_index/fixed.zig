@@ -60,29 +60,29 @@ pub fn claim(self: *Self, row: usize, key: []const u8) bool {
 }
 
 /// Registers the borrowed paths in an empty index and identifies the first duplicate.
-pub fn registerPaths(self: *Self, paths: *const @import("zx").memory.TextColumn) ?usize {
+pub fn registerPaths(self: *Self, allocator: std.mem.Allocator, paths: *const @import("zx").memory.TextColumn) std.mem.Allocator.Error!?usize {
     const generated = @import("generated_byte_index_unique");
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
-    var target: @import("zx").memory.WriteColumn = .{
-        .items = @ptrCast(self.keys.ptr),
-        .count = self.keys.len,
-        .stride = @sizeOf([]const u8),
-        .width = @sizeOf([]const u8),
-    };
-
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    defer arena.deinit();
 
     const input: std.meta.Child(generated.Input) = .{
-        .keys = self.keys,
-        .buckets = @ptrCast(&self.buckets),
+        .count = self.keys.len,
         .capacity = self.buckets.len,
         .source = @ptrCast(paths),
-        .target = @ptrCast(&target),
     };
 
-    const duplicate = @import("zx").columns.invoke(generated.executeValue, scratch.allocator(), &input) catch unreachable;
+    const indexed = @import("zx").columns.invoke(generated.executeValue, arena.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
+        else => unreachable,
+    };
 
-    return if (duplicate) |row| @intCast(row) else null;
+    if (indexed.duplicate) |row| return @intCast(row);
+
+    @memcpy(self.keys, indexed.keys);
+    @memcpy(self.buckets, indexed.buckets);
+
+    return null;
 }
 
 pub fn get(self: *const Self, key: []const u8) ?usize {

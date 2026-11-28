@@ -22,14 +22,7 @@
         ]}
     />
 
-    <Call
-        fn="../../../tasks/rows.readAstOrigin"
-        in={[
-            $in.writer,
-            $in.origin
-        ]}
-    />
-
+    <Call fn="../../../tasks/rows.readAstOrigin" in={$in.writer} />
     <Call fn="../../../tasks/rows.astFieldCount" in={$in.writer} />
     <Call fn="../../../tasks/rows.astDeclarationCount" in={$in.writer} />
 

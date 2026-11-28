@@ -91,14 +91,36 @@ export declare function finishSkippedLoop(
     first: u32
 ): u32 throws { OutOfMemory }
 
-export declare function consumeDeepLoopResult(target: LoopResultFrame, buffered: bool): u32
-    throws { OutOfMemory }
+export declare function consumeDeepLoopResult(
+    frame: Lowering,
+    consumer: LoopConsumer,
+    state: u32
+): u32 throws { OutOfMemory }
 
-export declare function consumeLoopProjection(target: LoopResultFrame, converted: bool): u32
-    throws { OutOfMemory }
+export declare function consumeBufferedLoopResult(
+    allocator,
+    context: IterationResourceFrame,
+    consumer: LoopConsumer,
+    state: u32
+): LoopConsumption throws { OutOfMemory }
 
-export declare function wrapLoopResult(target: LoopResultFrame, layout: bool): u32
-    throws { OutOfMemory }
+export declare function consumeLoopProjection(
+    allocator,
+    frame: Lowering,
+    consumer: LoopConsumer,
+    state: u32,
+    converted: bool
+): LoopConsumption throws { OutOfMemory }
 
-export declare function convertLoopResult(target: LoopResultFrame): u32
-    throws { OutOfMemory }
+export declare function wrapLoopResult(
+    frame: Lowering,
+    type_id: u32,
+    state: u32,
+    layout: bool
+): u32 throws { OutOfMemory }
+
+export declare function convertLoopResult(
+    context: IterationResourceFrame,
+    type_id: u32,
+    state: u32
+): u32 throws { OutOfMemory }

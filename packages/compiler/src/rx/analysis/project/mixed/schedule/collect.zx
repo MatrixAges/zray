@@ -35,8 +35,8 @@ export default function (in: Input): Output {
                 _ => host.prepareMixedRXCandidate(workspace, index)
             }
 
-            if (ready != null) {
-                host.recordMixedCandidate(workspace, position, ready)
+            if (ready) {
+                host.recordMixedCandidate(workspace, position)
                 stage.accepted += 1
             } else {
                 host.restoreMixedCandidateDiagnostic(workspace)

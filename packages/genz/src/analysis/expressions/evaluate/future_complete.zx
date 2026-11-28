@@ -15,13 +15,12 @@ import futureCall from "../../tasks/future/call"
 import cancelResult from "../../tasks/future/cancel_result"
 import unpackSpan from "../../tasks/worker/execute/reference"
 
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
-    origin: AstOriginBuffer,
     started: u64,
     value?: u32,
     name?: u8[],
@@ -31,10 +30,10 @@ export type Input = {
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, started, value, name, cancel: canceling } = in
+    const { frame, writer, started, value, name, cancel: canceling } = in
 
     const field_base = astFieldCount(writer)
-    const current = readAstOrigin(writer, origin)
+    const current = readAstOrigin(writer)
 
     const called = futureCall({
         value,
@@ -106,7 +105,6 @@ export default function (in: Input): Output {
     return finishStored({
         frame,
         writer,
-        origin,
         span,
         value: built.root,
         guard: null

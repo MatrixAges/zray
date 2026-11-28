@@ -1,48 +1,36 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
-import { max_u64 } from "core/const"
-import host from "lowering_host"
 
 import { word_radix } from "./block/const"
 
-import type { DirectAstRows } from "lowering_host"
 import type { Published } from "./block/model"
 
 export type Input = {
-    rows: DirectAstRows,
-    count: u64
+    headers: u64[]
 }
 
-export type Output = Published & {
-    count: u64
-}
+export type Output = Published
 
 export default function (in: Input): Output {
-    const tags = bytes.repeat(in.count, 0)
+    const tags = bytes.repeat(in.headers.length, 0)
     const offsets: u32[] = tags.map(tag => 0)[0]
 
     return loop({
         tags,
         offsets,
-        count: 0,
-        ready: true
+        row: 0
     }, {
-        while: state => state.count < in.count && state.ready,
+        while: state => state.row < in.headers.length,
         next: state => {
-            const header = host.prepareDirectAstRow(in.rows, state.count)
+            const header = in.headers[state.row]
 
-            if (header == max_u64) {
-                state.ready = false
-            } else {
-                state.tags[state.count] = integers.narrowByte(header / word_radix)
-                state.offsets[state.count] = integers.narrow(header % word_radix)
-                state.count += 1
-            }
+            state.tags[state.row] = integers.narrowByte(header / word_radix)
+            state.offsets[state.row] = integers.narrow(header % word_radix)
+            state.row += 1
         },
         return: state => ({
             tags: state.tags,
-            offsets: state.offsets,
-            count: state.count
+            offsets: state.offsets
         })
     })
 }

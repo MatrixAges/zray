@@ -11,7 +11,7 @@ import type { Input } from "./model"
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, state, expressions, row, action, iteration } = in
+    const { frame, writer, state, expressions, row, action, iteration } = in
 
     const index = integers.widen(row)
 
@@ -85,7 +85,6 @@ export default function (in: Input): Output {
             return list({
                 frame,
                 writer,
-                origin,
                 state,
                 action,
                 iteration,
@@ -98,7 +97,6 @@ export default function (in: Input): Output {
         case ReadAction.Length: return list({
             frame,
             writer,
-            origin,
             state,
             action,
             iteration,
