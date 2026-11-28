@@ -1,0 +1,9 @@
+import type { Effect as Input } from "./effect"
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.definition.effect = in
+}

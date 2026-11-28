@@ -1,0 +1,22 @@
+export enum Action {
+    ClearResults,
+    ResetWorker,
+    ResetBindings,
+    Reserve,
+    Open,
+    PrepareZX,
+    PrepareRX,
+    Record,
+    RestoreDiagnostic,
+    Execute
+}
+
+export type Command = {
+    action: Action,
+    row: u64
+}
+
+export type Effect = Command & {
+    count: u64,
+    ready: bool
+}

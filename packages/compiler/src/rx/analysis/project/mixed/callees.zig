@@ -6,7 +6,6 @@ const ir = zx.ir;
 const State = @import("state.zig");
 const result_name = @import("../../result_name.zig");
 const Prepared = @import("../prepare.zig");
-const Imported = if (Prepared.batch_callees) @import("rx_execution_abi").layouts.@"zig:rx_project_host".ImportedCallee else void;
 const missing_rx = "RX call target has not been lowered";
 const missing_zx = "source call target has not been analyzed in its required context";
 const not_executable_rx = "Call.module requires an executable source module";
@@ -32,27 +31,61 @@ pub fn load(state: *State, allocator: std.mem.Allocator, cache: *frontend.projec
     const references = zx.memory.borrowReferencedTextColumn("value", names);
     const members = @import("../../call/named.zig").MemberColumns.borrow(&.{"members"}, state.finished.surfaces);
     const Published = std.meta.Child(@FieldType(Input, "published"));
-    var binding: Binding = .{ .state = state, .cache = cache, .sources = sources, .calls = module.calls, .owner = state.owner };
+    const binding: Binding = .{ .state = state, .cache = cache, .sources = sources, .calls = module.calls, .owner = state.owner };
 
-    const request: Input = .{
+    var request: Input = .{
         .calls = &.{ .kinds = kinds, .rows = @ptrCast(targets), .references = @ptrCast(&references) },
         .published = &.{ .present = state.finished.present, .functions = state.finished.functions, .members = &members.view(std.meta.Child(@FieldType(Published, "members"))) },
         .zx_count = graph.sources.zx_count,
         .rx_end = graph.sources.rx_end,
-        .binding = @ptrCast(&binding),
+        .position = 0,
+        .reply = null,
     };
 
     var scratch = std.heap.ArenaAllocator.init(state.scratch.child_allocator);
 
     defer scratch.deinit();
 
-    const ids = rule.executeIn(scratch.allocator(), &request) catch |err| switch (err) {
-        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
-        error.InvalidSourceGraph => return error.InvalidSourceGraph,
-        else => unreachable,
-    };
+    const Reply = std.meta.Child(std.meta.Child(@FieldType(Input, "reply")));
+    const Imported = std.meta.Child(std.meta.Child(@FieldType(Reply, "library")));
+    var reply: Reply = undefined;
+    var imported: Imported = undefined;
+    const ids = try allocator.alloc(ir.FunctionId, module.calls.len);
 
-    return try allocator.dupe(ir.FunctionId, @ptrCast(ids));
+    errdefer allocator.free(ids);
+
+    var written: usize = 0;
+
+    while (true) {
+        const next = rule.executeIn(scratch.allocator(), &request) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
+            else => unreachable,
+        };
+
+        @memcpy(ids[written..][0..next.ids.len], @as([]const ir.FunctionId, @ptrCast(next.ids)));
+
+        written += next.ids.len;
+
+        const effect = next.effect;
+        request.position = effect.position;
+
+        reply = switch (effect.kind) {
+            .Done => {
+                std.debug.assert(written == ids.len);
+
+                return ids;
+            },
+            .ImportLibrary => block: {
+                imported = try binding.openLibrary(Imported, @intCast(effect.position), @intCast(effect.target.?));
+
+                break :block .{ .library = &imported, .setter = null };
+            },
+            .CompileSetter => .{ .library = null, .setter = try binding.compile(@intCast(effect.position), @intCast(effect.target.?)) },
+            .Reject => return binding.reject(@intCast(effect.position), effect.name orelse false, effect.message.?),
+        };
+
+        request.reply = &reply;
+    }
 }
 
 const Binding = struct {
@@ -61,50 +94,33 @@ const Binding = struct {
     sources: []const frontend.project.Source,
     calls: Prepared.Calls.Slice,
     owner: usize,
-    imported: Imported = undefined,
-    fn borrow(handle: *anyopaque) *Binding {
-        return @ptrCast(@alignCast(handle));
+    fn openLibrary(binding: *const Binding, comptime Imported: type, position: usize, edge: usize) State.Error!Imported {
+        const location = binding.calls.items(.node)[position].location;
+        const loaded = try importLibrary(binding.state, binding.owner, edge, location);
+        const index = if (loaded) |id| @backingInt(id) else null;
+        const functions = &binding.state.functions;
+
+        return .{
+            .function_id = index,
+            .setter = binding.calls.items(.setter)[position] != null,
+            .has_stores = if (index) |id| functions.stores.items[id].count() != 0 else false,
+            .orchestration = if (index) |id| functions.store_modes.items[id] == .orchestration else false,
+        };
+    }
+    fn compile(binding: *const Binding, row: usize, target: usize) State.Error!?u32 {
+        const setter = binding.calls.items(.setter)[row].?;
+        const id = try compileAuthorized(binding.state, binding.cache, binding.sources, target, setter);
+
+        binding.state.owner = binding.owner;
+
+        return id;
+    }
+    fn reject(binding: *const Binding, position: usize, name: bool, message: []const u8) State.Error {
+        const location = if (name) binding.calls.items(.name_source)[position].value_location else binding.calls.items(.node)[position].location;
+
+        return binding.state.fail(location, message);
     }
 };
-
-pub fn importMixedCallee(handle: *anyopaque, row: u64, edge: u64) State.Error!*const Imported {
-    const binding = Binding.borrow(handle);
-    const position: usize = @intCast(row);
-    const location = binding.calls.items(.node)[position].location;
-    const loaded = try importLibrary(binding.state, binding.owner, @intCast(edge), location);
-    const index = if (loaded) |id| @backingInt(id) else null;
-    const functions = &binding.state.functions;
-
-    binding.imported = .{
-        .function_id = index,
-        .setter = binding.calls.items(.setter)[position] != null,
-        .has_stores = if (index) |id| functions.stores.items[id].count() != 0 else false,
-        .orchestration = if (index) |id| functions.store_modes.items[id] == .orchestration else false,
-    };
-
-    return &binding.imported;
-}
-
-pub fn compileMixedSetter(handle: *anyopaque, row: u64, target: u64) State.Error!?u32 {
-    const binding = Binding.borrow(handle);
-    const setter = binding.calls.items(.setter)[@intCast(row)].?;
-
-    return compileAuthorized(binding.state, binding.cache, binding.sources, @intCast(target), setter);
-}
-
-pub fn restoreMixedCalleeOwner(handle: *anyopaque) void {
-    const binding = Binding.borrow(handle);
-
-    binding.state.owner = binding.owner;
-}
-
-pub fn rejectMixedCallee(handle: *anyopaque, row: u64, name: bool, message: []const u8) State.Error!void {
-    const binding = Binding.borrow(handle);
-    const position: usize = @intCast(row);
-    const location = if (name) binding.calls.items(.name_source)[position].value_location else binding.calls.items(.node)[position].location;
-
-    return binding.state.fail(location, message);
-}
 
 fn importLibrary(state: *State, owner: usize, edge: usize, location: rx.ast.Location) State.Error!?ir.FunctionId {
     const target = state.graph.modules.items(.dependencies)[owner][edge].target.compiled;

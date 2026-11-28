@@ -13,8 +13,6 @@ export declare function loweringOrigin(frame: Lowering, id: u32): u8[]
 export declare function retainLoweringText(frame: Lowering, text: u8[]): u8[]
     throws { OutOfMemory }
 
-export declare function setLoweringSerial(frame: Lowering, serial: u64): void
-
 export declare function materializeIterationResource(
     frame: IterationResourceFrame,
     id: u32,

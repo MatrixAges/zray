@@ -1,15 +1,18 @@
 <Module>
     <Type from="execute_model" as="Projection" />
+    <Type from="../../../statements/rows" as="AST" />
 
     <Args in={Projection.Input} out={Projection.Output} />
 
     <Call fn="publish" in={$in.expressions} />
 
     <Call
-        fn="../../../statements/rows.appendAstProjectionRows"
+        fn="../../../statements/rows.appendExpressionRows"
         in={[
             $in.writer,
-            $ctx.publish
+            $ctx.publish,
+            null,
+            AST.AstPayloadOwnership.Borrowed
         ]}
     />
 

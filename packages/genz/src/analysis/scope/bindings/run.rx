@@ -3,6 +3,7 @@
 
     <Args in={Scope.Input} out={u32} />
 
+    <Call fn="stacked" in={$in.selection} />
     <Call fn="prepare" in={$in} />
 
     <If on={!$in.selection.iteration}>
@@ -10,6 +11,7 @@
             fn="collect"
             in={{
                 source: $in,
+                selection: $ctx.stacked,
                 ...$ctx.prepare.pick([
                     "count",
                     "type_id"
@@ -43,6 +45,7 @@
         fn="iteration"
         in={{
             source: $in,
+            selection: $ctx.stacked,
             count: $ctx.prepare.count
         }}
     />

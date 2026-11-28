@@ -1,7 +1,16 @@
 export type InstallIO = opaque
-export type LockData = opaque
 export type FreshBuild = opaque
-export type ArchiveManifest = opaque
+export type ArchiveIdentity = {
+    name: string,
+    version: string,
+    has_workspace: bool
+}
+
+export enum ArchiveAdmission {
+    Valid,
+    IdentityMismatch,
+    ContainsWorkspace
+}
 
 export type Catalog = {
     build: FreshBuild,
@@ -47,25 +56,19 @@ export declare function fetchArchive(
     release: Release
 ): string throws { InstallHostFailure }
 
-export declare function readArchive(session: InstallIO, path: string): ArchiveManifest
+export declare function readArchive(build: FreshBuild, path: string): ArchiveIdentity
     throws { InstallHostFailure }
-
-export declare function verifyArchive(
-    session: InstallIO,
-    manifest: ArchiveManifest,
-    release: Release
-): void throws { InstallHostFailure }
 
 export declare function recordArchive(
     build: FreshBuild,
     source: string,
-    release: Release,
-    manifest: ArchiveManifest
+    digest: string,
+    admission: ArchiveAdmission
 ): u64 throws { InstallHostFailure }
 
-export declare function finishFresh(build: FreshBuild): LockData throws { InstallHostFailure }
+export declare function finishFresh(build: FreshBuild): void throws { InstallHostFailure }
 
-export declare function fetchLocked(session: InstallIO, lock: LockData, row: u64): string
+export declare function fetchLocked(session: InstallIO, row: u64): string
     throws { InstallHostFailure }
 
 export declare function canonicalPath(session: InstallIO, path: string): string
@@ -73,17 +76,15 @@ export declare function canonicalPath(session: InstallIO, path: string): string
 
 export declare function verifyLockedManifest(
     session: InstallIO,
-    lock: LockData,
     row: u64,
     path: string
 ): void throws { InstallHostFailure }
 
-export declare function currentWorkspaceMatches(session: InstallIO, lock: LockData): bool
+export declare function currentWorkspaceMatches(session: InstallIO): bool
     throws { InstallHostFailure }
 
 export declare function renderInstallation(
     session: InstallIO,
-    lock: LockData,
     paths: string[]
 ): Rendered throws { InstallHostFailure }
 

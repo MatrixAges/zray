@@ -9,9 +9,10 @@ import { smt_false, smt_true } from "../../scalar/const"
 import disjunction from "../../scalar/disjunction"
 import guard from "./guard"
 
+import type { SymbolicPath } from "verification_host"
 import type { Cases, Payload as Input } from "./model"
 
-export type Output = string
+export type Output = SymbolicPath
 
 export default function (in: Input): Output {
     const { block, session, scope, payload } = in
@@ -23,12 +24,14 @@ export default function (in: Input): Output {
 
     const subject = subject_outcome.text == null ? "" : subject_outcome.text
 
-    const path = guard({
+    const checked = guard({
         session,
         path: in.path,
+        violations: in.violations,
         safe: subject_outcome.safe
     })
 
+    const path = checked.path
     const first = integers.widen(control.selection_first[payload])
     const end = first + integers.widen(control.selection_count[payload])
 
@@ -36,7 +39,8 @@ export default function (in: Input): Output {
         row: first,
         unmatched: smt_true,
         continuation: smt_false,
-        fallback: null
+        fallback: null,
+        violations: checked.violations
     }
 
     return loop(seed, {
@@ -47,7 +51,6 @@ export default function (in: Input): Output {
 
             if (label != null) {
                 const label_outcome = host.evaluateSymbolicStatement(block, label)
-                const label_safety = label_outcome.safe
                 const matches = connect({
                     left: subject,
                     right: label_outcome.text == null ? "" : label_outcome.text,
@@ -58,11 +61,16 @@ export default function (in: Input): Output {
                     right: matches
                 })
                 const bound = host.bindSymbolicBoolean(session, entry)
-                const remaining = host.runSymbolicChild(block, body, bound)
+                const remaining = host.runSymbolicChild(block, body, {
+                    path: bound,
+                    violations: state.violations
+                })
+
+                state.violations = remaining.violations
 
                 const continued = disjunction({
                     left: state.continuation,
-                    right: remaining
+                    right: remaining.path
                 })
                 state.continuation = host.bindSymbolicBoolean(session, continued)
 
@@ -86,16 +94,25 @@ export default function (in: Input): Output {
             const default_path = host.bindSymbolicBoolean(session, otherwise)
 
             const remaining = match {
-                state.fallback == null => default_path,
-                _ => host.runSymbolicChild(block, state.fallback, default_path)
+                state.fallback == null => ({
+                    path: default_path,
+                    violations: state.violations
+                }),
+                _ => host.runSymbolicChild(block, state.fallback, {
+                    path: default_path,
+                    violations: state.violations
+                })
             }
 
             const joined = disjunction({
                 left: state.continuation,
-                right: remaining
+                right: remaining.path
             })
 
-            return host.bindSymbolicBoolean(session, joined)
+            return {
+                path: host.bindSymbolicBoolean(session, joined),
+                violations: remaining.violations
+            }
         }
     })
 }

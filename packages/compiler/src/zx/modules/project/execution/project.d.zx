@@ -1,10 +1,5 @@
-export declare function analyzeProjectBody(body: ProjectBody): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function materializeProjectFunction(body: ProjectBody): void
-    throws { OutOfMemory }
-
-export declare function checkProjectOwnership(body: ProjectBody, count: u64, id: u32?): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function bindProjectBodyExports(body: ProjectBody, id: u32?): void
+export enum CacheWrite {
+    Ready,
+    MissingOrigin,
+    Invalid
+}

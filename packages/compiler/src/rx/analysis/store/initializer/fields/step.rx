@@ -1,7 +1,10 @@
 <Module>
     <Type from="../workflow" as="Initializer" />
+    <Type from="../effect" as="Effect" />
 
     <Args in={Initializer.Scan} out={Initializer.Scan} />
+
+    <Store from="../initializer" as="initializer" />
 
     <If on={$in.row == $in.end}>
         <Call
@@ -31,17 +34,26 @@
     />
 
     <Call
-        fn="../host.evaluateStoreField"
-        in={[
-            $in.frame,
-            $in.row,
-            $ctx.attributes.first ?? [],
-            $ctx.attributes.second ?? []
-        ]}
+        fn="../stage"
+        in={{
+            step: Effect.Step.Evaluate,
+            index: $in.row,
+            name: $ctx.attributes.first ?? [],
+            value: $ctx.attributes.second ?? []
+        }}
+        setter={[$store.initializer.effect]}
     />
 
-    <If on={!$ctx.evaluateStoreField}>
-        <Call fn="../host.releaseStoreField" in={$in.frame} />
+    <Call fn="../read_valid" in={$store.initializer.effect} />
+
+    <If on={!$ctx.read_valid}>
+        <Call
+            fn="../stage"
+            in={{
+                step: Effect.Step.Release
+            }}
+            setter={[$store.initializer.effect]}
+        />
 
         <Return
             value={{
@@ -52,16 +64,23 @@
     </If>
 
     <Call
-        fn="../host.recordStoreField"
-        in={[
-            $in.frame,
-            $in.position
-        ]}
+        fn="../stage"
+        in={{
+            step: Effect.Step.Record,
+            index: $in.position
+        }}
+        setter={[$store.initializer.effect]}
     />
 
     <Call module="link" in={$in} />
 
-    <Call fn="../host.releaseStoreField" in={$in.frame} />
+    <Call
+        fn="../stage"
+        in={{
+            step: Effect.Step.Release
+        }}
+        setter={[$store.initializer.effect]}
+    />
 
     <Return
         value={{

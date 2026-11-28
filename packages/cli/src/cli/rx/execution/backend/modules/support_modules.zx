@@ -10,10 +10,7 @@ import type { SupportModule } from "../model"
 
 export type Input = bool
 
-export type Output = {
-    abi: SupportModule,
-    napi?: SupportModule
-}
+export type Output = SupportModule[]
 
 export default function (in: Input): Output {
     const abi: SupportModule = {
@@ -22,17 +19,18 @@ export default function (in: Input): Output {
         dependencies: []
     }
 
-    const napi: SupportModule? = match {
-        in => {
-            name: napi_module,
-            file: napi_source,
-            dependencies: [application_module]
-        },
-        _ => null
+    if (!in) {
+        return [abi]
     }
 
-    return {
+    const napi: SupportModule = {
+        name: napi_module,
+        file: napi_source,
+        dependencies: [application_module]
+    }
+
+    return [
         abi,
         napi
-    }
+    ]
 }

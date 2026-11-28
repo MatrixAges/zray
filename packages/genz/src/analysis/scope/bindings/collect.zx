@@ -2,17 +2,18 @@ import execute from "./execute"
 import { Action } from "./model"
 import next from "./next"
 
-import type { Input as Scope, Prepared } from "./model"
+import type { Input as Scope, Prepared, Selected } from "./model"
 
 export type Input = Prepared.Pick("count", "type_id") & {
-    source: Scope
+    source: Scope,
+    selection: Selected
 }
 
 export type Output = u64[]
 
 export default function (in: Input): Output {
     const { source, count, type_id } = in
-    const { selection } = source
+    const { selection } = in
 
     const empty: u64[] = []
 

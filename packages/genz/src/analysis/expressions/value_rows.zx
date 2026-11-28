@@ -1,8 +1,0 @@
-export {
-    appendAstAccessRows,
-    appendAstAllocationCallRows,
-    appendAstArrayRows,
-    appendAstLiteralRows
-} from "ast_rows"
-export { finishGeneratedAst } from "lowering_host"
-export { requireAllocation } from "memory"

@@ -1,26 +1,88 @@
 <Module>
     <Type from="model" as="Task" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Task.Input} out={u32} />
 
-    <Call fn="host.compileParallelTaskBody" in={$in.frame} />
-    <Call fn="host.checkParallelTaskCalls" in={$in.frame} />
-    <Call fn="host.resolveParallelTaskCaptures" in={$in.frame} />
-    <Call fn="host.lowerParallelTaskProgram" in={$in.frame} />
-    <Call fn="host.checkParallelTaskProgram" in={$in.frame} />
-    <Call fn="host.analyzeParallelTaskOwnership" in={$in.frame} />
-    <Call fn="host.validateParallelTaskProgram" in={$in.frame} />
-    <Call fn="host.buildParallelTaskArgument" in={$in.frame} />
+    <Store from="compilation" as="task" />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.CompileBody
+        }}
+        setter={[$store.task.effect]}
+    />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.CheckCalls
+        }}
+        setter={[$store.task.effect]}
+    />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.Capture
+        }}
+        setter={[$store.task.effect]}
+    />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.Lower
+        }}
+        setter={[$store.task.effect]}
+    />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.CheckProgram
+        }}
+        setter={[$store.task.effect]}
+    />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.Ownership
+        }}
+        setter={[$store.task.effect]}
+    />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.Validate
+        }}
+        setter={[$store.task.effect]}
+    />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.Argument
+        }}
+        setter={[$store.task.effect]}
+    />
+
     <Call fn="../project/flow/traversal/select_result" in={$in.results} />
 
     <Call
-        fn="host.publishParallelTask"
-        in={[
-            $in.frame,
-            $ctx.select_result.row,
-            $ctx.select_result.visible
-        ]}
+        fn="stage"
+        in={{
+            step: Effect.Step.Publish,
+            row: $ctx.select_result.row,
+            visible: $ctx.select_result.visible
+        }}
+        setter={[$store.task.effect]}
     />
 
-    <Return value={$ctx.publishParallelTask} />
+    <Call fn="read_id" in={$store.task.effect} />
+
+    <Return value={$ctx.read_id} />
 </Module>

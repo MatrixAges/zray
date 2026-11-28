@@ -1,19 +1,7 @@
-import missing from "./missing"
-
-import type { Input, Output } from "./model"
+import type { Membership as Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    const state = missing({
-        index: in.state,
-        condition: in.condition,
-        step: in.step
-    })
-
-    const stack = missing({
-        index: in.stack,
-        condition: in.condition,
-        step: in.step
-    })
+    const { state, stack } = in
 
     return {
         add_condition: state.condition,

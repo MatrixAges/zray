@@ -19,7 +19,7 @@
         />
 
         <Else>
-            <If on={!$ctx.openLock.matches}>
+            <If on={!$ctx.openLock}>
                 <Return
                     value={{
                         status: Project.Status.LockFileOutdated
@@ -31,8 +31,7 @@
                 fn="../effects.openMapping"
                 in={[
                     $in.graph,
-                    $in.root,
-                    $ctx.openLock.lock
+                    $in.root
                 ]}
             />
 
@@ -41,7 +40,6 @@
                     module="loaded"
                     in={{
                         graph: $in.graph,
-                        lock: $ctx.openLock.lock,
                         mapping: $ctx.openMapping
                     }}
                 />

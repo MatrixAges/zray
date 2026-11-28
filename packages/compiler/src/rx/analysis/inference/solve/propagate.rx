@@ -1,7 +1,10 @@
 <Module>
     <Type from="model" as="Solve" />
+    <Type from="replay_effect" as="Effect" />
 
     <Args in={Solve.Request} out={bool} />
+
+    <Store from="replay" as="replay" />
 
     <Task name="initial" out={$ctx.solveRevision}>
         <Call fn="host.solveRevision" in={$in.frame} />
@@ -13,13 +16,12 @@
 
     <If on={$ctx.validate != null}>
         <Call
-            fn="../bindings/host.applyBindingDiagnostic"
-            in={[
-                $in.bindings.frame,
-                $ctx.validate.source,
-                $ctx.validate.row,
-                $ctx.validate.message
-            ]}
+            fn="stage_replay"
+            in={{
+                step: Effect.Step.RejectBinding,
+                diagnostic: $ctx.validate
+            }}
+            setter={[$store.replay.effect]}
         />
     </If>
 
@@ -33,13 +35,12 @@
 
     <If on={$ctx.run != null}>
         <Call
-            fn="../bindings/host.applyBindingDiagnostic"
-            in={[
-                $in.bindings.frame,
-                $ctx.run.source,
-                $ctx.run.row,
-                $ctx.run.message
-            ]}
+            fn="stage_replay"
+            in={{
+                step: Effect.Step.RejectBinding,
+                diagnostic: $ctx.run
+            }}
+            setter={[$store.replay.effect]}
         />
     </If>
 

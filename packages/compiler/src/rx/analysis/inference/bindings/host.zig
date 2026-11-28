@@ -10,7 +10,6 @@ const Collisions = std.meta.Child(@FieldType(Replay, "collisions"));
 const errors = @import("../../project/workflow/errors.zig");
 const require_rule = @import("generated_rx_require_binding_value");
 const Requirement = std.meta.Child(require_rule.Input);
-const DiagnosticSource = @import("rx_execution_abi").layouts.@"zig:rx_project_host".BindingDiagnosticSource;
 
 pub const Frame = struct {
     graph: *Graph,
@@ -42,7 +41,6 @@ pub const Frame = struct {
         };
 
         self.view = .{
-            .frame = @ptrCast(self),
             .topology = &self.topology,
             .collisions = &self.collisions,
             .candidates = @ptrCast(lookups.items(.candidates)),
@@ -55,33 +53,22 @@ pub const Frame = struct {
         self.topology = .{ .graph = &self.nodes, .parents = self.graph.parents() };
     }
 
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
+    pub fn refresh(self: *Frame) void {
+        self.bindTopology();
+    }
+    pub fn unify(self: *Frame, row: usize, value: u32) zx.Error!void {
+        try self.graph.unify(@fromBackingInt(self.view.values[row]), @fromBackingInt(value), self.lookup_spans[row]);
+    }
+    pub fn reject(self: *Frame, diagnostic: anytype) zx.Error {
+        const spans = switch (diagnostic.source) {
+            .Collision => self.collision_spans,
+            .Lookup => self.lookup_spans,
+            .Use => self.use_spans,
+        };
+
+        return self.graph.reporter.fail(.name, spans[@intCast(diagnostic.row)], diagnostic.message);
     }
 };
-
-pub fn refreshBindingTopology(handle: *anyopaque) void {
-    Frame.borrow(handle).bindTopology();
-}
-
-pub fn unifyBindingReplay(handle: *anyopaque, index: u64, value: u32) zx.Error!void {
-    const frame = Frame.borrow(handle);
-    const row: usize = @intCast(index);
-
-    try frame.graph.unify(@fromBackingInt(frame.view.values[row]), @fromBackingInt(value), frame.lookup_spans[row]);
-}
-
-pub fn applyBindingDiagnostic(handle: *anyopaque, source: DiagnosticSource, row: u64, message: []const u8) zx.Error!void {
-    const frame = Frame.borrow(handle);
-
-    const spans = switch (source) {
-        .Collision => frame.collision_spans,
-        .Lookup => frame.lookup_spans,
-        .Use => frame.use_spans,
-    };
-
-    return frame.graph.reporter.fail(.name, spans[@intCast(row)], message);
-}
 
 pub fn require(graph: *Graph, value: Graph.Id, span: zx.Span) zx.Error!void {
     const RequireTopology = std.meta.Child(@FieldType(Requirement, "topology"));

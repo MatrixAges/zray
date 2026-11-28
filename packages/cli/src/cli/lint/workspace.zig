@@ -4,34 +4,32 @@ const workspace = @import("../../package/workspace.zig");
 const graph = @import("../../package/graph.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
+const memory = @import("zx").memory;
+const rule = @import("cli_source").lint_workspace;
+const Rows = std.meta.Child(@FieldType(std.meta.Child(rule.Input), "members"));
 
 const State = struct {
     context: *const Compile.Context,
     workspace: ?workspace.Result = null,
     graph: ?graph.Result = null,
     root_manifest: ?[]const u8 = null,
-    member: ?[]const u8 = null,
+    rows: Rows = undefined,
+    paths: memory.TextColumn = undefined,
+    entries: memory.ReadColumn = undefined,
+    exports: memory.ListColumn = undefined,
     failure: effects.Failure = .{},
     fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);
     }
-    fn releaseMember(self: *State) void {
-        if (self.member) |path| self.context.allocator.free(path);
-
-        self.member = null;
-    }
-
     fn deinit(self: *State) void {
-        self.releaseMember();
-
         if (self.root_manifest) |path| self.context.allocator.free(path);
         if (self.graph) |*resolved| resolved.deinit();
         if (self.workspace) |*discovered| discovered.deinit();
     }
-    fn memberContext(self: *const State) Compile.Context {
+    fn memberContext(self: *const State, path: []const u8) Compile.Context {
         var context = self.context.*;
 
-        context.options.input = self.member.?;
+        context.options.input = path;
         context.options.project = self.root_manifest.?;
         context.options.workspace_lint = false;
         context.options.semantic_lint = true;
@@ -55,9 +53,10 @@ fn execute(context: Compile.Context) !Compile.Status {
 
     defer state.deinit();
 
-    const outcome = @import("cli_source").lint_workspace.executeIn(context.allocator, &.{
+    const outcome = rule.executeIn(context.allocator, &.{
         .host = @ptrCast(&reference),
         .input_path = context.options.input,
+        .members = &state.rows,
     }) catch |err| return state.failure.unwrap(err);
 
     return switch (outcome) {
@@ -82,7 +81,7 @@ pub fn discoverLintWorkspace(handle: *const anyopaque) Error!bool {
     return true;
 }
 
-pub fn resolveLintWorkspace(handle: *const anyopaque) Error!?u64 {
+pub fn resolveLintWorkspace(handle: *const anyopaque) Error!?[]const u8 {
     const self = State.get(handle);
     const context = self.context;
 
@@ -96,33 +95,32 @@ pub fn resolveLintWorkspace(handle: *const anyopaque) Error!?u64 {
 
     self.root_manifest = std.Io.Dir.cwd().realPathFileAlloc(context.io, context.options.input, context.allocator) catch |err| return self.failure.save(err);
 
-    return self.workspace.?.packages.len;
+    const members = self.workspace.?.packages;
+
+    self.paths = memory.borrowTextColumn("path", members);
+    self.entries = memory.borrowNestedColumn(?[]const u8, &.{ "manifest", "entry" }, members);
+    self.exports = memory.borrowListPath([]const u8, &.{ "manifest", "exports" }, &.{"path"}, members);
+
+    self.rows = .{
+        .paths = @ptrCast(&self.paths),
+        .entries = @ptrCast(&self.entries),
+        .exports = @ptrCast(&self.exports),
+        .count = members.len,
+    };
+
+    return self.graph.?.root;
 }
 
-pub fn selectLintWorkspaceMember(handle: *const anyopaque, index: u64) Error!bool {
+pub fn lintMemberSemantics(handle: *const anyopaque, path: []const u8) Error!bool {
     const self = State.get(handle);
-    const package = &self.workspace.?.packages[@intCast(index)];
-    self.member = std.fs.path.resolve(self.context.allocator, &.{ self.graph.?.root, package.path, "pkg.yaml" }) catch |err| return self.failure.save(err);
-
-    return package.manifest.entry != null or package.manifest.exports.len != 0;
-}
-
-pub fn lintMemberSemantics(handle: *const anyopaque) Error!bool {
-    const self = State.get(handle);
-
-    defer self.releaseMember();
-
-    const status = @import("semantic.zig").run(self.memberContext()) catch |err| return self.failure.save(err);
+    const status = @import("semantic.zig").run(self.memberContext(path)) catch |err| return self.failure.save(err);
 
     return status == .success;
 }
 
-pub fn lintMemberConfiguration(handle: *const anyopaque) Error!bool {
+pub fn lintMemberConfiguration(handle: *const anyopaque, path: []const u8) Error!bool {
     const self = State.get(handle);
-
-    defer self.releaseMember();
-
-    const status = @import("../configuration/root.zig").run(self.memberContext()) catch |err| return self.failure.save(err);
+    const status = @import("../configuration/root.zig").run(self.memberContext(path)) catch |err| return self.failure.save(err);
 
     return status == .success;
 }

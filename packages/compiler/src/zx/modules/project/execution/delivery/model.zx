@@ -1,7 +1,4 @@
-import type { ProjectImport, ProjectImportTarget } from "project_host"
-
 export type Input = {
-    frame: ProjectImport,
     signature: bool,
     exported: bool,
     completed?: u64
@@ -11,4 +8,47 @@ export type Binding = Input.Omit("completed")
 
 export type ResolvedBinding = Binding & {
     target: ProjectImportTarget
+}
+
+export enum ProjectImportRoute {
+    Native,
+    Legacy,
+    Intrinsic,
+    Resolve,
+    DuplicateBinding,
+    InvalidSpecifier,
+    DuplicateInterface,
+    InterfaceConflict,
+    InvalidLegacy,
+    MissingLegacy
+}
+
+export enum ProjectSourceAction {
+    Descend,
+    Bind,
+    DeferSignature,
+    SkipSignature,
+    RejectRx,
+    Missing,
+    Cycle,
+    Depth
+}
+
+export type ProjectSourceSelection = {
+    action: ProjectSourceAction,
+    row: u64
+}
+
+export enum ProjectImportKind {
+    Source,
+    Deferred,
+    Compiled,
+    Native,
+    External,
+    Intrinsic
+}
+
+export type ProjectImportTarget = {
+    kind: ProjectImportKind,
+    row?: u64
 }

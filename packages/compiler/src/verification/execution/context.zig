@@ -6,6 +6,7 @@ const clauses = @import("generated_apply_symbolic_contracts");
 const merge_result = @import("generated_merge_symbolic_returns");
 const Mode = @FieldType(std.meta.Child(clauses.Input), "mode");
 const native = @import("output_execution_abi").layouts.@"zig:verification_host";
+pub const Path = native.SymbolicPath;
 
 pub const Frame = struct {
     conditions: *Conditions,
@@ -16,10 +17,10 @@ pub const Frame = struct {
     }
 };
 
-pub fn apply(conditions: *Conditions, mode: Mode, path: []const u8, value: ?terms.Value) zx.Error![]const u8 {
+pub fn apply(conditions: *Conditions, mode: Mode, path: *const Path, value: ?terms.Value) zx.Error!Path {
     const kinds = conditions.program.contracts.kinds;
 
-    if (kinds.len == 0) return path;
+    if (kinds.len == 0) return path.*;
 
     var frame: Frame = .{ .conditions = conditions, .value = value };
     const Input = std.meta.Child(clauses.Input);
@@ -28,11 +29,14 @@ pub fn apply(conditions: *Conditions, mode: Mode, path: []const u8, value: ?term
         .session = @ptrCast(&frame),
         .kinds = zx.columns.slice(@FieldType(Input, "kinds"), kinds),
         .selected = if (mode == .Returned) .Ensures else .Requires,
-        .path = path,
+        .path = path.path,
+        .violations = path.violations,
         .mode = mode,
     };
 
-    return clauses.executeIn(conditions.allocator, &input) catch |err| return failure(err);
+    const result = clauses.executeIn(conditions.allocator, &input) catch |err| return failure(err);
+
+    return .{ .path = result.path, .violations = result.violations };
 }
 
 pub fn merge(conditions: *Conditions) zx.Error!terms.Evaluation {
@@ -41,7 +45,7 @@ pub fn merge(conditions: *Conditions) zx.Error!terms.Evaluation {
     const input: std.meta.Child(merge_result.Input) = .{
         .target = @ptrCast(&frame),
         .returns = conditions.returns.items.len,
-        .violations = conditions.violations.items,
+        .violations = conditions.violations,
     };
 
     const safe = merge_result.executeIn(conditions.allocator, &input) catch |err| return failure(err);
@@ -62,12 +66,6 @@ pub fn evaluateClause(handle: *anyopaque, row: u64) zx.Error!*const native.Claus
 
 pub fn bindSymbolicBoolean(handle: *anyopaque, term: []const u8) zx.Error![]const u8 {
     return Frame.borrow(handle).conditions.boolean(term);
-}
-
-pub fn publishClauseViolation(handle: *anyopaque, term: []const u8) std.mem.Allocator.Error!void {
-    const conditions = Frame.borrow(handle).conditions;
-
-    try conditions.violations.append(conditions.allocator, term);
 }
 
 pub fn selectSymbolicReturn(handle: *anyopaque, row: u64) zx.Error![]const u8 {

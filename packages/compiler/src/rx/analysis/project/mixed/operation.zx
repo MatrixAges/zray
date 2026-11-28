@@ -1,0 +1,49 @@
+export enum Step {
+    Prefetch,
+    RestorePrefix,
+    Select,
+    Reject,
+    PreparedZX,
+    AcceptZX,
+    RetireZX,
+    LinkZX,
+    AnalyzeZX,
+    AcceptedRX,
+    LinkRX,
+    LowerRX,
+    Record,
+    Materialize,
+    Observations,
+    Exports,
+    Retain
+}
+
+export enum Action {
+    Exhausted,
+    Skip,
+    MissingSignature,
+    AnalyzeZX,
+    LowerRX
+}
+
+export type Selection = {
+    action: Action,
+    index: u64,
+    position: u64,
+    following: u64,
+    prepared_row?: u64
+}
+
+export type Command = {
+    step: Step,
+    first?: u64,
+    end?: u64,
+    row?: u64,
+    selection?: Selection
+}
+
+export type Effect = Command & Selection & {
+    count: u64,
+    prepared?: u64,
+    accepted: bool
+}

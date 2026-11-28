@@ -4,7 +4,7 @@ import conjunction from "../scalar/conjunction"
 import require from "./require"
 
 import type { ContractKind as Kind } from "core/contract_table/model"
-import type { SymbolicSession } from "verification_host"
+import type { SymbolicPath, SymbolicSession } from "verification_host"
 
 export enum Mode {
     Entry,
@@ -12,20 +12,20 @@ export enum Mode {
     Returned
 }
 
-export type Input = {
+export type Input = SymbolicPath & {
     session: SymbolicSession,
     kinds: Kind[],
     selected: Kind,
-    path: string,
     mode: Mode
 }
 
-export type Output = string
+export type Output = SymbolicPath
 
 export default function (in: Input): Output {
     return loop({
         row: 0,
-        path: in.path
+        path: in.path,
+        violations: in.violations
     }, {
         while: state => state.row < in.kinds.length,
         next: state => {
@@ -44,7 +44,7 @@ export default function (in: Input): Output {
 
                     if (violation != null) {
                         const obligation = host.bindSymbolicBoolean(session, violation)
-                        host.publishClauseViolation(session, obligation)
+                        state.violations = state.violations.push(obligation)[0]
                     }
                 }
 
@@ -62,7 +62,7 @@ export default function (in: Input): Output {
 
                     if (violation != null) {
                         const obligation = host.bindSymbolicBoolean(session, violation)
-                        host.publishClauseViolation(session, obligation)
+                        state.violations = state.violations.push(obligation)[0]
                     }
                 }
 
@@ -76,6 +76,9 @@ export default function (in: Input): Output {
 
             state.row += 1
         },
-        return: state => state.path
+        return: state => ({
+            path: state.path,
+            violations: state.violations
+        })
     })
 }

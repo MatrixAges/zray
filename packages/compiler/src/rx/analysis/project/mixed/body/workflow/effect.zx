@@ -1,0 +1,32 @@
+export enum Step {
+    OpenZX,
+    CheckZX,
+    BindZX,
+    AnalyzeZX,
+    ReportZX,
+    RejectSetter,
+    InstallSetter,
+    LinkZX,
+    BindRX,
+    LowerRX,
+    ReportRX,
+    LinkRX
+}
+
+export type Analysis = {
+    declared: bool,
+    slots: u64
+}
+
+export type Command = {
+    step: Step,
+    checked?: bool,
+    entry?: bool,
+    message?: string
+}
+
+export type Effect = Command & {
+    ready: bool,
+    declared: bool,
+    slots: u64
+}

@@ -1,37 +1,46 @@
 <Module>
     <Type from="model" as="Invocation" />
     <Type from="../../flow/traversal/model" as="Flow" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Invocation.Previous} out={void} />
+
+    <Store from="invocation" as="invocation" />
 
     <If
         on={$in.previous_kind == Flow.Kind.Call ||
             $in.previous_kind == Flow.Kind.Task}
     >
         <Call
-            fn="host.preparedPreviousName"
-            in={[
-                $in.state,
-                $in.previous_end - 1,
-                $in.previous_kind == Flow.Kind.Task
-            ]}
+            fn="stage"
+            in={{
+                step: Effect.Step.ReadPrevious,
+                previous: {
+                    row: $in.previous_end - 1,
+                    task: $in.previous_kind == Flow.Kind.Task
+                }
+            }}
+            setter={[$store.invocation.effect]}
         />
 
-        <If on={$ctx.preparedPreviousName != null}>
+        <Call fn="read_name" in={$store.invocation.effect} />
+
+        <If on={$ctx.read_name != null}>
             <Call
                 fn="previous_path"
                 in={[
-                    $ctx.preparedPreviousName,
+                    $ctx.read_name,
                     $in.previous_kind == Flow.Kind.Task
                 ]}
             />
 
             <Call
-                fn="host.publishPreparedPrevious"
-                in={[
-                    $in.state,
-                    $ctx.previous_path
-                ]}
+                fn="stage"
+                in={{
+                    step: Effect.Step.PublishPrevious,
+                    name: $ctx.previous_path
+                }}
+                setter={[$store.invocation.effect]}
             />
         </If>
     </If>

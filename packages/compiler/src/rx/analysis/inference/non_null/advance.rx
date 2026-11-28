@@ -1,8 +1,11 @@
 <Module>
     <Type from="model" as="NonNull" />
     <Type from="scan" as="Scan" />
+    <Type from="../solve/replay_effect" as="Effect" />
 
     <Args in={NonNull.Cursor} out={NonNull.Cursor} />
+
+    <Store from="../solve/replay" as="replay" />
 
     <Call
         fn="scan"
@@ -22,43 +25,51 @@
     <Switch on={$ctx.scan.action}>
         <Case value={Scan.Action.Infer}>
             <Call
-                fn="host.reserveNonNullSource"
-                in={[
-                    $in.request.view.frame,
-                    $ctx.scan.next - 1,
-                    $in.request.view.values[$ctx.scan.next - 1]
-                ]}
+                fn="../solve/stage_replay"
+                in={{
+                    step: Effect.Step.ReserveNonNull,
+                    row: $ctx.scan.next - 1,
+                    right: $in.request.view.values[$ctx.scan.next - 1]
+                }}
+                setter={[$store.replay.effect]}
             />
 
+            <Call fn="../solve/read_replay_id" in={$store.replay.effect} />
+
             <Call
-                fn="host.mergeNonNullProjection"
-                in={[
-                    $in.request.view.frame,
-                    $ctx.scan.next - 1,
-                    $in.request.view.sources[$ctx.scan.next - 1],
-                    $ctx.reserveNonNullSource
-                ]}
+                fn="../solve/stage_replay"
+                in={{
+                    step: Effect.Step.MergeNonNull,
+                    row: $ctx.scan.next - 1,
+                    left: $in.request.view.sources[$ctx.scan.next - 1],
+                    right: $ctx.read_replay_id
+                }}
+                setter={[$store.replay.effect]}
             />
         </Case>
 
         <Case value={Scan.Action.Register}>
             <Call
-                fn="host.registerNonNullPayload"
-                in={[
-                    $in.request.view.frame,
-                    $ctx.scan.next - 1,
-                    $ctx.scan.value
-                ]}
+                fn="../solve/stage_replay"
+                in={{
+                    step: Effect.Step.RegisterNonNull,
+                    row: $ctx.scan.next - 1,
+                    right: $ctx.scan.value
+                }}
+                setter={[$store.replay.effect]}
             />
 
+            <Call fn="../solve/read_replay_id" in={$store.replay.effect} />
+
             <Call
-                fn="host.mergeNonNullProjection"
-                in={[
-                    $in.request.view.frame,
-                    $ctx.scan.next - 1,
-                    $in.request.view.values[$ctx.scan.next - 1],
-                    $ctx.registerNonNullPayload
-                ]}
+                fn="../solve/stage_replay"
+                in={{
+                    step: Effect.Step.MergeNonNull,
+                    row: $ctx.scan.next - 1,
+                    left: $in.request.view.values[$ctx.scan.next - 1],
+                    right: $ctx.read_replay_id
+                }}
+                setter={[$store.replay.effect]}
             />
         </Case>
 
@@ -73,18 +84,25 @@
 
         <Default>
             <Call
-                fn="host.mergeNonNullProjection"
-                in={[
-                    $in.request.view.frame,
-                    $ctx.scan.next - 1,
-                    $in.request.view.values[$ctx.scan.next - 1],
-                    $ctx.scan.value
-                ]}
+                fn="../solve/stage_replay"
+                in={{
+                    step: Effect.Step.MergeNonNull,
+                    row: $ctx.scan.next - 1,
+                    left: $in.request.view.values[$ctx.scan.next - 1],
+                    right: $ctx.scan.value
+                }}
+                setter={[$store.replay.effect]}
             />
         </Default>
     </Switch>
 
-    <Call fn="host.refreshNonNullTopology" in={$in.request.view.frame} />
+    <Call
+        fn="../solve/stage_replay"
+        in={{
+            step: Effect.Step.RefreshNonNull
+        }}
+        setter={[$store.replay.effect]}
+    />
 
     <Return
         value={{

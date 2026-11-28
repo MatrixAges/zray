@@ -1,0 +1,24 @@
+export enum Step {
+    Prepare,
+    Evaluate,
+    Record,
+    Link,
+    Release,
+    Resolve,
+    InvalidLink,
+    Finish
+}
+
+export type Command = {
+    step: Step,
+    index?: u64,
+    name?: u8[],
+    value?: u8[],
+    positions?: u32[]
+}
+
+export type Effect = Command & {
+    valid: bool,
+    source: string[],
+    canonical: string[]
+}

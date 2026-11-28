@@ -23,7 +23,7 @@ pub fn generate(conditions: *Conditions, result: std.mem.Allocator, temporary: s
         runner.prefix,
         .{
             .declarations = conditions.declarations.items,
-            .violations = conditions.violations.items,
+            .violations = conditions.violations,
             .precondition = runner.precondition,
         },
         conditions.inputs.items,
@@ -113,11 +113,24 @@ const Runner = struct {
                 conditions.input = try parameter(conditions, self.result_allocator, &remaining);
             },
             .EntryPreconditions, .CallPreconditions => {
-                self.precondition = try execution.apply(conditions, if (step == .CallPreconditions) .Called else .Entry, "true", null);
+                const prepared = try execution.apply(conditions, if (step == .CallPreconditions) .Called else .Entry, &.{
+                    .path = "true",
+                    .violations = conditions.violations,
+                }, null);
+
+                self.precondition = prepared.path;
+                conditions.violations = prepared.violations;
                 self.prefix = conditions.graph.?.definitions.len;
             },
             .RunBody => self.continuation = try runBody(conditions, self.precondition),
-            .CheckUnit => _ = try execution.apply(conditions, .Returned, self.continuation, unit),
+            .CheckUnit => {
+                const checked = try execution.apply(conditions, .Returned, &.{
+                    .path = self.continuation,
+                    .violations = conditions.violations,
+                }, unit);
+
+                conditions.violations = checked.violations;
+            },
             .AppendUnit => try conditions.returns.append(conditions.allocator, .{ .path = self.continuation, .value = unit }),
             .Resolve => try self.callPlan(conditions.returns.items.len),
             .Merge => self.result = try execution.merge(conditions),

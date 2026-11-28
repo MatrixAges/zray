@@ -1,1 +1,2 @@
-export declare function retainMixedHistory(state: Mixed): void
+export declare function installMixedSignatures(state: MixedState): void
+    throws { OutOfMemory }

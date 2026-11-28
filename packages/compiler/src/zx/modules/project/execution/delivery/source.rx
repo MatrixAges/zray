@@ -1,52 +1,63 @@
 <Module>
     <Type from="model" as="Delivery" />
-    <Type from="index" as="Host" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Delivery.Binding} out={u64?} />
 
-    <Call fn="index.selectProjectSource" in={$in.frame} />
+    <Store from="delivery" as="delivery" />
 
-    <Switch on={$ctx.selectProjectSource.action}>
-        <Case value={Host.ProjectSourceAction.Descend}>
-            <Return value={$ctx.selectProjectSource.row} />
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.SelectSource
+        }}
+        setter={[$store.delivery.effect]}
+    />
+
+    <Call fn="read_source" in={$store.delivery.effect} />
+
+    <Switch on={$ctx.read_source.action}>
+        <Case value={Delivery.ProjectSourceAction.Descend}>
+            <Return value={$ctx.read_source.row} />
         </Case>
 
-        <Case value={Host.ProjectSourceAction.Bind}>
+        <Case value={Delivery.ProjectSourceAction.Bind}>
             <Call
                 module="bind"
                 in={{
                     ...$in,
                     target: {
-                        kind: Host.ProjectImportKind.Source,
-                        row: $ctx.selectProjectSource.row
+                        kind: Delivery.ProjectImportKind.Source,
+                        row: $ctx.read_source.row
                     }
                 }}
             />
         </Case>
 
-        <Case value={Host.ProjectSourceAction.DeferSignature}>
+        <Case value={Delivery.ProjectSourceAction.DeferSignature}>
             <Call
                 module="bind"
                 in={{
                     ...$in,
                     target: {
-                        kind: Host.ProjectImportKind.Deferred
+                        kind: Delivery.ProjectImportKind.Deferred
                     }
                 }}
             />
         </Case>
 
-        <Case value={Host.ProjectSourceAction.SkipSignature}>
+        <Case value={Delivery.ProjectSourceAction.SkipSignature}>
             <Return value={null} />
         </Case>
 
         <Default>
             <Call
-                fn="index.rejectProjectSource"
-                in={[
-                    $in.frame,
-                    $ctx.selectProjectSource.action
-                ]}
+                fn="stage"
+                in={{
+                    step: Effect.Step.RejectSource,
+                    action: $ctx.read_source.action
+                }}
+                setter={[$store.delivery.effect]}
             />
         </Default>
     </Switch>

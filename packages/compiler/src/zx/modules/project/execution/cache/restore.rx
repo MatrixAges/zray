@@ -1,24 +1,36 @@
 <Module>
     <Type from="model" as="Cache" />
+    <Type from="../body_effect" as="Effect" />
 
     <Args in={Cache.Request} out={bool} />
 
+    <Store from="../body_work" as="body" />
+
     <If on={$in.root || !$in.dependency_ready}>
         <Call
-            fn="index.hashProjectCacheContext"
-            in={[
-                $in.body,
-                $in.root
-            ]}
+            fn="../body_stage"
+            in={{
+                step: Effect.Step.HashContext,
+                root: $in.root
+            }}
+            setter={[$store.body.effect]}
         />
     </If>
 
     <Call fn="../../../semantic_cache/state/lookup" in={$in.lookup} />
 
     <If on={$ctx.lookup}>
-        <Call fn="index.restoreCachedProjectBody" in={$in.body} />
+        <Call
+            fn="../body_stage"
+            in={{
+                step: Effect.Step.Restore
+            }}
+            setter={[$store.body.effect]}
+        />
 
-        <Return value={$ctx.restoreCachedProjectBody} />
+        <Call fn="../body_reused" in={$store.body.effect} />
+
+        <Return value={$ctx.body_reused} />
     </If>
 
     <Return value={false} />

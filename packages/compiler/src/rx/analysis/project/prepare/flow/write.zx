@@ -1,4 +1,5 @@
-import type { Header as Output, Rows } from "./model"
+import type { Rows } from "./model"
+import type { Header as Output } from "./payload/shape"
 
 export type Input = {
     rows: Rows,

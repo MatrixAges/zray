@@ -1,4 +1,4 @@
-import type { AstLeafStatements, AstSequence, AstWriter } from "ast_rows"
+import type { AstSequence, AstWriter, StatementRows } from "ast_rows"
 import type { Lowering } from "lowering_host"
 import type { Guard, Input, Plan } from "./model"
 
@@ -7,7 +7,16 @@ export type Target = {
     frame: Lowering
 }
 
-export type BlockBody = AstLeafStatements.Omit("break_value_label", "break_value_value")
+export type BlockBody = StatementRows.Pick(
+    "tags",
+    "offsets",
+    "expression",
+    "discard",
+    "constant_name",
+    "constant_type_expr",
+    "constant_value",
+    "constant_exported"
+)
 
 export type Publication = Target & {
     plan: Plan,

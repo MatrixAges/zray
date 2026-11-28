@@ -22,6 +22,37 @@ export enum NodeTarget {
     NodeImportLibraryRequired
 }
 
+export type CommandDestination = {
+    binary: string,
+    assembly?: string
+}
+
+export type CommandServer = {
+    name: string,
+    root: string,
+    local: string,
+    global: string,
+    assembly: bool
+}
+
+export type CommandOptions = {
+    directory: string,
+    module_paths: string[],
+    tool: string,
+    library: string,
+    local: string,
+    global: string,
+    node_library?: string,
+    server?: CommandServer,
+    files?: CommandDestination,
+    optimize: string,
+    target?: string,
+    cpu?: string,
+    libraries: string[],
+    state?: string,
+    imports: string[]
+}
+
 export declare function createStagedBindings(build: NativeBuild): void throws {
     SourceLoadFailure
 }
@@ -37,7 +68,7 @@ export declare function openBackendTranslation(build: NativeBuild): void throws 
 export declare function reportStagedTranslationFailure(build: NativeBuild): void throws {
     SourceLoadFailure
 }
-export declare function spawnStagedBackend(build: NativeBuild): bool throws {
+export declare function spawnStagedBackend(build: NativeBuild, arguments: string[]): bool throws {
     SourceLoadFailure
 }
 export declare function retainStagedBindings(build: NativeBuild): void throws {
@@ -50,7 +81,7 @@ export declare function preloadBackendPath(build: NativeBuild, path: string): vo
     SourceLoadFailure
 }
 export declare function expireBackendPath(build: NativeBuild, path: string): void
-export declare function spawnObservedBackend(build: NativeBuild): void throws {
+export declare function spawnObservedBackend(build: NativeBuild, arguments: string[]): void throws {
     SourceLoadFailure
 }
 export declare function takeTranslationFailure(build: NativeBuild): void
@@ -95,60 +126,20 @@ export declare function writeBackendWorkspace(build: NativeBuild): void throws {
 export declare function retainNodeResources(build: NativeBuild, target: NodeTarget): void throws {
     SourceLoadFailure
 }
-export declare function releaseBackendSources(build: NativeBuild): void
 export declare function prepareStagedParents(build: NativeBuild): void throws {
     SourceLoadFailure
 }
 
-export declare function appendBackendPrefix(
-    build: NativeBuild,
-    libc: bool,
-    library_paths: string[],
-    wasm: bool
-): void throws {
-    SourceLoadFailure
-}
-export declare function appendBackendEntry(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function writeBackendCommand(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
+export declare function readBackendCommandOptions(build: NativeBuild): CommandOptions
+    throws { SourceLoadFailure }
+export declare function writeBackendCommand(build: NativeBuild, arguments: string[]): void
+    throws { SourceLoadFailure }
 
-export declare function appendGeneratedModule(build: NativeBuild, index: u64): void throws {
-    SourceLoadFailure
-}
-export declare function bindBackendModule(
-    build: NativeBuild,
-    index: u64,
-    includes: string[],
-    abi: string?,
-    path: string?
-): void
-export declare function writeNativeHeader(build: NativeBuild): string throws {
-    SourceLoadFailure
-}
-export declare function spawnNativeTranslation(build: NativeBuild, header: string): bool throws {
-    SourceLoadFailure
-}
-export declare function bindNativeTranslation(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
+export declare function spawnNativeTranslation(build: NativeBuild, arguments: string[]): string?
+    throws { SourceLoadFailure }
 export declare function retainNativeTranslation(build: NativeBuild): void throws {
     SourceLoadFailure
 }
 export declare function releaseNativeTranslation(build: NativeBuild): void
-export declare function writeNativeAdapter(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function appendNativeModule(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function appendSupportModule(
-    build: NativeBuild,
-    name: string,
-    file: string,
-    imports: string[]
-): void throws {
-    SourceLoadFailure
-}
+export declare function writeNativeAdapter(build: NativeBuild, path: string): void
+    throws { SourceLoadFailure }

@@ -1,11 +1,10 @@
 import type { LoopParameterLayout } from "lowering_host"
-import type { U32Buffer } from "memory"
 
 export type Layout = LoopParameterLayout
 
 export type LiveIndex = {
-    keys: U32Buffer,
-    buckets: U32Buffer
+    keys: u32[],
+    buckets: u32[]
 }
 
 export type Slots = {
@@ -35,6 +34,15 @@ export type Pair = Slots & {
 export type Missing = {
     condition: bool,
     step: bool
+}
+
+export type Membership = {
+    state: Missing,
+    stack: Missing
+}
+
+export type Plan = Membership & Slots & {
+    layout: Layout
 }
 
 export type Output = {

@@ -6,17 +6,37 @@
     <Call
         module="append"
         in={$in.omit([
+            "chunks",
             "failed",
             "running"
         ])}
     />
 
-    <Return
-        value={{
-            ...$in,
-            index: $in.index + 1,
-            failed: !$ctx.append,
-            running: $ctx.append && $in.index + 1 < $in.count
-        }}
-    />
+    <If on={$ctx.append == null}>
+        <Return
+            value={{
+                ...$in,
+                failed: true,
+                running: false
+            }}
+        />
+
+        <Else>
+            <Call
+                fn="append_chunk"
+                in={[
+                    $in.chunks,
+                    $ctx.append
+                ]}
+            />
+
+            <Return
+                value={{
+                    ...$in,
+                    chunks: $ctx.append_chunk,
+                    index: $in.index + 1
+                }}
+            />
+        </Else>
+    </If>
 </Module>

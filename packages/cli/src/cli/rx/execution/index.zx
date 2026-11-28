@@ -6,7 +6,6 @@ export {
     generateRxFpga,
     openRxApplicationCache,
     emitRxApplicationText,
-    writeRxApplicationText,
     printRxApplicationText,
     emitRxApplicationModules,
     collectRxInitializers,

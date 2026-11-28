@@ -1,16 +1,14 @@
 import integers from "std:integer"
 import { ExpressionKind } from "core/expression_table/kinds"
-import lookup from "core/integer/index/lookup"
-import memory from "memory"
 
 import before from "../../binding/before"
 import { Route } from "../../binding/model"
 import { Action } from "./model"
 
-import type { Binding as Output, Selection } from "./model"
+import type { Binding as Output, Selected } from "./model"
 
 export type Input = {
-    selection: Selection,
+    selection: Selected,
     remaining: u64
 }
 
@@ -79,14 +77,8 @@ export default function (in: Input): Output {
         }
     }
 
-    const stacked = lookup({
-        keys: memory.u32Views(data.stack_keys),
-        buckets: memory.u32Views(data.stack_buckets),
-        key: symbol
-    }) != null
-
     return {
         ...binding,
-        action: stacked ? Action.Value : Action.Ordinary
+        action: data.stacked[position] ? Action.Value : Action.Ordinary
     }
 }

@@ -16,9 +16,21 @@ const Selection = @import("../../iteration_layout/select.zig").Selection;
 const Step = @import("../step.zig");
 const generated = @import("genz_options").generated_analysis;
 const Api = @import("../../expressions/evaluate.zig").Api;
+const Input = if (generated) std.meta.Child(@import("generated_lower_loop").Input) else void;
 pub const UpdateScope = if (generated) Api.LoopUpdateScope else enum { None, Projected, Ordinary };
-pub const StateInfo = struct { name: []const u8 = &.{}, forwarded: ?u32 = null };
-pub const GuardInfo = struct { body: u64 = 0, condition: u32 = 0, fallback: u32 = 0 };
+
+const StateInfo = if (generated) std.meta.Child(@FieldType(Input, "loop_state")) else struct {
+    name: []const u8,
+    reference: u32,
+    forwarded: ?u32,
+};
+
+const GuardInfo = if (generated) std.meta.Child(@FieldType(Input, "guard_info")) else struct {
+    body: u64,
+    condition: u32,
+    fallback: u32,
+};
+
 const Self = @This();
 
 const Parameters = struct {
@@ -59,12 +71,8 @@ step_scope: union(UpdateScope) {
 } = .None,
 next: Step.Values = undefined,
 tracker: ?State.Tracker = undefined,
-prefix: Result.Prefix = .{},
-update: node.Block = undefined,
-growth: node.Block = .{},
-recovered: node.ExpressionId = undefined,
-state_info: StateInfo = .{},
-guard_info: GuardInfo = .{},
+state_info: StateInfo = .{ .name = &.{}, .reference = 0, .forwarded = null },
+guard_info: GuardInfo = .{ .body = 0, .condition = 0, .fallback = 0 },
 pub fn create(lowering: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Result.Mode, consumer: ?Consumer) Self {
     return .{
         .lowering = lowering,

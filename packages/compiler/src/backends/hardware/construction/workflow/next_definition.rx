@@ -3,12 +3,22 @@
 
     <Args in={Hardware.DefinitionWalk} out={Hardware.DefinitionWalk} />
 
-    <Call fn="definition_origin" in={$in} />
+    <Call
+        fn="definition_origin"
+        in={$in.pick([
+            "rows",
+            "row",
+            "origin_file"
+        ])}
+    />
 
     <Call
         module="../../terms/parse/run"
         in={{
-            build: $in.build,
+            ...$in.pick([
+                "graph",
+                "variables"
+            ]),
             expression: $in.rows.expressions[$in.row],
             origin: {
                 file: $ctx.definition_origin,
@@ -18,18 +28,38 @@
     />
 
     <Call
-        fn="host.publishHardwareDefinition"
-        in={[
-            $in.build,
-            $in.rows.names[$in.row],
-            $in.rows.widths[$in.row],
-            $ctx.run
-        ]}
+        fn="../../terms/parse/operand_sort"
+        in={{
+            nodes: $ctx.run.graph.nodes,
+            node: $ctx.run.node
+        }}
+    />
+
+    <Call
+        module="../definition"
+        in={{
+            keys: $in.variables.keys,
+            key: $in.rows.names[$in.row],
+            width: $in.rows.widths[$in.row],
+            sort: $ctx.operand_sort
+        }}
+    />
+
+    <Call
+        fn="publish_definition"
+        in={{
+            variables: $in.variables,
+            key: $in.rows.names[$in.row],
+            node: $ctx.run.node,
+            placement: $ctx.definition
+        }}
     />
 
     <Return
         value={{
             ...$in,
+            graph: $ctx.run.graph,
+            variables: $ctx.publish_definition,
             row: $in.row + 1,
             origin_file: $ctx.definition_origin,
             running: $in.row + 1 < $in.rows.names.length

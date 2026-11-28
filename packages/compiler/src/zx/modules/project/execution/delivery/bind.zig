@@ -6,10 +6,8 @@ const ModuleRecord = @import("../../../module_record.zig");
 const Project = @import("../../../project.zig").Project;
 const Imported = @import("../../../project.zig").Imported;
 const Signature = @import("../../../source_signature.zig").Member;
-const Target = @import("project_execution_abi").layouts.@"zig:project_host".ProjectImportTarget;
 
-pub fn reuseProjectNativeUnit(handle: *anyopaque) bool {
-    const frame = Frame.borrow(handle);
+pub fn reuseNative(frame: *Frame) bool {
     const project = frame.walk.project;
     const native = frame.route.interface.native;
     const key = native.key();
@@ -20,8 +18,7 @@ pub fn reuseProjectNativeUnit(handle: *anyopaque) bool {
     return true;
 }
 
-pub fn registerProjectNativeUnit(handle: *anyopaque) zx.Error!u32 {
-    const frame = Frame.borrow(handle);
+pub fn registerNative(frame: *Frame) zx.Error!u32 {
     const native = frame.route.interface.native;
 
     const span = switch (frame.item) {
@@ -33,9 +30,7 @@ pub fn registerProjectNativeUnit(handle: *anyopaque) zx.Error!u32 {
     return @backingInt(id);
 }
 
-pub fn loadProjectNativeUnit(handle: *anyopaque, row: u32) zx.Error!void {
-    const frame = Frame.borrow(handle);
-
+pub fn loadNative(frame: *Frame, row: u32) zx.Error!void {
     const span = switch (frame.item) {
         inline else => |item| item.span,
     };
@@ -45,16 +40,14 @@ pub fn loadProjectNativeUnit(handle: *anyopaque, row: u32) zx.Error!void {
     frame.imported = .{ .exports = loaded.exports, .members = loaded.members };
 }
 
-pub fn rememberProjectNativeUnit(handle: *anyopaque, row: u32) error{OutOfMemory}!void {
-    const frame = Frame.borrow(handle);
+pub fn rememberNative(frame: *Frame, row: u32) error{OutOfMemory}!void {
     const project = frame.walk.project;
     const key = project.native_modules.at(row).key();
 
     try project.native_units.put(project.allocator, key, .{ .exports = frame.imported.exports, .members = frame.imported.members });
 }
 
-pub fn bindProjectLegacy(handle: *anyopaque) zx.Error!void {
-    const frame = Frame.borrow(handle);
+pub fn bindLegacy(frame: *Frame) zx.Error!void {
     const project = frame.walk.project;
     const externals = frame.scope.externals(project.options.externals);
     const first = frame.route.interface.legacy;
@@ -64,8 +57,7 @@ pub fn bindProjectLegacy(handle: *anyopaque) zx.Error!void {
     }
 }
 
-pub fn loadProjectLibrary(handle: *anyopaque) zx.Error!void {
-    const frame = Frame.borrow(handle);
+pub fn loadLibrary(frame: *Frame) zx.Error!void {
     const target = frame.resolved.target.compiled;
 
     const span = switch (frame.item) {
@@ -77,8 +69,7 @@ pub fn loadProjectLibrary(handle: *anyopaque) zx.Error!void {
     frame.imported = try project.loadCompiled(project.units[frame.active.index].path, target, span);
 }
 
-pub fn bindProjectImport(handle: *anyopaque, target: *const Target, signature: bool, exported: bool) zx.Error!void {
-    const frame = Frame.borrow(handle);
+pub fn bind(frame: *Frame, target: anytype, signature: bool, exported: bool) zx.Error!void {
     const project = frame.walk.project;
     const active = frame.active;
     var deferred: [1]Signature = undefined;
@@ -143,9 +134,7 @@ pub fn bindProjectImport(handle: *anyopaque, target: *const Target, signature: b
     };
 }
 
-pub fn recordProjectImport(handle: *anyopaque, target: *const Target) error{OutOfMemory}!void {
-    const frame = Frame.borrow(handle);
-
+pub fn record(frame: *Frame, target: anytype) error{OutOfMemory}!void {
     const dependency: ModuleRecord.Target.Wire = switch (target.kind) {
         .Source => .{ .source = frame.sourceUnit(target.row.?).path },
         .Compiled => .{ .compiled = frame.resolved.target.compiled },

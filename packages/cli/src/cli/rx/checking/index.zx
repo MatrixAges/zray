@@ -9,10 +9,8 @@ export {
     buildCheckGraph,
     readCheckCallModule,
     recordCheckFunctionCalls,
-    closeCheckGraph,
     checkStoreTypes,
     checkFunction,
-    closeCheckFunctions,
     checkCompiledModules,
     checkModulePaths,
     loadStoreCheckRoot,
@@ -22,9 +20,7 @@ export {
     loadFunctionProject,
     loadFunctionSources,
     analyzeFunctionSignatures,
-    resolveFunctionModules,
     reportFunctionDelegate,
-    closeFunctionSignatures,
     analyzeCheckedFunction
 } from "rx_checking_host"
 

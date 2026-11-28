@@ -1,9 +1,6 @@
-import type { NonNullReplay } from "rx_project_host"
 import type { Input as Scan } from "./scan"
 
-export type View = Scan.Omit("next", "infer_source") & {
-    frame: NonNullReplay
-}
+export type View = Scan.Omit("next", "infer_source")
 
 export type Replay = {
     view: View,

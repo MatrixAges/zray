@@ -1,0 +1,36 @@
+import host from "hardware_graph_host"
+
+import type { Table } from "../../terms/table"
+import type { Placement } from "../model"
+
+export type Input = {
+    variables: Table,
+    key: string,
+    node: u32,
+    placement?: Placement
+}
+
+export type Output = Table
+
+export default function (in: Input): Output {
+    const { variables, key, node, placement } = in
+
+    if (placement == null) {
+        host.rejectHardwareTerm()
+
+        return variables
+    }
+
+    const { slot, fresh } = placement
+
+    const keys = match fresh {
+        true => variables.keys.with(slot, key),
+        _ => variables.keys
+    }
+
+    return {
+        keys,
+        values: variables.values.with(slot, node),
+        count: fresh ? variables.count + 1 : variables.count
+    }
+}

@@ -1,5 +1,4 @@
-import type { AbiFrame } from "bundle_abi_host"
-import type { Input as Plan } from "./plan/model"
+import type { Input as Plan, Status } from "./plan/model"
 
 export type RenderedFile = {
     module: string,
@@ -9,13 +8,14 @@ export type RenderedFile = {
 }
 
 export type Input = {
-    frame: AbiFrame,
+    names: string[],
     source: string,
     identities: string?[],
     plan: Plan
 }
 
 export type Output = {
+    status: Status,
     source: string,
     views: RenderedFile[]
 }

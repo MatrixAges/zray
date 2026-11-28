@@ -19,6 +19,9 @@ pub fn openNativeScope(handle: *const anyopaque, index: u64) *const abi.ScopeWin
 
     self.externals_view = memory.borrowTextColumn("specifier", config.externals);
     self.external_rows = .{ .items = @ptrCast(&self.externals_view), .length = config.externals.len };
+    self.interface_specifiers = memory.borrowTextColumn("specifier", config.native_interfaces);
+    self.interface_paths = memory.borrowTextColumn("path", config.native_interfaces);
+    self.interface_rows = .{ .specifiers = @ptrCast(&self.interface_specifiers), .paths = @ptrCast(&self.interface_paths) };
     self.owner = .{ .owner = root, .entry_root = self.entry_root, .compiled = false };
 
     self.window = .{
@@ -76,15 +79,6 @@ pub fn reserveNativeScopeInterfaces(handle: *const anyopaque) std.mem.Allocator.
     self.native = try self.allocator.alloc(compiler.project.NativeInterface, self.config().native_interfaces.len);
 }
 
-pub fn nativeScopeInterfacePath(handle: *const anyopaque, row: u64) *const abi.InterfacePath {
-    const self = State.get(handle);
-    const declaration = &self.config().native_interfaces[@intCast(row)];
-
-    self.interface = .{ .specifier = declaration.specifier, .path = declaration.path };
-
-    return &self.interface;
-}
-
 pub fn readNativeScopeInterface(handle: *const anyopaque, row: u64) effects.Error!void {
     const self = State.get(handle);
     const index: usize = @intCast(row);
@@ -122,6 +116,16 @@ pub fn reserveNativeScopeIndex(handle: *const anyopaque) effects.Error!void {
     self.names_view = memory.borrowTextColumn("name", modules);
     self.path_view = memory.borrowReadColumn(?[]const u8, "path", modules);
     self.header_view = memory.borrowReadColumn(?[]const u8, "header", modules);
+    self.module_includes = memory.borrowReadColumn(?[]const []const u8, "include_paths", modules);
+    self.module_dependencies = memory.borrowReadColumn([]const []const u8, "dependencies", modules);
+
+    self.module_sources = .{
+        .paths = @ptrCast(&self.path_view),
+        .includes = @ptrCast(&self.module_includes),
+        .dependencies = @ptrCast(&self.module_dependencies),
+        .default_includes = config.include_paths,
+    };
+
     self.index = .{ .names = @ptrCast(&self.names_view), .capacity = capacity };
 
     self.module_rows = .{
@@ -243,20 +247,6 @@ pub fn reserveNativeScopeModules(handle: *const anyopaque) std.mem.Allocator.Err
     self.module_first = self.modules.items.len;
 
     try self.modules.ensureUnusedCapacity(self.allocator, self.config().native_modules.len);
-}
-
-pub fn nativeScopeModulePaths(handle: *const anyopaque, row: u64) *const abi.ModulePaths {
-    const self = State.get(handle);
-    const config = self.config();
-    const source = &config.native_modules[@intCast(row)];
-
-    self.paths = .{
-        .path = source.path,
-        .includes = source.include_paths orelse config.include_paths,
-        .dependencies = source.dependencies,
-    };
-
-    return &self.paths;
 }
 
 pub fn prepareNativeScopeModule(handle: *const anyopaque, row: u64, name: []const u8, path: ?[]const u8, dependencies: []const []const u8, includes: []const []const u8) std.mem.Allocator.Error!void {

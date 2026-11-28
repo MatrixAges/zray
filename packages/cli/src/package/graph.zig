@@ -99,7 +99,7 @@ fn resolve(io: std.Io, result: *Result, original: workspace.Request, captured: ?
 
     var failure: ?anyerror = null;
 
-    const context: host.Context = .{
+    var context: host.Context = .{
         .io = io,
         .members = discovered.packages,
         .inputs = original.inputs,
@@ -108,8 +108,10 @@ fn resolve(io: std.Io, result: *Result, original: workspace.Request, captured: ?
         .failure = &failure,
     };
 
+    const reference = &context;
+
     const outcome = @import("cli_source").graph_load.executeIn(allocator, &.{
-        .graph = @ptrCast(&context),
+        .graph = @ptrCast(&reference),
         .root = result.root,
         .external = location.found,
         .missing_path = if (missing) |member| member.path else "",
@@ -122,26 +124,25 @@ fn resolve(io: std.Io, result: *Result, original: workspace.Request, captured: ?
 
     result.diagnostic = outcome.diagnostic;
 
-    if (outcome.workspace) |native| {
-        const packages: *const []Package = @ptrCast(@alignCast(native));
-        result.packages = packages.*;
+    if (context.workspace_packages) |packages| {
+        result.packages = packages;
 
         if (outcome.keep_rows) |count| {
-            for (result.packages[@intCast(count)..]) |*package| package.dependencies = &.{};
+            for (packages[@intCast(count)..]) |*package| package.dependencies = &.{};
         }
     }
 
     if (outcome.installed) |installed| {
-        const lock: *const @import("install/files.zig").Loaded = @ptrCast(@alignCast(installed.lock));
-        const packages = try allocator.alloc(Package, installed.rows.len);
+        const packages = context.installed;
 
-        for (installed.rows, packages) |row, *package| {
-            const manifest: *const Manifest = @ptrCast(@alignCast(row.manifest));
-            package.* = .{ .path = row.path, .manifest = manifest.* };
+        for (installed, packages) |row, *package| {
+            if (row.member) |member| {
+                package.* = .{ .path = row.path, .manifest = discovered.packages[@intCast(member)].manifest };
+            }
         }
 
         result.packages = packages;
-        result.locked = lock.lock.packages;
+        result.locked = context.lock.?.lock.packages;
     }
 
     switch (outcome.status) {

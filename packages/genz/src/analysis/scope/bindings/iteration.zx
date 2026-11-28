@@ -5,15 +5,16 @@ import { Action } from "./model"
 import next from "./next"
 
 import type { Bindings as Output } from "../../iteration/scope/model"
-import type { Input as Scope, Prepared } from "./model"
+import type { Input as Scope, Prepared, Selected } from "./model"
 
 export type Input = Prepared.Pick("count") & {
-    source: Scope
+    source: Scope,
+    selection: Selected
 }
 
 export default function (in: Input): Output {
     const { source, count } = in
-    const { selection } = source
+    const { selection } = in
 
     const empty_values: u32?[] = []
     const empty_types: u32?[] = []

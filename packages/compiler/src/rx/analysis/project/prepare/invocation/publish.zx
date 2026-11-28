@@ -1,15 +1,14 @@
-import { CallRoute, publishPreparedCall } from "rx_project_host"
-
+import { CallRoute } from "../../../call/admission_model"
 import signature from "../../references/call_signature"
 
+import type { Publication } from "../../../call/admission_model"
 import type { Input as Selection } from "../../references/call_signature"
-import type { Run } from "./model"
 
-export type Input = Selection & Run.Pick("state") & {
+export type Input = Selection & {
     edge?: u64
 }
 
-export type Output = bool
+export type Output = Publication
 
 export default function (in: Input): Output {
     const target = signature(in.pick([
@@ -18,16 +17,10 @@ export default function (in: Input): Output {
         "signatures"
     ]))
 
-    const local = in.route == CallRoute.Source || in.route == CallRoute.NamedSource
-
-    return publishPreparedCall(
-        in.state,
-        in.edge,
-        in.route,
-        target.callee,
-        target.module,
-        target.signature,
-        target.member,
-        local
-    )
+    return {
+        ...target,
+        edge: in.edge,
+        route: in.route,
+        local: in.route == CallRoute.Source || in.route == CallRoute.NamedSource
+    }
 }

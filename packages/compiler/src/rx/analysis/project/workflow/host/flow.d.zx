@@ -130,30 +130,3 @@ export declare function finishFlowCase(
     throws { OutOfMemory }
 
 export declare function popFlowFrame(state: FlowTraversal): void
-
-export declare function compileParallelTaskBody(work: ParallelTaskWork): void
-    throws { OutOfMemory, InvalidFlow }
-
-export declare function checkParallelTaskCalls(work: ParallelTaskWork): void
-    throws { OutOfMemory, InvalidFlow }
-
-export declare function resolveParallelTaskCaptures(work: ParallelTaskWork): void
-    throws { OutOfMemory, InvalidFlow }
-
-export declare function lowerParallelTaskProgram(work: ParallelTaskWork): void
-    throws { OutOfMemory, InvalidFlow }
-
-export declare function checkParallelTaskProgram(work: ParallelTaskWork): void
-    throws { OutOfMemory, InvalidFlow }
-
-export declare function analyzeParallelTaskOwnership(work: ParallelTaskWork): void
-    throws { OutOfMemory, InvalidFlow }
-
-export declare function validateParallelTaskProgram(work: ParallelTaskWork): void
-    throws { OutOfMemory, InvalidFlow }
-
-export declare function buildParallelTaskArgument(work: ParallelTaskWork): void
-    throws { OutOfMemory, InvalidFlow }
-
-export declare function publishParallelTask(work: ParallelTaskWork, row: u64, visible: bool): u32
-    throws { OutOfMemory, InvalidFlow }

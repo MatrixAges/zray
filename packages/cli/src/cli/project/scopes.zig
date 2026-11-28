@@ -36,6 +36,7 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []compiler.project
 
     state.workspace = .{
         .externals = &state.external_rows,
+        .interfaces = &state.interface_rows,
         .modules = &state.module_rows,
         .binding = &state.binding,
         .traversal = &state.traversal,
@@ -46,7 +47,13 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []compiler.project
     state.binding = .{ .window = &state.window, .registry = &state.registry_view, .library = &state.compiled_view };
     state.active = &active;
     state.scratch = scratch.allocator();
-    state.traversal = .{ .binding = &state.binding, .row = 0, .aliases = &state.alias_input };
+
+    state.traversal = .{
+        .binding = &state.binding,
+        .sources = &state.module_sources,
+        .row = 0,
+        .aliases = &state.alias_input,
+    };
 
     rule.executeIn(active.allocator(), &.{
         .frame = @ptrCast(&reference),

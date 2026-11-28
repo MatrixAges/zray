@@ -1,5 +1,3 @@
-import { ProjectImportRoute } from "project_host"
-
 import {
     duplicate_binding,
     invalid_specifier,
@@ -8,6 +6,7 @@ import {
     invalid_legacy,
     missing_legacy
 } from "./const"
+import { ProjectImportRoute } from "./model"
 
 export type Input = ProjectImportRoute
 

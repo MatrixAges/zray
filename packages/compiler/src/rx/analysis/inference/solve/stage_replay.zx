@@ -1,0 +1,12 @@
+import type { Command as Input } from "./replay_effect"
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.replay.effect = {
+        ...in,
+        id: 0
+    }
+}

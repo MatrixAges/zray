@@ -7,6 +7,7 @@ const Paths = @import("../toolchain.zig").Paths;
 const Build = @import("../build.zig");
 const State = Build.State;
 const effects = @import("../sources/effects.zig");
+const memory = @import("zx").memory;
 const Error = effects.Error;
 pub const preparation = @import("prepare.zig");
 pub const command = @import("arguments.zig");
@@ -21,7 +22,6 @@ pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBu
         .bundle = bundle,
         .project = project,
         .toolchain = toolchain,
-        .command = .{ .allocator = context.allocator },
     };
 
     const entry = @import("cli_source").build_native_application;
@@ -32,14 +32,9 @@ pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBu
 
     const scratch = arena.allocator();
     const native_modules = project.config.native_modules;
-    const native_names = try context.allocator.alloc([]const u8, native_modules.len);
-
-    for (native_modules, 0..) |module, index| {
-        native_names[index] = module.name;
-    }
-
-    state.native_names = native_names;
-
+    const generated_names = memory.borrowTextColumn("name", bundle.modules);
+    const generated_imports = memory.borrowReadColumn([]const []const u8, "imports", bundle.modules);
+    const native_imports = memory.borrowReadColumn([]const []const u8, "dependencies", native_modules);
     var previous_backend: []const []const u8 = &.{};
     var observed_paths: []const []const u8 = &.{};
 
@@ -70,11 +65,16 @@ pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBu
         .observed = context.watch != null,
         .previous_backend = previous_backend,
         .observed_paths = observed_paths,
-        .generated_count = bundle.modules.len,
+        .generated = &.{
+            .count = bundle.modules.len,
+            .names = @ptrCast(&generated_names),
+            .imports = @ptrCast(&generated_imports),
+        },
         .native = &.{
             .build = @ptrCast(&reference),
             .observed = context.watch != null,
             .count = native_modules.len,
+            .imports = @ptrCast(&native_imports),
             .modules = &module_columns.view,
             .setup = &paths.setup,
             .abi_views = &state.abi_views.view,
@@ -83,7 +83,7 @@ pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBu
 
     defer state.deinit();
 
-    const result = entry.executeIn(context.allocator, &invocation) catch |err| return state.failure.unwrap(err);
+    const result = entry.executeIn(context.allocator, &invocation, context.io) catch |err| return state.failure.unwrap(err);
 
     return switch (result) {
         .Success => .success,
@@ -162,12 +162,12 @@ pub fn reportStagedTranslationFailure(handle: *const anyopaque) Error!void {
     stderr.interface.flush() catch |err| return self.failure.save(err);
 }
 
-pub fn spawnStagedBackend(handle: *const anyopaque) Error!bool {
+pub fn spawnStagedBackend(handle: *const anyopaque, arguments: []const []const u8) Error!bool {
     const self = State.get(handle);
     const io = self.context.io;
 
     var child = std.process.spawn(io, .{
-        .argv = self.command.arguments.items,
+        .argv = arguments,
         .environ_map = &self.environment.?,
     }) catch |err| return self.failure.save(err);
 
@@ -192,11 +192,11 @@ pub fn publishStagedBackend(handle: *const anyopaque) Error!void {
     self.staged.?.publish(context.io, context.allocator, context.options) catch |err| return self.failure.save(err);
 }
 
-pub fn spawnObservedBackend(handle: *const anyopaque) Error!void {
+pub fn spawnObservedBackend(handle: *const anyopaque, arguments: []const []const u8) Error!void {
     const self = State.get(handle);
     const context = self.context;
 
-    self.response = backend.process.run(context.io, context.allocator, self.command.arguments.items, &self.environment.?, .application) catch |err| return self.failure.save(err);
+    self.response = backend.process.run(context.io, context.allocator, arguments, &self.environment.?, .application) catch |err| return self.failure.save(err);
 }
 
 pub fn takeTranslationFailure(handle: *const anyopaque) void {

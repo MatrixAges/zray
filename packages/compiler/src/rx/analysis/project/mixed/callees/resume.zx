@@ -1,0 +1,59 @@
+import admit from "../../../call/compiled_admission"
+import { Output as Admission } from "../../../call/compiled_admission"
+import {
+    not_executable_library,
+    not_executable_zx,
+    unauthorized_transaction
+} from "./const"
+
+import type { Reply } from "./model"
+
+export type Input = Reply?
+
+export type Output = {
+    function_id?: u32,
+    message?: string
+}
+
+export default function (in: Input): Output {
+    if (in == null) {
+        return {}
+    }
+
+    const library = in.library
+
+    if (library != null) {
+        const id = library.function_id
+
+        const permitted = admit({
+            executable: id != null,
+            setter: library.setter,
+            has_stores: library.has_stores,
+            orchestration: library.orchestration
+        })
+
+        return match permitted {
+            Admission.Executable => {
+                function_id: id
+            },
+            Admission.MissingFunction => {
+                message: not_executable_library
+            },
+            _ => {
+                message: unauthorized_transaction
+            }
+        }
+    }
+
+    const id = in.setter
+
+    if (id == null) {
+        return {
+            message: not_executable_zx
+        }
+    }
+
+    return {
+        function_id: id
+    }
+}

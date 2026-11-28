@@ -1,20 +1,7 @@
-export type InvocationPreparation = mutable_opaque
-
 export enum ReferenceTarget {
     Source,
     Compiled,
     Native
-}
-
-export enum CallRoute {
-    Source,
-    AuthorizedSource,
-    NamedSource,
-    NamedSetter,
-    NamedTarget,
-    Compiled,
-    Native,
-    Denied
 }
 
 export type CallAdmission = {
@@ -25,30 +12,4 @@ export type CallAdmission = {
     declared_setter: bool,
     setter: bool,
     ambient_store: bool
-}
-
-export enum CallCallee {
-    Unused,
-    Module,
-    Function,
-    NamedFunction,
-    MissingModule,
-    InvalidNamedTarget,
-    NamedStore,
-    MissingNamedFunction,
-    MissingSignature,
-    MissingForward,
-    SetterOnForward,
-    TypeOnly,
-    MissingStore
-}
-export enum CompiledCallStatus {
-    Ready,
-    Missing,
-    Conflict,
-    Unlinked,
-    MissingExport,
-    MissingFunction,
-    Setter,
-    Transaction
 }

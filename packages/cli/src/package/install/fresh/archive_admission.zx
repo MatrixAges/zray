@@ -1,0 +1,22 @@
+import { ArchiveAdmission } from "installation_host"
+
+import type { ArchiveIdentity, Release } from "installation_host"
+
+export type Input = {
+    manifest: ArchiveIdentity,
+    release: Release
+}
+
+export type Output = ArchiveAdmission
+
+export default function (in: Input): Output {
+    const { manifest, release } = in
+
+    const matches = manifest.name == release.name && manifest.version == release.version
+
+    return match {
+        !matches => ArchiveAdmission.IdentityMismatch,
+        manifest.has_workspace => ArchiveAdmission.ContainsWorkspace,
+        _ => ArchiveAdmission.Valid
+    }
+}

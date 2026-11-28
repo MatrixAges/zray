@@ -42,13 +42,12 @@
                         fn="../effects.readInstalledArchive"
                         in={[
                             $in.graph,
-                            $in.lock,
                             $in.index,
                             $ctx.canonical
                         ]}
                     />
 
-                    <If on={$ctx.readInstalledArchive == null}>
+                    <If on={!$ctx.readInstalledArchive}>
                         <Return
                             value={{
                                 status: Project.Status.InstalledManifestDoesNotMatchLock
@@ -60,8 +59,7 @@
                                 value={{
                                     status: Project.Status.Valid,
                                     row: {
-                                        path: $ctx.canonical,
-                                        manifest: $ctx.readInstalledArchive
+                                        path: $ctx.canonical
                                     }
                                 }}
                             />

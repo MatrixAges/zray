@@ -6,17 +6,33 @@
 
     <Call fn="index.emitRxApplicationText" in={$in.application} />
 
-    <If on={!$ctx.emitRxApplicationText}>
+    <If on={$ctx.emitRxApplicationText == null}>
         <Return value={IO.Status.Failed} />
-    </If>
-
-    <If on={$in.settings.output != null}>
-        <Call fn="index.writeRxApplicationText" in={$in.application} />
 
         <Else>
-            <Call fn="index.printRxApplicationText" in={$in.application} />
+            <If on={$in.settings.output == null}>
+                <Call
+                    fn="index.printRxApplicationText"
+                    in={[
+                        $in.application,
+                        $ctx.emitRxApplicationText.source
+                    ]}
+                />
+
+                <Else>
+                    <Call
+                        module="../../workspace_files/write_program_text"
+                        in={{
+                            path: $in.settings.output,
+                            source: $ctx.emitRxApplicationText.source,
+                            abi: $ctx.emitRxApplicationText.abi,
+                            abi_base: $in.settings.output
+                        }}
+                    />
+                </Else>
+            </If>
+
+            <Return value={IO.Status.Success} />
         </Else>
     </If>
-
-    <Return value={IO.Status.Success} />
 </Module>

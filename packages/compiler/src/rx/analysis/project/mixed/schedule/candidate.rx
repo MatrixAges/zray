@@ -1,0 +1,75 @@
+<Module>
+    <Type from="preparation" as="Preparation" />
+    <Type from="../ahead/operation" as="Operation" />
+
+    <Args in={Preparation.Cursor} out={Preparation.Cursor} />
+
+    <Store from="../ahead/workspace" as="workspace" />
+
+    <Call fn="candidate_source" in={$in} />
+
+    <Call
+        fn="../ahead/stage"
+        in={{
+            action: Operation.Action.Open,
+            row: $ctx.candidate_source.index
+        }}
+        setter={[$store.workspace.effect]}
+    />
+
+    <If on={$ctx.candidate_source.zx}>
+        <Call
+            fn="../ahead/stage"
+            in={{
+                action: Operation.Action.PrepareZX,
+                row: $ctx.candidate_source.index
+            }}
+            setter={[$store.workspace.effect]}
+        />
+
+        <Else>
+            <Call
+                fn="../ahead/stage"
+                in={{
+                    action: Operation.Action.PrepareRX,
+                    row: $ctx.candidate_source.index
+                }}
+                setter={[$store.workspace.effect]}
+            />
+        </Else>
+    </If>
+
+    <Call fn="../ahead/read_ready" in={$store.workspace.effect} />
+
+    <If on={$ctx.read_ready}>
+        <Call
+            fn="../ahead/stage"
+            in={{
+                action: Operation.Action.Record,
+                row: $ctx.candidate_source.position
+            }}
+            setter={[$store.workspace.effect]}
+        />
+
+        <Else>
+            <Call
+                fn="../ahead/stage"
+                in={{
+                    action: Operation.Action.RestoreDiagnostic,
+                    row: 0
+                }}
+                setter={[$store.workspace.effect]}
+            />
+        </Else>
+    </If>
+
+    <Call
+        fn="advance"
+        in={{
+            current: $in,
+            ready: $ctx.read_ready
+        }}
+    />
+
+    <Return value={$ctx.advance} />
+</Module>

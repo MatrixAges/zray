@@ -1,5 +1,6 @@
 <Module>
     <Type from="reset" as="Reset" />
+    <Type from="operation" as="Operation" />
 
     <Args in={Reset.Input} out={void} />
 
@@ -7,12 +8,12 @@
 
     <If on={$in.rows != 0}>
         <Call
-            fn="stage_recycle"
+            fn="stage"
             in={{
-                action: Reset.Action.ClearResults,
-                worker: 0
+                action: Operation.Action.ClearResults,
+                row: 0
             }}
-            setter={[$store.workspace.recycle]}
+            setter={[$store.workspace.effect]}
         />
 
         <Call fn="reset" in={$in} />
@@ -29,11 +30,11 @@
     </If>
 
     <Call
-        fn="stage_recycle"
+        fn="stage"
         in={{
-            action: Reset.Action.ResetBindings,
-            worker: 0
+            action: Operation.Action.ResetBindings,
+            row: 0
         }}
-        setter={[$store.workspace.recycle]}
+        setter={[$store.workspace.effect]}
     />
 </Module>

@@ -1,5 +1,6 @@
 <Module>
     <Type from="publication" as="Binding" />
+    <Type from="rows" as="AST" />
 
     <Args in={Binding.Publication} out={u32} />
 
@@ -23,24 +24,29 @@
     />
 
     <If on={$in.body != null}>
+        <Call fn="../../../ast/statements/empty" in={{}} />
+
         <Call
-            fn="rows.appendAstLeafStatements"
+            fn="rows.appendStatementRows"
             in={[
                 $in.writer,
                 {
-                    ...$in.body,
-                    break_value_label: [],
-                    break_value_value: []
-                }
+                    ...$ctx.empty,
+                    ...$in.body
+                },
+                null,
+                AST.AstPayloadOwnership.Borrowed
             ]}
         />
     </If>
 
     <Call
-        fn="rows.appendAstLeafStatements"
+        fn="rows.appendStatementRows"
         in={[
             $in.writer,
-            $ctx.break_rows
+            $ctx.break_rows,
+            null,
+            AST.AstPayloadOwnership.Borrowed
         ]}
     />
 

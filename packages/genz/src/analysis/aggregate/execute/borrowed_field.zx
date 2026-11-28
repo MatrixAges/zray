@@ -2,12 +2,14 @@ import bytes from "std:bytes"
 import {
     appendAstBlockRows,
     appendAstFieldAddresses,
-    appendAstLeafStatements,
+    appendStatementRows,
+    AstPayloadOwnership,
     readAstOrigin
 } from "ast_rows"
 import host from "lowering_host"
 import { requireAllocation } from "memory"
 
+import emptyStatements from "../../../ast/statements/empty"
 import discard from "../../statements/basic/discard"
 import blockRows from "../binding/block_rows"
 import breakRows from "../binding/break_rows"
@@ -67,22 +69,21 @@ export default function (in: Input): Output {
         guard: null
     })
 
-    appendAstLeafStatements(writer, {
-        ...discarded.pick([
-            "tags",
-            "offsets",
-            "discard"
-        ]),
-        expression: [],
-        constant_name: [],
-        constant_type_expr: [],
-        constant_value: [],
-        constant_exported: [],
-        break_value_label: [],
-        break_value_value: []
-    })
+    appendStatementRows(
+        writer,
+        {
+            ...emptyStatements({}),
+            ...discarded.pick([
+                "tags",
+                "offsets",
+                "discard"
+            ])
+        },
+        null,
+        AstPayloadOwnership.Borrowed
+    )
 
-    appendAstLeafStatements(writer, break_statements)
+    appendStatementRows(writer, break_statements, null, AstPayloadOwnership.Borrowed)
     appendAstBlockRows(writer, block_expressions.block, block_expressions.conditionals)
     host.finishGeneratedAst(frame, planned.serial, false)
 

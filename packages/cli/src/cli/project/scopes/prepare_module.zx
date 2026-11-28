@@ -1,7 +1,5 @@
-import {
-    nativeScopeModulePaths,
-    resolveNativeScopePath
-} from "native_scope_host"
+import memory from "memory"
+import { resolveNativeScopePath } from "native_scope_host"
 
 import paths from "./paths"
 import resolveDependencies from "./rules/dependency"
@@ -16,13 +14,12 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { binding, row } = in
+    const { binding, row, sources } = in
 
     const { frame } = binding.window
 
-    const source = nativeScopeModulePaths(frame, row)
-
-    const original = source.path
+    const original = memory.readOptionalTextColumn(sources.paths, row)
+    const explicit = memory.readOptionalTextListColumn(sources.includes, row)
 
     const path: string? = match {
         original != null => resolveNativeScopePath(frame, original),
@@ -31,12 +28,12 @@ export default function (in: Input): Output {
 
     const dependencies = resolveDependencies({
         binding,
-        dependencies: source.dependencies
+        dependencies: memory.readTextListColumn(sources.dependencies, row)
     })
 
     const includes = paths({
         frame,
-        source: source.includes
+        source: explicit ?? sources.default_includes
     })
 
     return {

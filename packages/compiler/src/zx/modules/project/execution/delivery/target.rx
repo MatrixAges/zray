@@ -1,25 +1,41 @@
 <Module>
     <Type from="model" as="Delivery" />
-    <Type from="index" as="Host" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Delivery.Binding} out={u64?} />
 
-    <Call fn="index.resolveProjectImport" in={$in.frame} />
+    <Store from="delivery" as="delivery" />
 
-    <If on={$ctx.resolveProjectImport}>
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.Resolve
+        }}
+        setter={[$store.delivery.effect]}
+    />
+
+    <Call fn="read_flag" in={$store.delivery.effect} />
+
+    <If on={$ctx.read_flag}>
         <Call module="source" in={$in} />
 
         <Return value={$ctx.source} />
     </If>
 
-    <Call fn="index.loadProjectLibrary" in={$in.frame} />
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.LoadLibrary
+        }}
+        setter={[$store.delivery.effect]}
+    />
 
     <Call
         module="bind"
         in={{
             ...$in,
             target: {
-                kind: Host.ProjectImportKind.Compiled
+                kind: Delivery.ProjectImportKind.Compiled
             }
         }}
     />

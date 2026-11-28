@@ -1,11 +1,21 @@
 import type { WorkspaceLint } from "lint_workflow_host"
+import type { ListColumn, ReadColumn, TextColumn } from "memory"
 
-export type Members = {
+export type MemberRows = {
+    paths: TextColumn,
+    entries: ReadColumn,
+    exports: ListColumn,
+    count: u64
+}
+
+export type Member = {
     check: WorkspaceLint,
-    count: u64,
-    index: u64,
+    members: MemberRows,
+    root: string,
+    index: u64
+}
+
+export type Members = Member & {
     valid: bool,
     running: bool
 }
-
-export type Member = [WorkspaceLint, u64]

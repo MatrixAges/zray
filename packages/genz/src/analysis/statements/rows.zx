@@ -4,7 +4,6 @@ export {
     appendAstSequenceSpan,
     appendLayoutExpressions,
     appendOwnedAstFields,
-    appendAstProjectionRows,
     appendExpressionRows,
     appendStatementRows,
     appendStatementSequence,
@@ -23,8 +22,7 @@ export {
     lowerExpression,
     lowerLayout,
     lowerType,
-    retainLoweringText,
-    setLoweringSerial
+    retainLoweringText
 } from "lowering_host"
 export { finishGeneratedAst } from "lowering_host"
 export { requireAllocation } from "memory"

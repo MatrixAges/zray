@@ -17,7 +17,7 @@ import type { Result as Output } from "../model"
 export { WorkspaceStatus } from "package_graph_host"
 
 export default function (in: Input): Output {
-    const { workspace, status, failed_owner, owner_path, owner_name, edge_name } = in
+    const { status, failed_owner, owner_path, owner_name, edge_name } = in
 
     const package_issue = match status {
         WorkspaceStatus.CyclicPackageDependencies => cyclic_dependencies,
@@ -28,7 +28,6 @@ export default function (in: Input): Output {
     if (package_issue != "") {
         return {
             status: Status.InvalidPackageGraph,
-            workspace,
             diagnostic:
                 `${owner_path}/pkg.yaml: dependency ${owner_name}: ${package_issue}`
         }
@@ -54,7 +53,6 @@ export default function (in: Input): Output {
             WorkspaceStatus.Overflow => Status.Overflow,
             _ => Status.InvalidPackageGraph
         },
-        workspace,
         keep_rows: failed_owner,
         diagnostic
     }

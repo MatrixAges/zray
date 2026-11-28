@@ -13,6 +13,7 @@
                     block: $in.block,
                     session: $in.session,
                     path: $in.path,
+                    violations: $in.violations,
                     expression: $ctx.prepare.expression,
                     symbol: null
                 }}
@@ -20,7 +21,8 @@
 
             <Return
                 value={{
-                    path: $ctx.bind
+                    path: $ctx.bind.path,
+                    violations: $ctx.bind.violations
                 }}
             />
         </Case>
@@ -32,6 +34,7 @@
                     block: $in.block,
                     session: $in.session,
                     path: $in.path,
+                    violations: $in.violations,
                     expression: $ctx.prepare.expression,
                     symbol: $ctx.prepare.symbol
                 }}
@@ -39,7 +42,8 @@
 
             <Return
                 value={{
-                    path: $ctx.bind
+                    path: $ctx.bind.path,
+                    violations: $ctx.bind.violations
                 }}
             />
         </Case>
@@ -55,7 +59,8 @@
 
             <Return
                 value={{
-                    path: $ctx.destructure
+                    path: $ctx.destructure.path,
+                    violations: $ctx.destructure.violations
                 }}
             />
         </Case>
@@ -67,13 +72,14 @@
                     block: $in.block,
                     session: $in.session,
                     path: $in.path,
+                    violations: $in.violations,
                     expression: $ctx.prepare.expression
                 }}
             />
 
             <Return
                 value={{
-                    path: $ctx.result
+                    violations: $ctx.result
                 }}
             />
         </Case>
@@ -89,7 +95,8 @@
 
             <Return
                 value={{
-                    path: $ctx.branch
+                    path: $ctx.branch.path,
+                    violations: $ctx.branch.violations
                 }}
             />
         </Case>
@@ -105,7 +112,8 @@
 
             <Return
                 value={{
-                    path: $ctx.select
+                    path: $ctx.select.path,
+                    violations: $ctx.select.violations
                 }}
             />
         </Case>
@@ -121,7 +129,8 @@
 
             <Return
                 value={{
-                    path: $ctx.run
+                    path: $ctx.run.path,
+                    violations: $ctx.run.violations
                 }}
             />
         </Case>
@@ -129,7 +138,8 @@
         <Default>
             <Return
                 value={{
-                    unsupported: true
+                    unsupported: true,
+                    violations: $in.violations
                 }}
             />
         </Default>

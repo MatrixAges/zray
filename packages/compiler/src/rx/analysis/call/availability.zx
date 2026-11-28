@@ -1,8 +1,12 @@
-import { CallRoute as Route, ReferenceTarget as Target } from "rx_project_host"
+import { ReferenceTarget as Target } from "rx_project_host"
+
+import { CallRoute as Route } from "./admission_model"
 
 import type { CallAdmission } from "rx_project_host"
 
-export { CallRoute as Route, ReferenceTarget as Target } from "rx_project_host"
+export { CallRoute as Route } from "./admission_model"
+
+export { ReferenceTarget as Target } from "rx_project_host"
 
 export type Input = CallAdmission
 

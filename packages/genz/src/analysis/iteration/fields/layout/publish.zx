@@ -30,7 +30,7 @@ export default function (in: Input): Output {
         break_value_value: []
     })
 
-    host.setLoweringSerial(frame, built.serial)
+    host.finishGeneratedAst(frame, built.serial, false)
 
     return {
         expressions: built.expressions,

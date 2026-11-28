@@ -1,19 +1,35 @@
 <Module>
     <Type from="model" as="Body" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Body.Preparation} out={void} />
 
-    <Call fn="host.openMixedZXPreparation" in={$in.source} />
+    <Store from="compilation" as="compilation" />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.OpenZX
+        }}
+        setter={[$store.compilation.effect]}
+    />
 
     <If on={$in.check}>
-        <Call fn="host.checkMixedZXPreparation" in={$in.source} />
+        <Call
+            fn="stage"
+            in={{
+                step: Effect.Step.CheckZX
+            }}
+            setter={[$store.compilation.effect]}
+        />
     </If>
 
     <Call
-        fn="host.bindMixedZXPreparation"
-        in={[
-            $in.source,
-            $in.check
-        ]}
+        fn="stage"
+        in={{
+            step: Effect.Step.BindZX,
+            checked: $in.check
+        }}
+        setter={[$store.compilation.effect]}
     />
 </Module>

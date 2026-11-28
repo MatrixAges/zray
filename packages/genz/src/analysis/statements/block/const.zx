@@ -4,6 +4,8 @@ export const store_route: u8 = 2
 
 export const fuse_route: u8 = 4
 
+export const value_route: u8 = 64
+
 export const operation_mask: u64 = 56
 
 export const evaluate_operation: u8 = 8

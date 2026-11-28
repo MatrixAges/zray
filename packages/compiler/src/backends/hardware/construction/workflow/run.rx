@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Hardware" />
 
-    <Args in={Hardware.Input} out={u32} />
+    <Args in={Hardware.Input} out={Hardware.Output} />
 
     <Call
         fn="reserve"
@@ -11,43 +11,50 @@
         ])}
     />
 
-    <Call
-        fn="host.reserveHardwareGraph"
-        in={[
-            $in.build,
-            $ctx.reserve
-        ]}
-    />
-
     <Loop on={$in.row < $in.inputs}>
         <Call
             module="next_input"
             in={{
                 ...$in.pick([
-                    "build",
                     "inputs",
                     "input_types",
                     "types"
                 ]),
-                row: 0
+                row: 0,
+                ports: [],
+                nodes: []
             }}
         />
     </Loop>
 
-    <Call fn="host.bindHardwareInputs" in={$in.build} />
+    <Call
+        fn="../inputs"
+        in={{
+            capacity: $ctx.reserve.symbol_capacity,
+            names: $in.input_names,
+            count: $in.inputs
+        }}
+    />
 
     <Call
         module="definitions"
-        in={$in.pick([
-            "build",
-            "rows"
-        ])}
+        in={{
+            graph: {
+                ...$ctx.reserve.graph,
+                nodes: $ctx.next_input.nodes
+            },
+            variables: $ctx.inputs,
+            rows: $in.rows
+        }}
     />
 
     <Call
         module="outputs"
         in={{
-            build: $in.build,
+            ...$ctx.definitions.pick([
+                "graph",
+                "variables"
+            ]),
             types: $in.types,
             type_id: $in.output_type,
             value: $in.output,
@@ -59,10 +66,18 @@
     <Call
         module="safety"
         in={{
-            build: $in.build,
+            graph: $ctx.outputs.graph,
+            variables: $ctx.definitions.variables,
             expression: $in.safety
         }}
     />
 
-    <Return value={$ctx.safety} />
+    <Return
+        value={{
+            nodes: $ctx.safety.graph.nodes,
+            safe: $ctx.safety.node,
+            inputs: $ctx.next_input.ports,
+            outputs: $ctx.outputs.ports
+        }}
+    />
 </Module>

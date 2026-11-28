@@ -1,20 +1,34 @@
 <Module>
     <Type from="../model" as="Lint" />
 
-    <Args in={Lint.SourceInput} out={Lint.SourceOutcome} />
+    <Args in={Lint.SourceInput} out={Lint.SourceResult} />
 
     <Call fn="../is_rx" in={$in.input_path} />
 
     <If on={$ctx.is_rx}>
-        <Call module="rx" in={$in.omit(["input_path"])} />
+        <Call
+            module="rx"
+            in={$in.pick([
+                "host",
+                "source"
+            ])}
+        />
 
-        <Return value={$ctx.rx} />
+        <Return
+            value={{
+                status: $ctx.rx
+            }}
+        />
     </If>
 
     <Call fn="../index.checkLintZx" in={$in.host} />
 
     <If on={!$ctx.checkLintZx}>
-        <Return value={Lint.SourceOutcome.Invalid} />
+        <Return
+            value={{
+                status: Lint.SourceOutcome.Invalid
+            }}
+        />
     </If>
 
     <Call fn="../index.formatLintZx" in={$in.host} />
@@ -28,14 +42,33 @@
     />
 
     <If on={!$ctx.same_format}>
-        <Return value={Lint.SourceOutcome.Unformatted} />
+        <Return
+            value={{
+                status: Lint.SourceOutcome.Unformatted
+            }}
+        />
     </If>
 
-    <Call fn="../index.checkLintLength" in={$in.host} />
+    <Call
+        fn="length_diagnostic"
+        in={{
+            source: $in.source,
+            maximum: $in.maximum_lines
+        }}
+    />
 
-    <If on={$ctx.checkLintLength}>
-        <Return value={Lint.SourceOutcome.Valid} />
+    <If on={$ctx.length_diagnostic == null}>
+        <Return
+            value={{
+                status: Lint.SourceOutcome.Valid
+            }}
+        />
     </If>
 
-    <Return value={Lint.SourceOutcome.Invalid} />
+    <Return
+        value={{
+            status: Lint.SourceOutcome.Invalid,
+            diagnostic: $ctx.length_diagnostic
+        }}
+    />
 </Module>

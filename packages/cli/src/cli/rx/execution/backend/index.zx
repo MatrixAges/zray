@@ -1,5 +1,4 @@
 export {
-    appendGeneratedModule,
     preloadBackendPath,
     expireBackendPath,
     createStagedBindings,
@@ -26,21 +25,14 @@ export {
     generateWasmRunner,
     writeBackendWorkspace,
     retainNodeResources,
-    releaseBackendSources,
     prepareStagedParents,
-    appendBackendPrefix,
-    appendBackendEntry,
+    readBackendCommandOptions,
     writeBackendCommand,
-    bindBackendModule,
-    writeNativeHeader,
     spawnNativeTranslation,
-    bindNativeTranslation,
     retainNativeTranslation,
     releaseNativeTranslation,
     writeNativeAdapter,
-    appendNativeModule,
-    appendSupportModule,
     Status
 } from "native_build_host"
 
-export type { NativeBuild } from "native_build_host"
+export type { CommandOptions, NativeBuild } from "native_build_host"

@@ -1,0 +1,15 @@
+<Store name="project_body_execution" version={1}>
+    <Type from="body_effect" as="Body" />
+
+    <Object name="effect">
+        <Field name="step" type={Body.Step} value={Body.Step.Analyze} />
+        <Field name="root" type={bool?} value={null} />
+        <Field name="count" type={u64?} value={null} />
+        <Field name="id" type={u32?} value={null} />
+        <Field name="type_only" type={bool} value={false} />
+        <Field name="restored" type={bool} value={false} />
+        <Field name="restored_function" type={u32?} value={null} />
+        <Field name="linked_count" type={u64} value={0} />
+        <Field name="calls" type={u32[]} value={[]} />
+    </Object>
+</Store>

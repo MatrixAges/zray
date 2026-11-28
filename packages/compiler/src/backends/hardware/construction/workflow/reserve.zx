@@ -1,22 +1,26 @@
-import { maximum_nodes } from "../../const"
+import integers from "std:integer"
+import capacity from "core/bytes/map/capacity"
 
-import type { GraphCapacity } from "hardware_graph_host"
-import type { Sizes } from "./model"
+import empty from "../../terms/table"
 
-export type Input = Sizes.Pick("inputs", "definitions")
+import type { Graph } from "../../terms/parse/model"
+import type { Sizes as Input } from "./model"
 
-export type Output = GraphCapacity
+export type Output = {
+    graph: Graph,
+    symbol_capacity: u64
+}
 
 export default function (in: Input): Output {
-    const { inputs, definitions } = in
-
-    const symbols = inputs + definitions
-    const nodes = symbols < maximum_nodes ? symbols : maximum_nodes
+    const cache = capacity(integers.narrow(in.definitions))
+    const symbols = capacity(integers.narrow(in.inputs + in.definitions))
 
     return {
-        symbols,
-        definitions,
-        inputs,
-        nodes
+        graph: {
+            nodes: [],
+            cache: empty(cache.capacity),
+            cache_limit: cache.limit
+        },
+        symbol_capacity: symbols.capacity
     }
 }

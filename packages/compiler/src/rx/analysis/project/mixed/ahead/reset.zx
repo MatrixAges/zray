@@ -8,17 +8,6 @@ export type Worker = {
     index: u64
 }
 
-export enum Action {
-    ClearResults,
-    ResetWorker,
-    ResetBindings
-}
-
-export type Recycle = {
-    action: Action,
-    worker: u64
-}
-
 export type Output = u64
 
 export default function (in: Input): Output {

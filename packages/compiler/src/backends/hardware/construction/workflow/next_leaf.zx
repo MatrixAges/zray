@@ -9,7 +9,9 @@ import columns from "memory/columns"
 import fieldPath from "../../../../verification/ports/path"
 import portType from "./port_type"
 
-import type { OutputLeaf, OutputSearch as Output, OutputWalk as Input } from "./model"
+import type { OutputLeaf, OutputSearch as Output, OutputWalk } from "./model"
+
+export type Input = OutputWalk.Pick("types", "value_layout", "stack")
 
 export default function (in: Input): Output {
     const { types, value_layout } = in

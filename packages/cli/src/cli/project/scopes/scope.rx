@@ -48,6 +48,7 @@
             module="read"
             in={{
                 window: $ctx.openNativeScope,
+                interfaces: $in.workspace.interfaces,
                 row: 0
             }}
         />

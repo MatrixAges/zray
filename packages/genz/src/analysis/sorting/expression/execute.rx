@@ -75,10 +75,11 @@
     />
 
     <Call
-        fn="../rows.setLoweringSerial"
+        fn="../rows.finishGeneratedAst"
         in={[
             $in.lower,
-            $ctx.build.serial
+            $ctx.build.serial,
+            false
         ]}
     />
 

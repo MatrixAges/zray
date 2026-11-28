@@ -1,7 +1,9 @@
 <Module>
     <Type from="model" as="Backend" />
 
-    <Args in={Backend.CommandInvocation} out={bool} />
+    <Args in={Backend.CommandInvocation} out={string[]?} />
+
+    <Call fn="index.readBackendCommandOptions" in={$in.build} />
 
     <Call
         fn="modules/requires_libc"
@@ -19,74 +21,114 @@
         }}
     />
 
+    <Task name="prefix" out={$ctx.build}>
+        <Call
+            module="../../../command/prefix/build"
+            in={{
+                spec: {
+                    tool: $ctx.readBackendCommandOptions.tool,
+                    library: $ctx.readBackendCommandOptions.library,
+                    node: $in.node,
+                    wasm: $in.wasm,
+                    node_library: $ctx.readBackendCommandOptions.node_library,
+                    server: $ctx.readBackendCommandOptions.server,
+                    files: $ctx.readBackendCommandOptions.files,
+                    libraries: $ctx.readBackendCommandOptions.libraries,
+                    library_paths: $ctx.paths,
+                    libc: $ctx.requires_libc
+                }
+            }}
+        />
+    </Task>
+
     <Call
-        fn="index.appendBackendPrefix"
-        in={[
-            $in.build,
-            $ctx.requires_libc,
-            $ctx.paths,
-            $in.wasm
-        ]}
+        fn="../../../command/settings"
+        in={{
+            spec: {
+                optimize: $ctx.readBackendCommandOptions.optimize,
+                target: $ctx.readBackendCommandOptions.target,
+                cpu: $ctx.readBackendCommandOptions.cpu
+            }
+        }}
     />
 
-    <Call fn="index.appendBackendEntry" in={$in.build} />
+    <Call
+        fn="modules/native_names"
+        in={{
+            names: $in.native.modules.names,
+            count: $in.native.count
+        }}
+    />
 
-    <Loop on={$in.index < $in.count}>
+    <Task name="entry" out={$ctx.build}>
+        <Call
+            module="../../../command/entry/build"
+            in={{
+                spec: {
+                    settings: $ctx.settings,
+                    directory: $ctx.readBackendCommandOptions.directory,
+                    node: $in.node,
+                    state: $ctx.readBackendCommandOptions.state,
+                    imports: $ctx.readBackendCommandOptions.imports,
+                    natives: $ctx.native_names
+                }
+            }}
+        />
+    </Task>
+
+    <Loop on={$in.index < $in.generated.count}>
         <Call
             module="modules/generated"
             in={{
-                build: $in.build,
-                count: $in.generated_count,
+                options: $ctx.readBackendCommandOptions,
+                settings: $ctx.settings,
+                generated: $in.generated,
+                chunks: [
+                    $ctx.task.prefix,
+                    $ctx.task.entry
+                ],
                 index: 0
             }}
         />
     </Loop>
 
-    <If on={$in.native.count != 0}>
-        <Call module="modules/walk" in={$in.native} />
-
-        <If on={!$ctx.walk}>
-            <Return value={false} />
-        </If>
-    </If>
-
-    <Loop on={$in.index < $in.count}>
+    <Loop on={$in.running && $in.index < $in.count}>
         <Call
-            module="modules/views"
+            module="modules/native"
             in={{
-                build: $in.build,
-                views: $in.native.abi_views,
-                count: $in.abi_count,
-                index: 0
+                ...$in.native,
+                options: $ctx.readBackendCommandOptions,
+                settings: $ctx.settings,
+                chunks: $ctx.generated.chunks,
+                index: 0,
+                failed: false,
+                running: true
             }}
         />
     </Loop>
+
+    <If on={$ctx.native.failed}>
+        <Return value={null} />
+    </If>
 
     <Call fn="modules/support_modules" in={$in.node} />
 
-    <Call
-        fn="index.appendSupportModule"
-        in={[
-            $in.build,
-            $ctx.support_modules.abi.name,
-            $ctx.support_modules.abi.file,
-            $ctx.support_modules.abi.dependencies
-        ]}
-    />
-
-    <If on={$ctx.support_modules.napi != null}>
+    <Loop on={$in.index < $in.view_count + $in.builtins.length}>
         <Call
-            fn="index.appendSupportModule"
-            in={[
-                $in.build,
-                $ctx.support_modules.napi.name,
-                $ctx.support_modules.napi.file,
-                $ctx.support_modules.napi.dependencies
-            ]}
+            module="modules/views"
+            in={{
+                views: $in.native.abi_views,
+                view_count: $in.abi_count,
+                builtins: $ctx.support_modules,
+                directory: $ctx.readBackendCommandOptions.directory,
+                settings: $ctx.settings,
+                chunks: $ctx.native.chunks,
+                index: 0
+            }}
         />
-    </If>
+    </Loop>
 
-    <Call fn="index.writeBackendCommand" in={$in.build} />
+    <Call fn="../../../command/append" in={$ctx.views.chunks} />
 
-    <Return value={true} />
+    <Return value={$ctx.append} />
 </Module>

@@ -1,0 +1,34 @@
+import type { Selection } from "../../selection/rows"
+
+export type Header = {
+    position: u32,
+    code: u8,
+    lane: u64,
+    item: u32,
+    next: u32
+}
+
+export type Unit = {
+    row: u32,
+    first: u32,
+    count: u32
+}
+
+export type Task = Unit & {
+    id?: u32,
+    node: u8[],
+    output?: u8[]
+}
+
+export type Result = {
+    row: u32,
+    attribute: u8[]
+}
+
+export type Payload = {
+    node?: u8[],
+    result?: Result,
+    task?: Task,
+    group?: Unit,
+    selection?: Selection
+}

@@ -3,7 +3,6 @@ const compiler = @import("compiler");
 const Compile = @import("compile.zig");
 const Loaded = @import("project.zig").Loaded;
 const Paths = @import("toolchain.zig").Paths;
-const Command = @import("build/command.zig");
 const Staged = @import("build/staged.zig");
 const Translation = @import("build/translation.zig");
 const Response = @import("backend_protocol").Result;
@@ -11,13 +10,13 @@ const Bindings = @import("publication_host").bindings;
 const NodeSources = @import("node/resources.zig").Result;
 const effects = @import("sources/effects.zig");
 pub const Observed = @import("build/observed.zig");
+const abi = @import("cli_abi").layouts.@"zig:native_build_host";
 
 pub const State = struct {
     context: *const Compile.Context,
     bundle: *const compiler.zig.ModuleBundle,
     project: *const Loaded,
     toolchain: Paths,
-    command: Command,
     staged: ?Staged = null,
     environment: ?std.process.Environ.Map = null,
     translation: ?Translation = null,
@@ -28,27 +27,27 @@ pub const State = struct {
     node_sources: ?NodeSources = null,
     node_library: ?[]const u8 = null,
     runner: ?[]const u8 = null,
-    target: @import("cli_abi").layouts.@"zig:native_build_host".BackendTarget = undefined,
+    target: abi.BackendTarget = undefined,
     configuration: []const u8 = undefined,
     abi: @import("abi.zig").Result = undefined,
     abi_views: @import("project/native_paths.zig").Abi = undefined,
     workspace: @import("artifacts.zig").Prepared = undefined,
-    native_names: [][]const u8 = undefined,
-    settings: []const []const u8 = undefined,
-    native: PendingNative = undefined,
-    pub const PendingNative = struct {
-        spec: Command.Module,
-        header: ?[]const u8,
-    };
+    command_options: abi.CommandOptions = undefined,
+    command_server: abi.CommandServer = undefined,
+    command_files: abi.CommandDestination = undefined,
+    translation_hash: [std.Build.Cache.bin_digest_len * 2]u8 = undefined,
     pub fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);
     }
-
-    pub fn releaseSources(self: *State) void {
+    pub fn releaseRunner(self: *State) void {
         if (self.runner) |runner| self.context.allocator.free(runner);
-        if (self.node_sources) |*sources| sources.deinit();
 
         self.runner = null;
+    }
+
+    pub fn releaseNodeSources(self: *State) void {
+        if (self.node_sources) |*sources| sources.deinit();
+
         self.node_sources = null;
     }
 
@@ -59,7 +58,8 @@ pub const State = struct {
     }
 
     pub fn deinit(self: *State) void {
-        self.releaseSources();
+        self.releaseRunner();
+        self.releaseNodeSources();
 
         if (self.observed) |*observed| observed.deinit();
         if (self.response) |*response| response.deinit();

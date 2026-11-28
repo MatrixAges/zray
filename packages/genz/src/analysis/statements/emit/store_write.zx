@@ -1,5 +1,6 @@
 import {
-    appendAstProjectionRows,
+    appendExpressionRows,
+    AstPayloadOwnership,
     astExpressionCount,
     publishAstBasicStatements
 } from "ast_rows"
@@ -29,7 +30,7 @@ export default function (in: Input): Output {
     })
 
     requireAllocation(target.valid)
-    appendAstProjectionRows(in.writer, target.nodes)
+    appendExpressionRows(in.writer, target.nodes, null, AstPayloadOwnership.Borrowed)
 
     const value = host.lowerExpression(in.frame, in.value, false, null)
 

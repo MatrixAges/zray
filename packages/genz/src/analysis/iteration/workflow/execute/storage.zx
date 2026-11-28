@@ -1,10 +1,10 @@
 import { clipCollectionTarget, convertStateValue, StateValueMode } from "ast_rows"
 import host from "lowering_host"
 
+import emitDereference from "../../../expressions/read/emit_dereference"
 import { Storage } from "../../initial/model"
-import emitDereference from "./emit_dereference"
 
-import type { StorageInput as Input } from "./model"
+import type { StorageInput as Input } from "./update_model"
 
 export type Output = u32
 

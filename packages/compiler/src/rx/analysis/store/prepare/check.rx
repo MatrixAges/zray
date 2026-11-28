@@ -1,7 +1,10 @@
 <Module>
     <Type from="model" as="Definition" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Definition.Input} out={void} />
+
+    <Store from="definition" as="definition" />
 
     <Call module="../../../../zx/modules/project/state/check" in={$in.shared} />
 
@@ -15,11 +18,12 @@
 
     <If on={$ctx.context_issue != null}>
         <Call
-            fn="host.rejectStoreDefinitionContext"
-            in={[
-                $in.state,
-                $ctx.context_issue
-            ]}
+            fn="stage"
+            in={{
+                step: Effect.Step.RejectContext,
+                message: $ctx.context_issue
+            }}
+            setter={[$store.definition.effect]}
         />
     </If>
 </Module>

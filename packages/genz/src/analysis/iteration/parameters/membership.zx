@@ -1,0 +1,22 @@
+import missing from "./missing"
+
+import type { Membership as Output, View } from "./model"
+
+export type Input = View.Omit("names")
+
+export default function (in: Input): Output {
+    const { state, stack, condition, step } = in
+
+    return {
+        state: missing({
+            index: state,
+            condition,
+            step
+        }),
+        stack: missing({
+            index: stack,
+            condition,
+            step
+        })
+    }
+}

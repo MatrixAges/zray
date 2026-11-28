@@ -12,6 +12,7 @@ import {
     ExpressionsUnaryOperator
 } from "../../../printer/model/expressions"
 import { StatementsKind } from "../../../printer/model/statements"
+import packSpan from "../../node_headers/block/span"
 import { guard_rows } from "./const"
 
 import type { Output, Publication as Input } from "./model"
@@ -113,8 +114,8 @@ export default function (in: Input): Output {
         )
     }
 
-    return {
+    return packSpan({
         start: integers.narrow(start),
-        count: integers.narrow(count)
-    }
+        count
+    })
 }

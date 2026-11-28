@@ -4,6 +4,7 @@ import { AstPayloadOwnership } from "ast_rows"
 import host from "lowering_host"
 import { requireAllocation } from "memory"
 
+import emptyExpressions from "../../../ast/expressions/empty"
 import emptyStatements from "../../../ast/statements/empty"
 import { StatementsKind } from "../../../printer/model/statements"
 
@@ -81,17 +82,17 @@ export default function (in: Input): Output {
         return: current => current.items
     })
 
-    ast.appendAstProjectionRows(writer, {
-        tags: state.expressions.tags,
-        offsets: state.expressions.offsets,
-        identifier: names,
-        field_target: state.expressions.field_target,
-        field_name: fields,
-        dereference: [],
-        binary_operator: [],
-        binary_left: [],
-        binary_right: []
-    })
+    ast.appendExpressionRows(
+        writer,
+        {
+            ...emptyExpressions({}),
+            ...state.expressions,
+            identifier: names,
+            field_name: fields
+        },
+        null,
+        AstPayloadOwnership.Borrowed
+    )
 
     ast.appendStatementRows(
         writer,
@@ -110,7 +111,7 @@ export default function (in: Input): Output {
         AstPayloadOwnership.Borrowed
     )
 
-    host.setLoweringSerial(frame, state.serial)
+    host.finishGeneratedAst(frame, state.serial, false)
 
     return integers.narrow(tags.length)
 }

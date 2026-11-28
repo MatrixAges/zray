@@ -87,7 +87,7 @@ pub fn addExternalIncludes(handle: *const anyopaque, paths: []const []const u8) 
 pub fn writeLibraryNativeHeader(handle: *const anyopaque) Error!void {
     const self = &Stage.get(handle).resources;
 
-    const header = source.workspace_native_header.executeValue(self.allocator, &.{
+    const header = source.workspace_native_header.executeIn(self.allocator, &.{
         .directory = self.directory,
         .name = self.current.name,
         .header = self.current.header.?,

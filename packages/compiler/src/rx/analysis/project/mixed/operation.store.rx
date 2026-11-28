@@ -1,0 +1,19 @@
+<Store name="mixed_project_operation" version={1}>
+    <Type from="operation" as="Operation" />
+
+    <Object name="effect">
+        <Field name="step" type={Operation.Step} value={Operation.Step.Select} />
+        <Field name="first" type={u64?} value={null} />
+        <Field name="end" type={u64?} value={null} />
+        <Field name="row" type={u64?} value={null} />
+        <Field name="selection" type={Operation.Selection?} value={null} />
+        <Field name="action" type={Operation.Action} value={Operation.Action.Exhausted} />
+        <Field name="index" type={u64} value={0} />
+        <Field name="position" type={u64} value={0} />
+        <Field name="following" type={u64} value={0} />
+        <Field name="prepared_row" type={u64?} value={null} />
+        <Field name="count" type={u64} value={0} />
+        <Field name="prepared" type={u64?} value={null} />
+        <Field name="accepted" type={bool} value={false} />
+    </Object>
+</Store>

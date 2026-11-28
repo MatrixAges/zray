@@ -1,32 +1,32 @@
 import integers from "std:integer"
+import host from "hardware_graph_host"
 
 import name from "../../../../verification/ports/name"
 
-import type { OutputPort } from "hardware_graph_host"
-import type { OutputWrite as Input } from "./model"
+import type { OutputPort, OutputWrite as Input } from "./model"
 
-export type Output = OutputPort?
+export type Output = OutputPort[]
 
 export default function (in: Input): Output {
-    const { sort, leaf, node, index } = in
+    const { sort, leaf, node, ports } = in
 
     const width = integers.widenShort(sort.width)
 
     if (width != leaf.width || sort.boolean != leaf.boolean) {
-        return null
+        host.rejectHardwareTerm()
     }
 
     const symbol = name({
-        index,
+        index: ports.length,
         output: true
     })
 
-    return {
+    return ports.push({
         symbol,
         path: leaf.path,
         node,
         width: leaf.width,
         boolean: leaf.boolean,
         signed: leaf.signed
-    }
+    })[0]
 }

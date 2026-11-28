@@ -1,0 +1,43 @@
+import lookup from "core/integer/index/lookup"
+
+import type { Selected as Output, Selection as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { stack_keys, stack_buckets, symbols, iteration } = in
+
+    const stacked: bool[] = []
+
+    const selection = in.omit([
+        "stack_keys",
+        "stack_buckets"
+    ])
+
+    if (iteration) {
+        return {
+            ...selection,
+            stacked
+        }
+    }
+
+    return {
+        ...selection,
+        stacked: loop({
+            index: 0,
+            values: stacked
+        }, {
+            while: state => state.index < symbols.length,
+            next: state => {
+                const symbol = symbols[state.index]
+                const present = symbol != null && lookup({
+                    keys: stack_keys,
+                    buckets: stack_buckets,
+                    key: symbol
+                }) != null
+
+                state.values = state.values.push(present)[0]
+                state.index += 1
+            },
+            return: state => state.values
+        })
+    }
+}

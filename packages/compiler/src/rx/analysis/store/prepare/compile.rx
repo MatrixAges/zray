@@ -1,14 +1,18 @@
 <Module>
     <Type from="model" as="Definition" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Definition.Objects} out={Definition.Objects} />
 
+    <Store from="definition" as="definition" />
+
     <Call
-        fn="host.compileStoreDefinitionObject"
-        in={[
-            $in.state,
-            $in.row
-        ]}
+        fn="stage"
+        in={{
+            step: Effect.Step.CompileObject,
+            row: $in.row
+        }}
+        setter={[$store.definition.effect]}
     />
 
     <Return

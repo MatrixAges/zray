@@ -1,17 +1,18 @@
 <Module>
     <Type from="reset" as="Reset" />
+    <Type from="operation" as="Operation" />
 
     <Args in={Reset.Worker} out={Reset.Worker} />
 
     <Store from="workspace" as="workspace" />
 
     <Call
-        fn="stage_recycle"
+        fn="stage"
         in={{
-            action: Reset.Action.ResetWorker,
-            worker: $in.index
+            action: Operation.Action.ResetWorker,
+            row: $in.index
         }}
-        setter={[$store.workspace.recycle]}
+        setter={[$store.workspace.effect]}
     />
 
     <Return

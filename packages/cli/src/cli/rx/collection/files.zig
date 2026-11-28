@@ -12,6 +12,8 @@ pub fn selectCollectionPath(handle: *const anyopaque, row: u64) Error!?[]const u
     const root = self.project.root_dir;
     const options = self.options;
 
+    self.releaseDocument();
+
     if (row >= self.queue.items.len) return null;
 
     _ = self.reference_memory.reset(.retain_capacity);

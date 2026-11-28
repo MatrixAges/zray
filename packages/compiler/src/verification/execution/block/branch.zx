@@ -5,9 +5,10 @@ import conjunction from "../../scalar/conjunction"
 import disjunction from "../../scalar/disjunction"
 import guard from "./guard"
 
+import type { SymbolicPath } from "verification_host"
 import type { Payload as Input } from "./model"
 
-export type Output = string
+export type Output = SymbolicPath
 
 export default function (in: Input): Output {
     const { block, session, scope, payload } = in
@@ -19,11 +20,14 @@ export default function (in: Input): Output {
 
     const condition = outcome.text == null ? "" : outcome.text
 
-    const path = guard({
+    const checked = guard({
         session,
         path: in.path,
+        violations: in.violations,
         safe: outcome.safe
     })
+
+    const { path, violations } = checked
 
     const positive = conjunction({
         left: path,
@@ -31,7 +35,11 @@ export default function (in: Input): Output {
     })
 
     const yes_entry = host.bindSymbolicBoolean(session, positive)
-    const yes = host.runSymbolicChild(block, control.branch_yes[payload], yes_entry)
+
+    const yes = host.runSymbolicChild(block, control.branch_yes[payload], {
+        path: yes_entry,
+        violations
+    })
 
     const negative = exclude({
         left: path,
@@ -39,16 +47,26 @@ export default function (in: Input): Output {
     })
 
     const no_entry = host.bindSymbolicBoolean(session, negative)
-    const no = host.runSymbolicChild(block, control.branch_no[payload], no_entry)
 
-    if (yes == yes_entry && no == no_entry) {
-        return path
+    const no = host.runSymbolicChild(block, control.branch_no[payload], {
+        path: no_entry,
+        violations: yes.violations
+    })
+
+    if (yes.path == yes_entry && no.path == no_entry) {
+        return {
+            path,
+            violations: no.violations
+        }
     }
 
     const joined = disjunction({
-        left: yes,
-        right: no
+        left: yes.path,
+        right: no.path
     })
 
-    return host.bindSymbolicBoolean(session, joined)
+    return {
+        path: host.bindSymbolicBoolean(session, joined),
+        violations: no.violations
+    }
 }

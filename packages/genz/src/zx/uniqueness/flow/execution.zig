@@ -5,7 +5,6 @@ const Flow = @import("../flow.zig");
 const Slots = @import("../slots.zig");
 const Memo = @import("../memo.zig");
 const entry = @import("generated_uniqueness_flow_solve");
-const Api = @import("../program/driver.zig").Api;
 const Fixpoint = @import("fixpoint.zig");
 const Error = std.mem.Allocator.Error;
 
@@ -30,6 +29,15 @@ const Frame = struct {
     walkers: []Flow.Walker = &.{},
     fn borrow(handle: *anyopaque) *Frame {
         return @ptrCast(@alignCast(handle));
+    }
+    fn recursiveWalk(frame: *Frame) Error!*Fixpoint {
+        if (frame.recursive == null) {
+            const input = &frame.request;
+
+            frame.recursive = try Fixpoint.open(frame.result, input.temporary, input.workspace, &input.program.functions, input.slots);
+        }
+
+        return &frame.recursive.?;
     }
 };
 
@@ -119,19 +127,10 @@ pub fn publishFlowMemo(handle: *anyopaque, row: u64) Error!void {
     try kept.memo.putFlowed(kept.keys[index], flow.held[index], flow.text_held[index], flow.written[index]);
 }
 
-pub fn openRecursiveFlow(handle: *anyopaque) Error!*const Api.FlowQueue {
-    const frame = Frame.borrow(handle);
-    const input = &frame.request;
-
-    frame.recursive = try Fixpoint.open(frame.result, input.temporary, input.workspace, frame.scratch, &input.program.functions, input.slots);
-
-    return &frame.recursive.?.queue;
-}
-
 pub fn retainFlowFacts(handle: *anyopaque, index: u32) Error!void {
-    try Frame.borrow(handle).recursive.?.retain(index);
+    return (try Frame.borrow(handle).recursiveWalk()).retain(index);
 }
 
 pub fn visitRecursiveFlow(handle: *anyopaque, index: u32, retained: bool) Error!bool {
-    return Frame.borrow(handle).recursive.?.visit(index, retained);
+    return (try Frame.borrow(handle).recursiveWalk()).visit(index, retained);
 }

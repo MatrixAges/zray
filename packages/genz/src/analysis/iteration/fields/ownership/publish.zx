@@ -1,15 +1,13 @@
-import type { ProjectionRows } from "ast_rows"
+import emptyExpressions from "../../../../ast/expressions/empty"
+
+import type { ExpressionRows } from "ast_rows"
 import type { Expressions as Input } from "./model"
 
-export type Output = ProjectionRows
+export type Output = ExpressionRows
 
 export default function (in: Input): Output {
     return {
-        ...in,
-        identifier: [],
-        dereference: [],
-        binary_operator: [],
-        binary_left: [],
-        binary_right: []
+        ...emptyExpressions({}),
+        ...in
     }
 }

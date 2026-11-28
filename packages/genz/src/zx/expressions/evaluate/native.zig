@@ -67,10 +67,6 @@ pub fn retainLoweringText(frame: *anyopaque, text: []const u8) Error![]const u8 
     return borrow(frame).allocator.dupe(u8, text);
 }
 
-pub fn setLoweringSerial(frame: *anyopaque, serial: u64) void {
-    borrow(frame).serial = @intCast(serial);
-}
-
 pub fn finishGeneratedAst(frame: *anyopaque, serial: ?u64, uses_allocator: bool) void {
     const self = borrow(frame);
 
@@ -193,10 +189,6 @@ pub fn lowerUnpack(frame: *anyopaque, id: u32, value: u32) Error!u32 {
     const self = borrow(frame);
 
     return @backingInt(try @import("../../iteration_value/evaluation.zig").unpack(self.iteration_value.?, @fromBackingInt(id), @fromBackingInt(value)));
-}
-
-pub fn lowerDereference(frame: *anyopaque, value: u32) Error!u32 {
-    return @backingInt(try @import("../../value_call/emission.zig").emit(borrow(frame), null, .{ .value = @fromBackingInt(value) }));
 }
 
 pub fn requestFunction(frame: *anyopaque, id: u32, regular: bool) Error!void {

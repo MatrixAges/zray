@@ -1,10 +1,4 @@
-import type {
-    GraphIO,
-    LockFile,
-    Mapping,
-    PackageManifest,
-    WorkspaceGraph
-} from "package_graph_host"
+import type { GraphIO, Mapping } from "package_graph_host"
 
 export enum Status {
     Valid,
@@ -35,25 +29,18 @@ export type Workspace = Read & {
 
 export type InstalledRow = {
     path: string,
-    manifest: PackageManifest
-}
-
-export type Installed = {
-    lock: LockFile,
-    rows: InstalledRow[]
+    member?: u64
 }
 
 export type Result = {
     status: Status,
     diagnostic?: string,
-    workspace?: WorkspaceGraph,
     keep_rows?: u64,
-    installed?: Installed
+    installed?: InstalledRow[]
 }
 
 export type InstalledLoaded = {
     graph: GraphIO,
-    lock: LockFile,
     mapping: Mapping
 }
 
@@ -66,7 +53,6 @@ export type InstalledWalk = InstalledLoaded & {
 
 export type Archive = {
     graph: GraphIO,
-    lock: LockFile,
     index: u64,
     path: string,
     digest: string

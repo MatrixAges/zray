@@ -2,7 +2,8 @@ import { calls, groups, results, selections, tasks } from "./const"
 import { Route } from "./model"
 import write from "./write"
 
-import type { Header, Layout, Output, Rows } from "./model"
+import type { Layout, Output, Rows } from "./model"
+import type { Header } from "./payload/shape"
 
 export type Input = {
     rows: Rows,

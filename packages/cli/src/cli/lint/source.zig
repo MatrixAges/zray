@@ -33,13 +33,16 @@ pub fn check(context: Compile.Context, source: []const u8) !Compile.Status {
         .host = @ptrCast(&reference),
         .input_path = context.options.input,
         .source = source,
+        .maximum_lines = context.options.max_lines orelse lint.length.default_maximum,
     }) catch |err| return state.failure.unwrap(err);
 
-    if (outcome == .Unformatted) {
+    if (outcome.status == .Unformatted) {
         try context.stderr.print("{s}: {s}\n", .{ context.options.input, lint.source.formatting_required });
     }
 
-    return if (outcome == .Valid) .success else .failed;
+    if (outcome.diagnostic) |message| try context.stderr.print("{s}: {s}", .{ context.options.input, message });
+
+    return if (outcome.status == .Valid) .success else .failed;
 }
 
 pub fn parseLintRx(handle: *const anyopaque) Error!bool {
@@ -111,14 +114,4 @@ pub fn formatLintZx(handle: *const anyopaque) Error![]const u8 {
     self.formatted = formatted.source;
 
     return formatted.source;
-}
-
-pub fn checkLintLength(handle: *const anyopaque) Error!bool {
-    const self = State.get(handle);
-    const options = &self.context.options;
-    const exceeded = lint.length.check(self.source, options.max_lines orelse lint.length.default_maximum) orelse return true;
-
-    self.context.stderr.print("{s}: length: {d} lines exceed the lint limit of {d}; split by responsibility or pass --max-lines\n", .{ options.input, exceeded.lines, exceeded.maximum }) catch |err| return self.failure.save(err);
-
-    return false;
 }

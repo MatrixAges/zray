@@ -1,16 +1,44 @@
 <Module>
     <Type from="../windows" as="Windows" />
+    <Type from="../operation" as="Operation" />
 
     <Args in={Windows.Input} out={void} />
 
-    <Call fn="host.materializeMixedModule" in={$in.state} />
-    <Call fn="host.publishMixedObservations" in={$in.state} />
+    <Store from="../operation" as="mixed" />
+
+    <Call
+        fn="../stage"
+        in={{
+            step: Operation.Step.Materialize
+        }}
+        setter={[$store.mixed.effect]}
+    />
+
+    <Call
+        fn="../stage"
+        in={{
+            step: Operation.Step.Observations
+        }}
+        setter={[$store.mixed.effect]}
+    />
 
     <If on={$in.has_exports}>
-        <Call fn="host.publishMixedExports" in={$in.state} />
+        <Call
+            fn="../stage"
+            in={{
+                step: Operation.Step.Exports
+            }}
+            setter={[$store.mixed.effect]}
+        />
     </If>
 
     <If on={$in.retain}>
-        <Call fn="host.retainMixedHistory" in={$in.state} />
+        <Call
+            fn="../stage"
+            in={{
+                step: Operation.Step.Retain
+            }}
+            setter={[$store.mixed.effect]}
+        />
     </If>
 </Module>

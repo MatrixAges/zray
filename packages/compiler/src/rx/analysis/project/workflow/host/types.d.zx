@@ -1,14 +1,3 @@
-export type StoreInitializer = mutable_opaque
-
-export type StoreFieldNames = {
-    source: string[],
-    canonical: string[]
-}
-
-export type StoreDefinitionWork = mutable_opaque
-
-export type StoreRegistryLoad = mutable_opaque
-
 export type Inference = mutable_opaque
 
 export type Derivation = mutable_opaque
@@ -36,16 +25,6 @@ export type ObjectFieldReplay = mutable_opaque
 export type FieldAccess = mutable_opaque
 
 export type ObjectConstructionRow = mutable_opaque
-
-export type BindingReplay = mutable_opaque
-
-export enum BindingDiagnosticSource {
-    Collision,
-    Lookup,
-    Use
-}
-
-export type NonNullReplay = mutable_opaque
 
 export type OptionalQuery = mutable_opaque
 
@@ -97,8 +76,6 @@ export enum FlowPublish {
     Evaluate,
     Constant
 }
-
-export type ParallelTaskWork = mutable_opaque
 
 export type BodyStatements = mutable_opaque
 
@@ -181,36 +158,4 @@ export enum OperandRoute {
     Object
 }
 
-export type Mixed = mutable_opaque
-
 export type MixedState = opaque
-
-export type MixedPreparation = mutable_opaque
-
-export type MixedCallees = mutable_opaque
-
-export type MixedZXPreparation = mutable_opaque
-
-export type MixedZXBody = mutable_opaque
-
-export type MixedZXAnalysis = {
-    declared: bool,
-    slots: u64
-}
-
-export type MixedRXBody = mutable_opaque
-
-export type ImportedCallee = {
-    function_id?: u32,
-    setter: bool,
-    has_stores: bool,
-    orchestration: bool
-}
-
-export enum MixedAction {
-    Exhausted,
-    Skip,
-    MissingSignature,
-    AnalyzeZX,
-    LowerRX
-}

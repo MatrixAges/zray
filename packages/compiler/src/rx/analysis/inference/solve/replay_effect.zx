@@ -1,0 +1,33 @@
+export enum Step {
+    UnifyBinding,
+    RefreshBindings,
+    RejectBinding,
+    MergeNonNull,
+    RefreshNonNull,
+    ReserveNonNull,
+    RegisterNonNull
+}
+
+export enum DiagnosticSource {
+    Collision,
+    Lookup,
+    Use
+}
+
+export type Diagnostic = {
+    source: DiagnosticSource,
+    row: u64,
+    message: string
+}
+
+export type Command = {
+    step: Step,
+    row?: u64,
+    left?: u32,
+    right?: u32,
+    diagnostic?: Diagnostic
+}
+
+export type Effect = Command & {
+    id: u32
+}

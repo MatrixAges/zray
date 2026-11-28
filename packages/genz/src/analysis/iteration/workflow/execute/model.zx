@@ -1,17 +1,14 @@
 import type { AstSequence, AstWriter } from "ast_rows"
 import type { LoopAdmission, LoopFrame, Lowering } from "lowering_host"
-import type {
-    Output as RenewalPlan,
-    Source as RenewalSource
-} from "../../deferred/model"
+import type { Source as RenewalSource } from "../../deferred/model"
 import type { Output as InitialPlan } from "../../initial/model"
-import type { View } from "../../parameters/model"
-import type { Output as StepPlan } from "../../step/model"
+import type { Membership, View } from "../../parameters/model"
 
 export type Admission = LoopAdmission
 
 export type LoopState = {
     name: u8[],
+    reference: u32,
     forwarded?: u32
 }
 
@@ -26,6 +23,7 @@ export type Input = {
     writer: AstWriter,
     body_seq: AstSequence,
     loop_seq: AstSequence,
+    projected_seq: AstSequence,
     loop_frame: LoopFrame,
     loop_state: LoopState,
     guard_info: GuardInfo,
@@ -55,64 +53,14 @@ export type Parameters =
         "parameters",
         "initial_plan"
     ) & {
-        name: u8[]
+        name: u8[],
+        membership: Membership
     }
 
 export type ParametersOutcome = {
     seed_name: u8[],
     projected: bool
 }
-
-export type StorageInput = Input.Pick(
-    "loop_frame",
-    "writer",
-    "body_seq",
-    "type_id",
-    "initial",
-    "initial_plan"
-) & {
-    initial_value: u32
-}
-
-export type Update = {
-    condition: u32,
-    value: u32,
-    first?: u32
-}
-
-export type Renewals = Input.Pick("loop_frame", "renewal_source") & {
-    owner: u32,
-    schedule: StepPlan
-}
-
-export type Evaluate =
-    Input.Pick("frame", "loop_frame", "parameters", "initial_plan") & {
-        schedule: StepPlan,
-        renewals: RenewalPlan,
-        name: u8[],
-        seed_name: u8[],
-        initial_state: u32
-    }
-
-export type Emit =
-    Input.Pick(
-        "frame",
-        "writer",
-        "body_seq",
-        "loop_seq",
-        "body",
-        "loop_frame",
-        "guard_info",
-        "initial_plan"
-    ) & {
-        schedule: StepPlan,
-        renewals: RenewalPlan,
-        projected: bool,
-        initial_value: u32,
-        update: Update
-    }
-
-export type Finish = Emit.Omit("schedule", "renewals", "loop_seq", "body")
 
 export type Output = {
     expression?: u32

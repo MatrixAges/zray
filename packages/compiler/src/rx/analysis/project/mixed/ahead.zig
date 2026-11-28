@@ -114,14 +114,6 @@ fn resetBindings(self: *Self) void {
     self.next_item = 0;
 }
 
-pub fn commit(self: *Self, pending: anytype) error{}!void {
-    if (pending.store_0) |recycle| switch (recycle.action) {
-        .ClearResults => self.clearResults(),
-        .ResetWorker => _ = self.arenas[@intCast(recycle.worker)].reset(.retain_capacity),
-        .ResetBindings => self.resetBindings(),
-    };
-}
-
 /// Analyzes a bounded prefix of the run and returns its module count. Runs below the parallel minimum are left to
 /// their turn; only successfully prepared modules consume the batch's parallel slots.
 pub fn analyze(self: *Self, state: *State, cache: *frontend.project.ParseCache, sources: []const frontend.project.Source, derived: Frame, reuse: *const Reuse, window: Schedule.Window, arguments: *const Inputs) std.mem.Allocator.Error!usize {
@@ -203,14 +195,10 @@ const Preparation = struct {
     arguments: *const Inputs,
     issue: ?Diagnostic = null,
     candidate: Result = undefined,
-    fn borrow(handle: *anyopaque) *Preparation {
-        return @ptrCast(@alignCast(handle));
-    }
     fn open(self: *Preparation, index: usize) void {
         self.issue = self.state.issue;
         self.state.owner = index;
     }
-
     fn restore(self: *Preparation) void {
         self.state.issue = self.issue;
     }
@@ -251,68 +239,66 @@ const Preparation = struct {
     }
 };
 
-pub fn reserveMixedWorkers(handle: *anyopaque) std.mem.Allocator.Error!u64 {
-    const frame = Preparation.borrow(handle);
-
-    try frame.ahead.initArenas(frame.state.allocator);
-
-    return frame.ahead.arenas.len;
-}
-
-pub fn openMixedCandidate(handle: *anyopaque, index: u64) void {
-    Preparation.borrow(handle).open(@intCast(index));
-}
-
-pub fn prepareMixedZXCandidate(handle: *anyopaque, index: u64) std.mem.Allocator.Error!bool {
-    const frame = Preparation.borrow(handle);
-
-    const prepared = frame.prepareZX(@intCast(index)) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidSourceGraph => return false,
-    };
-
-    frame.candidate = .{ .zx = .{ .prepared = prepared } };
-
-    return true;
-}
-
-pub fn prepareMixedRXCandidate(handle: *anyopaque, index: u64) std.mem.Allocator.Error!bool {
-    const frame = Preparation.borrow(handle);
-
-    const prepared = frame.prepareRX(@intCast(index)) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidSourceGraph => return false,
-    };
-
-    frame.candidate = .{ .rx = .{ .prepared = prepared } };
-
-    return true;
-}
-
-pub fn recordMixedCandidate(handle: *anyopaque, position: u64) std.mem.Allocator.Error!void {
-    const frame = Preparation.borrow(handle);
-
-    try frame.append(position, &frame.candidate);
-}
-
-pub fn restoreMixedCandidateDiagnostic(handle: *anyopaque) void {
-    Preparation.borrow(handle).restore();
-}
-
-pub fn executeMixedWorkers(handle: *anyopaque, participants: u64) void {
-    const frame = Preparation.borrow(handle);
-
-    frame.ahead.execute(frame.state, @intCast(participants));
-}
-
 fn executeWindow(frame: *Preparation, reuse: *const Reuse, window: Schedule.Window) std.mem.Allocator.Error!usize {
     const collect_plan = @import("generated_rx_mixed_collect");
     const Input = std.meta.Child(collect_plan.Input);
-    const Selection = std.meta.Child(@FieldType(Input, "selection"));
     const state = frame.state;
     const graph = &state.graph;
     const order = @import("../history/columns.zig").words(std.mem.sliceAsBytes(graph.order));
     const previous = if (reuse.aligned) reuse.prefix else null;
+    const Store = std.meta.Child(@FieldType(collect_plan.zx_pending, "store_0"));
+    var snapshot: std.meta.Child(Store) = .{ .action = .ClearResults, .row = 0, .count = 0, .ready = false };
+    var store: Store = &snapshot;
+
+    const Host = struct {
+        frame: *Preparation,
+        snapshot: *std.meta.Child(Store),
+        store_0: *Store,
+        pub fn commit(host: *@This(), pending: anytype) std.mem.Allocator.Error!void {
+            const request = pending.store_0 orelse return;
+            const work = host.frame;
+            const row: usize = @intCast(request.row);
+
+            switch (request.action) {
+                .ClearResults => work.ahead.clearResults(),
+                .ResetWorker => _ = work.ahead.arenas[row].reset(.retain_capacity),
+                .ResetBindings => work.ahead.resetBindings(),
+                .Reserve => {
+                    try work.ahead.initArenas(work.state.allocator);
+
+                    host.snapshot.count = work.ahead.arenas.len;
+                },
+                .Open => work.open(row),
+                .PrepareZX => {
+                    host.snapshot.ready = false;
+
+                    const prepared = work.prepareZX(row) catch |err| switch (err) {
+                        error.OutOfMemory => return error.OutOfMemory,
+                        error.InvalidSourceGraph => return,
+                    };
+
+                    work.candidate = .{ .zx = .{ .prepared = prepared } };
+                    host.snapshot.ready = true;
+                },
+                .PrepareRX => {
+                    host.snapshot.ready = false;
+
+                    const prepared = work.prepareRX(row) catch |err| switch (err) {
+                        error.OutOfMemory => return error.OutOfMemory,
+                        error.InvalidSourceGraph => return,
+                    };
+
+                    work.candidate = .{ .rx = .{ .prepared = prepared } };
+                    host.snapshot.ready = true;
+                },
+                .Record => try work.append(request.row, &work.candidate),
+                .RestoreDiagnostic => work.restore(),
+                .Execute => work.ahead.execute(work.state, row),
+            }
+        }
+    };
+
+    var host: Host = .{ .frame = frame, .snapshot = &snapshot, .store_0 = &store };
 
     const input: Input = .{
         .selection = &.{
@@ -323,9 +309,8 @@ fn executeWindow(frame: *Preparation, reuse: *const Reuse, window: Schedule.Wind
             .signatures = state.signature_indices,
             .local_calls = frame.derived.loaded.local_calls,
             .compiled_dependencies = graph.modules.items(.compiled_dependency),
-            .history = if (previous) |snapshot| zx.columns.pointer(@typeInfo(@FieldType(Selection, "history")).optional.child, &snapshot.history) else null,
+            .history = if (previous) |prefix| &prefix.history else null,
         },
-        .workspace = @ptrCast(frame),
         .prior = &.{ .rows = frame.ahead.items.len, .workers = frame.ahead.arenas.len },
         .minimum = minimum,
         .capacity = Candidates.chunk_size,
@@ -335,8 +320,8 @@ fn executeWindow(frame: *Preparation, reuse: *const Reuse, window: Schedule.Wind
 
     defer scratch.deinit();
 
-    const consumed = collect_plan.executeIn(scratch.allocator(), &input, frame.ahead) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
+    const consumed = collect_plan.executeIn(scratch.allocator(), &input, &host) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
 

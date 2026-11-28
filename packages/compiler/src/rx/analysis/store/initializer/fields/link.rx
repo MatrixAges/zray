@@ -1,19 +1,25 @@
 <Module>
     <Type from="../workflow" as="Initializer" />
+    <Type from="../effect" as="Effect" />
 
     <Args in={Initializer.Scan} out={bool} />
+
+    <Store from="../initializer" as="initializer" />
 
     <If on={$in.invalid_link}>
         <Return value={true} />
     </If>
 
     <Call
-        fn="../host.linkStoreField"
-        in={[
-            $in.frame,
-            $in.position
-        ]}
+        fn="../stage"
+        in={{
+            step: Effect.Step.Link,
+            index: $in.position
+        }}
+        setter={[$store.initializer.effect]}
     />
 
-    <Return value={!$ctx.linkStoreField} />
+    <Call fn="../read_valid" in={$store.initializer.effect} />
+
+    <Return value={!$ctx.read_valid} />
 </Module>

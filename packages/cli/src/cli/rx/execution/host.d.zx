@@ -16,15 +16,19 @@ export enum Status {
     Retry
 }
 
+export type ApplicationText = {
+    source: string,
+    abi: string
+}
+
 export declare function loadRxApplication(check: RxApplication): string? throws { SourceLoadFailure }
 export declare function buildRxGateway(check: RxApplication): Status throws { SourceLoadFailure }
 export declare function analyzeRxApplication(check: RxApplication): u64? throws { SourceLoadFailure }
 export declare function verifyRxApplication(check: RxApplication): bool throws { SourceLoadFailure }
 export declare function generateRxFpga(check: RxApplication): bool throws { SourceLoadFailure }
 export declare function openRxApplicationCache(check: RxApplication): void throws { SourceLoadFailure }
-export declare function emitRxApplicationText(check: RxApplication): bool throws { SourceLoadFailure }
-export declare function writeRxApplicationText(check: RxApplication): void throws { SourceLoadFailure }
-export declare function printRxApplicationText(check: RxApplication): void throws { SourceLoadFailure }
+export declare function emitRxApplicationText(check: RxApplication): ApplicationText? throws { SourceLoadFailure }
+export declare function printRxApplicationText(check: RxApplication, source: string): void throws { SourceLoadFailure }
 export declare function emitRxApplicationModules(check: RxApplication): bool throws { SourceLoadFailure }
 export declare function collectRxInitializers(check: RxApplication): void throws { SourceLoadFailure }
 export declare function emitRxInitializers(check: RxApplication): void throws { SourceLoadFailure }

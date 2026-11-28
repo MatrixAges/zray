@@ -108,7 +108,7 @@ fn bind(loader: *Prepare.Loader, index: *const Index, tree: *const Tree, capacit
             },
         },
         .remaining = index.events.len,
-    }) catch |err| return Prepare.loadError(err);
+    }, &invocation) catch |err| return Prepare.loadError(err);
 
     std.debug.assert(std.mem.eql(u32, &invocation.cursors, &.{
         capacity.calls,

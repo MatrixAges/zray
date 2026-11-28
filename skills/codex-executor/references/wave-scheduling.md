@@ -4,17 +4,24 @@ Patterns adapted from multi-agent orchestration (Orca & Herdr) for running up to
 3 concurrent Codex executors safely inside a shared workspace without Git
 worktrees.
 
-## 0. Task Eligibility Gate (No Long Background Waiting)
+## 0. Task Eligibility & Execution Boundaries (Full-Delegation Mode)
 
-Keep executor slots fast and unblocked by separating **foreground execution** from
-**long background waiting**:
+Delegate end-to-end execution cleanly while preventing orphan daemons and resource contention:
 
-- **Keep on the Orchestrator**: long-running builds/bootstraps/benchmarks,
-  daemons/dev servers, file watchers, polling/`sleep` loops, waiting on async CI
-  or external jobs, and multi-agent fan-out.
-- **Delegate to Codex executors**: bounded synchronous foreground work — coding,
-  refactoring, bug fixes, targeted unit tests, fast lint/typechecks, and code
-  review.
+- **Delegate to Codex executors**:
+    - _During parallel waves (2–3 concurrent slots)_: coding, refactoring, and fast narrow static checks (`zig ast-check`, `zxc fmt --check`, `zxc lint`, `git diff --check`) ONLY—**no concurrent full builds (`zig build`, `bootstrap-stage`), full tests (`zig build test`, `test-verification`), 3-stage bootstraps, or benchmarks**.
+    - _Solo (single active slot, after all parallel workers finish)_: debugging/reproducers requiring builds, `zig build`, `bootstrap-stage`, full package tests (`zig build test`, `test-verification`), 3-stage bootstraps, cold benchmarks, governance audits, cleanup, and wave doc updates — always setting `export ZXC_RESIDENT_GENERATOR=0` and cleaning up child processes before exit.
+- **Keep on the Orchestrator**: high-level wave decomposition, disjoint
+  `--owns` / serial scheduling, `<= 15m` liveness checkpoints, independent final
+  acceptance (diff/SHA-256/parity/benchmark/governance review), and `git commit`
+  / `git push`. Persistent daemons, dev servers, file watchers, `&`/`nohup`
+  orphans, infinite polling loops, and nested subagents remain forbidden inside
+  Codex workers.
+- **Model selection gate**: use default `gpt-6.2-sol` (`high`, `fast`) for
+  implementation, refactor, and verification waves; escalate to `--research`
+  (`gpt-6.2-astra`, `high`, `default` tier) **only** for high-order
+  architecture, algorithm, or stubborn root-cause research tasks, then route the
+  resulting implementation plan back to `gpt-6.2-sol` workers.
 
 ## 1. DAG Wave Decomposition
 
@@ -55,51 +62,40 @@ Because `--worktree` is forbidden, concurrent workers edit the same workspace:
   send the findings as a concise delta prompt to module A's existing `-t <topic>`
   session instead of spawning a new session or having the reviewer edit code.
 
-## 4. Prompt Templates
+## 4. Prompt Templates (Concise — Shared Rules Live in `RULES.md`)
+
+Always reference [RULES.md](../RULES.md) by path instead of repeating shared rules, repo gotchas, 7-step closeout procedures, or the `OUTCOME` schema.
 
 ### Initial Task-Spec Brief
 
 ```markdown
+Follow `skills/codex-executor/RULES.md` (and `AGENTS.md`).
+
 # Task: <short imperative title>
 
-## Target
+- **Owned scope**: `<path1>`, `<path2>`
+- **Mode**: `parallel` (edits + narrow checks only) | `solo`
+- **Deliverable**: <concrete task change / migration targets>
+- **Task-specific acceptance**: <exact command(s) or delta checks>
+```
 
-- Primary paths (exclusively owned): `<path1>`, `<path2>`
+### Solo Wave Closeout Brief
 
-## Change
+```markdown
+Follow `skills/codex-executor/RULES.md` §3 (Standard Solo Wave Closeout Checklist).
 
-<Concrete behavioral specification and deliverables>
+# Wave <NNN> Closeout
 
-## Constraints
-
-- Do NOT edit files outside your owned paths (`<path1>`, `<path2>`).
-- Do NOT run long background/waiting tasks (daemons, dev servers, watchers, `&`/`nohup`, `sleep`/polling loops, or nested subagents). If a step requires background waiting, return `OUTCOME: blocked` with the exact command for the orchestrator.
-- Follow repo conventions (e.g., AGENTS.md).
-- Keep comments/docstrings clean; do not add unnecessary abstractions.
-
-## Observable Acceptance
-
-Run these exact commands and ensure all pass:
-
-1. `<test command>`
-2. `<lint/build command>`
-
-## Required Final Response Format
-
-End your final message with:
-OUTCOME: succeeded | failed | blocked
-SUMMARY: <1-3 sentences>
-FILES_MODIFIED: <paths or none>
-VERIFICATION: <commands run and observed pass/fail>
-BLOCKERS: <none or concrete blocker>
+- **Mode**: `solo`
+- **Baseline commit**: `<BASE_SHA>` (previous stage2: `.zig-cache/verification-tmp/wave<PREV>/stage2/bin/zxc-bootstrap`)
+- **Wave <NNN> summary**: <short bullet list of subsystems migrated>
+- **Extra checks / notes**: <none or task-specific items>
 ```
 
 ### Resumed Delta Prompt (Quota-Saving Follow-up)
 
 ```markdown
-Follow-up on this same topic:
+Follow `skills/codex-executor/RULES.md`. Resume within owned paths (`<path1>`):
 <Verification failure output / review findings / next step>
-
-Constraints: keep changes within your owned paths (`<path1>`), re-run `<exact command>`,
-and end with the standard `OUTCOME / SUMMARY / FILES_MODIFIED / VERIFICATION / BLOCKERS` block.
+Re-run: `<exact command>`.
 ```

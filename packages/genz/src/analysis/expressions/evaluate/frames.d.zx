@@ -1,5 +1,10 @@
 export type StatementTraversal = opaque
 
+export type StatementStack = {
+    stack_keys: u32[],
+    stack_buckets: u32[]
+}
+
 export type Lowering = mutable_opaque
 
 export enum Representation {

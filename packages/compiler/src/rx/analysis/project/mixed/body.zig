@@ -5,13 +5,31 @@ const admission = if (generated) @import("generated_rx_mixed_body_admit") else v
 const Source = if (generated) @FieldType(std.meta.Child(admission.Input), "source") else enum { ZX, RX, Store };
 pub const Action = if (generated) admission.Output else enum { Skip, MissingSignature, AnalyzeZX, LowerRX };
 
-pub fn run(comptime rule: type, input: *const std.meta.Child(rule.Input)) State.Error!void {
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
+pub fn run(comptime rule: type, backing: std.mem.Allocator, input: *const std.meta.Child(rule.Input), host: anytype) State.Error!void {
+    var scratch = std.heap.ArenaAllocator.init(backing);
 
-    return rule.executeIn(empty.allocator(), input) catch |err| switch (err) {
-        error.OutOfMemory => error.OutOfMemory,
+    defer scratch.deinit();
+
+    return rule.executeIn(scratch.allocator(), input, host) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
         error.InvalidSourceGraph => error.InvalidSourceGraph,
         else => unreachable,
+    };
+}
+
+pub fn effect(comptime rule: type) type {
+    return std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
+}
+
+pub fn snapshot(comptime Store: type) std.meta.Child(Store) {
+    return .{
+        .step = .OpenZX,
+        .checked = null,
+        .entry = null,
+        .message = null,
+        .ready = false,
+        .declared = false,
+        .slots = 0,
     };
 }
 

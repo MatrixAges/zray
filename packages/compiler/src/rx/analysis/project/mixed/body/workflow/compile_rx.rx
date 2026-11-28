@@ -1,23 +1,47 @@
 <Module>
     <Type from="model" as="Body" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Body.RXBody} out={void} />
 
-    <Call fn="host.bindMixedRXBody" in={$in.body} />
+    <Store from="compilation" as="compilation" />
 
     <Call
-        fn="host.lowerMixedRXBody"
-        in={[
-            $in.body,
-            $in.index == $in.entry
-        ]}
+        fn="stage"
+        in={{
+            step: Effect.Step.BindRX
+        }}
+        setter={[$store.compilation.effect]}
     />
 
-    <If on={$ctx.lowerMixedRXBody}>
-        <Call fn="host.linkMixedRXBody" in={$in.body} />
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.LowerRX,
+            entry: $in.index == $in.entry
+        }}
+        setter={[$store.compilation.effect]}
+    />
+
+    <Call fn="read_ready" in={$store.compilation.effect} />
+
+    <If on={$ctx.read_ready}>
+        <Call
+            fn="stage"
+            in={{
+                step: Effect.Step.LinkRX
+            }}
+            setter={[$store.compilation.effect]}
+        />
 
         <Else>
-            <Call fn="host.reportMixedRXBody" in={$in.body} />
+            <Call
+                fn="stage"
+                in={{
+                    step: Effect.Step.ReportRX
+                }}
+                setter={[$store.compilation.effect]}
+            />
         </Else>
     </If>
 </Module>

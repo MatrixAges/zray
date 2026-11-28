@@ -1,4 +1,5 @@
-import type { NativeBuild } from "native_build_host"
+import type { ReadColumn, TextColumn } from "memory"
+import type { CommandOptions, NativeBuild } from "native_build_host"
 import type { NativeModules, Setup, Views } from "../../../command/scope/model"
 
 export type BuildMode = {
@@ -11,7 +12,7 @@ export type Invocation = BuildMode & {
     native: NativeWalk,
     previous_backend: string[],
     observed_paths: string[],
-    generated_count: u64
+    generated: Generated
 }
 
 export type CommandInvocation = Invocation & {
@@ -19,26 +20,54 @@ export type CommandInvocation = Invocation & {
     abi_count: u64
 }
 
-export type RangeInput = {
+export type NativeWalk = {
     build: NativeBuild,
-    count: u64
-}
-
-export type NativeWalk = RangeInput & {
+    count: u64,
     observed: bool,
     modules: NativeModules,
+    imports: ReadColumn,
     setup: Setup,
     abi_views: Views
 }
 
-export type NativeStep = NativeWalk & {
-    index: u64,
+export type CommandContext = {
+    options: CommandOptions,
+    settings: string[]
+}
+
+export type Chunks = {
+    chunks: string[][],
+    index: u64
+}
+
+export type Generated = {
+    count: u64,
+    names: TextColumn,
+    imports: ReadColumn
+}
+
+export type GeneratedWalk = CommandContext & Chunks & {
+    generated: Generated
+}
+
+export type NativeStep = NativeWalk & CommandContext & Chunks & {
     failed: bool,
     running: bool
 }
 
-export type AppendInput = NativeWalk & {
+export type AppendInput = NativeWalk & CommandContext & {
     index: u64
+}
+
+export type Translation = BuildMode & CommandContext & {
+    name: string,
+    header: string,
+    includes: string[]
+}
+
+export type TranslatedModule = {
+    path: string,
+    source: string
 }
 
 export type PreloadInput = {
@@ -52,12 +81,12 @@ export type PathWalk = {
     index: u64
 }
 
-export type ModuleWalk = RangeInput & {
-    index: u64
-}
-
-export type AbiWalk = ModuleWalk & {
-    views: Views
+export type AbiWalk = Chunks & {
+    view_count: u64,
+    builtins: SupportModule[],
+    views: Views,
+    directory: string,
+    settings: string[]
 }
 
 export type SupportModule = {

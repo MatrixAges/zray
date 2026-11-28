@@ -53,12 +53,6 @@ pub fn auxiliaryDeclarationCount(writer: *anyopaque) u64 {
     return borrow(writer).task_declarations.count();
 }
 
-pub fn appendAstProjectionRows(writer: *anyopaque, source: *const Ast.ProjectionRows) Lower.Error!void {
-    const self = borrow(writer);
-
-    return appendRows(self, &self.builder.nodes.expressions, source, .Borrowed);
-}
-
 pub fn appendAuxiliaryRow(writer: *anyopaque, source: *const Ast.ConstantRows) Lower.Error![]const u8 {
     const self = borrow(writer);
     const values = try self.task_declarations.appendConstants(self.allocator, source, false);
@@ -229,14 +223,6 @@ pub fn appendAstAccessRows(writer: *anyopaque, source: *const Ast.AstAccessRows,
     return appendValueRows(writer, source, .{ .builtin_arguments = arguments });
 }
 
-pub fn appendAstArrayRows(writer: *anyopaque, source: *const Ast.AstArrayRows, arguments: []const []const u32) Lower.Error!void {
-    return appendValueRows(writer, source, .{ .builtin_arguments = arguments });
-}
-
-pub fn appendAstAllocationCallRows(writer: *anyopaque, source: *const Ast.AstAllocationCallRows, arguments: []const []const u32) Lower.Error!void {
-    return appendValueRows(writer, source, .{ .call_arguments = arguments });
-}
-
 fn appendValueRows(writer: *anyopaque, source: anytype, arguments: anytype) Lower.Error!void {
     const self = borrow(writer);
     const rows = view.join(source.*, arguments);
@@ -260,12 +246,6 @@ pub fn appendAstFieldAddresses(writer: *anyopaque, source: *const Ast.AstFieldAd
     const self = borrow(writer);
 
     return appendRows(self, &self.builder.nodes.expressions, source, .Borrowed);
-}
-
-pub fn appendAstLeafStatements(writer: *anyopaque, source: *const Ast.AstLeafStatements) Lower.Error!void {
-    const self = borrow(writer);
-
-    return appendRows(self, &self.builder.nodes.statements, source, .Borrowed);
 }
 
 const Span = packed struct(u64) { count: u32, start: u32 };
@@ -394,9 +374,10 @@ pub fn finishAstSequence(writer: *anyopaque, handle: *anyopaque) Lower.Error!u64
     return packSpan(try target.finish(borrow(writer).allocator));
 }
 
-pub fn takeAstSequence(writer: *anyopaque, handle: *anyopaque) Lower.Error!u64 {
+pub fn takeAstSequence(writer: *anyopaque, handle: *anyopaque, at_tail: bool) Lower.Error!u64 {
     const target: *Sequence = @ptrCast(@alignCast(handle));
-    const span = try target.finish(borrow(writer).allocator);
+    const allocator = borrow(writer).allocator;
+    const span = if (at_tail) try target.finish(allocator) else try target.block(allocator);
 
     target.clearRetainingCapacity();
 

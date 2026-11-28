@@ -158,7 +158,3 @@ pub fn registerCollectionEntry(handle: *const anyopaque, kind: Kind) Error!bool 
 
     return true;
 }
-
-pub fn releaseRxDocument(handle: *const anyopaque) void {
-    State.get(handle).releaseDocument();
-}

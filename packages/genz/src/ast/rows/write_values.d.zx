@@ -10,18 +10,6 @@ export declare function appendAstAccessRows(
     arguments: u32[][]
 ): void throws { OutOfMemory }
 
-export declare function appendAstArrayRows(
-    writer: AstWriter,
-    rows: AstArrayRows,
-    arguments: u32[][]
-): void throws { OutOfMemory }
-
-export declare function appendAstAllocationCallRows(
-    writer: AstWriter,
-    rows: AstAllocationCallRows,
-    arguments: u32[][]
-): void throws { OutOfMemory }
-
 export declare function appendLayoutExpressions(
     writer: AstWriter,
     rows: ExpressionRows,

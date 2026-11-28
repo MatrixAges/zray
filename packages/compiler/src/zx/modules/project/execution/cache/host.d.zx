@@ -1,5 +1,5 @@
-export declare function hashProjectCacheContext(body: ProjectBody, root: bool): void
-    throws { OutOfMemory }
-
-export declare function restoreCachedProjectBody(body: ProjectBody): bool
-    throws { OutOfMemory }
+export type CacheInstall = {
+    key: u8[],
+    keys: u8[][],
+    buckets: u64[]
+}

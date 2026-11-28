@@ -1,0 +1,35 @@
+import {
+    ProjectImportRoute,
+    ProjectSourceAction
+} from "./model"
+
+import type { ProjectImportTarget, ProjectSourceSelection } from "./model"
+
+export enum Step {
+    Route,
+    RejectRoute,
+    ReuseNative,
+    RegisterNative,
+    LoadNative,
+    RememberNative,
+    BindLegacy,
+    Resolve,
+    SelectSource,
+    LoadLibrary,
+    Bind,
+    RejectSource,
+    Record
+}
+
+export type Effect = {
+    step: Step,
+    route?: ProjectImportRoute,
+    action?: ProjectSourceAction,
+    row?: u64,
+    native_row?: u32,
+    flag?: bool,
+    target?: ProjectImportTarget,
+    signature?: bool,
+    exported?: bool,
+    message?: string
+}

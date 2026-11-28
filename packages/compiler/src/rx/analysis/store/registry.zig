@@ -80,12 +80,14 @@ const Load = struct {
     fn run(work: *Load) Error!void {
         if (comptime generated) {
             const rule = @import("generated_rx_load_store_registry");
+            var scratch = std.heap.ArenaAllocator.init(work.backing);
 
-            return rule.executeIn(.failing, &.{
-                .state = @ptrCast(work),
+            defer scratch.deinit();
+
+            return rule.executeIn(scratch.allocator(), &.{
                 .count = work.sources.len,
                 .row = 0,
-            }) catch |err| switch (@as(anyerror, err)) {
+            }, work) catch |err| switch (@as(anyerror, err)) {
                 error.OutOfMemory => error.OutOfMemory,
                 error.InvalidSource => error.InvalidSource,
                 else => unreachable,
@@ -93,51 +95,47 @@ const Load = struct {
         }
 
         for (0..work.sources.len) |row| {
-            try bindStoreRegistryAliases(work, row);
-            try compileStoreRegistryEntry(work, row);
+            try work.bindAliases(row);
+            try work.compileEntry(row);
         }
     }
+    pub fn commit(work: *Load, pending: anytype) Error!void {
+        if (pending.store_0) |effect| switch (effect.step) {
+            .BindAliases => try work.bindAliases(@intCast(effect.row)),
+            .Compile => try work.compileEntry(@intCast(effect.row)),
+        };
+    }
 
-    fn borrow(handle: *anyopaque) *Load {
-        return @ptrCast(@alignCast(handle));
+    fn bindAliases(work: *Load, index: usize) Error!void {
+        work.aliases = Imports.collect(work.allocator, work.values.allocator(), work.sources[index], work.edges[index], work.signatures, work.data.context.types.kinds, &work.issue) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            error.InvalidFlow => return error.InvalidSource,
+        };
+    }
+    fn compileEntry(work: *Load, index: usize) Error!void {
+        const source = &work.sources[index];
+        const context = &work.data.context;
+
+        const result = try Store.analyzeWithValues(work.allocator, work.backing, .{
+            .owner = source.path,
+            .node = source.node,
+            .types = context.types,
+            .nominal_types = context.nominal_types,
+            .native_modules = context.native_modules,
+            .aliases = work.aliases.types,
+        }, work.aliases.values);
+
+        if (result == .diagnostic) {
+            work.issue = result.diagnostic;
+
+            return error.InvalidSource;
+        }
+
+        work.data.definitions[index] = result.definition;
+        work.data.context.types = result.definition.types;
+        _ = work.values.reset(.retain_capacity);
     }
 };
-
-pub fn bindStoreRegistryAliases(handle: *anyopaque, row: u64) Error!void {
-    const work = Load.borrow(handle);
-    const index: usize = @intCast(row);
-
-    work.aliases = Imports.collect(work.allocator, work.values.allocator(), work.sources[index], work.edges[index], work.signatures, work.data.context.types.kinds, &work.issue) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidFlow => return error.InvalidSource,
-    };
-}
-
-pub fn compileStoreRegistryEntry(handle: *anyopaque, row: u64) Error!void {
-    const work = Load.borrow(handle);
-    const index: usize = @intCast(row);
-    const source = &work.sources[index];
-    const context = &work.data.context;
-
-    const result = try Store.analyzeWithValues(work.allocator, work.backing, .{
-        .owner = source.path,
-        .node = source.node,
-        .types = context.types,
-        .nominal_types = context.nominal_types,
-        .native_modules = context.native_modules,
-        .aliases = work.aliases.types,
-    }, work.aliases.values);
-
-    if (result == .diagnostic) {
-        work.issue = result.diagnostic;
-
-        return error.InvalidSource;
-    }
-
-    work.data.definitions[index] = result.definition;
-    work.data.context.types = result.definition.types;
-    _ = work.values.reset(.retain_capacity);
-}
 
 const Publication = struct {
     allocator: std.mem.Allocator,

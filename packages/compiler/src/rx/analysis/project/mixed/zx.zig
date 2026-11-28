@@ -9,7 +9,6 @@ const Body = @import("body.zig");
 const generated = @import("rx_options").generated_graph;
 const Signature = frontend.project.signature_project.Module;
 const Parse = frontend.project.ParseCache.ModuleResult;
-const Analysis = if (generated) @import("rx_execution_abi").layouts.@"zig:rx_project_host".MixedZXAnalysis else void;
 const Binding = std.meta.Child(@FieldType(frontend.ResolvedImports, "imports"));
 
 /// A module ready for analysis: its parse and the functions its imports bind, which the shared tables already hold.
@@ -58,9 +57,40 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
 
     if (comptime generated) {
         const rule = @import("generated_rx_compile_mixed_zx");
-        const input: std.meta.Child(rule.Input) = .{ .body = @ptrCast(&work), .source = @ptrCast(&work.preparation), .setter = setter != null };
+        const Store = Body.effect(rule);
+        var snapshot = Body.snapshot(Store);
+        var store: Store = &snapshot;
 
-        try Body.run(rule, &input);
+        const Host = struct {
+            work: *Serial,
+            store_0: *Store,
+            snapshot: *std.meta.Child(Store),
+            pub fn commit(host: *@This(), pending: anytype) State.Error!void {
+                const effect = pending.store_0 orelse return;
+                const serial = host.work;
+
+                switch (effect.step) {
+                    .AnalyzeZX => {
+                        host.snapshot.* = effect.*;
+                        host.snapshot.ready = try serial.run();
+
+                        if (host.snapshot.ready) {
+                            host.snapshot.declared = serial.preparation.signature.signature.has_store;
+                            host.snapshot.slots = serial.outcome.analyzed.result.value.ir.stores.count();
+                        }
+                    },
+                    .ReportZX => return serial.report(),
+                    .RejectSetter => return serial.preparation.state.fail(.{ .offset = 0, .line = 1, .column = 1 }, effect.message.?),
+                    .InstallSetter => try serial.installSetter(),
+                    .LinkZX => try serial.finish(),
+                    else => try serial.preparation.commit(pending),
+                }
+            }
+        };
+
+        var host: Host = .{ .work = &work, .store_0 = &store, .snapshot = &snapshot };
+
+        try Body.run(rule, state.scratch.child_allocator, &.{ .setter = setter != null }, &host);
     } else {
         try work.preparation.open();
         try work.preparation.check();
@@ -82,9 +112,8 @@ pub fn prepare(state: *State, bindings: std.mem.Allocator, cache: *frontend.proj
 
     if (comptime generated) {
         const rule = @import("generated_rx_prepare_mixed_zx");
-        const input: std.meta.Child(rule.Input) = .{ .source = @ptrCast(&preparation), .check = checking };
 
-        try Body.run(rule, &input);
+        try Body.run(rule, state.scratch.child_allocator, &.{ .check = checking }, &preparation);
     } else {
         try preparation.open();
         if (checking) try preparation.check();
@@ -104,8 +133,13 @@ const Preparation = struct {
     parsed: *const Parse = undefined,
     signature: Signature = undefined,
     result: Prepared = undefined,
-    fn borrow(handle: *anyopaque) *Preparation {
-        return @ptrCast(@alignCast(handle));
+    pub fn commit(self: *Preparation, pending: anytype) State.Error!void {
+        if (pending.store_0) |effect| switch (effect.step) {
+            .OpenZX => try self.open(),
+            .CheckZX => try self.check(),
+            .BindZX => try self.bind(effect.checked.?),
+            else => unreachable,
+        };
     }
     fn open(self: *Preparation) State.Error!void {
         const state = self.state;
@@ -146,10 +180,6 @@ const Serial = struct {
     setter: ?target.Setter,
     destination: Finished.Destination,
     outcome: Outcome = undefined,
-    analysis: Analysis = undefined,
-    fn borrow(handle: *anyopaque) *Serial {
-        return @ptrCast(@alignCast(handle));
-    }
     fn run(self: *Serial) std.mem.Allocator.Error!bool {
         const preparation = &self.preparation;
         const temporary = preparation.allocator;
@@ -178,47 +208,6 @@ const Serial = struct {
         try link(self.preparation.state, self.outcome.analyzed, self.destination);
     }
 };
-
-pub fn openMixedZXPreparation(handle: *anyopaque) State.Error!void {
-    try Preparation.borrow(handle).open();
-}
-
-pub fn checkMixedZXPreparation(handle: *anyopaque) State.Error!void {
-    try Preparation.borrow(handle).check();
-}
-
-pub fn bindMixedZXPreparation(handle: *anyopaque, checked: bool) State.Error!void {
-    try Preparation.borrow(handle).bind(checked);
-}
-
-pub fn analyzeMixedZXBody(handle: *anyopaque) std.mem.Allocator.Error!?*const Analysis {
-    const work = Serial.borrow(handle);
-
-    if (!try work.run()) return null;
-
-    work.analysis = .{
-        .declared = work.preparation.signature.signature.has_store,
-        .slots = work.outcome.analyzed.result.value.ir.stores.count(),
-    };
-
-    return &work.analysis;
-}
-
-pub fn reportMixedZXBody(handle: *anyopaque) State.Error!void {
-    return Serial.borrow(handle).report();
-}
-
-pub fn rejectMixedZXSetter(handle: *anyopaque, message: []const u8) State.Error!void {
-    return Serial.borrow(handle).preparation.state.fail(.{ .offset = 0, .line = 1, .column = 1 }, message);
-}
-
-pub fn installMixedZXSetter(handle: *anyopaque) std.mem.Allocator.Error!void {
-    try Serial.borrow(handle).installSetter();
-}
-
-pub fn linkMixedZXBody(handle: *anyopaque) State.Error!void {
-    try Serial.borrow(handle).finish();
-}
 
 /// Analyzes a prepared body against the shared tables, which it only reads, so bodies that depend on none of each
 /// other may run at once.

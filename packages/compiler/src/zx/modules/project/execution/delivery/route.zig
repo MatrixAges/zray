@@ -5,8 +5,7 @@ const Loading = @import("../../load/host.zig");
 const Target = @import("../../target/host.zig");
 const Route = @import("project_execution_abi").layouts.@"zig:project_host".ProjectImportRoute;
 
-pub fn routeProjectImport(handle: *anyopaque) std.mem.Allocator.Error!Route {
-    const frame = Frame.borrow(handle);
+pub fn route(frame: *Frame) std.mem.Allocator.Error!Route {
     const project = frame.walk.project;
     const active = frame.active;
     const path = project.units[active.index].path;
@@ -49,11 +48,10 @@ pub fn routeProjectImport(handle: *anyopaque) std.mem.Allocator.Error!Route {
     };
 }
 
-pub fn rejectProjectRoute(handle: *anyopaque, route: Route, message: []const u8) error{InvalidSource}!void {
-    const frame = Frame.borrow(handle);
+pub fn reject(frame: *Frame, selected: Route, message: []const u8) error{InvalidSource}!void {
     const reporter = frame.walk.project.reporter;
 
-    if (route == .DuplicateBinding) {
+    if (selected == .DuplicateBinding) {
         return @errorCast(reporter.fail(.name, frame.duplicate.span, message));
     }
 
@@ -61,11 +59,10 @@ pub fn rejectProjectRoute(handle: *anyopaque, route: Route, message: []const u8)
         inline else => |item| item.span,
     };
 
-    return @errorCast(reporter.fail(if (route == .MissingLegacy) .capability else .module, span, message));
+    return @errorCast(reporter.fail(if (selected == .MissingLegacy) .capability else .module, span, message));
 }
 
-pub fn resolveProjectImport(handle: *anyopaque) zx.Error!bool {
-    const frame = Frame.borrow(handle);
+pub fn resolve(frame: *Frame) zx.Error!bool {
     const project = frame.walk.project;
     const path = project.units[frame.active.index].path;
     frame.path_memory = .init(&frame.path_buffer, frame.walk.paths.allocator());

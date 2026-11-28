@@ -1,28 +1,32 @@
 <Module>
     <Type from="model" as="Delivery" />
-    <Type from="index" as="Host" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Delivery.ResolvedBinding} out={void} />
 
+    <Store from="delivery" as="delivery" />
+
     <Call
-        fn="index.bindProjectImport"
-        in={[
-            $in.frame,
-            $in.target,
-            $in.signature &&
-                $in.target.kind != Host.ProjectImportKind.Native &&
-                $in.target.kind != Host.ProjectImportKind.Intrinsic,
-            $in.exported
-        ]}
+        fn="stage"
+        in={{
+            step: Effect.Step.Bind,
+            target: $in.target,
+            signature: $in.signature &&
+                $in.target.kind != Delivery.ProjectImportKind.Native &&
+                $in.target.kind != Delivery.ProjectImportKind.Intrinsic,
+            exported: $in.exported
+        }}
+        setter={[$store.delivery.effect]}
     />
 
     <If on={!$in.signature}>
         <Call
-            fn="index.recordProjectImport"
-            in={[
-                $in.frame,
-                $in.target
-            ]}
+            fn="stage"
+            in={{
+                step: Effect.Step.Record,
+                target: $in.target
+            }}
+            setter={[$store.delivery.effect]}
         />
     </If>
 </Module>

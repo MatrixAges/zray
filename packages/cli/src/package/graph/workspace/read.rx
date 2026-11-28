@@ -20,8 +20,7 @@
     <If on={$ctx.assembleWorkspace.status == Assembly.WorkspaceStatus.Valid}>
         <Return
             value={{
-                status: Project.Status.Valid,
-                workspace: $ctx.assembleWorkspace.workspace
+                status: Project.Status.Valid
             }}
         />
     </If>

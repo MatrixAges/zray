@@ -9,7 +9,7 @@ import literal from "./literal"
 import type { Parsed as Output, Read as Input } from "./model"
 
 export default function walk(in: Input): Output {
-    const { build, expression, source, offset, depth } = in
+    const { graph, variables, expression, source, offset, depth } = in
 
     if (depth >= maximum_depth) {
         host.rejectHardwareTerm()
@@ -27,13 +27,16 @@ export default function walk(in: Input): Output {
     }
 
     if (arity == 0) {
+        const term = literal({
+            graph,
+            variables,
+            expression,
+            origin: in.origin,
+            head
+        })
+
         return {
-            node: literal({
-                build,
-                expression,
-                origin: in.origin,
-                head
-            }),
+            ...term,
             offset: head.next
         }
     }
@@ -47,29 +50,31 @@ export default function walk(in: Input): Output {
     const second: Output? = match arity >= 2 {
         true => walk({
             ...in,
+            graph: first.graph,
             offset: first.offset,
             depth: depth + 1
         }),
         _ => null
     }
 
-    const after_second = second == null ? first.offset : second.offset
+    const after_second = second ?? first
 
     const third: Output? = match arity == 3 {
         true => walk({
             ...in,
-            offset: after_second,
+            graph: after_second.graph,
+            offset: after_second.offset,
             depth: depth + 1
         }),
         _ => null
     }
 
-    const after_args = third == null ? after_second : third.offset
+    const after_args = third ?? after_second
     const right_node: u32? = second == null ? null : second.node
     const third_node: u32? = third == null ? null : third.node
 
     return apply({
-        build,
+        graph: after_args.graph,
         expression,
         origin: in.origin,
         source,
@@ -77,6 +82,6 @@ export default function walk(in: Input): Output {
         left: first.node,
         right: right_node,
         third: third_node,
-        offset: after_args
+        offset: after_args.offset
     })
 }

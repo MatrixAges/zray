@@ -1,0 +1,74 @@
+<Module>
+    <Type from="../operation" as="Operation" />
+
+    <Args in={Operation.Selection} out={void} />
+
+    <Store from="../operation" as="mixed" />
+
+    <Call
+        fn="../stage"
+        in={{
+            step: Operation.Step.PreparedZX,
+            row: $in.prepared_row
+        }}
+        setter={[$store.mixed.effect]}
+    />
+
+    <Call fn="../read_prepared" in={$store.mixed.effect} />
+
+    <If on={$ctx.read_prepared != null}>
+        <Call
+            fn="../stage"
+            in={{
+                step: Operation.Step.AcceptZX,
+                row: $ctx.read_prepared
+            }}
+            setter={[$store.mixed.effect]}
+        />
+
+        <Call fn="../read_accepted" in={$store.mixed.effect} />
+
+        <If on={$ctx.read_accepted}>
+            <Call
+                fn="../stage"
+                in={{
+                    step: Operation.Step.LinkZX,
+                    row: $ctx.read_prepared,
+                    selection: $in
+                }}
+                setter={[$store.mixed.effect]}
+            />
+
+            <Else>
+                <Call
+                    fn="../stage"
+                    in={{
+                        step: Operation.Step.RetireZX,
+                        row: $ctx.read_prepared
+                    }}
+                    setter={[$store.mixed.effect]}
+                />
+
+                <Call
+                    fn="../stage"
+                    in={{
+                        step: Operation.Step.AnalyzeZX,
+                        selection: $in
+                    }}
+                    setter={[$store.mixed.effect]}
+                />
+            </Else>
+        </If>
+
+        <Else>
+            <Call
+                fn="../stage"
+                in={{
+                    step: Operation.Step.AnalyzeZX,
+                    selection: $in
+                }}
+                setter={[$store.mixed.effect]}
+            />
+        </Else>
+    </If>
+</Module>

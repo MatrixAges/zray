@@ -3,15 +3,14 @@ import host from "verification_host"
 import require from "../../contracts/require"
 import conjunction from "../../scalar/conjunction"
 
-import type { SymbolicSession } from "verification_host"
+import type { SymbolicPath, SymbolicSession } from "verification_host"
 
-export type Input = {
+export type Input = SymbolicPath & {
     session: SymbolicSession,
-    path: string,
     safe: string
 }
 
-export type Output = string
+export type Output = SymbolicPath
 
 export default function (in: Input): Output {
     const { session, path, safe } = in
@@ -21,10 +20,10 @@ export default function (in: Input): Output {
         right: safe
     })
 
-    if (violation != null) {
-        const obligation = host.bindSymbolicBoolean(session, violation)
-
-        host.publishClauseViolation(session, obligation)
+    const violations = match {
+        violation != null =>
+            in.violations.push(host.bindSymbolicBoolean(session, violation))[0],
+        _ => in.violations
     }
 
     const checked = conjunction({
@@ -32,5 +31,8 @@ export default function (in: Input): Output {
         right: safe
     })
 
-    return host.bindSymbolicBoolean(session, checked)
+    return {
+        path: host.bindSymbolicBoolean(session, checked),
+        violations
+    }
 }

@@ -1,36 +1,35 @@
 <Module>
     <Type from="../windows" as="Windows" />
-    <Type from="host" as="Host" />
+    <Type from="../operation" as="Operation" />
 
-    <Args in={Windows.Body} out={u64} />
+    <Args in={Windows.Dispatch} out={u64} />
 
-    <Switch on={$in.action}>
-        <Case value={Host.MixedAction.Exhausted}>
-            <Return value={$in.limit} />
+    <Store from="../operation" as="mixed" />
+
+    <If on={$in.selection.action == Operation.Action.Exhausted}>
+        <Return value={$in.limit} />
+    </If>
+
+    <Switch on={$in.selection.action}>
+        <Case value={Operation.Action.MissingSignature}>
+            <Call
+                fn="../stage"
+                in={{
+                    step: Operation.Step.Reject,
+                    selection: $in.selection
+                }}
+                setter={[$store.mixed.effect]}
+            />
         </Case>
 
-        <Case value={Host.MixedAction.MissingSignature}>
-            <Call fn="host.rejectMixedBody" in={$in.state} />
-
-            <Return value={$ctx.rejectMixedBody} />
+        <Case value={Operation.Action.AnalyzeZX}>
+            <Call module="../body/execute_zx" in={$in.selection} />
         </Case>
 
-        <Case value={Host.MixedAction.AnalyzeZX}>
-            <Call fn="../body/execute_zx" in={$in.state} />
-
-            <Return value={$ctx.execute_zx} />
+        <Case value={Operation.Action.LowerRX}>
+            <Call module="../body/execute_rx" in={$in.selection} />
         </Case>
-
-        <Case value={Host.MixedAction.LowerRX}>
-            <Call fn="../body/execute_rx" in={$in.state} />
-
-            <Return value={$ctx.execute_rx} />
-        </Case>
-
-        <Default>
-            <Call fn="host.skipMixedBody" in={$in.state} />
-
-            <Return value={$ctx.skipMixedBody} />
-        </Default>
     </Switch>
+
+    <Return value={$in.selection.following} />
 </Module>

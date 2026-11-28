@@ -20,8 +20,6 @@ export {
     reportCompilationGeneration,
     resolveCompilationToolchain,
     buildCompilationModules,
-    checkCompilationText,
-    writeCompilationText,
     printCompilationText,
     verifyFpgaProgram,
     lowerFpgaProgram,

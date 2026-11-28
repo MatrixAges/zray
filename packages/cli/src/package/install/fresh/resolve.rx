@@ -1,7 +1,7 @@
 <Module>
     <Type from="../model" as="Installation" />
 
-    <Args in={Installation.Fresh} out={Installation.Prepared} />
+    <Args in={Installation.Fresh} out={string[]} />
 
     <Call fn="../effects.prepareIndex" in={$in.session} />
 
@@ -34,10 +34,5 @@
 
     <Call fn="../effects.finishFresh" in={$ctx.prepareIndex.build} />
 
-    <Return
-        value={{
-            lock: $ctx.finishFresh,
-            paths: $ctx.closure.paths
-        }}
-    />
+    <Return value={$ctx.closure.paths} />
 </Module>

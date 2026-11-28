@@ -3,9 +3,10 @@ import host from "verification_host"
 
 import guard from "./guard"
 
+import type { SymbolicPath } from "verification_host"
 import type { Payload as Input } from "./model"
 
-export type Output = string
+export type Output = SymbolicPath
 
 export default function (in: Input): Output {
     const { block, session, path, scope, payload } = in
@@ -21,6 +22,7 @@ export default function (in: Input): Output {
     const next = guard({
         session,
         path,
+        violations: in.violations,
         safe: outcome.safe
     })
 

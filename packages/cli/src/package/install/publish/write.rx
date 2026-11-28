@@ -3,13 +3,7 @@
 
     <Args in={Installation.Publication} out={Installation.Result} />
 
-    <Call
-        fn="../effects.currentWorkspaceMatches"
-        in={[
-            $in.session,
-            $in.prepared.lock
-        ]}
-    />
+    <Call fn="../effects.currentWorkspaceMatches" in={$in.session} />
 
     <If on={!$ctx.currentWorkspaceMatches}>
         <Return
@@ -23,8 +17,7 @@
         fn="../effects.renderInstallation"
         in={[
             $in.session,
-            $in.prepared.lock,
-            $in.prepared.paths
+            $in.paths
         ]}
     />
 
@@ -79,7 +72,7 @@
     <Return
         value={{
             status: Installation.Status.Installed,
-            count: $in.prepared.paths.length
+            count: $in.paths.length
         }}
     />
 </Module>

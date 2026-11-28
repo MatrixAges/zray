@@ -45,9 +45,34 @@ pub fn compile(state: *State, cache: *frontend.project.ParseCache, sources: []co
 
     if (comptime generated) {
         const rule = @import("generated_rx_compile_mixed_rx");
-        const input: std.meta.Child(rule.Input) = .{ .body = @ptrCast(&work), .index = index, .entry = state.graph.entry };
+        const Store = Body.effect(rule);
+        var snapshot = Body.snapshot(Store);
+        var store: Store = &snapshot;
 
-        try Body.run(rule, &input);
+        const Host = struct {
+            work: *Serial,
+            store_0: *Store,
+            snapshot: *std.meta.Child(Store),
+            pub fn commit(host: *@This(), pending: anytype) State.Error!void {
+                const effect = pending.store_0 orelse return;
+                const serial = host.work;
+
+                switch (effect.step) {
+                    .BindRX => try serial.bind(),
+                    .LowerRX => {
+                        host.snapshot.* = effect.*;
+                        host.snapshot.ready = try serial.run(effect.entry.?);
+                    },
+                    .ReportRX => return serial.report(),
+                    .LinkRX => try serial.finish(),
+                    else => unreachable,
+                }
+            }
+        };
+
+        var host: Host = .{ .work = &work, .store_0 = &store, .snapshot = &snapshot };
+
+        try Body.run(rule, state.scratch.child_allocator, &.{ .index = index, .entry = state.graph.entry }, &host);
     } else {
         try work.bind();
         if (!try work.run(index == state.graph.entry)) return work.report();
@@ -70,13 +95,9 @@ const Serial = struct {
     prepared: Prepared = undefined,
     result: Compilation.Value = undefined,
     metadata: ?*Compilation.Metadata = null,
-    fn borrow(handle: *anyopaque) *Serial {
-        return @ptrCast(@alignCast(handle));
-    }
     fn bind(self: *Serial) State.Error!void {
         self.ids = try @import("callees.zig").load(self.state, self.temporary, self.cache, self.sources, self.module);
     }
-
     fn run(self: *Serial, entry: bool) State.Error!bool {
         const state = self.state;
 
@@ -102,22 +123,6 @@ const Serial = struct {
         self.metadata = try link(self.state, self.prepared, self.result.body);
     }
 };
-
-pub fn bindMixedRXBody(handle: *anyopaque) State.Error!void {
-    try Serial.borrow(handle).bind();
-}
-
-pub fn lowerMixedRXBody(handle: *anyopaque, entry: bool) State.Error!bool {
-    return Serial.borrow(handle).run(entry);
-}
-
-pub fn reportMixedRXBody(handle: *anyopaque) State.Error!void {
-    return Serial.borrow(handle).report();
-}
-
-pub fn linkMixedRXBody(handle: *anyopaque) State.Error!void {
-    try Serial.borrow(handle).finish();
-}
 
 /// Binds the calls of `module` to the functions `ids` names, over the shared tables as they stand.
 pub fn prepare(state: *State, index: usize, module: Loading.Module, signature: Signature, ids: []const ir.FunctionId, arguments: Inputs.Module, base: ir.FunctionTable) State.Error!Prepared {

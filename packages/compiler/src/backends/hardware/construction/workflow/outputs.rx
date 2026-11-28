@@ -1,24 +1,34 @@
 <Module>
     <Type from="model" as="Hardware" />
 
-    <Args in={Hardware.OutputTree} out={void} />
+    <Args in={Hardware.OutputTree} out={Hardware.Outputs} />
 
     <Loop on={$in.running}>
         <Call
             module="next_output"
             in={{
-                build: $in.build,
-                types: $in.types,
-                value_layout: $in.value_layout,
+                ...$in.pick([
+                    "graph",
+                    "variables",
+                    "types",
+                    "value_layout"
+                ]),
                 stack: [{
                     type_id: $in.type_id,
                     value: $in.value,
                     path: $in.path,
                     children: null
                 }],
-                output_count: 0,
+                ports: [],
                 running: true
             }}
         />
     </Loop>
+
+    <Return
+        value={$ctx.next_output.pick([
+            "graph",
+            "ports"
+        ])}
+    />
 </Module>

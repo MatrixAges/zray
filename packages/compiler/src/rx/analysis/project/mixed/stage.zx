@@ -1,0 +1,21 @@
+import { Action } from "./operation"
+
+import type { Command as Input } from "./operation"
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.mixed.effect = {
+        ...in,
+        action: Action.Exhausted,
+        index: 0,
+        position: 0,
+        following: 0,
+        prepared_row: null,
+        count: 0,
+        prepared: null,
+        accepted: false
+    }
+}

@@ -1,26 +1,62 @@
 <Module>
     <Type from="model" as="Definition" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Definition.Input} out={void} />
 
-    <Call fn="host.collectStoreDefinitionLayout" in={$in.state} />
+    <Store from="definition" as="definition" />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.CollectLayout
+        }}
+        setter={[$store.definition.effect]}
+    />
 
     <Call module="check" in={$in} />
 
-    <Call fn="host.resolveStoreDefinitionTypes" in={$in.state} />
-    <Call fn="host.reserveStoreDefinitionObjects" in={$in.state} />
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.ResolveTypes
+        }}
+        setter={[$store.definition.effect]}
+    />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.ReserveObjects
+        }}
+        setter={[$store.definition.effect]}
+    />
+
+    <Call fn="read_count" in={$store.definition.effect} />
 
     <Loop on={$in.row < $in.count}>
         <Call
             module="compile"
             in={{
-                state: $in.state,
-                count: $ctx.reserveStoreDefinitionObjects,
+                count: $ctx.read_count,
                 row: 0
             }}
         />
     </Loop>
 
-    <Call fn="host.freezeStoreDefinitionTypes" in={$in.state} />
-    <Call fn="host.publishStoreDefinition" in={$in.state} />
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.FreezeTypes
+        }}
+        setter={[$store.definition.effect]}
+    />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.Publish
+        }}
+        setter={[$store.definition.effect]}
+    />
 </Module>

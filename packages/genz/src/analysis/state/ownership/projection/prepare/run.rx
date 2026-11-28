@@ -23,10 +23,11 @@
         />
 
         <Call
-            fn="model.setLoweringSerial"
+            fn="model.finishGeneratedAst"
             in={[
                 $in.frame,
-                $ctx.build.qualified.serial
+                $ctx.build.qualified.serial,
+                false
             ]}
         />
 

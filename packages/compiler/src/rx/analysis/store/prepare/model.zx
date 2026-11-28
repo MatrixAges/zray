@@ -1,14 +1,12 @@
-import type { StoreDefinitionWork } from "rx_project_host"
 import type { Shared } from "../../../../zx/modules/project/state/model"
 import type { Input as AliasCheck } from "../type/aliases"
 
 export type Input = {
-    state: StoreDefinitionWork,
     shared: Shared,
     aliases: AliasCheck
 }
 
-export type Objects = Input.Pick("state") & {
+export type Objects = {
     count: u64,
     row: u64
 }

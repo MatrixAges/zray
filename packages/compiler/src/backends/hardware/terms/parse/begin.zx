@@ -3,12 +3,12 @@ import host from "hardware_graph_host"
 
 import { maximum_source_bytes } from "../../const"
 
-import type { Input } from "./model"
+export type Input = string
 
 export type Output = u8[]
 
 export default function (in: Input): Output {
-    const source = bytes.fromText(in.expression)
+    const source = bytes.fromText(in)
 
     if (source.length > maximum_source_bytes) {
         host.rejectHardwareTerm()

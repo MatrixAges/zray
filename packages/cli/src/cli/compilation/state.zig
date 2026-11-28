@@ -25,6 +25,7 @@ pub const State = struct {
     generation: ?compiler.zig.GenerationCache = null,
     abi: std.Io.Writer.Allocating,
     text: ?[]u8 = null,
+    text_view: @import("cli_abi").layouts.@"zig:compilation_host".CompilationText = undefined,
     bundle: ?compiler.zig.ModuleBundle = null,
     paths: toolchain.Paths = undefined,
     failure: Effects.Failure = .{},
@@ -77,11 +78,12 @@ pub fn run(context: Compile.Context) !Compile.Status {
         .watching = context.watch != null,
         .input = context.options.input,
         .explicit_config = context.options.config_kind != null,
+        .formatting_notice = @import("lint").source.formatting_required,
     };
 
     defer state.deinit();
 
-    const result = entry.executeIn(context.allocator, &request) catch |err| return state.failure.unwrap(err);
+    const result = entry.executeIn(context.allocator, &request, context.io) catch |err| return state.failure.unwrap(err);
 
     return switch (result) {
         .Success => .success,

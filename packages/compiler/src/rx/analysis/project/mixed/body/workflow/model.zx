@@ -1,22 +1,12 @@
-import type {
-    MixedRXBody,
-    MixedZXBody,
-    MixedZXPreparation
-} from "rx_project_host"
-
 export type Preparation = {
-    source: MixedZXPreparation,
     check: bool
 }
 
 export type ZXBody = {
-    body: MixedZXBody,
-    source: MixedZXPreparation,
     setter: bool
 }
 
 export type RXBody = {
-    body: MixedRXBody,
     index: u64,
     entry: u64
 }

@@ -1,6 +1,6 @@
 <Module>
     <Type from="workflow" as="Bindings" />
-    <Type from="host" as="Host" />
+    <Type from="../solve/replay_effect" as="Effect" />
 
     <Args in={Bindings.View} out={Bindings.Diagnostic?} />
 
@@ -17,7 +17,7 @@
             <Call
                 fn="diagnostic"
                 in={{
-                    source: Host.BindingDiagnosticSource.Use,
+                    source: Effect.DiagnosticSource.Use,
                     row: $ctx.uses
                 }}
             />

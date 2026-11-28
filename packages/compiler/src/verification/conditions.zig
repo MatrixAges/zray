@@ -14,7 +14,8 @@ scratch: *zx.Arena,
 program: ir.Program,
 reporter: *zx.Reporter,
 declarations: std.ArrayList([]const u8) = .empty,
-violations: std.ArrayList([]const u8) = .empty,
+violations: []const []const u8 = &.{},
+
 input: Value = undefined,
 inputs: std.ArrayList(Input) = .empty,
 returns: std.ArrayList(Return) = .empty,
@@ -54,10 +55,6 @@ pub fn evaluateContract(self: *Self, clause: ir.Contract, output: ?Value) zx.Err
     var evaluator = Expressions{ .allocator = self.allocator, .scratch = self.scratch, .program = view, .environment = environment, .graph = self.graph.?, .reporter = self.reporter };
 
     return evaluator.evaluate(clause.predicate);
-}
-
-pub fn postconditions(self: *Self, path: []const u8, value: Value) zx.Error!void {
-    _ = try execution.apply(self, .Returned, path, value);
 }
 
 pub fn boolean(self: *Self, value: []const u8) zx.Error![]const u8 {

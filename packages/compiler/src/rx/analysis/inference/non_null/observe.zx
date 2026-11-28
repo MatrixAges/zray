@@ -1,0 +1,57 @@
+import integers from "std:integer"
+import { kind_optional } from "core/type_table/const"
+
+import find from "../known/find"
+import { Kind } from "../unification/model"
+
+import type { State as Known } from "core/integer/map/model"
+import type { Graph } from "../optional/model"
+
+export type Input = {
+    graph: Graph,
+    known: Known,
+    source: u32,
+    node: u32,
+    kind: Kind
+}
+
+export type Output = {
+    node: u32,
+    register: bool
+}
+
+export default function (in: Input): Output {
+    const { source, node, kind } = in
+
+    const index = integers.widen(node)
+
+    if (kind == Kind.Optional) {
+        return {
+            node: in.graph.arguments[index],
+            register: false
+        }
+    }
+
+    if (kind == Kind.Known) {
+        const type_id = integers.widen(in.graph.arguments[index])
+
+        if (in.graph.types.kinds[type_id] == kind_optional) {
+            const child = in.graph.types.children[type_id]
+
+            const known = find({
+                known: in.known,
+                type_id: child
+            })
+
+            return {
+                node: known ?? child,
+                register: known == null
+            }
+        }
+    }
+
+    return {
+        node: source,
+        register: false
+    }
+}

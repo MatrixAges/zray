@@ -1,9 +1,11 @@
 <Module>
     <Type from="model" as="Bindings" />
     <Type from="workflow" as="Replay" />
-    <Type from="host" as="Host" />
+    <Type from="../solve/replay_effect" as="Effect" />
 
     <Args in={Replay.Cursor} out={Replay.Cursor} />
+
+    <Store from="../solve/replay" as="replay" />
 
     <Call
         module="propagate"
@@ -26,15 +28,22 @@
 
     <If on={$ctx.propagate.action == Bindings.Action.Unify}>
         <Call
-            fn="host.unifyBindingReplay"
-            in={[
-                $in.request.view.frame,
-                $ctx.propagate.row,
-                $ctx.propagate.value
-            ]}
+            fn="../solve/stage_replay"
+            in={{
+                step: Effect.Step.UnifyBinding,
+                row: $ctx.propagate.row,
+                right: $ctx.propagate.value
+            }}
+            setter={[$store.replay.effect]}
         />
 
-        <Call fn="host.refreshBindingTopology" in={$in.request.view.frame} />
+        <Call
+            fn="../solve/stage_replay"
+            in={{
+                step: Effect.Step.RefreshBindings
+            }}
+            setter={[$store.replay.effect]}
+        />
 
         <Return
             value={{
@@ -51,7 +60,7 @@
             <Call
                 fn="diagnostic"
                 in={{
-                    source: Host.BindingDiagnosticSource.Collision,
+                    source: Effect.DiagnosticSource.Collision,
                     row: $ctx.propagate.row,
                     message:
                         $in.request.view.collisions.messages[$ctx.propagate.row]
@@ -71,7 +80,7 @@
             <Call
                 fn="diagnostic"
                 in={{
-                    source: Host.BindingDiagnosticSource.Lookup,
+                    source: Effect.DiagnosticSource.Lookup,
                     row: $ctx.propagate.row
                 }}
             />

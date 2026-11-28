@@ -3,6 +3,11 @@
 
     <Args in={Loop.Input} out={Loop.Output} />
 
+    <Call
+        fn="../../parameters/membership"
+        in={$in.parameters.omit(["names"])}
+    />
+
     <Call fn="initial" in={$in} />
 
     <If on={$ctx.initial.admission == Loop.Admission.Reject}>
@@ -33,7 +38,8 @@
                 "parameters",
                 "initial_plan"
             ]),
-            name: $ctx.initial.name
+            name: $ctx.initial.name,
+            membership: $ctx.membership
         }}
     />
 
@@ -106,6 +112,7 @@
                 "writer",
                 "body_seq",
                 "loop_seq",
+                "projected_seq",
                 "body",
                 "loop_frame",
                 "guard_info",
@@ -114,6 +121,7 @@
             schedule: $ctx.plan,
             renewals: $ctx.renewals,
             projected: $ctx.parameters.projected,
+            state: $in.loop_state.reference,
             initial_value: $ctx.initial.initial_value,
             update: $ctx.evaluate
         }}

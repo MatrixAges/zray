@@ -15,7 +15,7 @@
     />
 
     <Call
-        fn="../effects.borrowMember"
+        fn="../effects.matchWorkspaceMember"
         in={[
             $in.graph,
             $in.ordinal,
@@ -23,7 +23,7 @@
         ]}
     />
 
-    <If on={$ctx.borrowMember == null}>
+    <If on={$ctx.matchWorkspaceMember == null}>
         <Return
             value={{
                 status: Project.Status.LockFileOutdated
@@ -36,7 +36,7 @@
                     status: Project.Status.Valid,
                     row: {
                         path: $ctx.canonical,
-                        manifest: $ctx.borrowMember
+                        member: $ctx.matchWorkspaceMember
                     }
                 }}
             />

@@ -2,6 +2,7 @@ import integers from "std:integer"
 import { StatementKind } from "core/control_table/model"
 import { ExpressionKind } from "core/expression_table/kinds"
 import { StoreMode } from "core/function_table/complete"
+import lookup from "core/integer/index/lookup"
 import { kind_task } from "core/type_table/const"
 
 import {
@@ -13,6 +14,7 @@ import {
     return_operation,
     store_route,
     task_route,
+    value_route,
     write_operation
 } from "./const"
 
@@ -66,9 +68,19 @@ export default function (in: Input): Output {
             const fuse = has_result &&
                 control.statement_kinds[row - 1] == StatementKind.Constant
 
+            const stacked = match {
+                statement == StatementKind.Constant && !task => lookup({
+                    keys: in.stack_keys,
+                    buckets: in.stack_buckets,
+                    key: control.constant_symbols[payload]
+                }) != null,
+                _ => false
+            }
+
             const before = begin ? store_route : 0
             const binding = task ? task_route : 0
             const returned = fuse ? fuse_route : 0
+            const by_value = stacked ? value_route : 0
 
             const operation = match statement {
                 StatementKind.Evaluate => evaluate_operation,
@@ -81,7 +93,7 @@ export default function (in: Input): Output {
             }
 
             state.routes =
-                state.routes.push(operation + before + binding + returned)[0]
+                state.routes.push(operation + before + binding + returned + by_value)[0]
             state.previous_store = expression == ExpressionKind.StoreGet
             state.index += 1
         },

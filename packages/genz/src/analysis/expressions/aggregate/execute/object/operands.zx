@@ -48,7 +48,7 @@ export default function (in: Input): Output {
 
             const name = host.retainLoweringText(frame, reserved.name)
 
-            host.setLoweringSerial(frame, reserved.serial)
+            host.finishGeneratedAst(frame, reserved.serial, false)
 
             const item = evaluation[state.index]
             const value = host.lowerExpression(frame, item, false, null)

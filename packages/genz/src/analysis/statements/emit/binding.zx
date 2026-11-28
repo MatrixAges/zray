@@ -1,10 +1,8 @@
 import integers from "std:integer"
 import { prepareScopeBinding } from "ast_rows"
-import lookup from "core/integer/index/lookup"
 import host from "lowering_host"
-import memory from "memory"
 
-import { task_route } from "../block/const"
+import { task_route, value_route } from "../block/const"
 
 import type { Input } from "./model"
 
@@ -36,11 +34,7 @@ export default function (in: Input): Output {
         context.output_type
     )
 
-    const by_value = lookup({
-        keys: memory.u32Views(context.stack_keys),
-        buckets: memory.u32Views(context.stack_buckets),
-        key: symbol
-    }) != null
+    const by_value = integers.andBits(bits, integers.widenByte(value_route)) != 0
 
     const lowered: u32 = borrowed ?? match {
         by_value => host.lowerValueExpression(context.frame, value),

@@ -10,6 +10,7 @@ const entry = @import("generated_statement_traversal");
 const execute = @import("generated_execute_statement_traversal");
 const Input = std.meta.Child(entry.Input);
 const Rows = std.meta.Child(@FieldType(Input, "rows"));
+const StatementStack = @import("../../expressions/evaluate.zig").Api.StatementStack;
 
 pub const Frame = struct {
     lowering: *Lower,
@@ -19,6 +20,7 @@ pub const Frame = struct {
     selections: []Selection,
     sequence: @import("../../../node/blocks.zig").Sequence,
     child: node.Block = .{},
+    stack_view: StatementStack = undefined,
     pub fn borrow(handle: *const anyopaque) *Frame {
         const reference: *const *Frame = @ptrCast(@alignCast(handle));
 
@@ -37,7 +39,8 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     defer arena.deinit();
 
     const scratch = buffer.allocator();
-    const row_inputs = zx.columns.borrow(Rows, values.control);
+    const control_source: *const zx.ir.ControlTable = values.control;
+    const row_inputs = zx.columns.borrow(Rows, control_source);
     const input: Input = .{ .rows = &row_inputs, .first = values.first, .count = values.len };
     const plan = zx.columns.invoke(entry.executeValue, scratch, &input) catch |err| return failure(err);
     const capacity: usize = @intCast(plan.capacity);
@@ -91,11 +94,10 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     const Control = std.meta.Child(@FieldType(Context, "control"));
     const Expressions = std.meta.Child(@FieldType(Context, "expressions"));
     const Types = std.meta.Child(@FieldType(Context, "types"));
-    const control = zx.columns.borrow(Control, values.control);
+    const control = zx.columns.borrow(Control, control_source);
     const expressions = zx.columns.borrow(Expressions, @as(*const ir.ExpressionTable, &self.program.expressions));
     const types = ir.TypeTable.borrow(Types, self.program.types);
     const schedule = zx.columns.view(Schedule, plan);
-    const stack = self.stack_symbols.current();
     const reference = &frame;
 
     const context: Context = .{
@@ -110,8 +112,6 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
         .store_count = self.program.stores.count(),
         .names = self.names,
         .used = self.used,
-        .stack_keys = @ptrCast(&stack.keys.items),
-        .stack_buckets = @ptrCast(&stack.buckets.items),
         .transaction = self.transaction(),
         .value_output = self.value_output,
         .state_active = self.state_active,
@@ -133,7 +133,7 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     return frame.child;
 }
 
-pub fn openStatementScope(handle: *const anyopaque, slot: u64, first: u32, count: u32, placement: u64) bool {
+pub fn openStatementScope(handle: *const anyopaque, slot: u64, first: u32, count: u32, placement: u64) ?*const StatementStack {
     const frame = Frame.borrow(handle);
     const workspace = frame.workspace;
     const scope = &frame.scopes[@intCast(slot)];
@@ -143,9 +143,13 @@ pub fn openStatementScope(handle: *const anyopaque, slot: u64, first: u32, count
     scope.* = Scope.open(frame.lowering, range, .{
         .starts = workspace.starts[start..][0..count],
         .counts = workspace.counts[start..][0..count],
-    }) catch return false;
+    }) catch return null;
 
-    return true;
+    const stack = frame.lowering.stack_symbols.current();
+
+    frame.stack_view = .{ .stack_keys = stack.keys.items, .stack_buckets = stack.buckets.items };
+
+    return &frame.stack_view;
 }
 
 pub fn finishStatementScope(handle: *const anyopaque, slot: u64, rows_to_store: []const u64, starts: []const u32, counts: []const u32, previous: []const ?u64) ?u64 {

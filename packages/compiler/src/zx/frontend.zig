@@ -4,10 +4,6 @@ pub const grammar = @import("frontend/combinators.zig");
 pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @This(),
     @import("modules/compiled/imports.zig"),
-    @import("modules/project/execution/body.zig"),
-    @import("modules/project/execution/delivery/bind.zig"),
-    @import("modules/project/execution/delivery/route.zig"),
-    @import("modules/project/execution/delivery/source.zig"),
     @import("modules/project/execution/legacy.zig"),
     @import("modules/project/execution/native.zig"),
 }).resolve;

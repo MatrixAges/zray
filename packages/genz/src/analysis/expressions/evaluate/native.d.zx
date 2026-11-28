@@ -88,9 +88,4 @@ export declare function lowerUnpack(
     value: u32
 ): u32 throws { OutOfMemory }
 
-export declare function lowerDereference(
-    frame: Lowering,
-    value: u32
-): u32 throws { OutOfMemory }
-
 export declare function invalidLowering(): u32

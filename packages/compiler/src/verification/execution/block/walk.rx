@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Block" />
 
-    <Args in={Block.Input} out={string?} />
+    <Args in={Block.Input} out={Block.Outcome?} />
 
     <Call fn="initialize" in={$in} />
 
@@ -9,5 +9,14 @@
         <Call module="next" />
     </Loop>
 
-    <Return value={$ctx.next.unsupported == true ? null : $ctx.next.path} />
+    <If on={$ctx.next.unsupported == true}>
+        <Return value={null} />
+    </If>
+
+    <Return
+        value={$ctx.next.pick([
+            "path",
+            "violations"
+        ])}
+    />
 </Module>

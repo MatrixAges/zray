@@ -1,5 +1,5 @@
 <Module>
-    <Type from="model" as="Loop" />
+    <Type from="update_model" as="Loop" />
     <Type from="../../deferred/model" as="Deferred" />
 
     <Args in={Loop.Renewals} out={Deferred.Output} />

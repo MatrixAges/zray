@@ -1,0 +1,63 @@
+import type { CompiledCallStatus, Publication } from "../../../call/admission_model"
+import type { Slots } from "../../../call/attributes/scan"
+import type { Header, Payload } from "../flow/payload/shape"
+
+export enum Step {
+    Begin,
+    RejectFlow,
+    ReadCall,
+    AuthorizeSetter,
+    ReadTarget,
+    ResolveLibrary,
+    FindLibrary,
+    LinkLibrary,
+    ReadMembers,
+    SelectMember,
+    RejectLibrary,
+    ValidateLibrary,
+    Publish,
+    ReadPrevious,
+    PublishPrevious
+}
+
+export type Begin = {
+    header: Header,
+    implicit_header?: Header,
+    payload: Payload,
+    previous_end: u32
+}
+
+export type FlowIssue = {
+    node: u8[],
+    at_output: bool,
+    code: string,
+    message: string
+}
+
+export type Verification = {
+    verified_prefix: bool,
+    index: u64,
+    word: u64,
+    first?: u64
+}
+
+export type Previous = {
+    row: u32,
+    task: bool
+}
+
+export type Effect = {
+    step: Step,
+    begin?: Begin,
+    issue?: FlowIssue,
+    slots?: Slots,
+    edge?: u64,
+    index?: u64,
+    member?: u64,
+    status?: CompiledCallStatus,
+    verification?: Verification,
+    publication?: Publication,
+    previous?: Previous,
+    name?: string,
+    flag?: bool
+}

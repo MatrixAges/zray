@@ -1,0 +1,34 @@
+import type { Output as RenewalPlan } from "../../deferred/model"
+import type { Output as StepPlan } from "../../step/model"
+import type { Input } from "./model"
+
+export type StorageInput = Input.Pick(
+    "loop_frame",
+    "writer",
+    "body_seq",
+    "type_id",
+    "initial",
+    "initial_plan"
+) & {
+    initial_value: u32
+}
+
+export type Update = {
+    condition: u32,
+    value: u32,
+    first?: u32
+}
+
+export type Renewals = Input.Pick("loop_frame", "renewal_source") & {
+    owner: u32,
+    schedule: StepPlan
+}
+
+export type Evaluate =
+    Input.Pick("frame", "loop_frame", "parameters", "initial_plan") & {
+        schedule: StepPlan,
+        renewals: RenewalPlan,
+        name: u8[],
+        seed_name: u8[],
+        initial_state: u32
+    }

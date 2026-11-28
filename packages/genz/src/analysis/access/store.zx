@@ -4,6 +4,7 @@ import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 import { retainLoweringText } from "lowering_host"
 
+import emptyExpressions from "../../ast/expressions/empty"
 import {
     ExpressionsKind,
     ExpressionsBinaryOperator
@@ -16,7 +17,7 @@ import slotName from "../store/slot_name"
 import policy from "../store/transaction/policy"
 import { Result } from "./model"
 
-import type { ProjectionRows } from "ast_rows"
+import type { ExpressionRows } from "ast_rows"
 import type { StoreMode } from "core/function_table/complete"
 import type { Lowering } from "lowering_host"
 import type { Query } from "../state/queries/model"
@@ -33,7 +34,7 @@ export type Input = {
 }
 
 export type Output = {
-    nodes: ProjectionRows,
+    nodes: ExpressionRows,
     root: u32,
     result: Result,
     valid: bool
@@ -61,17 +62,7 @@ export default function (in: Input): Output {
 
     if (base > max_u32 - count) {
         return {
-            nodes: {
-                tags: [],
-                offsets: [],
-                identifier: [],
-                field_target: [],
-                field_name: [],
-                dereference: [],
-                binary_operator: [],
-                binary_left: [],
-                binary_right: []
-            },
+            nodes: emptyExpressions({}),
             root: base,
             result,
             valid: false
@@ -80,7 +71,8 @@ export default function (in: Input): Output {
 
     const name = retainLoweringText(in.frame, slotName(in.slot))
 
-    const nodes: ProjectionRows = {
+    const nodes: ExpressionRows = {
+        ...emptyExpressions({}),
         tags: [
             ExpressionsKind.Identifier,
             ExpressionsKind.Field,
@@ -94,10 +86,7 @@ export default function (in: Input): Output {
         identifier: [bytes.fromText(context_name)],
         field_target: [base],
         field_name: [name],
-        dereference: [base + 1],
-        binary_operator: [],
-        binary_left: [],
-        binary_right: []
+        dereference: [base + 1]
     }
 
     if (!transaction) {

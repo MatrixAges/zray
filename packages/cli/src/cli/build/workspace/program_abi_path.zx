@@ -1,0 +1,9 @@
+import { abi_sidecar_suffix } from "./const"
+
+export type Input = string
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return `${in}${abi_sidecar_suffix}`
+}

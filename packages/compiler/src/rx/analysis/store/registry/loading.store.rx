@@ -1,0 +1,13 @@
+<Store name="store_registry_loading" version={1}>
+    <Type from="model" as="Registry" />
+
+    <Object name="effect">
+        <Field
+            name="step"
+            type={Registry.LoadStep}
+            value={Registry.LoadStep.BindAliases}
+        />
+
+        <Field name="row" type={u64} value={0} />
+    </Object>
+</Store>

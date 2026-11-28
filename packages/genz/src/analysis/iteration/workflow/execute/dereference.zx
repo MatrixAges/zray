@@ -1,6 +1,6 @@
 import host from "lowering_host"
 
-import emitDereference from "./emit_dereference"
+import emitDereference from "../../../expressions/read/emit_dereference"
 
 import type { Input } from "./model"
 

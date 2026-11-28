@@ -1,0 +1,21 @@
+export enum Step {
+    CompileBody,
+    CheckCalls,
+    Capture,
+    Lower,
+    CheckProgram,
+    Ownership,
+    Validate,
+    Argument,
+    Publish
+}
+
+export type Command = {
+    step: Step,
+    row?: u64,
+    visible?: bool
+}
+
+export type Effect = Command & {
+    id: u32
+}

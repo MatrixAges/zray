@@ -14,23 +14,39 @@
 
     <Call module="prepare" in={$in} />
 
-    <If on={!$ctx.prepare}>
+    <If on={$ctx.prepare == null}>
         <Call fn="index.reportStagedTranslationFailure" in={$in.build} />
 
         <Return value={IO.Status.Failed} />
+
+        <Else>
+            <Call
+                fn="index.writeBackendCommand"
+                in={[
+                    $in.build,
+                    $ctx.prepare
+                ]}
+            />
+
+            <Call
+                fn="index.spawnStagedBackend"
+                in={[
+                    $in.build,
+                    $ctx.prepare
+                ]}
+            />
+
+            <If on={!$ctx.spawnStagedBackend}>
+                <Return value={IO.Status.Failed} />
+            </If>
+
+            <If on={$in.node}>
+                <Call fn="index.retainStagedBindings" in={$in.build} />
+            </If>
+
+            <Call fn="index.publishStagedBackend" in={$in.build} />
+
+            <Return value={IO.Status.Success} />
+        </Else>
     </If>
-
-    <Call fn="index.spawnStagedBackend" in={$in.build} />
-
-    <If on={!$ctx.spawnStagedBackend}>
-        <Return value={IO.Status.Failed} />
-    </If>
-
-    <If on={$in.node}>
-        <Call fn="index.retainStagedBindings" in={$in.build} />
-    </If>
-
-    <Call fn="index.publishStagedBackend" in={$in.build} />
-
-    <Return value={IO.Status.Success} />
 </Module>

@@ -1,14 +1,11 @@
 const zx = @import("zx");
 const Frame = @import("frame.zig");
 const Loading = @import("../../load/host.zig");
-const Action = @import("project_execution_abi").layouts.@"zig:project_host".ProjectSourceAction;
-const Selection = @import("project_execution_abi").layouts.@"zig:project_host".ProjectSourceSelection;
 
-pub fn selectProjectSource(handle: *anyopaque) *const Selection {
-    const frame = Frame.borrow(handle);
+pub fn select(frame: *Frame) @typeInfo(@TypeOf(Loading.source)).@"fn".return_type.? {
     const project = frame.walk.project;
 
-    const plan = switch (frame.item) {
+    return switch (frame.item) {
         inline else => |item| Loading.source(project.options.source_index.?, project.load_states, .{
             .path = frame.resolved.target.source,
             .phase = frame.walk.phase,
@@ -20,17 +17,9 @@ pub fn selectProjectSource(handle: *anyopaque) *const Selection {
             .cursor = &frame.active.suspended_import,
         }),
     };
-
-    frame.selection = .{
-        .action = zx.columns.view(Action, plan.action),
-        .row = plan.index orelse 0,
-    };
-
-    return &frame.selection;
 }
 
-pub fn rejectProjectSource(handle: *anyopaque, action: Action) error{InvalidSource}!void {
-    const frame = Frame.borrow(handle);
+pub fn reject(frame: *Frame, action: anytype) error{InvalidSource}!void {
     const project = frame.walk.project;
 
     const span = switch (frame.item) {

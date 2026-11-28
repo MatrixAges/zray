@@ -1,47 +1,12 @@
-export declare function routeProjectImport(frame: ProjectImport): ProjectImportRoute
-    throws { OutOfMemory }
-
-export declare function rejectProjectRoute(
-    frame: ProjectImport,
-    route: ProjectImportRoute,
-    message: string
-): void throws { InvalidSource }
-
-export declare function reuseProjectNativeUnit(frame: ProjectImport): bool
-
-export declare function registerProjectNativeUnit(frame: ProjectImport): u32
-    throws { OutOfMemory, InvalidSource }
-
-export declare function loadProjectNativeUnit(frame: ProjectImport, row: u32): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function rememberProjectNativeUnit(frame: ProjectImport, row: u32): void
-    throws { OutOfMemory }
-
-export declare function bindProjectLegacy(frame: ProjectImport): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function resolveProjectImport(frame: ProjectImport): bool
-    throws { OutOfMemory, InvalidSource }
-
-export declare function selectProjectSource(frame: ProjectImport): ProjectSourceSelection
-
-export declare function loadProjectLibrary(frame: ProjectImport): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function bindProjectImport(
-    frame: ProjectImport,
-    target: ProjectImportTarget,
-    signature: bool,
-    exported: bool
-): void throws { OutOfMemory, InvalidSource }
-
-export declare function rejectProjectSource(
-    frame: ProjectImport,
-    action: ProjectSourceAction
-): void throws { InvalidSource }
-
-export declare function recordProjectImport(
-    frame: ProjectImport,
-    target: ProjectImportTarget
-): void throws { OutOfMemory }
+export enum ProjectImportRoute {
+    Native,
+    Legacy,
+    Intrinsic,
+    Resolve,
+    DuplicateBinding,
+    InvalidSpecifier,
+    DuplicateInterface,
+    InterfaceConflict,
+    InvalidLegacy,
+    MissingLegacy
+}

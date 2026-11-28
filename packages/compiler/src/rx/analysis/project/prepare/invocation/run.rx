@@ -1,38 +1,50 @@
 <Module>
     <Type from="model" as="Invocation" />
-    <Type from="host" as="Host" />
+    <Type from="../../../call/admission_model" as="Admission" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Invocation.Run} out={void} />
 
+    <Store from="invocation" as="invocation" />
+
+    <Call fn="../../../call/attributes/scan" in={$in.attributes} />
+
     <Call
-        fn="read"
-        in={$in.pick([
-            "state",
-            "attributes"
-        ])}
+        fn="stage"
+        in={{
+            step: Effect.Step.ReadCall,
+            slots: $ctx.scan
+        }}
+        setter={[$store.invocation.effect]}
     />
 
-    <If on={$ctx.read}>
-        <Call fn="host.authorizePreparedSetter" in={$in.state} />
+    <If on={$ctx.scan.setter != null}>
+        <Call
+            fn="stage"
+            in={{
+                step: Effect.Step.AuthorizeSetter
+            }}
+            setter={[$store.invocation.effect]}
+        />
     </If>
 
     <Call fn="../../declarations/edges" in={$in.edges} />
 
     <Call
-        fn="host.readPreparedCallTarget"
-        in={[
-            $in.state,
-            $ctx.edges
-        ]}
+        fn="stage"
+        in={{
+            step: Effect.Step.ReadTarget,
+            edge: $ctx.edges
+        }}
+        setter={[$store.invocation.effect]}
     />
 
     <Call fn="../../../call/availability" in={$in.admission} />
 
-    <If on={$ctx.availability == Host.CallRoute.Compiled}>
+    <If on={$ctx.availability == Admission.CallRoute.Compiled}>
         <Call
             module="compiled"
             in={{
-                state: $in.state,
                 edge: $ctx.edges,
                 compiled: $in.compiled
             }}
@@ -42,7 +54,6 @@
     <Call
         fn="publish"
         in={{
-            state: $in.state,
             edge: $ctx.edges,
             route: $ctx.availability,
             admission: $in.admission,
@@ -50,15 +61,23 @@
         }}
     />
 
-    <If on={$ctx.publish && $in.previous_kind != null}>
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.Publish,
+            publication: $ctx.publish
+        }}
+        setter={[$store.invocation.effect]}
+    />
+
+    <Call fn="read_flag" in={$store.invocation.effect} />
+
+    <If on={$ctx.read_flag && $in.previous_kind != null}>
         <Call
             module="previous"
-            in={$in.omit([
-                "attributes",
-                "edges",
-                "admission",
-                "compiled",
-                "signatures"
+            in={$in.pick([
+                "previous_end",
+                "previous_kind"
             ])}
         />
     </If>

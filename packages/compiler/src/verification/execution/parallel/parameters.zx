@@ -3,9 +3,7 @@ import host from "verification_host"
 
 import guard from "../block/guard"
 
-import type { Input } from "./model"
-
-export type Output = string
+import type { Input, Output } from "./model"
 
 export default function (in: Input): Output {
     const { block, session, scope, payload } = in
@@ -16,7 +14,8 @@ export default function (in: Input): Output {
 
     return loop({
         row: first,
-        path: in.path
+        path: in.path,
+        violations: in.violations
     }, {
         while: state => state.row < end,
         next: state => {
@@ -28,13 +27,19 @@ export default function (in: Input): Output {
                     scope.call_arguments[argument]
                 ).safe
 
-            state.path = guard({
+            const checked = guard({
                 session,
                 path: state.path,
+                violations: state.violations,
                 safe
             })
+            state.path = checked.path
+            state.violations = checked.violations
             state.row += 1
         },
-        return: state => state.path
+        return: state => ({
+            path: state.path,
+            violations: state.violations
+        })
     })
 }

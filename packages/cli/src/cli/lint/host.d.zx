@@ -29,7 +29,6 @@ export declare function checkLintRxValues(check: SourceLint): bool throws { Sour
 export declare function formatLintRx(check: SourceLint): u8[] throws { SourceLoadFailure }
 export declare function checkLintZx(check: SourceLint): bool throws { SourceLoadFailure }
 export declare function formatLintZx(check: SourceLint): u8[] throws { SourceLoadFailure }
-export declare function checkLintLength(check: SourceLint): bool throws { SourceLoadFailure }
 
 export declare function checkSemanticManifest(check: SemanticLint): bool throws { SourceLoadFailure }
 export declare function loadSemanticProject(
@@ -49,10 +48,9 @@ export declare function analyzeLintGateway(check: SemanticLint): bool? throws { 
 export declare function checkLintServices(check: SemanticLint): bool throws { SourceLoadFailure }
 
 export declare function discoverLintWorkspace(check: WorkspaceLint): bool throws { SourceLoadFailure }
-export declare function resolveLintWorkspace(check: WorkspaceLint): u64? throws { SourceLoadFailure }
-export declare function selectLintWorkspaceMember(check: WorkspaceLint, index: u64): bool throws { SourceLoadFailure }
-export declare function lintMemberSemantics(check: WorkspaceLint): bool throws { SourceLoadFailure }
-export declare function lintMemberConfiguration(check: WorkspaceLint): bool throws { SourceLoadFailure }
+export declare function resolveLintWorkspace(check: WorkspaceLint): string? throws { SourceLoadFailure }
+export declare function lintMemberSemantics(check: WorkspaceLint, path: string): bool throws { SourceLoadFailure }
+export declare function lintMemberConfiguration(check: WorkspaceLint, path: string): bool throws { SourceLoadFailure }
 
 export declare function checkReachableLintSource(check: SourceLint, path: u8[], source: u8[]): bool
     throws { SourceLoadFailure }

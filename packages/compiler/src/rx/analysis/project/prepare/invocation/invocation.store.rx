@@ -1,0 +1,21 @@
+<Store name="rx_invocation_preparation" version={1}>
+    <Type from="effect" as="Invocation" />
+    <Type from="../../../call/admission_model" as="Admission" />
+    <Type from="../../../call/attributes/scan" as="Attributes" />
+
+    <Object name="effect">
+        <Field name="step" type={Invocation.Step} value={Invocation.Step.ReadCall} />
+        <Field name="begin" type={Invocation.Begin?} value={null} />
+        <Field name="issue" type={Invocation.FlowIssue?} value={null} />
+        <Field name="slots" type={Attributes.Slots?} value={null} />
+        <Field name="edge" type={u64?} value={null} />
+        <Field name="index" type={u64?} value={null} />
+        <Field name="member" type={u64?} value={null} />
+        <Field name="status" type={Admission.CompiledCallStatus?} value={null} />
+        <Field name="verification" type={Invocation.Verification?} value={null} />
+        <Field name="publication" type={Admission.Publication?} value={null} />
+        <Field name="previous" type={Invocation.Previous?} value={null} />
+        <Field name="name" type={string?} value={null} />
+        <Field name="flag" type={bool?} value={null} />
+    </Object>
+</Store>

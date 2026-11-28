@@ -1,8 +1,26 @@
-import type { Form, HardwareBuild, NodeOrigin } from "hardware_graph_host"
+import type { Form, Node } from "hardware_graph_host"
 import type { Cursor, Head, TermSort } from "../model"
+import type { Table } from "../table"
+
+export type NodeOrigin = {
+    file: string,
+    row: u64
+}
+
+export type Row = {
+    node: Node,
+    origin?: NodeOrigin
+}
+
+export type Graph = {
+    nodes: Row[],
+    cache: Table,
+    cache_limit: u64
+}
 
 export type Input = {
-    build: HardwareBuild,
+    graph: Graph,
+    variables: Table,
     expression: string,
     origin?: NodeOrigin
 }
@@ -12,17 +30,21 @@ export type Read = Input & Cursor.Pick("source") & {
     depth: u64
 }
 
-export type End = Read.Pick("build", "source", "offset") & {
+export type End = Read.Pick("source", "offset") & {
     closing: bool
 }
 
-export type Parsed = {
-    node: u32,
+export type Term = {
+    graph: Graph,
+    node: u32
+}
+
+export type Parsed = Term & {
     offset: u64
 }
 
 export type Store = TermSort & {
-    build: HardwareBuild,
+    graph: Graph,
     key: string,
     form: Form,
     first: u64,
@@ -33,7 +55,7 @@ export type Store = TermSort & {
     origin?: NodeOrigin
 }
 
-export type Apply = Read.Omit("depth") & {
+export type Apply = Read.Omit("depth", "variables") & {
     head: Head,
     left: u32,
     right?: u32,

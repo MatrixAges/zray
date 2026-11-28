@@ -1,7 +1,10 @@
 <Module>
     <Type from="../windows" as="Windows" />
+    <Type from="../operation" as="Operation" />
 
     <Args in={Windows.Cursor} out={Windows.Cursor} />
+
+    <Store from="../operation" as="mixed" />
 
     <If on={$in.position != $in.limit}>
         <Return value={$in} />
@@ -17,37 +20,43 @@
         />
 
         <Call
-            fn="host.prefetchMixedWindow"
-            in={[
-                $in.state,
-                $in.position,
-                $ctx.batch_end
-            ]}
+            fn="../stage"
+            in={{
+                step: Operation.Step.Prefetch,
+                first: $in.position,
+                end: $ctx.batch_end
+            }}
+            setter={[$store.mixed.effect]}
         />
+
+        <Call fn="../read_count" in={$store.mixed.effect} />
 
         <Return
             value={{
                 ...$in,
                 end: $ctx.batch_end,
                 batch: $in.batch + 1,
-                limit: $in.position + $ctx.prefetchMixedWindow
+                limit: $in.position + $ctx.read_count
             }}
         />
     </If>
 
     <Call
-        fn="host.prefetchMixedWindow"
-        in={[
-            $in.state,
-            $in.position,
-            $in.end
-        ]}
+        fn="../stage"
+        in={{
+            step: Operation.Step.Prefetch,
+            first: $in.position,
+            end: $in.end
+        }}
+        setter={[$store.mixed.effect]}
     />
+
+    <Call fn="../read_count" in={$store.mixed.effect} />
 
     <Return
         value={{
             ...$in,
-            limit: $in.position + $ctx.prefetchMixedWindow
+            limit: $in.position + $ctx.read_count
         }}
     />
 </Module>

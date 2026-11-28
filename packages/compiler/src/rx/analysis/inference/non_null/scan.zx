@@ -1,12 +1,10 @@
 import integers from "std:integer"
 
-import representative from "../forest/borrowed_root"
-import guard from "../optional/guard"
-import { Action as QueryAction } from "../optional/payload"
+import representative from "../forest/root"
 import { Kind } from "../unification/model"
+import observe from "./observe"
 
 import type { State as Known } from "core/integer/map/model"
-import type { U32Buffer } from "memory"
 import type { Graph } from "../optional/model"
 
 export enum Action {
@@ -18,7 +16,7 @@ export enum Action {
 
 export type Input = {
     graph: Graph,
-    parents: U32Buffer,
+    parents: u32[],
     sources: u32[],
     values: u32[],
     known: Known,
@@ -45,17 +43,36 @@ export default function (in: Input): Output {
         next: state => {
             const index = state.next
             const source = in.sources[index]
-            const result = guard({
-                graph: in.graph,
-                known: in.known,
+            const node = representative({
                 parents: in.parents,
                 value: source
             })
-            const operand = result.value
+            const kind = in.graph.kinds[integers.widen(node)]
 
-            if (operand != null) {
-                if (result.action == QueryAction.Register) {
-                    state.value = operand
+            if (kind == Kind.Unknown) {
+                if (in.infer_source) {
+                    const target = representative({
+                        parents: in.parents,
+                        value: in.values[index]
+                    })
+
+                    if (
+                        in.graph.kinds[integers.widen(target)] != Kind.Unknown
+                    ) {
+                        state.action = Action.Infer
+                    }
+                }
+            } else {
+                const value = observe({
+                    graph: in.graph,
+                    known: in.known,
+                    source,
+                    node,
+                    kind
+                })
+
+                if (value.register) {
+                    state.value = value.node
                     state.action = Action.Register
                 } else {
                     const left = representative({
@@ -64,24 +81,13 @@ export default function (in: Input): Output {
                     })
                     const right = representative({
                         parents: in.parents,
-                        value: operand
+                        value: value.node
                     })
 
                     if (left != right) {
-                        state.value = operand
+                        state.value = value.node
                         state.action = Action.Unify
                     }
-                }
-            } else if (in.infer_source) {
-                const value = representative({
-                    parents: in.parents,
-                    value: in.values[index]
-                })
-
-                if (
-                    in.graph.kinds[integers.widen(value)] != Kind.Unknown
-                ) {
-                    state.action = Action.Infer
                 }
             }
 

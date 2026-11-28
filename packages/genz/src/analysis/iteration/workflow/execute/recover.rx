@@ -1,0 +1,13 @@
+<Module>
+    <Type from="emission_model" as="Loop" />
+
+    <Args in={Loop.Recovery} out={u32} />
+
+    <If on={$in.restore}>
+        <Call fn="index.restoreLoopFields" in={$in.loop_frame} />
+
+        <Return value={$ctx.restoreLoopFields} />
+    </If>
+
+    <Return value={$in.state} />
+</Module>

@@ -1,15 +1,19 @@
 import memory from "memory"
 
+import type { ReadColumn } from "memory"
 import type { NativeModules } from "../../../../command/scope/model"
 
 export type Input = {
     modules: NativeModules,
-    index: u64
+    index: u64,
+    imports: ReadColumn
 }
 
 export type Output = {
     name: string,
     includes?: string[],
+    header?: string,
+    imports: string[],
     path?: string
 }
 
@@ -19,6 +23,8 @@ export default function (in: Input): Output {
     return {
         name: memory.readTextColumn(modules.names, index),
         includes: memory.readOptionalTextListColumn(modules.includes, index),
+        header: memory.readOptionalTextColumn(modules.headers, index),
+        imports: memory.readTextListColumn(in.imports, index),
         path: memory.readOptionalTextColumn(modules.paths, index)
     }
 }

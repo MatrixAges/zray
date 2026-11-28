@@ -15,7 +15,13 @@ export enum Probe {
 
 export type RootManifest = {
     patterns: string[],
-    root_name: string
+    root_name: string,
+    path: string
+}
+
+export type ManifestMember = {
+    name: string,
+    path: string
 }
 
 export type MemberSearch = {
@@ -49,19 +55,10 @@ export type PublishedSurface = {
 }
 
 export declare function readRoot(collection: Collection): RootManifest throws { SourceLoadFailure }
-export declare function invalidPattern(collection: Collection, pattern: string): void throws {
-    SourceLoadFailure
-}
-
 export declare function openDirectory(collection: Collection): void throws { SourceLoadFailure }
 export declare function nextDirectory(collection: Collection): Directory? throws { SourceLoadFailure }
 export declare function enterDirectory(collection: Collection): void throws { SourceLoadFailure }
-export declare function closeDirectory(collection: Collection): void
-
-export declare function readMember(collection: Collection, path: string): string? throws {
-    SourceLoadFailure
-}
-export declare function duplicateMember(collection: Collection, first: string): void throws {
+export declare function readMember(collection: Collection, path: string): ManifestMember? throws {
     SourceLoadFailure
 }
 export declare function publishMember(collection: Collection, path: string): void throws {

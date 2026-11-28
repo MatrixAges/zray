@@ -1,8 +1,10 @@
 <Module>
     <Type from="model" as="Delivery" />
-    <Type from="index" as="Host" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Delivery.Input} out={u64?} />
+
+    <Store from="delivery" as="delivery" />
 
     <If on={$in.completed != null}>
         <Call
@@ -10,7 +12,7 @@
             in={{
                 ...$in.omit(["completed"]),
                 target: {
-                    kind: Host.ProjectImportKind.Source,
+                    kind: Delivery.ProjectImportKind.Source,
                     row: $in.completed
                 }
             }}
@@ -19,57 +21,73 @@
         <Return value={null} />
     </If>
 
-    <Call fn="index.routeProjectImport" in={$in.frame} />
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.Route
+        }}
+        setter={[$store.delivery.effect]}
+    />
 
-    <If on={$ctx.routeProjectImport == Host.ProjectImportRoute.Resolve}>
+    <Call fn="read_route" in={$store.delivery.effect} />
+
+    <If on={$ctx.read_route == Delivery.ProjectImportRoute.Resolve}>
         <Call module="target" in={$in.omit(["completed"])} />
 
         <Return value={$ctx.target} />
     </If>
 
-    <Switch on={$ctx.routeProjectImport}>
-        <Case value={Host.ProjectImportRoute.Native}>
+    <Switch on={$ctx.read_route}>
+        <Case value={Delivery.ProjectImportRoute.Native}>
             <Call module="native" in={$in.omit(["completed"])} />
         </Case>
 
-        <Case value={Host.ProjectImportRoute.Legacy}>
-            <Call fn="index.bindProjectLegacy" in={$in.frame} />
+        <Case value={Delivery.ProjectImportRoute.Legacy}>
+            <Call
+                fn="stage"
+                in={{
+                    step: Effect.Step.BindLegacy
+                }}
+                setter={[$store.delivery.effect]}
+            />
 
             <If on={!$in.signature}>
                 <Call
-                    fn="index.recordProjectImport"
-                    in={[
-                        $in.frame,
-                        {
-                            kind: Host.ProjectImportKind.External
+                    fn="stage"
+                    in={{
+                        step: Effect.Step.Record,
+                        target: {
+                            kind: Delivery.ProjectImportKind.External
                         }
-                    ]}
+                    }}
+                    setter={[$store.delivery.effect]}
                 />
             </If>
         </Case>
 
-        <Case value={Host.ProjectImportRoute.Intrinsic}>
+        <Case value={Delivery.ProjectImportRoute.Intrinsic}>
             <Call
                 module="bind"
                 in={{
                     ...$in.omit(["completed"]),
                     target: {
-                        kind: Host.ProjectImportKind.Intrinsic
+                        kind: Delivery.ProjectImportKind.Intrinsic
                     }
                 }}
             />
         </Case>
 
         <Default>
-            <Call fn="diagnostic" in={$ctx.routeProjectImport} />
+            <Call fn="diagnostic" in={$ctx.read_route} />
 
             <Call
-                fn="index.rejectProjectRoute"
-                in={[
-                    $in.frame,
-                    $ctx.routeProjectImport,
-                    $ctx.diagnostic
-                ]}
+                fn="stage"
+                in={{
+                    step: Effect.Step.RejectRoute,
+                    route: $ctx.read_route,
+                    message: $ctx.diagnostic
+                }}
+                setter={[$store.delivery.effect]}
             />
 
             <Return value={null} />

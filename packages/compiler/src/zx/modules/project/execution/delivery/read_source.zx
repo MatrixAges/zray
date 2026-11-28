@@ -1,0 +1,13 @@
+import { ProjectSourceAction } from "./model"
+
+import type { Effect as Input } from "./effect"
+import type { ProjectSourceSelection } from "./model"
+
+export type Output = ProjectSourceSelection
+
+export default function (in: Input): Output {
+    return {
+        action: in.action ?? ProjectSourceAction.Missing,
+        row: in.row ?? 0
+    }
+}

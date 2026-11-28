@@ -2,32 +2,29 @@
     <Type from="model" as="Parameters" />
     <Type from="../workflow/execute/index" as="Native" />
 
-    <Args in={Parameters.Input} out={Parameters.Output} />
+    <Args in={Parameters.Plan} out={Parameters.Output} />
 
     <If on={$in.layout == Native.LoopParameterLayout.State}>
-        <Call fn="state" in={$in} />
+        <Call
+            fn="state"
+            in={$in.pick([
+                "state",
+                "stack"
+            ])}
+        />
 
         <Return value={$ctx.state} />
     </If>
 
     <If on={$in.layout == Native.LoopParameterLayout.Stack}>
-        <Call
-            fn="missing"
-            in={{
-                index: $in.stack,
-                condition: $in.condition,
-                step: $in.step
-            }}
-        />
-
         <Return
             value={{
-                add_condition: $ctx.missing.condition,
-                add_step: $ctx.missing.step,
+                add_condition: $in.stack.condition,
+                add_step: $in.stack.step,
                 remove_state_condition: false,
                 remove_state_step: false,
-                remove_stack_condition: $ctx.missing.condition,
-                remove_stack_step: $ctx.missing.step
+                remove_stack_condition: $in.stack.condition,
+                remove_stack_step: $in.stack.step
             }}
         />
     </If>

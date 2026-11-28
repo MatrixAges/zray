@@ -31,6 +31,12 @@ export enum IterationResource {
     Invalid
 }
 
+export type LoopEmissionSpans = {
+    renewals: u64,
+    declarations: u64,
+    frame: u64
+}
+
 export type LoopConsumer = {
     symbol: u32,
     result: u32,

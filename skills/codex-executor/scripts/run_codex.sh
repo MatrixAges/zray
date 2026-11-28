@@ -4,6 +4,7 @@ set -euo pipefail
 MODEL="gpt-6.2-sol"
 EFFORT="high"
 SERVICE_TIER="fast"
+SERVICE_TIER_EXPLICIT=0
 MAX_CONCURRENT=3
 WORKDIR="$(pwd)"
 WORKDIR_EXPLICIT=0
@@ -35,8 +36,9 @@ Usage: run_codex.sh [OPTIONS]
 Run local codex-cli non-interactively with --yolo as an orchestrator executor.
 Supports up to 3 concurrent executor sessions (slot/topic/session/ownership locks),
 automatic same-topic session reuse via ~/.cache/codex-executor/sessions.json,
-layered liveness inspection, structured run receipts, disables background-wait
-features (sleep_tool, goals, multi_agent) by default, and forbids --worktree.
+layered liveness inspection, structured run receipts, supports full-delegation
+execution (builds, tests, 3-stage bootstraps, benchmarks, docs, cleanup) while
+disabling sleep_tool/goals/multi_agent and forbidding --worktree.
 Reads prompt from --prompt-file or stdin.
 
 Options:
@@ -54,7 +56,8 @@ Options:
       --forget-topic <SLUG>   Remove saved session mapping for (workdir, slug)
   -m, --model <MODEL>         Codex model (default: gpt-6.2-sol)
   -e, --effort <EFFORT>       Reasoning effort (default: high)
-      --service-tier <TIER>   Service tier (default: fast)
+      --service-tier <TIER>   Service tier (default: fast; default for *-astra*)
+      --research              High-order thinking/research preset (gpt-6.2-astra, high, default tier)
   -o, --output-file <FILE>    Path to save last agent message
       --events-file <FILE>    Path to save JSONL event stream
       --schema <FILE>         JSON Schema file for --output-schema
@@ -126,7 +129,13 @@ while [[ $# -gt 0 ]]; do
       ;;
     --service-tier)
       SERVICE_TIER="${2:-}"
+      SERVICE_TIER_EXPLICIT=1
       shift 2
+      ;;
+    --research)
+      MODEL="gpt-6.2-astra"
+      EFFORT="high"
+      shift
       ;;
     -o|--output-file)
       LAST_MSG_FILE="${2:-}"
@@ -167,6 +176,10 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "$SERVICE_TIER_EXPLICIT" -eq 0 && "$MODEL" == *-astra* ]]; then
+  SERVICE_TIER="default"
+fi
 
 if [[ "$LIST_ACTIVE" -eq 1 ]]; then
   python3 - "$LOCK_DIR" "$MAX_CONCURRENT" "$JSON_OUT" <<'PY'
@@ -679,11 +692,8 @@ else
   SESSION_MODE="new"
   EFFECTIVE_PROMPT_SRC="$RUN_DIR/effective_prompt.txt"
   cat > "$EFFECTIVE_PROMPT_SRC" <<'POLICY'
-[EXECUTOR POLICY - NO LONG BACKGROUND/WAITING TASKS]
-- Do NOT run long-running background waiting tasks: no daemons, dev servers, or file watchers; no backgrounded shell jobs (& or nohup); no sleep or polling loops; no waiting on long asynchronous builds, CI, or external jobs; and no nested background subagents.
-- Do NOT run full builds (`zig build`), full test suites (`zig build test`), 3-stage bootstraps, cold benchmarks, or any long-running compilation/verification commands—all full builds, full test suites, and long verifications belong strictly to the Orchestrator. Only run fast, narrowly-scoped checks (e.g. `zxc fmt`, `zxc lint`, `zig fmt`, `zig ast-check`).
-- Only run bounded synchronous foreground commands.
-- If any required step needs long background waiting, full build/test execution, or async monitoring, do NOT hold this executor slot—stop immediately and return OUTCOME: blocked with the exact command for the orchestrator to execute.
+[EXECUTOR POLICY]
+Read and strictly follow `skills/codex-executor/RULES.md` (and `AGENTS.md`) before executing this task.
 
 POLICY
   cat "$PROMPT_SRC" >> "$EFFECTIVE_PROMPT_SRC"

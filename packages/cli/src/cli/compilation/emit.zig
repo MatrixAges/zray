@@ -4,7 +4,7 @@ const zx = @import("zx");
 const native = @import("../build/native.zig");
 const Error = @import("../sources/effects.zig").Error;
 const State = @import("state.zig").State;
-const artifacts = @import("../artifacts.zig");
+const Text = @import("cli_abi").layouts.@"zig:compilation_host".CompilationText;
 const generation = @import("../generation_cache.zig");
 const verification = @import("../verify.zig");
 
@@ -124,22 +124,33 @@ fn report(self: *State, issue: compiler.Diagnostic) Error!bool {
     return false;
 }
 
-fn acceptText(self: *State, result: compiler.Result) Error!bool {
-    if (result == .diagnostic) return report(self, result.diagnostic);
+fn acceptText(self: *State, result: compiler.Result) Error!?*const Text {
+    if (result == .diagnostic) {
+        _ = try report(self, result.diagnostic);
+
+        return null;
+    }
 
     self.text = result.source;
 
-    return true;
+    self.text_view = .{
+        .source = result.source,
+        .abi = self.abi.written(),
+        .input_path = self.options().input,
+        .original = self.source.?,
+    };
+
+    return &self.text_view;
 }
 
-pub fn formatCompilationSource(handle: *const anyopaque) Error!bool {
+pub fn formatCompilationSource(handle: *const anyopaque) Error!?*const Text {
     const self = State.get(handle);
     const result = compiler.format(self.context.allocator, self.source.?, self.options().input) catch |err| return self.failure.save(err);
 
     return acceptText(self, result);
 }
 
-pub fn emitCompilationText(handle: *const anyopaque) Error!bool {
+pub fn emitCompilationText(handle: *const anyopaque) Error!?*const Text {
     const self = State.get(handle);
     const result = compiler.compileProjectVerified(self.context.allocator, configuration(self)) catch |err| return self.failure.save(err);
 
@@ -192,34 +203,8 @@ pub fn buildCompilationModules(handle: *const anyopaque) Error!native.Compilatio
     return native.sourceStatusAs(native.CompilationStatus, result);
 }
 
-pub fn checkCompilationText(handle: *const anyopaque) Error!bool {
-    const self = State.get(handle);
-    const writer = self.context.stderr;
-
-    if (std.mem.eql(u8, self.source.?, self.text.?)) return true;
-
-    writer.print("{s}: {s}\n", .{ self.options().input, @import("lint").source.formatting_required }) catch |err| return self.failure.save(err);
-    writer.flush() catch |err| return self.failure.save(err);
-
-    return false;
-}
-
-pub fn writeCompilationText(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-    const context = &self.context;
-    const options = self.options();
-
-    if (self.abi.written().len != 0) {
-        const path = std.fmt.allocPrint(context.allocator, "{s}.abi.zig", .{options.output.?}) catch |err| return self.failure.save(err);
-
-        artifacts.write(context.io, path, self.abi.written()) catch |err| return self.failure.save(err);
-    }
-
-    artifacts.write(context.io, if (options.write) options.input else options.output.?, self.text.?) catch |err| return self.failure.save(err);
-}
-
-pub fn printCompilationText(handle: *const anyopaque) Error!void {
+pub fn printCompilationText(handle: *const anyopaque, source: []const u8) Error!void {
     const self = State.get(handle);
 
-    self.context.stdout.writeAll(self.text.?) catch |err| return self.failure.save(err);
+    self.context.stdout.writeAll(source) catch |err| return self.failure.save(err);
 }

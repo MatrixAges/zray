@@ -1,6 +1,7 @@
+import empty from "../../../ast/statements/empty"
 import { StatementsKind } from "../../../printer/model/statements"
 
-import type { AstLeafStatements as Output } from "ast_rows"
+import type { StatementRows as Output } from "ast_rows"
 
 export type Input = {
     name: u8[],
@@ -9,14 +10,9 @@ export type Input = {
 
 export default function (in: Input): Output {
     return {
+        ...empty({}),
         tags: [StatementsKind.BreakValue],
         offsets: [0],
-        expression: [],
-        discard: [],
-        constant_name: [],
-        constant_type_expr: [],
-        constant_value: [],
-        constant_exported: [],
         break_value_label: [in.name],
         break_value_value: [in.value]
     }

@@ -1,7 +1,10 @@
 <Module>
     <Type from="model" as="Execution" />
+    <Type from="body_effect" as="Effect" />
 
     <Args in={Execution.Body} out={Execution.BodyResult} />
+
+    <Store from="body_work" as="body" />
 
     <If on={$in.cache != null}>
         <Call module="cache/restore" in={$in.cache} />
@@ -18,15 +21,35 @@
         />
 
         <If on={!$ctx.restore}>
-            <Call fn="index.analyzeProjectBody" in={$in.body} />
+            <Call
+                fn="body_stage"
+                in={{
+                    step: Effect.Step.Analyze
+                }}
+                setter={[$store.body.effect]}
+            />
         </If>
 
         <Else>
-            <Call fn="index.analyzeProjectBody" in={$in.body} />
+            <Call
+                fn="body_stage"
+                in={{
+                    step: Effect.Step.Analyze
+                }}
+                setter={[$store.body.effect]}
+            />
         </Else>
     </If>
 
-    <Call module="../publication/plan" in={$in.installation.request} />
+    <Call fn="body_plan" in={$store.body.effect} />
+
+    <Call
+        module="../publication/plan"
+        in={{
+            ...$in.options,
+            ...$ctx.body_plan
+        }}
+    />
 
     <If on={$ctx.plan.append}>
         <Call
@@ -40,7 +63,13 @@
             }}
         />
 
-        <Call fn="index.materializeProjectFunction" in={$in.body} />
+        <Call
+            fn="body_stage"
+            in={{
+                step: Effect.Step.Materialize
+            }}
+            setter={[$store.body.effect]}
+        />
 
         <Call
             fn="../../../../core/function_table/publication/publish_records"
@@ -56,21 +85,23 @@
 
     <If on={$ctx.plan.ownership_count != null}>
         <Call
-            fn="index.checkProjectOwnership"
-            in={[
-                $in.body,
-                $ctx.plan.ownership_count,
-                $ctx.plan.id
-            ]}
+            fn="body_stage"
+            in={{
+                step: Effect.Step.CheckOwnership,
+                count: $ctx.plan.ownership_count,
+                id: $ctx.plan.id
+            }}
+            setter={[$store.body.effect]}
         />
     </If>
 
     <Call
-        fn="index.bindProjectBodyExports"
-        in={[
-            $in.body,
-            $ctx.plan.id
-        ]}
+        fn="body_stage"
+        in={{
+            step: Effect.Step.BindExports,
+            id: $ctx.plan.id
+        }}
+        setter={[$store.body.effect]}
     />
 
     <Call module="body_exports/publish" in={$in.exports} />
@@ -124,9 +155,9 @@
                 publication: $ctx.plan.publication,
                 function_id: $ctx.plan.id,
                 recursive: $ctx.plan.own_function,
-                retain_entry: $in.installation.request.entry
+                retain_entry: $in.options.entry
             },
-            cache_root: $in.installation.request.entry ? $ctx.register_cache : null,
+            cache_root: $in.options.entry ? $ctx.register_cache : null,
             cache_record: $ctx.register_cache
         }}
     />

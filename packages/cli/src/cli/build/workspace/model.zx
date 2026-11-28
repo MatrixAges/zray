@@ -65,3 +65,8 @@ export type File = {
 export type ModuleWrite = ColumnRow & {
     paths: string[]
 }
+
+export type ProgramText = Artifact & {
+    abi: string,
+    abi_base?: string
+}

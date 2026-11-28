@@ -1,11 +1,16 @@
+import type { TextColumn } from "memory"
 import type { FunctionCheck } from "rx_checking_host"
 
 export type Input = {
     check: FunctionCheck,
-    has_calls: bool
+    has_calls: bool,
+    module_paths: TextColumn,
+    module_count: u64
 }
 
 export type DelegateMatch = {
     delegate: string,
-    module_paths: string[]
+    root: string,
+    module_paths: TextColumn,
+    module_count: u64
 }

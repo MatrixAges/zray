@@ -1,0 +1,9 @@
+import { ProjectImportRoute } from "./model"
+
+import type { Effect as Input } from "./effect"
+
+export type Output = ProjectImportRoute
+
+export default function (in: Input): Output {
+    return in.route ?? ProjectImportRoute.Resolve
+}

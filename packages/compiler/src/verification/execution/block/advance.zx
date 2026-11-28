@@ -16,6 +16,7 @@ export default function (in: Input): Output {
         return {
             ...in.current,
             path: smt_false,
+            violations: in.next.violations,
             row: next_row,
             running: false,
             unsupported: in.next.unsupported
@@ -25,6 +26,7 @@ export default function (in: Input): Output {
     return {
         ...in.current,
         path: in.next.path,
+        violations: in.next.violations,
         row: next_row,
         running: next_row < in.current.end
     }

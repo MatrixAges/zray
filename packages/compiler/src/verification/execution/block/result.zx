@@ -2,16 +2,15 @@ import host from "verification_host"
 
 import guard from "./guard"
 
-import type { SymbolicBlock, SymbolicSession } from "verification_host"
+import type { SymbolicBlock, SymbolicPath, SymbolicSession } from "verification_host"
 
-export type Input = {
+export type Input = SymbolicPath & {
     block: SymbolicBlock,
     session: SymbolicSession,
-    path: string,
     expression?: u32
 }
 
-export type Output = string?
+export type Output = string[]
 
 export default function (in: Input): Output {
     const { block, session, path, expression } = in
@@ -21,10 +20,9 @@ export default function (in: Input): Output {
     const completed = guard({
         session,
         path,
+        violations: in.violations,
         safe: outcome.safe
     })
 
-    host.publishSymbolicStatementReturn(block, completed, outcome)
-
-    return null
+    return host.publishSymbolicStatementReturn(block, completed, outcome)
 }

@@ -1,0 +1,18 @@
+import bytes from "std:bytes"
+
+export type Input = {
+    source: string,
+    original: u8[],
+    path: string,
+    notice: string
+}
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    if (bytes.equals(in.original, bytes.fromText(in.source))) {
+        return null
+    }
+
+    return `${in.path}: ${in.notice}\n`
+}

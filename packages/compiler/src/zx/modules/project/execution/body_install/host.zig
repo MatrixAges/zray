@@ -22,7 +22,6 @@ const Self = @This();
 slots: [@typeInfo(Layouts.FunctionRow).@"struct".field_names.len]*anyopaque,
 columns: zx.memory.ColumnSet,
 functions: Functions,
-request: std.meta.Child(@FieldType(Input, "request")),
 function: Function,
 modules: tail.Tail(Record, Rows, .{}),
 cache: tail.Tail(usize, Rows, .{}),
@@ -50,7 +49,6 @@ pub fn bind(self: *Self, project: *Project) void {
     self.cache_rows = .{ .storage = @ptrCast(&self.cache.output.buffer), .used = self.cache.length };
 
     self.input = .{
-        .request = &self.request,
         .functions = &self.functions,
         .function = @ptrCast(&self.function),
         .records = &self.record_rows,

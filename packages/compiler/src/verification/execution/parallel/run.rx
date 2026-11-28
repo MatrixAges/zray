@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Parallel" />
 
-    <Args in={Parallel.Input} out={string} />
+    <Args in={Parallel.Input} out={Parallel.Output} />
 
     <Call fn="parameters" in={$in} />
 
@@ -9,7 +9,8 @@
         fn="calls"
         in={{
             ...$in,
-            launch: $ctx.parameters
+            violations: $ctx.parameters.violations,
+            launch: $ctx.parameters.path
         }}
     />
 
@@ -26,5 +27,10 @@
         />
     </Loop>
 
-    <Return value={$ctx.calls.path} />
+    <Return
+        value={$ctx.calls.pick([
+            "path",
+            "violations"
+        ])}
+    />
 </Module>

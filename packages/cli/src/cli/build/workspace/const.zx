@@ -19,3 +19,5 @@ export const line_end: string = "\n"
 export const node_directory: string = "node"
 
 export const napi_directory: string = "napi"
+
+export const abi_sidecar_suffix: string = ".abi.zig"

@@ -14,6 +14,19 @@ const restore = @import("../../semantic_cache/restore.zig");
 const cache_entries = @import("../../semantic_cache/entries.zig");
 const errorSet = @import("invoke.zig").errorSet;
 const generated = @import("parser_options").generated_parser;
+const entry = if (generated) @import("generated_project_execute_body") else void;
+const EffectSlot = if (generated) bodyEffectSlot() else "";
+const StoreState = if (generated) std.meta.Child(@FieldType(entry.zx_pending, EffectSlot)) else void;
+
+fn bodyEffectSlot() []const u8 {
+    inline for (@typeInfo(entry.zx_pending).@"struct".field_names) |name| {
+        const State = std.meta.Child(std.meta.Child(@FieldType(entry.zx_pending, name)));
+
+        if (@hasField(State, "step")) return name;
+    }
+
+    unreachable;
+}
 
 const Body = struct {
     project: *Project,
@@ -28,11 +41,47 @@ const Body = struct {
     program: ir.Program = undefined,
     installation: if (generated) @import("body_install/host.zig") else void = undefined,
     exports: if (generated) @import("body_exports/host.zig") else void = undefined,
-    fn borrow(handle: *anyopaque) *Body {
-        return @ptrCast(@alignCast(handle));
+};
+
+const StoreHost = struct {
+    body: *Body,
+    snapshot: if (generated) *std.meta.Child(StoreState) else void,
+    store_0: if (std.mem.eql(u8, EffectSlot, "store_0")) *StoreState else void = undefined,
+    store_1: if (std.mem.eql(u8, EffectSlot, "store_1")) *StoreState else void = undefined,
+    pub fn commit(host: *StoreHost, pending: anytype) zx.Error!void {
+        const body = host.body;
+
+        if (@field(pending, EffectSlot)) |effect| switch (effect.step) {
+            .HashContext => {
+                const project = body.project;
+                _ = try project.cache_context.compute(project.allocator, if (effect.root.?) project.options.context else null);
+            },
+            .Restore => {
+                if (try restoreBody(body, body.cached.?)) host.publishPlan(effect);
+            },
+            .Analyze => {
+                try analyzeParsed(body);
+
+                host.publishPlan(effect);
+            },
+            .Materialize => try body.installation.ownFunction(body.project.allocator, &body.program),
+            .CheckOwnership => try checkOwnership(body, effect.count.?, effect.id),
+            .BindExports => body.exports.bind(&body.program, body.frame, if (effect.id) |id| @fromBackingInt(id) else null),
+        };
+
+        const export_slot = if (comptime std.mem.eql(u8, EffectSlot, "store_0")) "store_1" else "store_0";
+
+        if (@field(pending, export_slot)) |row| try body.exports.commit(body.project.allocator, row);
     }
-    pub fn commit(self: *Body, pending: anytype) std.mem.Allocator.Error!void {
-        try self.exports.commit(self.project.allocator, pending);
+    fn publishPlan(host: *StoreHost, effect: StoreState) void {
+        const body = host.body;
+        const restored_function = if (body.restored) |value| value.recursive else null;
+        host.snapshot.* = effect.*;
+        host.snapshot.type_only = body.program.type_only;
+        host.snapshot.restored = body.restored != null;
+        host.snapshot.restored_function = if (restored_function) |id| @backingInt(id) else null;
+        host.snapshot.linked_count = body.project.functions.count();
+        host.snapshot.calls = body.program.expressions.call_functions;
     }
 };
 
@@ -50,7 +99,6 @@ pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
     };
 
     if (comptime generated) {
-        const entry = @import("generated_project_execute_body");
         var arena = std.heap.ArenaAllocator.init(project.arena.child_allocator);
 
         defer arena.deinit();
@@ -74,9 +122,7 @@ pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
         const candidate = if (body.cached) |stored| stored.digestView(Candidate) else null;
 
         const request: Input = .{
-            .body = @ptrCast(&body),
             .cache = if (cache != null) &.{
-                .body = @ptrCast(&body),
                 .root = body.entry,
                 .dependency_ready = project.cache_context.dependency_ready,
                 .lookup = &.{
@@ -86,11 +132,34 @@ pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
                 },
                 .usage = @ptrCast(&usage),
             } else null,
+            .options = &.{
+                .entry = body.entry,
+                .declared = body.declared,
+                .check_ownership = body.check_ownership,
+                .cache = cache != null,
+            },
             .exports = &body.exports.input,
             .installation = &body.installation.input,
         };
 
-        const outcome = entry.executeIn(scratch.allocator(), &request, &body) catch |err| return switch (@as(anyerror, err)) {
+        var response: std.meta.Child(StoreState) = .{
+            .step = .Analyze,
+            .root = null,
+            .count = null,
+            .id = null,
+            .type_only = false,
+            .restored = false,
+            .restored_function = null,
+            .linked_count = 0,
+            .calls = &.{},
+        };
+
+        var slot: StoreState = &response;
+        var host: StoreHost = .{ .body = &body, .snapshot = &response };
+
+        @field(host, EffectSlot) = &slot;
+
+        const outcome = entry.executeIn(scratch.allocator(), &request, &host) catch |err| return switch (@as(anyerror, err)) {
             error.IntegerOverflow, error.Overflow => error.OutOfMemory,
             else => errorSet(err),
         };
@@ -152,7 +221,7 @@ fn seed(body: *Body, input: anytype) zx.Error!void {
     body.unit.function = plan.id;
 
     if (plan.append) try project.functions.append(project.allocator, @import("../../function_body.zig").value(body.program));
-    if (plan.ownership_count) |count| try checkProjectOwnership(body, count, if (plan.id) |id| @backingInt(id) else null);
+    if (plan.ownership_count) |count| try checkOwnership(body, count, if (plan.id) |id| @backingInt(id) else null);
     try publishSeedExports(body);
 
     if (plan.publish_artifact) {
@@ -164,17 +233,6 @@ fn seed(body: *Body, input: anytype) zx.Error!void {
 
     try project.modules.append(project.allocator, record(body, plan.body, plan.own_function));
     if (body.entry) retainEntry(body);
-}
-
-pub fn hashProjectCacheContext(handle: *anyopaque, root: bool) std.mem.Allocator.Error!void {
-    const project = Body.borrow(handle).project;
-    _ = try project.cache_context.compute(project.allocator, if (root) project.options.context else null);
-}
-
-pub fn restoreCachedProjectBody(handle: *anyopaque) std.mem.Allocator.Error!bool {
-    const self = Body.borrow(handle);
-
-    return restoreBody(self, self.cached.?);
 }
 
 fn restoreBody(self: *Body, cached: *const cache_entries.Entry) std.mem.Allocator.Error!bool {
@@ -202,23 +260,17 @@ fn restoreBody(self: *Body, cached: *const cache_entries.Entry) std.mem.Allocato
     if (self.restored) |*value| {
         self.program = value.program;
 
-        if (comptime generated) preparePlan(self);
-
         return true;
     }
 
     return false;
 }
 
-pub fn analyzeProjectBody(handle: *anyopaque) zx.Error!void {
-    const body = Body.borrow(handle);
-
+fn analyzeParsed(body: *Body) zx.Error!void {
     try switch (body.frame.parsed.result.*) {
         .native => |result| analyze(body, Inputs.Native{ .value = result.value.parsed }),
         .indexed => |*result| if (indexed) analyze(body, Inputs.Indexed{ .value = result }) else unreachable,
     };
-
-    if (comptime generated) preparePlan(body);
 }
 
 fn analyze(body: *Body, input: anytype) zx.Error!void {
@@ -248,37 +300,7 @@ fn analyze(body: *Body, input: anytype) zx.Error!void {
     body.program = try input.analyze(&analyzer, path);
 }
 
-fn preparePlan(body: *Body) void {
-    const project = body.project;
-    const restored = if (body.restored) |value| value.recursive else null;
-
-    body.installation.request = .{
-        .type_only = body.program.type_only,
-        .entry = body.entry,
-        .declared = body.declared,
-        .restored = body.restored != null,
-        .restored_function = if (restored) |id| @backingInt(id) else null,
-        .check_ownership = body.check_ownership,
-        .cache = project.semantic_cache != null,
-        .linked_count = project.functions.count(),
-        .calls = body.program.expressions.call_functions,
-    };
-}
-
-pub fn materializeProjectFunction(handle: *anyopaque) std.mem.Allocator.Error!void {
-    const body = Body.borrow(handle);
-
-    try body.installation.ownFunction(body.project.allocator, &body.program);
-}
-
-pub fn bindProjectBodyExports(handle: *anyopaque, id: ?u32) void {
-    const body = Body.borrow(handle);
-
-    body.exports.bind(&body.program, body.frame, if (id) |value| @fromBackingInt(value) else null);
-}
-
-pub fn checkProjectOwnership(handle: *anyopaque, count: u64, id: ?u32) zx.Error!void {
-    const body = Body.borrow(handle);
+fn checkOwnership(body: *Body, count: u64, id: ?u32) zx.Error!void {
     const project = body.project;
     const program = &body.program;
     program.functions = project.functions.view().prefix(@intCast(count));

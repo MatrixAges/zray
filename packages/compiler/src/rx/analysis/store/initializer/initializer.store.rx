@@ -1,0 +1,14 @@
+<Store name="store_initializer_compilation" version={1}>
+    <Type from="effect" as="Initializer" />
+
+    <Object name="effect">
+        <Field name="step" type={Initializer.Step} value={Initializer.Step.Prepare} />
+        <Field name="index" type={u64?} value={null} />
+        <Field name="name" type={u8[]?} value={null} />
+        <Field name="value" type={u8[]?} value={null} />
+        <Field name="positions" type={u32[]?} value={null} />
+        <Field name="valid" type={bool} value={false} />
+        <Field name="source" type={string[]} value={[]} />
+        <Field name="canonical" type={string[]} value={[]} />
+    </Object>
+</Store>

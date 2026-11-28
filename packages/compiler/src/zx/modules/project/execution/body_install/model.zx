@@ -6,7 +6,6 @@ import type {
     ColumnSet,
     RowBuffer
 } from "memory/columns"
-import type { Request } from "../../publication/model"
 
 export type Rows = {
     storage: RowBuffer,
@@ -24,7 +23,6 @@ export type Functions = {
 }
 
 export type Installation = {
-    request: Request,
     functions: Functions,
     function: ColumnRecord,
     records: Rows,

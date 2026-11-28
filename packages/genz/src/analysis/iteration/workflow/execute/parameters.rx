@@ -60,10 +60,9 @@
         in={{
             ...$in.parameters.pick([
                 "condition",
-                "step",
-                "state",
-                "stack"
+                "step"
             ]),
+            ...$in.membership,
             layout: $ctx.parameter_layout
         }}
     />

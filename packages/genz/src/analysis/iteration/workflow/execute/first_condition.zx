@@ -1,6 +1,6 @@
 import host from "lowering_host"
 
-import type { Evaluate as Input } from "./model"
+import type { Evaluate as Input } from "./update_model"
 
 export type Output = u32?
 

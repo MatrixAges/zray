@@ -23,7 +23,9 @@ export type Output = {
 export default function (in: Input): Output {
     const { traversal, context, scope, first, count, placement } = in
 
-    if (!host.openStatementScope(traversal, scope, first, count, placement)) {
+    const stack = host.openStatementScope(traversal, scope, first, count, placement)
+
+    if (stack == null) {
         return {
             ok: false,
             routes: []
@@ -36,6 +38,7 @@ export default function (in: Input): Output {
             "statement_payloads",
             "evaluations",
             "constant_values",
+            "constant_symbols",
             "results"
         ]),
         values: {
@@ -46,7 +49,8 @@ export default function (in: Input): Output {
         first: integers.widen(first),
         count: integers.widen(count),
         mode: context.store_mode,
-        store_count: context.store_count
+        store_count: context.store_count,
+        ...stack
     })
 
     return {

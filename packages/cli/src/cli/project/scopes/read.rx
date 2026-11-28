@@ -3,13 +3,7 @@
 
     <Args in={Model.InterfaceRead} out={Model.InterfaceRead} />
 
-    <Call
-        fn="index.nativeScopeInterfacePath"
-        in={[
-            $in.window.frame,
-            $in.row
-        ]}
-    />
+    <Call fn="interface_row" in={$in} />
 
     <Call fn="rules/admission/interface" />
 

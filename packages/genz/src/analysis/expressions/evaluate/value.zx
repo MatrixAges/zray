@@ -2,6 +2,7 @@ import host from "lowering_host"
 import { Representation } from "lowering_host"
 
 import { Expression } from "../../value/call/model"
+import emitDereference from "../read/emit_dereference"
 import conditional from "./conditional"
 
 import type { AstWriter } from "ast_rows"
@@ -31,7 +32,10 @@ export default function (in: Input): Output {
         case Expression.Dereference:
             const value = host.lowerExpression(frame, id, probe.checked, probe.value)
 
-            return host.lowerDereference(frame, value)
+            return emitDereference({
+                writer,
+                value
+            })
         case Expression.Object: return host.lowerAggregate(
             frame,
             id,

@@ -31,25 +31,29 @@ fn install(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
     const host = @import("install/host.zig");
     const files = @import("install/files.zig");
     var failure: ?anyerror = null;
-    const session = try host.Context.init(io, allocator, options, environment, &failure);
+    var session = try host.Context.init(io, allocator, options, environment, &failure);
     const previous = try files.load(io, allocator, session.root, null);
-    const data: host.LockData = if (previous) |lock| .{ .lock = lock.lock, .source = lock.source } else undefined;
+
+    if (previous) |lock| session.lock = .{ .lock = lock.lock, .source = lock.source };
+
     const reuse = if (previous) |lock| @import("install/model.zig").matchesWorkspace(lock.lock, session.members) else false;
-    const locked_workspace: []?[]const u8 = if (reuse) try allocator.alloc(?[]const u8, data.lock.packages.len) else &.{};
+    const locked_workspace: []?[]const u8 = if (reuse) try allocator.alloc(?[]const u8, session.lock.?.lock.packages.len) else &.{};
 
     if (reuse) {
-        for (locked_workspace, data.lock.packages) |*path, package| {
+        for (locked_workspace, session.lock.?.lock.packages) |*path, package| {
             path.* = if (package.source == .workspace) package.source.workspace else null;
         }
     }
 
+    const reference = &session;
+
     const result = @import("cli_source").workflow.executeIn(allocator, &.{
-        .session = @ptrCast(&session),
+        .session = @ptrCast(&reference),
         .members = session.members.len,
         .maximum_edges = pkgs.Lock.maximum_dependencies,
         .maximum_bytes = files.maximum_bytes,
         .root = session.root,
-        .previous = if (previous != null) @ptrCast(&data) else null,
+        .has_lock = previous != null,
         .locked_workspace = locked_workspace,
         .reuse = reuse,
         .frozen = options.frozen,

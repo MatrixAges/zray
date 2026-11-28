@@ -1,4 +1,4 @@
-import type { Compilation } from "compilation_host"
+import type { Compilation, CompilationText } from "compilation_host"
 
 export type Settings = {
     formatting: bool,
@@ -20,7 +20,8 @@ export type Request = {
     settings: Settings,
     watching: bool,
     input: u8[],
-    explicit_config: bool
+    explicit_config: bool,
+    formatting_notice: string
 }
 
 export type Query = Request & {
@@ -29,4 +30,8 @@ export type Query = Request & {
 
 export type CacheLoad = Request & {
     has_compiled_libraries: bool
+}
+
+export type TextPublication = Request & {
+    text: CompilationText
 }

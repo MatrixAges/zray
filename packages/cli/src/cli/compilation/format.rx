@@ -32,11 +32,19 @@
 
     <Call fn="index.formatCompilationSource" in={$in.compilation} />
 
-    <If on={!$ctx.formatCompilationSource}>
+    <If on={$ctx.formatCompilationSource == null}>
         <Return value={IO.Status.Failed} />
+
+        <Else>
+            <Call
+                module="output"
+                in={{
+                    ...$in,
+                    text: $ctx.formatCompilationSource
+                }}
+            />
+
+            <Return value={$ctx.output} />
+        </Else>
     </If>
-
-    <Call module="output" in={$in} />
-
-    <Return value={$ctx.output} />
 </Module>

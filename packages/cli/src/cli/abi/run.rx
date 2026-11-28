@@ -1,7 +1,6 @@
 <Module>
     <Type from="workflow" as="Abi" />
     <Type from="plan/model" as="Plan" />
-    <Type from="index" as="Host" />
 
     <Args in={Abi.Input} out={Abi.Output} />
 
@@ -10,30 +9,29 @@
     <If on={!$ctx.scoped}>
         <Return
             value={{
+                status: Plan.Status.Valid,
                 source: $in.source,
                 views: []
             }}
         />
     </If>
 
-    <Call fn="index.borrowAbiInputs" in={$in.frame} />
-
     <Call module="plan/build" in={$in.plan} />
 
-    <Switch on={$ctx.build.status}>
-        <Case value={Plan.Status.ConflictingAlias}>
-            <Call fn="index.rejectAbiPlan" in={Host.AbiConflict.Alias} />
-        </Case>
-
-        <Case value={Plan.Status.NameConflict}>
-            <Call fn="index.rejectAbiPlan" in={Host.AbiConflict.Name} />
-        </Case>
-    </Switch>
+    <If on={$ctx.build.status != Plan.Status.Valid}>
+        <Return
+            value={{
+                status: $ctx.build.status,
+                source: $in.source,
+                views: []
+            }}
+        />
+    </If>
 
     <Call
         fn="files"
         in={[
-            $in.frame,
+            $in.names,
             $ctx.build.views
         ]}
     />
@@ -41,7 +39,6 @@
     <Call
         fn="index.renderAbiRoot"
         in={[
-            $in.frame,
             $in.source,
             $ctx.build.aliases
         ]}
@@ -49,6 +46,7 @@
 
     <Return
         value={{
+            status: Plan.Status.Valid,
             source: $ctx.renderAbiRoot,
             views: $ctx.files
         }}

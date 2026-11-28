@@ -1,7 +1,7 @@
 import { i64_positive_magnitude, max_u64 } from "core/const"
 import memory from "memory"
-import { CallCallee, CallRoute } from "rx_project_host"
 
+import { CallCallee, CallRoute } from "../../call/admission_model"
 import namedSurface from "../../call/named/surface"
 import { Kind } from "../source_graph/source"
 import lookup from "./lookup/resolve"

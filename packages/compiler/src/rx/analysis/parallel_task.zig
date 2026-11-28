@@ -102,9 +102,6 @@ const Work = struct {
             .out = result.name,
         });
     }
-    fn borrow(handle: *anyopaque) *Work {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
 pub fn compile(parent: *Flow, branch: *const Branch, outputs: *frontend.expressions.BindingStorage) Flow.Error!u32 {
@@ -125,40 +122,62 @@ pub fn compile(parent: *Flow, branch: *const Branch, outputs: *frontend.expressi
     try work.bind();
 
     if (comptime generated) {
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
         const entry = @import("generated_rx_compile_parallel_task");
         const Input = std.meta.Child(entry.Input);
         const result_slots: zx.memory.ColumnLengths = &.{&parent.next_binding};
 
         const input: Input = .{
-            .frame = @ptrCast(&work),
             .results = &.{ .cursor = @ptrCast(&result_slots), .types = @ptrCast(parent.results.types) },
         };
 
-        return entry.executeValue(empty.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
-            error.OutOfMemory => error.OutOfMemory,
+        const Store = std.meta.Child(@FieldType(entry.zx_pending, "store_0"));
+        var snapshot: std.meta.Child(Store) = .{ .step = .CompileBody, .row = null, .visible = null, .id = 0 };
+        var store: Store = &snapshot;
+
+        const Host = struct {
+            work: *Work,
+            snapshot: *std.meta.Child(Store),
+            store_0: *Store,
+            pub fn commit(host: *@This(), pending: anytype) Flow.Error!void {
+                const effect = pending.store_0 orelse return;
+                const task = host.work;
+
+                switch (effect.step) {
+                    .CompileBody => try compileBody(task),
+                    .CheckCalls => try checkCalls(task),
+                    .Capture => try resolveCaptures(task),
+                    .Lower => try lowerProgram(task),
+                    .CheckProgram => try checkProgram(task),
+                    .Ownership => try analyzeOwnership(task),
+                    .Validate => try validateProgram(task),
+                    .Argument => try buildArgument(task),
+                    .Publish => host.snapshot.id = try task.publish(task.parent.selectedResult(effect.row.?, effect.visible.?)),
+                }
+            }
+        };
+
+        var host: Host = .{ .work = &work, .snapshot = &snapshot, .store_0 = &store };
+
+        return entry.executeIn(scratch.allocator(), &input, &host) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
             error.InvalidFlow => error.InvalidFlow,
             else => unreachable,
         };
     }
 
-    const handle: *anyopaque = &work;
-
-    try compileParallelTaskBody(handle);
-    try checkParallelTaskCalls(handle);
-    try resolveParallelTaskCaptures(handle);
-    try lowerParallelTaskProgram(handle);
-    try checkParallelTaskProgram(handle);
-    try analyzeParallelTaskOwnership(handle);
-    try validateParallelTaskProgram(handle);
-    try buildParallelTaskArgument(handle);
+    try compileBody(&work);
+    try checkCalls(&work);
+    try resolveCaptures(&work);
+    try lowerProgram(&work);
+    try checkProgram(&work);
+    try analyzeOwnership(&work);
+    try validateProgram(&work);
+    try buildArgument(&work);
 
     return work.publish(parent.seedResult());
 }
 
-pub fn compileParallelTaskBody(handle: *anyopaque) Flow.Error!void {
-    const work = Work.borrow(handle);
-
+fn compileBody(work: *Work) Flow.Error!void {
     _ = work.nested.root(work.branch.body) catch |err| {
         work.parent.issue = work.nested.issue;
 
@@ -168,9 +187,7 @@ pub fn compileParallelTaskBody(handle: *anyopaque) Flow.Error!void {
     work.parent.next_binding = work.nested.next_binding;
 }
 
-pub fn checkParallelTaskCalls(handle: *anyopaque) Flow.Error!void {
-    const work = Work.borrow(handle);
-
+fn checkCalls(work: *Work) Flow.Error!void {
     for (work.nested.calls.items) |*call| {
         if (call.getters.len != 0 or !try frontend.isParallelSafeWithSuffix(work.parent.allocator, call.callee, call.callee_suffix)) return work.rejectEffects();
 
@@ -179,9 +196,7 @@ pub fn checkParallelTaskCalls(handle: *anyopaque) Flow.Error!void {
     }
 }
 
-pub fn resolveParallelTaskCaptures(handle: *anyopaque) Flow.Error!void {
-    const work = Work.borrow(handle);
-
+fn resolveCaptures(work: *Work) Flow.Error!void {
     work.types.items = try work.nested.takeTypeStorage();
     work.layout = try Layout.plan(work.temporary, work.environment.types, work.captures, work.nested.bindings.items(.type_id));
     work.selected = .{ .names = work.environment.names, .positions = work.layout.positions, .types = work.layout.parameter_types };
@@ -197,8 +212,7 @@ pub fn resolveParallelTaskCaptures(handle: *anyopaque) Flow.Error!void {
     work.parent.types = work.parent.type_storage.view();
 }
 
-pub fn lowerParallelTaskProgram(handle: *anyopaque) Flow.Error!void {
-    const work = Work.borrow(handle);
+fn lowerProgram(work: *Work) Flow.Error!void {
     const parent = work.parent;
     const allocator = parent.allocator;
     const owner = try std.fmt.allocPrint(allocator, "{s}#parallel-task-{d}", .{ parent.owner, work.branch.id.? });
@@ -234,37 +248,24 @@ pub fn lowerParallelTaskProgram(handle: *anyopaque) Flow.Error!void {
     }
 }
 
-pub fn checkParallelTaskProgram(handle: *anyopaque) Flow.Error!void {
-    const work = Work.borrow(handle);
-
+fn checkProgram(work: *Work) Flow.Error!void {
     if (!try frontend.isParallelSafeWithSuffix(work.parent.allocator, work.program, work.suffix)) return work.rejectEffects();
 }
 
-pub fn analyzeParallelTaskOwnership(handle: *anyopaque) Flow.Error!void {
-    const work = Work.borrow(handle);
+fn analyzeOwnership(work: *Work) Flow.Error!void {
     const suffix: zx.ir.FunctionTable = if (work.suffix) |tail| tail.* else .{};
     work.program.output_ownership = frontend.analyzeOwnershipWithSuffix(work.parent.allocator, work.program, suffix, &work.reporter) catch |err| return work.diagnostic(err);
 }
 
-pub fn validateParallelTaskProgram(handle: *anyopaque) Flow.Error!void {
+fn validateProgram(work: *Work) Flow.Error!void {
     if (comptime !frontend.checks_internal_ir) return;
-
-    const work = Work.borrow(handle);
-
     if (try frontend.validateIrExtending(work.parent.allocator, work.program, work.parent.verified_functions)) |issue| return work.fail(issue);
 }
 
-pub fn buildParallelTaskArgument(handle: *anyopaque) Flow.Error!void {
-    const work = Work.borrow(handle);
+fn buildArgument(work: *Work) Flow.Error!void {
     const parent = work.parent;
 
     work.argument = try Capture.argument(parent.metadataAllocator(), parent.owner, parent.types, work.environment_type, work.input_type, work.program.symbols.names, work.layout, work.span());
 
     if (parent.captures) |outer| outer.observeMapped(work.argument.expressions.references, work.selected.positions);
-}
-
-pub fn publishParallelTask(handle: *anyopaque, row: u64, visible: bool) Flow.Error!u32 {
-    const work = Work.borrow(handle);
-
-    return work.publish(work.parent.selectedResult(row, visible));
 }

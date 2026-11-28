@@ -1,8 +1,9 @@
-import type { BindingDiagnosticSource, BindingReplay } from "rx_project_host"
+export type { Diagnostic } from "../solve/replay_effect"
+
 import type { Input, Pairs } from "./model"
+import type { Diagnostic } from "../solve/replay_effect"
 
 export type View = Input.Omit("start", "collisions") & {
-    frame: BindingReplay,
     collisions: CollisionRows,
     uses: u32[]
 }
@@ -14,12 +15,6 @@ export type CollisionRows = Pairs.Omit("final") & {
 export type Replay = {
     view: View,
     final: bool
-}
-
-export type Diagnostic = {
-    source: BindingDiagnosticSource,
-    row: u64,
-    message: string
 }
 
 export type Cursor = {

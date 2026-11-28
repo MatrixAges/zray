@@ -1,0 +1,42 @@
+import preview from "./preview"
+
+import type { Cursor } from "./preparation"
+
+export type Input = {
+    current: Cursor,
+    ready: bool
+}
+
+export type Output = Cursor
+
+export default function (in: Input): Output {
+    const { current, ready } = in
+
+    const cursor = current.cursor + 1
+    const accepted = current.accepted + (ready ? 1 : 0)
+    const last = ready ? current.positions[current.cursor] : current.last
+
+    if (cursor == current.positions.length && accepted < current.limit) {
+        const more = preview({
+            ...current.selection,
+            start: current.scan,
+            capacity: current.capacity
+        })
+
+        return {
+            ...current,
+            cursor: 0,
+            scan: more.next,
+            positions: more.positions,
+            accepted,
+            last
+        }
+    }
+
+    return {
+        ...current,
+        cursor,
+        accepted,
+        last
+    }
+}

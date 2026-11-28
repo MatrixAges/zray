@@ -1,7 +1,7 @@
 <Module>
     <Type from="../model" as="Installation" />
 
-    <Args in={Installation.Replay} out={Installation.Prepared} />
+    <Args in={Installation.Replay} out={string[]} />
 
     <Call fn="begin" in={$in} />
 
@@ -9,10 +9,5 @@
         <Call module="paths" />
     </Loop>
 
-    <Return
-        value={{
-            lock: $in.lock,
-            paths: $ctx.paths.paths
-        }}
-    />
+    <Return value={$ctx.paths.paths} />
 </Module>

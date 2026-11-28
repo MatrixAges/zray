@@ -1,0 +1,16 @@
+import type { Command as Input } from "./body_effect"
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.body.effect = {
+        ...in,
+        type_only: false,
+        restored: false,
+        restored_function: null,
+        linked_count: 0,
+        calls: []
+    }
+}

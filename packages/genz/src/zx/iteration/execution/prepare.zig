@@ -42,6 +42,7 @@ pub fn beginLoweredLoop(handle: *anyopaque) Error!Admission {
 
         frame.state_info = .{
             .name = frame.name,
+            .reference = @backingInt(frame.state),
             .forwarded = if (frame.selection.forwarded) |call| @backingInt(call) else null,
         };
     }

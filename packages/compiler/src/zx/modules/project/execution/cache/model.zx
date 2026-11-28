@@ -1,9 +1,7 @@
 import type { ColumnLengths } from "memory"
-import type { ProjectBody } from "project_host"
 import type { Input as Lookup } from "../../../semantic_cache/state/lookup"
 
 export type Request = {
-    body: ProjectBody,
     root: bool,
     dependency_ready: bool,
     lookup: Lookup,

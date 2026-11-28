@@ -1,0 +1,10 @@
+<Store name="store_definition_preparation" version={1}>
+    <Type from="effect" as="Definition" />
+
+    <Object name="effect">
+        <Field name="step" type={Definition.Step} value={Definition.Step.CollectLayout} />
+        <Field name="message" type={string?} value={null} />
+        <Field name="row" type={u64?} value={null} />
+        <Field name="count" type={u64?} value={null} />
+    </Object>
+</Store>

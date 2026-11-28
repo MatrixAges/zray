@@ -8,7 +8,6 @@
             module="archive"
             in={{
                 graph: $in.graph,
-                lock: $in.lock,
                 index: $in.index,
                 path: $in.mapping.paths[$in.index],
                 digest: $in.mapping.sources[$in.index]

@@ -1,13 +1,4 @@
 export type GraphIO = opaque
-export type LockFile = opaque
-export type PackageManifest = opaque
-export type WorkspaceGraph = opaque
-
-export type LoadedLock = {
-    lock: LockFile,
-    matches: bool
-}
-
 export enum WorkspaceStatus {
     Valid,
     Duplicate,
@@ -32,7 +23,6 @@ export type Mapping = {
 }
 
 export type AssemblyOutcome = {
-    workspace: WorkspaceGraph,
     status: WorkspaceStatus,
     failed_owner: u64,
     owner_path: string,
@@ -40,10 +30,10 @@ export type AssemblyOutcome = {
     edge_name: string
 }
 
-export declare function openLock(allocator, graph: GraphIO, root: string): LoadedLock?
+export declare function openLock(allocator, graph: GraphIO, root: string): bool?
     throws { PackageGraphHostFailure }
 
-export declare function openMapping(allocator, graph: GraphIO, root: string, lock: LockFile): Mapping?
+export declare function openMapping(allocator, graph: GraphIO, root: string): Mapping?
     throws { PackageGraphHostFailure }
 
 export declare function canonical(allocator, graph: GraphIO, path: string): string
@@ -52,10 +42,10 @@ export declare function canonical(allocator, graph: GraphIO, path: string): stri
 export declare function verifyReceipt(allocator, graph: GraphIO, directory: string, digest: string): void
     throws { PackageGraphHostFailure }
 
-export declare function readInstalledArchive(allocator, graph: GraphIO, lock: LockFile, row: u64, path: string): PackageManifest?
+export declare function readInstalledArchive(allocator, graph: GraphIO, row: u64, path: string): bool
     throws { PackageGraphHostFailure }
 
-export declare function borrowMember(graph: GraphIO, ordinal: u64, relative: string): PackageManifest?
+export declare function matchWorkspaceMember(graph: GraphIO, ordinal: u64, relative: string): u64?
 
 export declare function assembleWorkspace(
     allocator,

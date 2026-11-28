@@ -1,5 +1,6 @@
 import type { Run as Invocation } from "../invocation/model"
 import type { Labels } from "../selection/model"
+import type { Header } from "./payload/shape"
 import type { Tree } from "./tree"
 
 export type Index = {
@@ -43,14 +44,6 @@ export type Codes = {
 export type Rows = {
     cursors: u32[],
     codes: Codes
-}
-
-export type Header = {
-    position: u32,
-    code: u8,
-    lane: u64,
-    item: u32,
-    next: u32
 }
 
 export type Event = {

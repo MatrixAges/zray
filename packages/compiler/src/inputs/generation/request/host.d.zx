@@ -54,9 +54,6 @@ export declare function prepareGenerationTemplates(request: GenerationRequest): 
 export declare function prepareGenerationModules(request: GenerationRequest): void
     throws { GenerationRequestFailed }
 
-export declare function checkGenerationInterfaces(request: GenerationRequest): void
-    throws { GenerationRequestFailed }
-
 export declare function generateFromPreparedInputs(request: GenerationRequest): string
     throws { GenerationRequestFailed }
 

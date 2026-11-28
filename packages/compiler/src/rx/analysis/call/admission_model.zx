@@ -1,0 +1,47 @@
+export enum CallRoute {
+    Source,
+    AuthorizedSource,
+    NamedSource,
+    NamedSetter,
+    NamedTarget,
+    Compiled,
+    Native,
+    Denied
+}
+
+export enum CallCallee {
+    Unused,
+    Module,
+    Function,
+    NamedFunction,
+    MissingModule,
+    InvalidNamedTarget,
+    NamedStore,
+    MissingNamedFunction,
+    MissingSignature,
+    MissingForward,
+    SetterOnForward,
+    TypeOnly,
+    MissingStore
+}
+
+export enum CompiledCallStatus {
+    Ready,
+    Missing,
+    Conflict,
+    Unlinked,
+    MissingExport,
+    MissingFunction,
+    Setter,
+    Transaction
+}
+
+export type Publication = {
+    callee: CallCallee,
+    module?: u64,
+    signature?: u64,
+    member?: u64,
+    edge?: u64,
+    route: CallRoute,
+    local: bool
+}

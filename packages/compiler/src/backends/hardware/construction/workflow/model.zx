@@ -1,16 +1,18 @@
-import type { HardwareBuild, NodeSort } from "hardware_graph_host"
 import type { ReadColumn, TextColumn } from "memory"
 import type { Ports } from "../../../../verification/execution/program/model"
 import type { Layout } from "../../../../verification/terms/layout"
+import type { Sort } from "../../binary/model"
+import type { Graph, Row } from "../../terms/parse/model"
+import type { Table } from "../../terms/table"
 
 export type Sizes = {
-    build: HardwareBuild,
     inputs: u64,
     definitions: u64
 }
 
 export type OutputTree = {
-    build: HardwareBuild,
+    graph: Graph,
+    variables: Table,
     types: Ports,
     type_id: u32,
     value: u8[],
@@ -19,13 +21,15 @@ export type OutputTree = {
 }
 
 export type Safety = {
-    build: HardwareBuild,
+    graph: Graph,
+    variables: Table,
     expression: string
 }
 
 export type Input = Sizes & {
     types: Ports,
     input_types: ReadColumn,
+    input_names: TextColumn,
     rows: DefinitionRows,
     output_path: string,
     output_type: u32,
@@ -34,8 +38,23 @@ export type Input = Sizes & {
     safety: string
 }
 
-export type InputWalk = Input.Pick("build", "inputs", "input_types", "types") & {
-    row: u64
+export type InputPort = Sort & {
+    signed: bool
+}
+
+export type OutputPort = {
+    symbol: string,
+    path: string,
+    node: u32,
+    width: u64,
+    boolean: bool,
+    signed: bool
+}
+
+export type InputWalk = Input.Pick("inputs", "input_types", "types") & {
+    row: u64,
+    ports: InputPort[],
+    nodes: Row[]
 }
 
 export type DefinitionRows = {
@@ -45,7 +64,10 @@ export type DefinitionRows = {
     files: TextColumn
 }
 
-export type Definitions = Input.Pick("build", "rows")
+export type Definitions = Input.Pick("rows") & {
+    graph: Graph,
+    variables: Table
+}
 
 export type DefinitionWalk = Definitions & {
     row: u64,
@@ -64,11 +86,12 @@ export type OutputFrame = OutputTree.Pick("type_id", "value", "path") & {
     children?: OutputChildren
 }
 
-export type OutputWalk = OutputTree.Pick("build", "types", "value_layout") & {
-    stack: OutputFrame[],
-    output_count: u64,
-    running: bool
-}
+export type OutputWalk =
+    OutputTree.Pick("graph", "variables", "types", "value_layout") & {
+        stack: OutputFrame[],
+        ports: OutputPort[],
+        running: bool
+    }
 
 export type OutputLeaf = {
     path: string,
@@ -83,9 +106,21 @@ export type OutputSearch = {
     leaf?: OutputLeaf
 }
 
+export type Outputs = {
+    graph: Graph,
+    ports: OutputPort[]
+}
+
+export type Output = {
+    nodes: Row[],
+    safe: u32,
+    inputs: InputPort[],
+    outputs: OutputPort[]
+}
+
 export type OutputWrite = {
-    sort: NodeSort,
+    sort: Sort,
     leaf: OutputLeaf,
     node: u32,
-    index: u64
+    ports: OutputPort[]
 }

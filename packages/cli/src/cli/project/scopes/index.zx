@@ -1,5 +1,4 @@
 export {
-    nativeScopeInterfacePath,
     readNativeScopeInterface,
     nativeScopeDeclaration,
     writeNativeScopeDeclaration,

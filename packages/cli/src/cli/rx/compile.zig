@@ -8,6 +8,7 @@ const toolchain = @import("../toolchain.zig");
 const native = @import("../build/native.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
+const Text = @import("cli_abi").layouts.@"zig:rx_execution_host".ApplicationText;
 
 const State = struct {
     context: *const Compile.Context,
@@ -17,6 +18,7 @@ const State = struct {
     cache: ?compiler.zig.GenerationCache = null,
     type_output: std.Io.Writer.Allocating,
     text: ?[]u8 = null,
+    text_view: Text = undefined,
     bundle: ?compiler.zig.ModuleBundle = null,
     store_memory: ?std.heap.ArenaAllocator = null,
     initializers: []const compiler.zig.store_initializers.Initializer.Borrowed = &.{},
@@ -100,7 +102,7 @@ pub fn run(context: Compile.Context) !Compile.Status {
 
     defer state.deinit();
 
-    const outcome = entry.executeIn(context.allocator, &request) catch |err| return state.failure.unwrap(err);
+    const outcome = entry.executeIn(context.allocator, &request, context.io) catch |err| return state.failure.unwrap(err);
 
     if (outcome.diagnostic) |message| try context.stderr.print("{s}\n", .{message});
 
@@ -184,36 +186,26 @@ pub fn openRxApplicationCache(handle: *const anyopaque) Error!void {
     self.cache = cache.init(context.io, context.allocator, self.loaded.project.root_dir) catch |err| return self.failure.save(err);
 }
 
-pub fn emitRxApplicationText(handle: *const anyopaque) Error!bool {
+pub fn emitRxApplicationText(handle: *const anyopaque) Error!?*const Text {
     const self = State.get(handle);
     const result = compiler.emitProgramVerified(self.context.allocator, self.configuration(), &self.prepared.?.analysis) catch |err| return self.failure.save(err);
 
-    if (result == .diagnostic) return self.reportDiagnostic(result.diagnostic);
+    if (result == .diagnostic) {
+        _ = try self.reportDiagnostic(result.diagnostic);
 
-    self.text = result.source;
-
-    return true;
-}
-
-pub fn writeRxApplicationText(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-    const context = self.context;
-    const path = context.options.output.?;
-    const artifacts = @import("../artifacts.zig");
-
-    if (self.type_output.written().len != 0) {
-        const abi_path = std.fmt.allocPrint(context.allocator, "{s}.abi.zig", .{path}) catch |err| return self.failure.save(err);
-
-        artifacts.write(context.io, abi_path, self.type_output.written()) catch |err| return self.failure.save(err);
+        return null;
     }
 
-    artifacts.write(context.io, path, self.text.?) catch |err| return self.failure.save(err);
+    self.text = result.source;
+    self.text_view = .{ .source = result.source, .abi = self.type_output.written() };
+
+    return &self.text_view;
 }
 
-pub fn printRxApplicationText(handle: *const anyopaque) Error!void {
+pub fn printRxApplicationText(handle: *const anyopaque, source: []const u8) Error!void {
     const self = State.get(handle);
 
-    self.context.stdout.writeAll(self.text.?) catch |err| return self.failure.save(err);
+    self.context.stdout.writeAll(source) catch |err| return self.failure.save(err);
 }
 
 pub fn emitRxApplicationModules(handle: *const anyopaque) Error!bool {

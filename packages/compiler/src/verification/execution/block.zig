@@ -22,7 +22,8 @@ const Frame = struct {
 pub fn execute(conditions: *Conditions, statements: zx.ir.Block, environment: []terms.Binding, path: []const u8) zx.Error![]const u8 {
     if (statements.len == 0) return path;
 
-    const control = zx.columns.borrow(std.meta.Child(@FieldType(Scope, "control")), statements.control);
+    const table: *const zx.ir.ControlTable = statements.control;
+    const control = zx.columns.borrow(std.meta.Child(@FieldType(Scope, "control")), table);
 
     const scope: Scope = .{
         .control = &control,
@@ -30,11 +31,18 @@ pub fn execute(conditions: *Conditions, statements: zx.ir.Block, environment: []
         .call_arguments = conditions.program.expressions.call_arguments,
     };
 
-    return within(conditions, &scope, environment, statements.first, statements.len, path);
+    const outcome = try within(conditions, &scope, environment, statements.first, statements.len, &.{
+        .path = path,
+        .violations = conditions.violations,
+    });
+
+    conditions.violations = outcome.violations;
+
+    return outcome.path;
 }
 
-fn within(conditions: *Conditions, scope: *const Scope, environment: []terms.Binding, first: usize, count: usize, path: []const u8) zx.Error![]const u8 {
-    if (count == 0) return path;
+fn within(conditions: *Conditions, scope: *const Scope, environment: []terms.Binding, first: usize, count: usize, path: *const Session.Path) zx.Error!Session.Path {
+    if (count == 0) return path.*;
 
     const checkpoint = conditions.scratch.checkpoint();
 
@@ -58,14 +66,15 @@ fn within(conditions: *Conditions, scope: *const Scope, environment: []terms.Bin
         .block = @ptrCast(&frame),
         .session = @ptrCast(&frame.session),
         .scope = scope,
-        .path = path,
+        .path = path.path,
+        .violations = path.violations,
         .first = first,
         .count = count,
     };
 
     const continuation = walk.executeIn(conditions.allocator, &input) catch |err| return Session.failure(err);
 
-    if (continuation) |next_path| return next_path;
+    if (continuation) |next_path| return .{ .path = next_path.path, .violations = next_path.violations };
 
     return conditions.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, "verification does not yet model this statement");
 }
@@ -93,20 +102,22 @@ pub fn bindSymbolicStatement(handle: *anyopaque, symbol: u32, input: *const nati
     };
 }
 
-pub fn publishSymbolicStatementReturn(handle: *anyopaque, path: []const u8, input: *const native.SymbolicOutcome) zx.Error!void {
+pub fn publishSymbolicStatementReturn(handle: *anyopaque, path: *const Session.Path, input: *const native.SymbolicOutcome) zx.Error![]const []const u8 {
     const frame = Frame.borrow(handle);
     const conditions = frame.session.conditions;
     const value = terms.Value.borrow(input.text, input.fields);
+    const checked = try Session.apply(conditions, .Returned, path, value);
 
-    try conditions.postconditions(path, value);
-    try conditions.returns.append(conditions.allocator, .{ .path = path, .value = value });
+    try conditions.returns.append(conditions.allocator, .{ .path = path.path, .value = value });
+
+    return checked.violations;
 }
 
-pub fn runSymbolicChild(handle: *anyopaque, body: u32, path: []const u8) zx.Error![]const u8 {
+pub fn runSymbolicChild(allocator: std.mem.Allocator, handle: *anyopaque, body: u32, path: *const Session.Path) zx.Error!*const Session.Path {
     const frame = Frame.borrow(handle);
     const control = frame.evaluator.program.body.control;
 
-    return within(
+    const outcome = try within(
         frame.session.conditions,
         frame.scope,
         frame.evaluator.environment,
@@ -114,4 +125,10 @@ pub fn runSymbolicChild(handle: *anyopaque, body: u32, path: []const u8) zx.Erro
         control.block_count[body],
         path,
     );
+
+    const result = try allocator.create(Session.Path);
+
+    result.* = outcome;
+
+    return result;
 }

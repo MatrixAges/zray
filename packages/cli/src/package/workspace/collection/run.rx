@@ -1,7 +1,7 @@
 <Module>
     <Type from="index" as="IO" />
 
-    <Args in={IO.Collection} out={void} />
+    <Args in={IO.Collection} out={string?} />
 
     <Store from="state" as="state" />
 
@@ -12,12 +12,14 @@
 
         <If on={$ctx.invalid != null}>
             <Call
-                fn="index.invalidPattern"
-                in={[
-                    $in,
-                    $ctx.readRoot.patterns[$ctx.invalid]
-                ]}
+                fn="invalid_pattern"
+                in={{
+                    path: $ctx.readRoot.path,
+                    pattern: $ctx.readRoot.patterns[$ctx.invalid]
+                }}
             />
+
+            <Return value={$ctx.invalid_pattern} />
         </If>
 
         <Call
@@ -42,7 +44,6 @@
             />
         </Loop>
 
-        <Call fn="index.closeDirectory" in={$in} />
         <Call fn="sort_paths" in={$store.state.discovered} />
 
         <Loop on={$in.running}>
@@ -56,5 +57,9 @@
                 }}
             />
         </Loop>
+
+        <Return value={$ctx.members.diagnostic} />
     </If>
+
+    <Return value={null} />
 </Module>

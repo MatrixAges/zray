@@ -14,13 +14,15 @@ const Declarations = struct {
 };
 
 pub const State = struct {
-    session: *const host.Context,
+    session: *host.Context,
     packages: std.ArrayList(Lock.Package) = .empty,
     archive_declarations: std.ArrayList(Declarations) = .empty,
     archives: pkgs.install.Archives,
     resolver: pkgs.install.Resolver,
     dependencies: pkgs.install.Dependencies = undefined,
     owner_path: ?[]const u8 = null,
+    archive_manifest: Manifest = undefined,
+    archive_identity: abi.ArchiveIdentity = undefined,
     handle: *State = undefined,
     pub fn get(handle: *const anyopaque) *State {
         const reference: *const *State = @ptrCast(@alignCast(handle));
@@ -123,7 +125,7 @@ pub fn finishDependencies(handle: *const anyopaque, index: u64) u64 {
     return rows.len;
 }
 
-pub fn finishFresh(handle: *const anyopaque) host.Error!*const abi.LockData {
+pub fn finishFresh(handle: *const anyopaque) host.Error!void {
     const fresh = State.get(handle);
     const session = fresh.session;
     const allocator = session.allocator;
@@ -135,9 +137,5 @@ pub fn finishFresh(handle: *const anyopaque) host.Error!*const abi.LockData {
 
     lock.validate(allocator) catch |err| return session.fail(err);
 
-    const data = allocator.create(host.LockData) catch |err| return session.fail(err);
-
-    data.* = .{ .lock = lock };
-
-    return @ptrCast(data);
+    session.lock = .{ .lock = lock };
 }

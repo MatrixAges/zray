@@ -1,0 +1,22 @@
+<Module>
+    <Type from="emission_model" as="Loop" />
+
+    <Args in={Loop.Growth} out={u64} />
+
+    <If on={$in.renewals.emit}>
+        <Call
+            fn="index.emitLoopRenewals"
+            in={[
+                $in.loop_frame,
+                $in.renewals.first,
+                $in.renewals.end,
+                $in.renewals.skipped,
+                $in.schedule.inline_lists
+            ]}
+        />
+
+        <Return value={$ctx.emitLoopRenewals} />
+    </If>
+
+    <Return value={0} />
+</Module>

@@ -1,7 +1,10 @@
 <Module>
     <Type from="model" as="Flow" />
+    <Type from="../invocation/effect" as="Effect" />
 
     <Args in={Flow.Apply} out={void} />
+
+    <Store from="../invocation/invocation" as="invocation" />
 
     <If on={$in.event.header == null}>
         <Call fn="diagnostic" in={$in.event.route} />
@@ -15,28 +18,34 @@
         />
 
         <Call
-            fn="host.rejectPreparedFlow"
-            in={[
-                $in.invocation.state,
-                $ctx.tree,
-                $ctx.diagnostic.at_output,
-                $ctx.diagnostic.code,
-                $ctx.diagnostic.message
-            ]}
+            fn="../invocation/stage"
+            in={{
+                step: Effect.Step.RejectFlow,
+                issue: {
+                    node: $ctx.tree,
+                    at_output: $ctx.diagnostic.at_output,
+                    code: $ctx.diagnostic.code,
+                    message: $ctx.diagnostic.message
+                }
+            }}
+            setter={[$store.invocation.effect]}
         />
 
         <Else>
             <Call module="payload/plan" in={$in} />
 
             <Call
-                fn="host.beginPreparedCall"
-                in={[
-                    $in.invocation.state,
-                    $in.event.header,
-                    $in.event.implicit_header,
-                    $ctx.plan,
-                    $in.event.previous_end
-                ]}
+                fn="../invocation/stage"
+                in={{
+                    step: Effect.Step.Begin,
+                    begin: {
+                        header: $in.event.header,
+                        implicit_header: $in.event.implicit_header,
+                        payload: $ctx.plan,
+                        previous_end: $in.event.previous_end
+                    }
+                }}
+                setter={[$store.invocation.effect]}
             />
 
             <If on={$in.event.route == Flow.Route.Call}>

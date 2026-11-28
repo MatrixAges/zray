@@ -26,8 +26,8 @@ fn run(lowering: *Lower, temporary: std.mem.Allocator, scope: ir.ScopeRow, layou
         .types = expressions.types,
         .type_kinds = lowering.program.types.kinds,
         .used = lowering.used,
-        .stack_keys = @ptrCast(&stack.keys.items),
-        .stack_buckets = @ptrCast(&stack.buckets.items),
+        .stack_keys = stack.keys.items,
+        .stack_buckets = stack.buckets.items,
         .changes = if (aliases) |active| active.state.changes else &.{},
         .iteration = iteration_mode,
     };

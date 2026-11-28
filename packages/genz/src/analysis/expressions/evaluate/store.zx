@@ -1,5 +1,5 @@
 import integers from "std:integer"
-import { appendAstProjectionRows, astExpressionCount } from "ast_rows"
+import { appendExpressionRows, AstPayloadOwnership, astExpressionCount } from "ast_rows"
 import host from "lowering_host"
 import { requireAllocation } from "memory"
 
@@ -39,7 +39,7 @@ export default function (in: Input): Output {
     })
 
     requireAllocation(emitted.valid)
-    appendAstProjectionRows(writer, emitted.nodes)
+    appendExpressionRows(writer, emitted.nodes, null, AstPayloadOwnership.Borrowed)
 
     return match emitted.result {
         Result.Direct => emitted.root,

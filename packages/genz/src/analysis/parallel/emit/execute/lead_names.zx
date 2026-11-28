@@ -26,16 +26,12 @@ export default function (in: Input): Output {
 
     const type_name = host.retainLoweringText(frame, type_value.name)
 
-    host.setLoweringSerial(frame, type_value.serial)
-
     const input_value = label({
         serial: type_value.serial,
         kind: Kind.Input
     })
 
     const input_name = host.retainLoweringText(frame, input_value.name)
-
-    host.setLoweringSerial(frame, input_value.serial)
 
     const worker_value = label({
         serial: input_value.serial,
@@ -44,7 +40,7 @@ export default function (in: Input): Output {
 
     const worker_name = host.retainLoweringText(frame, worker_value.name)
 
-    host.setLoweringSerial(frame, worker_value.serial)
+    host.finishGeneratedAst(frame, worker_value.serial, false)
 
     return {
         type_name,

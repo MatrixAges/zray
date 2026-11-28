@@ -16,7 +16,6 @@ const State = struct {
     path: []const u8,
     source: []const u8,
     config_path: ?[]const u8,
-    modules: []const rx.ModuleSource,
     calls: []const Selection,
     writer: *std.Io.Writer,
     loaded: project.Loaded = undefined,
@@ -50,7 +49,6 @@ pub fn validate(io: std.Io, allocator: std.mem.Allocator, path: []const u8, sour
         .path = path,
         .source = source,
         .config_path = config_path,
-        .modules = modules,
         .calls = calls,
         .writer = writer,
         .cache = .{ .allocator = allocator },
@@ -58,16 +56,19 @@ pub fn validate(io: std.Io, allocator: std.mem.Allocator, path: []const u8, sour
     };
 
     const reference = &state;
+    const module_paths = zx.memory.borrowTextColumn("path", modules);
 
     defer state.deinit();
 
     return @import("cli_source").check_zx_function.executeIn(allocator, &.{
         .check = @ptrCast(&reference),
         .has_calls = calls.len != 0,
+        .module_paths = @ptrCast(&module_paths),
+        .module_count = modules.len,
     }) catch |err| state.failure.unwrap(err);
 }
 
-pub fn loadFunctionProject(handle: *const anyopaque) Error!bool {
+pub fn loadFunctionProject(handle: *const anyopaque) Error!?[]const u8 {
     const self = State.get(handle);
 
     self.loaded = project.load(self.io, self.allocator, self.path, self.config_path) catch |err| {
@@ -75,16 +76,16 @@ pub fn loadFunctionProject(handle: *const anyopaque) Error!bool {
 
         self.writer.print("{s}: {s}\n", .{ self.config_path orelse "pkg.yaml", @errorName(err) }) catch |issue| return self.failure.save(issue);
 
-        return false;
+        return null;
     };
 
     if (self.loaded.diagnostic) |message| {
         self.writer.print("{s}\n", .{message}) catch |err| return self.failure.save(err);
 
-        return false;
+        return null;
     }
 
-    return true;
+    return self.loaded.project.root_dir;
 }
 
 pub fn loadFunctionSources(handle: *const anyopaque) Error!?bool {
@@ -148,30 +149,17 @@ pub fn analyzeFunctionSignatures(handle: *const anyopaque) Error!*const Signatur
     return &self.signature_check;
 }
 
-pub fn resolveFunctionModules(handle: *const anyopaque) Error![]const []const u8 {
-    const self = State.get(handle);
-    const allocator = self.allocator;
-    const resolved = allocator.alloc([]const u8, self.modules.len) catch |err| return self.failure.save(err);
-
-    for (self.modules, 0..) |module, index| {
-        resolved[index] = std.fs.path.resolve(allocator, &.{ self.loaded.project.root_dir, module.path }) catch |err| return self.failure.save(err);
-    }
-
-    return resolved;
-}
-
 pub fn reportFunctionDelegate(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
 
     self.writer.print("{s}: default re-export target is missing from the RX module collection\n", .{self.path}) catch |err| return self.failure.save(err);
 }
 
-pub fn closeFunctionSignatures(handle: *const anyopaque) void {
-    State.get(handle).closeSignatures();
-}
-
 pub fn analyzeCheckedFunction(handle: *const anyopaque) Error!bool {
     const self = State.get(handle);
+
+    self.closeSignatures();
+
     const inputs = self.detected.sources;
     var analyzed = compiler.analyzeProjectWithCache(self.allocator, inputs, self.loaded.project, &self.cache) catch |err| return self.failure.save(err);
 

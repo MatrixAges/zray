@@ -1,12 +1,9 @@
 export {
     readRoot,
-    invalidPattern,
     openDirectory,
     nextDirectory,
     enterDirectory,
-    closeDirectory,
     readMember,
-    duplicateMember,
     publishMember
 } from "package_workspace_host"
 

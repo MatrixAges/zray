@@ -57,10 +57,8 @@ export declare function recordCheckFunctionCalls(
     module: u64,
     calls: MatchedCall[]
 ): void throws { SourceLoadFailure }
-export declare function closeCheckGraph(check: ProjectCheck): void
 export declare function checkStoreTypes(check: ProjectCheck): bool throws { SourceLoadFailure }
 export declare function checkFunction(check: ProjectCheck, index: u64): bool throws { SourceLoadFailure }
-export declare function closeCheckFunctions(check: ProjectCheck): void
 export declare function checkCompiledModules(check: ProjectCheck): bool throws { SourceLoadFailure }
 export declare function checkModulePaths(check: ProjectCheck): bool throws { SourceLoadFailure }
 
@@ -70,10 +68,8 @@ export declare function buildStoreCheckGraph(check: StoreCheck): bool throws { S
 export declare function analyzeStoreCheckSignatures(check: StoreCheck): bool throws { SourceLoadFailure }
 export declare function checkStoreRegistry(check: StoreCheck): bool throws { SourceLoadFailure }
 
-export declare function loadFunctionProject(check: FunctionCheck): bool throws { SourceLoadFailure }
+export declare function loadFunctionProject(check: FunctionCheck): string? throws { SourceLoadFailure }
 export declare function loadFunctionSources(check: FunctionCheck): bool? throws { SourceLoadFailure }
 export declare function analyzeFunctionSignatures(check: FunctionCheck): SignatureCheck throws { SourceLoadFailure }
-export declare function resolveFunctionModules(check: FunctionCheck): string[] throws { SourceLoadFailure }
 export declare function reportFunctionDelegate(check: FunctionCheck): void throws { SourceLoadFailure }
-export declare function closeFunctionSignatures(check: FunctionCheck): void
 export declare function analyzeCheckedFunction(check: FunctionCheck): bool throws { SourceLoadFailure }

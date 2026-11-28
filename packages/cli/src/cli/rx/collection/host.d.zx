@@ -26,7 +26,6 @@ export type FileRead = {
 }
 
 export declare function registerCollectionEntry(collection: Collection, kind: Kind): bool throws { SourceLoadFailure }
-export declare function releaseRxDocument(collection: Collection): void
 
 export declare function selectCollectionPath(collection: Collection, row: u64): string? throws { SourceLoadFailure }
 export declare function resolveCollectionPhysicalPath(collection: Collection): PhysicalResolution throws { SourceLoadFailure }

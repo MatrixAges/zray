@@ -19,6 +19,7 @@ export default function (in: Input): Output {
     const completed = loop({
         index: 0,
         path: launch,
+        violations: in.violations,
         values
     }, {
         while: state => state.index < count,
@@ -42,7 +43,7 @@ export default function (in: Input): Output {
 
             if (violation != null) {
                 const obligation = host.bindSymbolicBoolean(session, violation)
-                host.publishClauseViolation(session, obligation)
+                state.violations = state.violations.push(obligation)[0]
             }
 
             const joined = conjunction({
@@ -57,6 +58,7 @@ export default function (in: Input): Output {
 
     return {
         path: completed.path,
+        violations: completed.violations,
         first,
         values: completed.values
     }

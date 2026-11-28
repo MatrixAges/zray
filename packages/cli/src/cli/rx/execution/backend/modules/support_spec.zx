@@ -1,0 +1,32 @@
+import memory from "memory"
+
+import { canonical_dependency } from "../../../../command/const"
+
+import type { Input as Output } from "../../../../command/modules/model"
+import type { AbiWalk as Input, SupportModule } from "../model"
+
+export default function (in: Input): Output {
+    const { directory, index, settings, views, view_count, builtins } = in
+
+    const module: SupportModule = match {
+        index < view_count => {
+            name: memory.readTextColumn(views.names, index),
+            file: memory.readTextColumn(views.files, index),
+            dependencies: [canonical_dependency]
+        },
+        _ => builtins[index - view_count]
+    }
+
+    return {
+        spec: {
+            settings,
+            name: module.name,
+            path: `${directory}/${module.file}`,
+            imports: module.dependencies,
+            includes: [],
+            canonical: false,
+            abi: null,
+            translated: null
+        }
+    }
+}

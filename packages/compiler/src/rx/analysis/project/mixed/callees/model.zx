@@ -30,3 +30,30 @@ export enum Action {
     NotExecutableZX,
     MissingMember
 }
+
+export enum EffectKind {
+    Done,
+    ImportLibrary,
+    CompileSetter,
+    Reject
+}
+
+export type Request = {
+    kind: EffectKind,
+    position: u64,
+    target?: u64,
+    name?: bool,
+    message?: string
+}
+
+export type Imported = {
+    function_id?: u32,
+    setter: bool,
+    has_stores: bool,
+    orchestration: bool
+}
+
+export type Reply = {
+    library?: Imported,
+    setter?: u32
+}

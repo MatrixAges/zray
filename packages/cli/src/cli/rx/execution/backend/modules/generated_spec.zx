@@ -1,0 +1,21 @@
+import memory from "memory"
+
+import type { Input as Output } from "../../../../command/modules/model"
+import type { GeneratedWalk as Input } from "../model"
+
+export default function (in: Input): Output {
+    const { generated, index } = in
+
+    return {
+        spec: {
+            settings: in.settings,
+            name: memory.readTextColumn(generated.names, index),
+            path: in.options.module_paths[index],
+            imports: memory.readTextListColumn(generated.imports, index),
+            includes: [],
+            canonical: true,
+            abi: null,
+            translated: null
+        }
+    }
+}

@@ -1,8 +1,15 @@
-import type { StoreRegistryLoad } from "rx_project_host"
-
 export type Load = {
-    state: StoreRegistryLoad,
     count: u64,
+    row: u64
+}
+
+export enum LoadStep {
+    BindAliases,
+    Compile
+}
+
+export type Effect = {
+    step: LoadStep,
     row: u64
 }
 

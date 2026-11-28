@@ -1,51 +1,65 @@
 import integers from "std:integer"
+import capacity from "core/bytes/map/capacity"
 import lookup from "core/bytes/map/lookup"
 import slot from "core/bytes/map/slot"
 import host from "hardware_graph_host"
 import { Form, Kind } from "hardware_graph_host"
 
+import rehash from "../rehash"
 import space from "./space"
 
-import type { Store as Input } from "./model"
-
-export type Output = u32
+import type { Store as Input, Term as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { build, key } = in
-
-    const cache = host.readHardwareCache(build)
-    const node_count = cache.node_count
+    const { graph, key } = in
+    const { nodes, cache, cache_limit } = graph
 
     const found = lookup({
         keys: cache.keys,
         values: cache.values,
         key,
-        full: cache.full
+        full: integers.widen(cache.count) == cache_limit
     })
 
     if (found.value != null) {
-        return found.value
+        return {
+            graph,
+            node: found.value
+        }
     }
 
-    if (found.grow) {
-        host.growHardwareCache(build)
+    const node_count = nodes.length
+
+    if (!space({
+        node_count,
+        width: in.width
+    })) {
+        host.rejectHardwareTerm()
+    }
+
+    const size = match found.grow {
+        true => capacity(cache.count + 1),
+        _ => ({
+            capacity: cache.keys.length,
+            limit: cache_limit
+        })
+    }
+
+    const table = match found.grow {
+        true => rehash({
+            keys: cache.keys,
+            values: cache.values,
+            capacity: size.capacity
+        }),
+        _ => cache
     }
 
     const position = match found.grow {
         true => slot({
-            keys: host.readHardwareCache(build).keys,
+            keys: table.keys,
             key
         }),
         _ => found.position
-    }
-
-    const valid = space({
-        node_count,
-        width: in.width
-    })
-
-    if (!valid) {
-        host.rejectHardwareTerm()
     }
 
     const kind = match in.form {
@@ -57,19 +71,33 @@ export default function (in: Input): Output {
         _ => Kind.Extend
     }
 
-    return host.appendHardwareTerm(
-        build,
-        position,
-        key,
+    const id = integers.narrow(node_count)
+
+    const node = {
         kind,
-        integers.narrowShort(in.width),
-        in.boolean,
-        in.first,
-        in.second,
-        in.third,
-        in.operator ?? 0,
-        integers.narrowShort(in.extra),
-        in.form == Form.SignExtend,
-        in.origin
-    )
+        width: integers.narrowShort(in.width),
+        boolean: in.boolean,
+        first: in.first,
+        second: in.second,
+        third: in.third,
+        operator: in.operator ?? 0,
+        extra: integers.narrowShort(in.extra),
+        signed: in.form == Form.SignExtend
+    }
+
+    return {
+        graph: {
+            nodes: nodes.push({
+                node,
+                origin: in.origin
+            })[0],
+            cache: {
+                keys: table.keys.with(position, key),
+                values: table.values.with(position, id),
+                count: table.count + 1
+            },
+            cache_limit: size.limit
+        },
+        node: id
+    }
 }

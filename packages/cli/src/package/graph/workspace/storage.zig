@@ -27,12 +27,10 @@ pub fn assembleWorkspace(
     }
 
     const assembly = pkgs.graph.assemble(self.backing, root, packages, edges, 0) catch |err| return self.fail(err);
-    const slice = allocator.create([]graph.Package) catch |err| return self.fail(err);
     const view = allocator.create(AssemblyOutcome) catch |err| return self.fail(err);
-    slice.* = packages;
+    self.workspace_packages = packages;
 
     view.* = .{
-        .workspace = @ptrCast(slice),
         .status = switch (assembly.status) {
             inline else => |status| @field(WorkspaceStatus, @tagName(status)),
         },

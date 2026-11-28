@@ -3,48 +3,52 @@
 
     <Args in={Hardware.OutputWalk} out={Hardware.OutputWalk} />
 
-    <Call fn="next_leaf" in={$in} />
+    <Call
+        fn="next_leaf"
+        in={$in.pick([
+            "types",
+            "value_layout",
+            "stack"
+        ])}
+    />
 
     <If on={$ctx.next_leaf.leaf != null}>
         <Call
             module="../../terms/parse/run"
             in={{
-                build: $in.build,
-                expression: $ctx.next_leaf.leaf.expression
+                ...$in.pick([
+                    "graph",
+                    "variables"
+                ]),
+                expression: $ctx.next_leaf.leaf.expression,
+                origin: null
             }}
         />
 
         <Call
-            fn="host.readHardwareSort"
-            in={[
-                $in.build,
-                $ctx.run
-            ]}
+            fn="../../terms/parse/operand_sort"
+            in={{
+                nodes: $ctx.run.graph.nodes,
+                node: $ctx.run.node
+            }}
         />
 
         <Call
             fn="write_output"
             in={{
-                sort: $ctx.readHardwareSort,
+                sort: $ctx.operand_sort,
                 leaf: $ctx.next_leaf.leaf,
-                node: $ctx.run,
-                index: $in.output_count
+                node: $ctx.run.node,
+                ports: $in.ports
             }}
-        />
-
-        <Call
-            fn="host.writeHardwareOutput"
-            in={[
-                $in.build,
-                $ctx.write_output
-            ]}
         />
 
         <Return
             value={{
                 ...$in,
+                graph: $ctx.run.graph,
                 stack: $ctx.next_leaf.stack,
-                output_count: $in.output_count + 1,
+                ports: $ctx.write_output,
                 running: $ctx.next_leaf.stack.length != 0
             }}
         />

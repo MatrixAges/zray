@@ -39,7 +39,7 @@ export default function (in: Input): Output {
 
     const name = host.retainLoweringText(frame, generated.name)
 
-    host.setLoweringSerial(frame, generated.serial)
+    host.finishGeneratedAst(frame, generated.serial, false)
 
     const subject = host.lowerExpression(frame, subject_ir, false, null)
     const ref_origin = readAstOrigin(writer)

@@ -10,6 +10,7 @@ export default function (in: Input): Output {
         session: in.session,
         scope: in.scope,
         path: in.path,
+        violations: in.violations,
         row: in.first,
         end,
         running: in.first < end

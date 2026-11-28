@@ -22,10 +22,11 @@
     />
 
     <Call
-        fn="../../../tasks/rows.setLoweringSerial"
+        fn="../../../tasks/rows.finishGeneratedAst"
         in={[
             $in.frame,
-            $ctx.label.serial
+            $ctx.label.serial,
+            false
         ]}
     />
 

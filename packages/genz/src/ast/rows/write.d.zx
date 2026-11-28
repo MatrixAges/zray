@@ -1,6 +1,3 @@
-export declare function appendAstLeafStatements(writer: AstWriter, rows: AstLeafStatements): void
-    throws { OutOfMemory }
-
 export declare function appendStatementSequence(
     writer: AstWriter,
     target: AstSequence,
@@ -71,9 +68,6 @@ export declare function replaceAstIdentifier(writer: AstWriter, index: u64, name
 export declare function astExpressionCount(writer: AstWriter): u32
 
 export declare function auxiliaryDeclarationCount(writer: AstWriter): u64
-
-export declare function appendAstProjectionRows(writer: AstWriter, rows: ProjectionRows): void
-    throws { OutOfMemory }
 
 export declare function appendAuxiliaryRow(writer: AstWriter, rows: ConstantRows): u8[]
     throws { OutOfMemory }

@@ -21,8 +21,6 @@
             }}
         />
 
-        <Call fn="index.releaseRxDocument" in={$in.collection} />
-
         <Return
             value={{
                 ...$in,

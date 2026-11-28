@@ -47,11 +47,15 @@ pub fn run(derivation: *Derivation) Error!void {
     defer state.resolver.deinit(backing);
 
     if (comptime generated) {
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        var entry_scratch = std.heap.ArenaAllocator.init(backing);
+
+        defer entry_scratch.deinit();
+
+        const idle = entry_scratch.allocator();
 
         var stages: Stages = .{
-            .empty = empty.allocator(),
-            .scope = .{ .active = empty.allocator() },
+            .idle = idle,
+            .scope = .{ .active = idle },
             .declarations = .init(backing),
             .collection_scratch = .init(backing),
             .body = .{
@@ -78,7 +82,42 @@ pub fn run(derivation: *Derivation) Error!void {
             .signatures = &stages.signatures.input,
         };
 
-        return abi.entry.executeIn(stages.scope.allocator(), &input) catch |err| state.report(switch (@as(anyerror, err)) {
+        const Store = std.meta.Child(@FieldType(abi.entry.zx_pending, "store_0"));
+
+        var snapshot: std.meta.Child(Store) = .{
+            .step = .RefreshBindings,
+            .row = null,
+            .left = null,
+            .right = null,
+            .diagnostic = null,
+            .id = 0,
+        };
+
+        var store: Store = &snapshot;
+
+        const Host = struct {
+            frame: *Inference,
+            snapshot: *std.meta.Child(Store),
+            store_0: *Store,
+            pub fn commit(host: *@This(), pending: anytype) Error!void {
+                const effect = pending.store_0 orelse return;
+                const frame = host.frame;
+
+                switch (effect.step) {
+                    .UnifyBinding => try frame.bindings.unify(@intCast(effect.row.?), effect.right.?),
+                    .RefreshBindings => frame.bindings.refresh(),
+                    .RejectBinding => return frame.bindings.reject(effect.diagnostic.?),
+                    .MergeNonNull => try frame.non_null.merge(@intCast(effect.row.?), effect.left.?, effect.right.?),
+                    .RefreshNonNull => frame.non_null.refresh(),
+                    .ReserveNonNull => host.snapshot.id = try frame.non_null.reserve(@intCast(effect.row.?), effect.right.?),
+                    .RegisterNonNull => host.snapshot.id = try frame.non_null.register(@intCast(effect.row.?), effect.right.?),
+                }
+            }
+        };
+
+        var host: Host = .{ .frame = &stages.inference, .snapshot = &snapshot, .store_0 = &store };
+
+        return abi.entry.executeIn(stages.scope.allocator(), &input, &host) catch |err| state.report(switch (@as(anyerror, err)) {
             error.Overflow, error.IntegerOverflow => error.OutOfMemory,
             else => workflow.errorSet(err),
         });
@@ -88,7 +127,7 @@ pub fn run(derivation: *Derivation) Error!void {
 }
 
 const Stages = struct {
-    empty: std.mem.Allocator,
+    idle: std.mem.Allocator,
     scope: zx.memory.ArenaScope,
     declarations: zx.Arena,
     ports: abi.Ports = undefined,
@@ -198,7 +237,7 @@ pub fn commitFlowPorts(handle: *anyopaque, batches: []const *const PortBatch) Er
 
     try PortPublication.apply(&state.graph, state.ports, batches);
 
-    stages.scope.active = stages.empty;
+    stages.scope.active = stages.idle;
 
     stages.declarations.reset(0);
 }
@@ -218,7 +257,7 @@ pub fn openFlowCollection(handle: *anyopaque) void {
 pub fn releaseFlowCollection(handle: *anyopaque) void {
     const stages = borrow(handle).stages;
 
-    stages.scope.active = stages.empty;
+    stages.scope.active = stages.idle;
     _ = stages.collection_scratch.reset(.free_all);
 }
 
@@ -232,7 +271,7 @@ pub fn releaseFlowPending(handle: *anyopaque) void {
     const state = borrow(handle);
     const stages = state.stages;
 
-    stages.scope.active = stages.empty;
+    stages.scope.active = stages.idle;
 
     stages.inference.release();
     state.releasePending();
@@ -270,7 +309,7 @@ pub fn publishFlowSignatures(
         @memcpy(@as([]u32, @ptrCast(ports.items(.output))), outputs);
     }
 
-    stages.scope.active = stages.empty;
+    stages.scope.active = stages.idle;
     _ = stages.inference.workspace.reset(.free_all);
 
     state.publish(table);

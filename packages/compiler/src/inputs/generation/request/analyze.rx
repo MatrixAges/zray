@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Request" />
 
-    <Args in={Request.Analyze} out={string} />
+    <Args in={Request.Analyze} out={string?} />
 
     <If on={$in.analysis_available}>
         <Call fn="host.restoreGenerationAnalysis" in={$in.request} />
@@ -11,7 +11,11 @@
 
     <Call fn="host.prepareGenerationTemplates" in={$in.request} />
     <Call fn="host.prepareGenerationModules" in={$in.request} />
-    <Call fn="host.checkGenerationInterfaces" in={$in.request} />
+
+    <If on={!$in.interfaces_loaded}>
+        <Return value={null} />
+    </If>
+
     <Call fn="host.generateFromPreparedInputs" in={$in.request} />
 
     <Return value={$ctx.generateFromPreparedInputs} />

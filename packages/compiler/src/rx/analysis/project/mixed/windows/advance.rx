@@ -1,40 +1,54 @@
 <Module>
     <Type from="../windows" as="Windows" />
-    <Type from="host" as="Host" />
+    <Type from="../operation" as="Operation" />
 
     <Args in={Windows.Cursor} out={Windows.Cursor} />
+
+    <Store from="../operation" as="mixed" />
 
     <Call module="refresh" in={$in} />
 
     <Call
-        fn="host.restoreMixedPrefix"
-        in={[
-            $in.state,
-            $in.position,
-            $ctx.refresh.limit
-        ]}
+        fn="../stage"
+        in={{
+            step: Operation.Step.RestorePrefix,
+            first: $in.position,
+            end: $ctx.refresh.limit
+        }}
+        setter={[$store.mixed.effect]}
     />
 
+    <Call fn="../read_count" in={$store.mixed.effect} />
+
     <Call
-        fn="host.selectMixedBody"
-        in={[
-            $in.state,
-            $ctx.restoreMixedPrefix,
-            $ctx.refresh.limit
-        ]}
+        fn="../stage"
+        in={{
+            step: Operation.Step.Select,
+            first: $ctx.read_count,
+            end: $ctx.refresh.limit
+        }}
+        setter={[$store.mixed.effect]}
     />
+
+    <Call fn="../read_selection" in={$store.mixed.effect} />
 
     <Call
         module="dispatch"
         in={{
-            state: $in.state,
-            limit: $ctx.refresh.limit,
-            action: $ctx.selectMixedBody
+            selection: $ctx.read_selection,
+            limit: $ctx.refresh.limit
         }}
     />
 
-    <If on={$in.retain && $ctx.selectMixedBody != Host.MixedAction.Exhausted}>
-        <Call fn="host.recordMixedBody" in={$in.state} />
+    <If on={$in.retain && $ctx.read_selection.action != Operation.Action.Exhausted}>
+        <Call
+            fn="../stage"
+            in={{
+                step: Operation.Step.Record,
+                selection: $ctx.read_selection
+            }}
+            setter={[$store.mixed.effect]}
+        />
     </If>
 
     <Return

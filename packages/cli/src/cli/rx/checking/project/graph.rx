@@ -45,7 +45,5 @@
         />
     </If>
 
-    <Call fn="../index.closeCheckGraph" in={$in.check} />
-
     <Return value={$ctx.buildCheckGraph} />
 </Module>

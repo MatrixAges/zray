@@ -1,5 +1,7 @@
 import type { Tree } from "../flow/tree"
 
+export type { Cases, Selection as Publication } from "./rows"
+
 export type Labels = {
     ordinary: u8,
     affirmative: u8,
@@ -26,17 +28,4 @@ export type Branches = {
     subject: u8[],
     first_child: u64,
     child_count: u64
-}
-
-export type Cases = {
-    firsts: u32[],
-    counts: u32[],
-    kinds: u8[],
-    sources: u8[][]
-}
-
-export type Publication = {
-    row: u32,
-    subject: u8[],
-    cases: Cases
 }

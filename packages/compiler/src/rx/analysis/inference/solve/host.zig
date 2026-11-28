@@ -109,8 +109,7 @@ pub fn refreshSolverObjects(handle: *anyopaque) void {
 pub fn refreshSolverAssignments(handle: *anyopaque) void {
     const frame = Frame.borrow(handle);
 
-    _ = frame.workspace.reset(.retain_capacity);
-
+    // The generated solver keeps its loop state in this workspace until release().
     frame.assignments.bind(frame.graph, &frame.workspace);
 }
 

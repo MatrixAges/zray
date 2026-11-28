@@ -3,17 +3,14 @@
 
     <Args in={Installation.Input} out={Installation.Result} />
 
-    <If on={$in.reuse && $in.previous != null}>
+    <If on={$in.reuse && $in.has_lock}>
         <Call
             module="locked/replay"
-            in={{
-                ...$in.pick([
-                    "session",
-                    "locked_workspace",
-                    "root"
-                ]),
-                lock: $in.previous
-            }}
+            in={$in.pick([
+                "session",
+                "locked_workspace",
+                "root"
+            ])}
         />
 
         <Call
@@ -24,7 +21,7 @@
                     "reuse",
                     "maximum_bytes"
                 ]),
-                prepared: $ctx.replay
+                paths: $ctx.replay
             }}
         />
 
@@ -32,7 +29,7 @@
     </If>
 
     <If on={$in.frozen}>
-        <Call fn="frozen" in={$in.previous != null} />
+        <Call fn="frozen" in={$in.has_lock} />
 
         <Return
             value={{
@@ -59,7 +56,7 @@
                 "reuse",
                 "maximum_bytes"
             ]),
-            prepared: $ctx.resolve
+            paths: $ctx.resolve
         }}
     />
 

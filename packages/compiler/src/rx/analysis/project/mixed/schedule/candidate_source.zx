@@ -1,0 +1,20 @@
+import memory from "memory"
+
+import type { Cursor as Input } from "./preparation"
+
+export type Output = {
+    index: u64,
+    position: u64,
+    zx: bool
+}
+
+export default function (in: Input): Output {
+    const position = in.positions[in.cursor]
+    const index = memory.readColumnIndex(in.selection.order, position)
+
+    return {
+        index,
+        position,
+        zx: index < in.selection.signatures.length
+    }
+}

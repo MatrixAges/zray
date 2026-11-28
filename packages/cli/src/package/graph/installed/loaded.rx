@@ -32,10 +32,7 @@
     <Return
         value={{
             status: Project.Status.Valid,
-            installed: {
-                lock: $in.lock,
-                rows: $ctx.step.rows
-            }
+            installed: $ctx.step.rows
         }}
     />
 </Module>

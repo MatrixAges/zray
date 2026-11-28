@@ -52,12 +52,21 @@
 
     <Call fn="index.emitCompilationText" in={$in.compilation} />
 
-    <If on={!$ctx.emitCompilationText}>
+    <If on={$ctx.emitCompilationText == null}>
         <Return value={IO.Status.Failed} />
+
+        <Else>
+            <Call module="cache/finish" in={$in} />
+
+            <Call
+                module="output"
+                in={{
+                    ...$in,
+                    text: $ctx.emitCompilationText
+                }}
+            />
+
+            <Return value={$ctx.output} />
+        </Else>
     </If>
-
-    <Call module="cache/finish" in={$in} />
-    <Call module="output" in={$in} />
-
-    <Return value={$ctx.output} />
 </Module>

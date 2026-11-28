@@ -1,19 +1,16 @@
+import integers from "std:integer"
 import host from "hardware_graph_host"
 
-import type { Safety } from "./model"
+import type { Term } from "../../terms/parse/model"
 
-export type Input = Safety.Pick("build") & {
-    node: u32
-}
+export type Input = Term
 
-export type Output = u32
+export type Output = Term
 
 export default function (in: Input): Output {
-    const { build, node } = in
-
-    if (!host.readHardwareSort(build, node).boolean) {
+    if (!in.graph.nodes[integers.widen(in.node)].node.boolean) {
         host.rejectHardwareTerm()
     }
 
-    return node
+    return in
 }

@@ -1,5 +1,4 @@
-import { CompiledCallStatus } from "rx_project_host"
-
+import { CompiledCallStatus } from "../../../call/admission_model"
 import admit from "../../../call/compiled_admission"
 import { Output as Admission } from "../../../call/compiled_admission"
 

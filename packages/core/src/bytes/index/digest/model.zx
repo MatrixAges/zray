@@ -1,18 +1,7 @@
-import type { U32Buffer, U32View } from "memory"
+import type { U32View } from "memory"
 
 export type ReadTable = {
     keys: u8[],
     buckets: U32View,
     capacity: u64
-}
-
-export type Table = {
-    keys: u8[],
-    buckets: U32Buffer,
-    capacity: u64
-}
-
-export type Exchange = Table & {
-    key: u8[],
-    insert?: u32
 }

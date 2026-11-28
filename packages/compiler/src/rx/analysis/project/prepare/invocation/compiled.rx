@@ -1,43 +1,54 @@
 <Module>
     <Type from="model" as="Invocation" />
-    <Type from="host" as="Host" />
+    <Type from="../../../call/admission_model" as="Admission" />
     <Type from="verification/check" as="Check" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Invocation.Compiled} out={void} />
 
-    <Call
-        fn="host.resolvePreparedLibrary"
-        in={[
-            $in.state,
-            $in.edge
-        ]}
-    />
+    <Store from="invocation" as="invocation" />
 
     <Call
-        fn="host.findPreparedLibrary"
-        in={[
-            $in.state,
-            $ctx.resolvePreparedLibrary
-        ]}
+        fn="stage"
+        in={{
+            step: Effect.Step.ResolveLibrary,
+            edge: $in.edge
+        }}
+        setter={[$store.invocation.effect]}
     />
 
-    <If on={!$ctx.findPreparedLibrary}>
+    <Call fn="read_index" in={$store.invocation.effect} />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.FindLibrary,
+            index: $ctx.read_index
+        }}
+        setter={[$store.invocation.effect]}
+    />
+
+    <Call fn="read_flag" in={$store.invocation.effect} />
+
+    <If on={!$ctx.read_flag}>
         <Call
-            fn="host.linkPreparedLibrary"
-            in={[
-                $in.state,
-                $ctx.resolvePreparedLibrary
-            ]}
+            fn="stage"
+            in={{
+                step: Effect.Step.LinkLibrary,
+                index: $ctx.read_index
+            }}
+            setter={[$store.invocation.effect]}
         />
     </If>
 
     <Call
-        fn="host.readPreparedLibraryMembers"
-        in={[
-            $in.state,
-            $ctx.resolvePreparedLibrary,
-            $in.edge
-        ]}
+        fn="stage"
+        in={{
+            step: Effect.Step.ReadMembers,
+            index: $ctx.read_index,
+            edge: $in.edge
+        }}
+        setter={[$store.invocation.effect]}
     />
 
     <Call
@@ -47,32 +58,35 @@
 
     <If on={$ctx.find == null}>
         <Call
-            fn="host.rejectPreparedLibrary"
-            in={[
-                $in.state,
-                Host.CompiledCallStatus.MissingExport
-            ]}
+            fn="stage"
+            in={{
+                step: Effect.Step.RejectLibrary,
+                status: Admission.CompiledCallStatus.MissingExport
+            }}
+            setter={[$store.invocation.effect]}
         />
     </If>
 
     <Call
-        fn="host.selectPreparedLibraryMember"
-        in={[
-            $in.state,
-            $ctx.resolvePreparedLibrary,
-            $ctx.find
-        ]}
+        fn="stage"
+        in={{
+            step: Effect.Step.SelectMember,
+            index: $ctx.read_index,
+            member: $ctx.find
+        }}
+        setter={[$store.invocation.effect]}
     />
 
     <Call fn="compiled_status" in={$in.compiled.admission} />
 
-    <If on={$ctx.compiled_status != Host.CompiledCallStatus.Ready}>
+    <If on={$ctx.compiled_status != Admission.CompiledCallStatus.Ready}>
         <Call
-            fn="host.rejectPreparedLibrary"
-            in={[
-                $in.state,
-                $ctx.compiled_status
-            ]}
+            fn="stage"
+            in={{
+                step: Effect.Step.RejectLibrary,
+                status: $ctx.compiled_status
+            }}
+            setter={[$store.invocation.effect]}
         />
     </If>
 
@@ -82,14 +96,17 @@
         <Call fn="verification/remember" in={$in.compiled.check} />
 
         <Call
-            fn="host.validatePreparedLibrary"
-            in={[
-                $in.state,
-                $ctx.check == Check.State.VerifyExtension,
-                $ctx.remember.index,
-                $ctx.remember.word,
-                $ctx.remember.first
-            ]}
+            fn="stage"
+            in={{
+                step: Effect.Step.ValidateLibrary,
+                verification: {
+                    verified_prefix: $ctx.check == Check.State.VerifyExtension,
+                    index: $ctx.remember.index,
+                    word: $ctx.remember.word,
+                    first: $ctx.remember.first
+                }
+            }}
+            setter={[$store.invocation.effect]}
         />
     </If>
 </Module>

@@ -17,5 +17,5 @@ export {
     appendAstFields,
     appendAstFunctions
 } from "ast_rows"
-export { retainLoweringText, setLoweringSerial } from "lowering_host"
+export { retainLoweringText, finishGeneratedAst } from "lowering_host"
 export { requireAllocation } from "memory"

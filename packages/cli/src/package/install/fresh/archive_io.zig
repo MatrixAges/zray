@@ -3,8 +3,8 @@ const host = @import("../host.zig");
 const model = @import("../model.zig");
 const fresh = @import("storage.zig");
 const pkgs = @import("pkgs");
-const Manifest = @import("../../manifest/model.zig").Manifest;
 const abi = @import("cli_abi").layouts.@"zig:installation_host";
+const ArchiveAdmission = @import("cli_abi").native.@"zig:installation_host".ArchiveAdmission;
 
 fn releaseOf(value: *const abi.Release, source: []const u8) pkgs.Index.Release {
     return .{ .version = value.version, .archive = source, .sha256 = value.sha256 };
@@ -30,33 +30,40 @@ pub fn fetchArchive(handle: *const anyopaque, source: []const u8, release: *cons
     return session.fetch(releaseOf(release, source), session.root) catch |err| session.fail(err);
 }
 
-pub fn readArchive(handle: *const anyopaque, path: []const u8) host.Error!*const abi.ArchiveManifest {
-    const session = host.Context.get(handle);
-    const allocator = session.allocator;
-    const manifest = allocator.create(Manifest) catch |err| return session.fail(err);
-    manifest.* = model.read(session.io, allocator, path, null, allocator) catch |err| return session.fail(err);
-
-    return @ptrCast(manifest);
-}
-
-pub fn verifyArchive(handle: *const anyopaque, manifest: *const anyopaque, release: *const abi.Release) host.Error!void {
-    const session = host.Context.get(handle);
-    const data: *const Manifest = @ptrCast(@alignCast(manifest));
-
-    pkgs.install.verify(release.name, release.version, data) catch |err| return session.fail(err);
-}
-
-pub fn recordArchive(handle: *const anyopaque, source: []const u8, release: *const abi.Release, manifest: *const anyopaque) host.Error!u64 {
+pub fn readArchive(handle: *const anyopaque, path: []const u8) host.Error!*const abi.ArchiveIdentity {
     const build = fresh.State.get(handle);
     const session = build.session;
     const allocator = session.allocator;
-    const data: *const Manifest = @ptrCast(@alignCast(manifest));
+    const manifest = model.read(session.io, allocator, path, null, allocator) catch |err| return session.fail(err);
+    build.archive_manifest = manifest;
+
+    build.archive_identity = .{
+        .name = manifest.name,
+        .version = manifest.version,
+        .has_workspace = manifest.workspace != null,
+    };
+
+    return &build.archive_identity;
+}
+
+pub fn recordArchive(handle: *const anyopaque, source: []const u8, digest: []const u8, admission: ArchiveAdmission) host.Error!u64 {
+    const build = fresh.State.get(handle);
+    const session = build.session;
+
+    switch (admission) {
+        .Valid => {},
+        .IdentityMismatch => return session.fail(error.PackageArchiveIdentityMismatch),
+        .ContainsWorkspace => return session.fail(error.ArchiveContainsWorkspace),
+    }
+
+    const allocator = session.allocator;
+    const data = &build.archive_manifest;
     const row = build.packages.items.len;
 
     build.packages.append(allocator, .{
         .name = data.name,
         .version = data.version,
-        .source = .{ .archive = .{ .archive = source, .sha256 = release.sha256 } },
+        .source = .{ .archive = .{ .archive = source, .sha256 = digest } },
         .dependencies = &.{},
     }) catch |err| return session.fail(err);
 

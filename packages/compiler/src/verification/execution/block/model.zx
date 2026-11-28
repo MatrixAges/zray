@@ -1,5 +1,7 @@
 import type { Control, StatementKind } from "core/control_table/model"
-import type { SymbolicBlock, SymbolicSession } from "verification_host"
+import type { SymbolicBlock, SymbolicPath, SymbolicSession } from "verification_host"
+
+export type Outcome = SymbolicPath
 
 export { StatementKind } from "core/control_table/model"
 
@@ -9,11 +11,10 @@ export type Scope = {
     call_arguments: u32[]
 }
 
-export type Path = {
+export type Path = SymbolicPath & {
     block: SymbolicBlock,
     session: SymbolicSession,
-    scope: Scope,
-    path: string
+    scope: Scope
 }
 
 export type Input = Path & {
@@ -38,6 +39,7 @@ export type Prepared = {
 
 export type Step = {
     path?: string,
+    violations: string[],
     unsupported?: bool
 }
 
@@ -52,5 +54,6 @@ export type Cases = {
     row: u64,
     unmatched: string,
     continuation: string,
-    fallback?: u32
+    fallback?: u32,
+    violations: string[]
 }

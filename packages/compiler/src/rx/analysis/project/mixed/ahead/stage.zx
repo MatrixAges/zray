@@ -1,0 +1,13 @@
+import type { Command as Input } from "./operation"
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.workspace.effect = {
+        ...in,
+        count: 0,
+        ready: false
+    }
+}

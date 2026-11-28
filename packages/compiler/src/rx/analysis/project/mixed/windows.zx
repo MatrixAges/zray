@@ -1,8 +1,7 @@
 import type { ReadColumn } from "memory"
-import type { Mixed, MixedAction } from "rx_project_host"
+import type { Selection } from "./operation"
 
 export type Input = {
-    state: Mixed,
     batch_ends: ReadColumn,
     length: u64,
     has_exports: bool,
@@ -16,8 +15,7 @@ export type Cursor = Input.Omit("has_exports") & {
     batch: u64
 }
 
-export type Body = {
-    state: Mixed,
-    limit: u64,
-    action: MixedAction
+export type Dispatch = {
+    selection: Selection,
+    limit: u64
 }

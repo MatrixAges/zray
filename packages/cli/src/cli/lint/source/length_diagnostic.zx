@@ -1,0 +1,27 @@
+import bytes from "std:bytes"
+import { ascii_line_feed } from "core/ascii/const"
+
+export type Input = {
+    source: u8[],
+    maximum: u64
+}
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const { source, maximum } = in
+
+    if (maximum == 0 || source.length == 0) {
+        return null
+    }
+
+    const last = source[source.length - 1]
+    const trailing: u64 = last == ascii_line_feed ? 0 : 1
+    const count = bytes.count(source, ascii_line_feed) + trailing
+
+    if (count <= maximum) {
+        return null
+    }
+
+    return `length: ${count} lines exceed the lint limit of ${maximum}; split by responsibility or pass --max-lines\n`
+}

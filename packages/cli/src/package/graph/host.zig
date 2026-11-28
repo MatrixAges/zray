@@ -10,10 +10,12 @@ pub const Context = struct {
     manifests: std.mem.Allocator,
     backing: std.mem.Allocator,
     failure: *?anyerror,
-    pub fn get(handle: *const anyopaque) *const Context {
-        return @ptrCast(@alignCast(handle));
+    lock: ?@import("../install/files.zig").Loaded = null,
+    installed: []@import("../graph.zig").Package = &.{},
+    workspace_packages: ?[]@import("../graph.zig").Package = null,
+    pub fn get(handle: *const anyopaque) *Context {
+        return @import("../../cli/sources/effects.zig").state(Context, handle);
     }
-
     pub fn fail(self: *const Context, err: anyerror) Error {
         self.failure.* = err;
 

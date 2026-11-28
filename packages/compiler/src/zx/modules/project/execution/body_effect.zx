@@ -1,0 +1,25 @@
+export enum Step {
+    HashContext,
+    Restore,
+    Analyze,
+    Materialize,
+    CheckOwnership,
+    BindExports
+}
+
+export type PlanFacts = {
+    type_only: bool,
+    restored: bool,
+    restored_function?: u32,
+    linked_count: u64,
+    calls: u32[]
+}
+
+export type Command = {
+    step: Step,
+    root?: bool,
+    count?: u64,
+    id?: u32
+}
+
+export type Effect = Command & PlanFacts

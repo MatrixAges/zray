@@ -1,19 +1,24 @@
 <Module>
-    <Type from="../model" as="Model" />
+    <Type from="../model" as="Backend" />
 
-    <Args in={Model.ModuleWalk} out={Model.ModuleWalk} />
+    <Args in={Backend.GeneratedWalk} out={Backend.GeneratedWalk} />
+
+    <Call fn="generated_spec" in={$in} />
+
+    <Call module="../../../../command/modules/build" />
 
     <Call
-        fn="../index.appendGeneratedModule"
+        fn="append_chunk"
         in={[
-            $in.build,
-            $in.index
+            $in.chunks,
+            $ctx.build
         ]}
     />
 
     <Return
         value={{
             ...$in,
+            chunks: $ctx.append_chunk,
             index: $in.index + 1
         }}
     />

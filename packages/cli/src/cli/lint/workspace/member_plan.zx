@@ -1,0 +1,29 @@
+import { resolvePathParts } from "lexical_path"
+import memory from "memory"
+
+import { manifest_file } from "../const"
+
+import type { Member as Input } from "./model"
+
+export type Output = {
+    path: string,
+    semantic: bool
+}
+
+export default function (in: Input): Output {
+    const { members, index, root } = in
+
+    const path = resolvePathParts([
+        root,
+        memory.readTextColumn(members.paths, index),
+        manifest_file
+    ])
+
+    const entry = memory.readOptionalTextColumn(members.entries, index)
+    const exports = memory.listLength(members.exports, index)
+
+    return {
+        path,
+        semantic: entry != null || exports != 0
+    }
+}

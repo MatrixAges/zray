@@ -4,7 +4,7 @@ export declare function openStatementScope(
     start: u32,
     count: u32,
     placement: u64
-): bool
+): StatementStack?
 
 export declare function beginStatementStore(
     traversal: StatementTraversal,

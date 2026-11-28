@@ -1,14 +1,15 @@
-import type { SymbolicOutcome, SymbolicBlock } from "verification_host"
+import type { SymbolicOutcome, SymbolicBlock, SymbolicPath } from "verification_host"
 import type { Payload } from "../block/model"
 
 export type Input = Payload
+
+export type Output = SymbolicPath
 
 export type Calls = Input & {
     launch: string
 }
 
-export type Completed = {
-    path: string,
+export type Completed = SymbolicPath & {
     first: u64,
     values: SymbolicOutcome[]
 }

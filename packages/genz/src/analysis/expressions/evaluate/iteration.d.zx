@@ -31,12 +31,6 @@ export declare function declareLoopState(
     initial: u32
 ): void throws { OutOfMemory }
 
-export declare function frameLoweredLoop(
-    loop_frame: LoopFrame,
-    condition: u32,
-    after_step: bool
-): void throws { OutOfMemory }
-
 export declare function guardLoopInitial(frame: LoopFrame, value: u32): void
     throws { OutOfMemory }
 
@@ -53,24 +47,26 @@ export declare function emitLoopRenewals(
     end: u64,
     skipped: u64[],
     filtered_inline: bool
-): void throws { OutOfMemory }
+): u64 throws { OutOfMemory }
 
 export declare function maskLoopBorrowedFields(frame: LoopFrame): void throws { OutOfMemory }
 
 export declare function declareProjectedLoopState(frame: LoopFrame): void throws { OutOfMemory }
 
-export declare function publishLoopDeclarations(frame: LoopFrame): void throws { OutOfMemory }
-
 export declare function projectLoopAssignment(frame: LoopFrame, value: u32): u32
     throws { OutOfMemory }
 
-export declare function commitLoopUpdate(frame: LoopFrame, value: u32, state: bool): void
+export declare function commitLoopUpdate(frame: LoopFrame, value: u32, state: bool): u64
     throws { OutOfMemory }
 
-export declare function restoreLoopFields(frame: LoopFrame): void throws { OutOfMemory }
+export declare function restoreLoopFields(frame: LoopFrame): u32 throws { OutOfMemory }
 
-export declare function completeLoopResult(frame: LoopFrame, initial: u32): u32
-    throws { OutOfMemory }
+export declare function completeLoopResult(
+    frame: LoopFrame,
+    initial: u32,
+    state: u32,
+    spans: LoopEmissionSpans
+): u32 throws { OutOfMemory }
 
 export declare function finishSkippedLoop(
     frame: LoopFrame,

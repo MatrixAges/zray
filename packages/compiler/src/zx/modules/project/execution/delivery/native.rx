@@ -1,28 +1,48 @@
 <Module>
     <Type from="model" as="Delivery" />
-    <Type from="index" as="Host" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Delivery.Binding} out={void} />
 
-    <Call fn="index.reuseProjectNativeUnit" in={$in.frame} />
+    <Store from="delivery" as="delivery" />
 
-    <If on={!$ctx.reuseProjectNativeUnit}>
-        <Call fn="index.registerProjectNativeUnit" in={$in.frame} />
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.ReuseNative
+        }}
+        setter={[$store.delivery.effect]}
+    />
+
+    <Call fn="read_flag" in={$store.delivery.effect} />
+
+    <If on={!$ctx.read_flag}>
+        <Call
+            fn="stage"
+            in={{
+                step: Effect.Step.RegisterNative
+            }}
+            setter={[$store.delivery.effect]}
+        />
+
+        <Call fn="native_row" in={$store.delivery.effect} />
 
         <Call
-            fn="index.loadProjectNativeUnit"
-            in={[
-                $in.frame,
-                $ctx.registerProjectNativeUnit
-            ]}
+            fn="stage"
+            in={{
+                step: Effect.Step.LoadNative,
+                native_row: $ctx.native_row
+            }}
+            setter={[$store.delivery.effect]}
         />
 
         <Call
-            fn="index.rememberProjectNativeUnit"
-            in={[
-                $in.frame,
-                $ctx.registerProjectNativeUnit
-            ]}
+            fn="stage"
+            in={{
+                step: Effect.Step.RememberNative,
+                native_row: $ctx.native_row
+            }}
+            setter={[$store.delivery.effect]}
         />
     </If>
 
@@ -31,7 +51,7 @@
         in={{
             ...$in,
             target: {
-                kind: Host.ProjectImportKind.Native
+                kind: Delivery.ProjectImportKind.Native
             }
         }}
     />

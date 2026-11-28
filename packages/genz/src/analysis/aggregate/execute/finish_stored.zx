@@ -1,7 +1,8 @@
 import integers from "std:integer"
 import {
     appendAstBlockRows,
-    appendAstLeafStatements,
+    appendStatementRows,
+    AstPayloadOwnership,
     readAstOrigin
 } from "ast_rows"
 import host from "lowering_host"
@@ -63,7 +64,7 @@ export default function (in: Input): Output {
         guard
     })
 
-    appendAstLeafStatements(writer, break_statements)
+    appendStatementRows(writer, break_statements, null, AstPayloadOwnership.Borrowed)
     appendAstBlockRows(writer, block_expressions.block, block_expressions.conditionals)
     host.finishGeneratedAst(frame, planned.serial, false)
 

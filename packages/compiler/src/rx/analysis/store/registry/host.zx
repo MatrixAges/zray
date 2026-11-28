@@ -1,4 +1,0 @@
-export {
-    bindStoreRegistryAliases,
-    compileStoreRegistryEntry
-} from "rx_project_host"

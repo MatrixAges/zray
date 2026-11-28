@@ -1,15 +1,15 @@
-import host from "hardware_graph_host"
+import integers from "std:integer"
 
-import type { HardwareBuild } from "hardware_graph_host"
 import type { Sort as Output } from "../../binary/model"
+import type { Row } from "./model"
 
 export type Input = {
-    build: HardwareBuild,
+    nodes: Row[],
     node?: u32
 }
 
 export default function (in: Input): Output {
-    const { build, node } = in
+    const { nodes, node } = in
 
     if (node == null) {
         return {
@@ -18,7 +18,7 @@ export default function (in: Input): Output {
         }
     }
 
-    const sort = host.readHardwareSort(build, node)
+    const sort = nodes[integers.widen(node)].node
 
     return {
         width: sort.width,

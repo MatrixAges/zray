@@ -17,7 +17,7 @@ export default function (in: Input): Output {
     if (in.preparation == Preparation.Reserve) {
         const current = readAstOrigin(writer)
 
-        host.setLoweringSerial(frame, current.serial + 1)
+        host.finishGeneratedAst(frame, current.serial + 1, false)
 
         return state
     }

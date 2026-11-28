@@ -1,0 +1,25 @@
+<Module>
+    <Type from="model" as="Output" />
+
+    <Args in={Output.ProgramText} out={void} />
+
+    <If on={$in.abi.length != 0 && $in.abi_base != null}>
+        <Call fn="program_abi_path" in={$in.abi_base} />
+
+        <Call
+            module="write_artifact"
+            in={{
+                path: $ctx.program_abi_path,
+                source: $in.abi
+            }}
+        />
+    </If>
+
+    <Call
+        module="write_artifact"
+        in={$in.pick([
+            "path",
+            "source"
+        ])}
+    />
+</Module>

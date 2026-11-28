@@ -5,7 +5,7 @@ import finishBlock from "../../../aggregate/execute/finish_block"
 import finishStored from "../../../aggregate/execute/finish_stored"
 import { Guard } from "../../initial/model"
 
-import type { Finish as Input } from "./model"
+import type { Finish as Input } from "./emission_model"
 
 export type Output = u32
 
@@ -22,7 +22,12 @@ export default function (in: Input): Output {
         update
     } = in
 
-    const result = host.completeLoopResult(loop_frame, initial_value)
+    const result = host.completeLoopResult(
+        loop_frame,
+        initial_value,
+        in.state,
+        in.spans
+    )
 
     if (projected) {
         const first = update.first

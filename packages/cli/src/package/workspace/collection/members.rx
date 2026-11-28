@@ -15,7 +15,8 @@
         value={{
             ...$in,
             index: $in.index + 1,
-            running: $in.index + 1 < $in.paths.length
+            diagnostic: $ctx.member,
+            running: $ctx.member == null && $in.index + 1 < $in.paths.length
         }}
     />
 </Module>

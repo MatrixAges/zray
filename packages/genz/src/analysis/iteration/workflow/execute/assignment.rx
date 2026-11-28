@@ -1,0 +1,65 @@
+<Module>
+    <Type from="emission_model" as="Loop" />
+    <Type from="../../step/model" as="Step" />
+
+    <Args in={Loop.Assignment} out={u64} />
+
+    <If on={$in.schedule.assignment == Step.Assignment.Projected}>
+        <Call
+            fn="index.projectLoopAssignment"
+            in={[
+                $in.loop_frame,
+                $in.update.value
+            ]}
+        />
+
+        <Call
+            fn="index.commitLoopUpdate"
+            in={[
+                $in.loop_frame,
+                $ctx.projectLoopAssignment,
+                false
+            ]}
+        />
+
+        <Return value={$ctx.commitLoopUpdate} />
+
+        <Else>
+            <If on={$in.schedule.assignment == Step.Assignment.State}>
+                <Call
+                    fn="index.clipCollectionTarget"
+                    in={[
+                        $in.writer,
+                        $in.loop_seq,
+                        $in.body,
+                        $in.update.value
+                    ]}
+                />
+
+                <Call
+                    fn="index.commitLoopUpdate"
+                    in={[
+                        $in.loop_frame,
+                        $ctx.clipCollectionTarget,
+                        true
+                    ]}
+                />
+
+                <Return value={$ctx.commitLoopUpdate} />
+
+                <Else>
+                    <Call
+                        fn="index.commitLoopUpdate"
+                        in={[
+                            $in.loop_frame,
+                            $in.update.value,
+                            false
+                        ]}
+                    />
+
+                    <Return value={$ctx.commitLoopUpdate} />
+                </Else>
+            </If>
+        </Else>
+    </If>
+</Module>

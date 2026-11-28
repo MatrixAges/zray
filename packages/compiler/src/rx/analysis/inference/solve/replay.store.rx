@@ -1,0 +1,12 @@
+<Store name="inference_projection_replay" version={1}>
+    <Type from="replay_effect" as="Replay" />
+
+    <Object name="effect">
+        <Field name="step" type={Replay.Step} value={Replay.Step.RefreshBindings} />
+        <Field name="row" type={u64?} value={null} />
+        <Field name="left" type={u32?} value={null} />
+        <Field name="right" type={u32?} value={null} />
+        <Field name="diagnostic" type={Replay.Diagnostic?} value={null} />
+        <Field name="id" type={u32} value={0} />
+    </Object>
+</Store>

@@ -1,0 +1,12 @@
+export type Cases = {
+    firsts: u32[],
+    counts: u32[],
+    kinds: u8[],
+    sources: u8[][]
+}
+
+export type Selection = {
+    row: u32,
+    subject: u8[],
+    cases: Cases
+}

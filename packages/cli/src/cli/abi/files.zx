@@ -1,15 +1,14 @@
 import { renderAbiFile } from "bundle_abi_host"
 
-import type { AbiFrame } from "bundle_abi_host"
 import type { View } from "./plan/model"
 import type { RenderedFile } from "./workflow"
 
-export type Input = [AbiFrame, View[]]
+export type Input = [string[], View[]]
 
 export type Output = RenderedFile[]
 
 export default function (in: Input): Output {
-    const [frame, views] = in
+    const [names, views] = in
 
     const empty: RenderedFile[] = []
 
@@ -24,7 +23,7 @@ export default function (in: Input): Output {
         while: state => state.row < views.length,
         next: state => {
             const { module, name, path, aliases } = views[state.row]
-            const source = renderAbiFile(frame, aliases)
+            const source = renderAbiFile(names, aliases)
 
             state.items = state.items.push({
                 module,

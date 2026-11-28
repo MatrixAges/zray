@@ -5,7 +5,6 @@ export {
     solveFlowLayer,
     keepFlowMemo,
     publishFlowMemo,
-    openRecursiveFlow,
     retainFlowFacts,
     visitRecursiveFlow
 } from "ownership_host"

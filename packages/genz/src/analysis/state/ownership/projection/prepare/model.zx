@@ -6,7 +6,7 @@ export {
     StoredType,
     materializeType,
     retainLoweringText,
-    setLoweringSerial
+    finishGeneratedAst
 } from "lowering_host"
 
 export type Input = {

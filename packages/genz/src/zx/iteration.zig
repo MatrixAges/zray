@@ -106,16 +106,15 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
     const self = frame.lowering;
     const state = self.state_symbols.current();
     const stack = self.stack_symbols.current();
-    const initial_plan: *const @TypeOf(frame.initial) = &frame.initial;
 
     const state_view: Index = .{
-        .keys = @ptrCast(&state.keys.items),
-        .buckets = @ptrCast(&state.buckets.items),
+        .keys = state.keys.items,
+        .buckets = state.buckets.items,
     };
 
     const stack_view: Index = .{
-        .keys = @ptrCast(&stack.keys.items),
-        .buckets = @ptrCast(&stack.buckets.items),
+        .keys = stack.keys.items,
+        .buckets = stack.buckets.items,
     };
 
     const parameters: Views = .{
@@ -128,8 +127,6 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
 
     comptime std.debug.assert(@typeInfo(node.ExpressionId).@"enum".tag_type == u32);
 
-    const state_info: *const Frame.StateInfo = &frame.state_info;
-    const guard_info: *const Frame.GuardInfo = &frame.guard_info;
     var store_value: std.meta.Child(StoreState) = .{ .has_seed = false, .seed = 0, .changed_name = &.{} };
     var store_ptr: StoreState = &store_value;
 
@@ -151,14 +148,15 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
         .writer = @ptrCast(self),
         .body_seq = @ptrCast(&frame.body),
         .loop_seq = @ptrCast(&frame.loop),
+        .projected_seq = @ptrCast(&frame.projected_body),
         .loop_frame = @ptrCast(frame),
-        .loop_state = zx.columns.pointer(@FieldType(Input, "loop_state"), state_info),
-        .guard_info = zx.columns.pointer(@FieldType(Input, "guard_info"), guard_info),
+        .loop_state = &frame.state_info,
+        .guard_info = &frame.guard_info,
         .id = @backingInt(frame.id),
         .type_id = self.program.expressions.types[@backingInt(frame.id)],
         .initial = @backingInt(frame.iteration.initial),
         .parameters = &parameters,
-        .initial_plan = zx.columns.pointer(@FieldType(Input, "initial_plan"), initial_plan),
+        .initial_plan = &frame.initial,
         .condition = @backingInt(frame.iteration.condition),
         .body = @backingInt(frame.iteration.body),
         .postcondition = frame.iteration.postcondition,
@@ -229,10 +227,21 @@ fn runSeed(frame: *Frame) Lower.Error!?node.ExpressionId {
     };
 
     if (!projected) try emit.declareLoopState(handle, frame.initial.parameters, false, true, @backingInt(frame.initial_state));
-    try emit.enterLoweredLoop(handle);
-    try emit.writeLoopUpdate(handle);
-    try emit.frameLoweredLoop(handle, @backingInt(frame.next.condition), frame.schedule.after_step);
-    try emit.recoverLoweredLoop(handle);
 
-    return @fromBackingInt(try emit.finishLoweredLoop(handle));
+    const prefix = try emit.enterLoweredLoop(handle);
+    const written = try emit.writeLoopUpdate(handle);
+
+    const span = try @import("iteration/frame.zig").lower(self, if (projected) .{} else prefix.growth, written, .{
+        .condition = frame.next.condition,
+        .after_step = frame.schedule.after_step,
+        .guarded_initial = !projected and frame.guard != null,
+    });
+
+    const recovered = try emit.recoverLoweredLoop(handle);
+
+    return @fromBackingInt(try emit.finishLoweredLoop(handle, recovered, .{
+        .renewals = if (projected) prefix.growth else .{},
+        .declarations = prefix.declarations,
+        .frame = span,
+    }));
 }

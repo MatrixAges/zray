@@ -15,7 +15,13 @@
     />
 
     <If on={$ctx.plan == null}>
-        <Call fn="index.openRecursiveFlow" in={$in.flow} />
+        <Call
+            module="../fixpoint/create"
+            in={{
+                ...$in.functions,
+                held: $ctx.initializeFlow
+            }}
+        />
 
         <Loop on={$in.running}>
             <Call
@@ -23,7 +29,7 @@
                 in={{
                     flow: $in.flow,
                     queue: {
-                        ...$ctx.openRecursiveFlow,
+                        ...$ctx.create,
                         changed: null
                     },
                     running: true

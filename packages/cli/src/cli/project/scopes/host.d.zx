@@ -29,17 +29,6 @@ export type ScopeWindow = {
     library_paths: string[]
 }
 
-export type ModulePaths = {
-    path?: string,
-    includes: string[],
-    dependencies: string[]
-}
-
-export type InterfacePath = {
-    specifier: string,
-    path: string
-}
-
 export type DeclarationBinding = {
     specifier: string,
     module: string
@@ -65,7 +54,6 @@ export declare function requireNativeScopeAdmission(frame: NativeScopeLoad, stat
     throws { SourceLoadFailure }
 export declare function reserveNativeScopeInterfaces(frame: NativeScopeLoad): void
     throws { OutOfMemory }
-export declare function nativeScopeInterfacePath(frame: NativeScopeLoad, row: u64): InterfacePath
 export declare function readNativeScopeInterface(frame: NativeScopeLoad, row: u64): void
     throws { SourceLoadFailure }
 export declare function reserveNativeScopeIndex(frame: NativeScopeLoad): void
@@ -103,7 +91,6 @@ export declare function resolveNativeScopePath(frame: NativeScopeLoad, path: str
     throws { OutOfMemory }
 export declare function reserveNativeScopeModules(frame: NativeScopeLoad): void
     throws { OutOfMemory }
-export declare function nativeScopeModulePaths(frame: NativeScopeLoad, row: u64): ModulePaths
 export declare function prepareNativeScopeModule(
     frame: NativeScopeLoad,
     row: u64,

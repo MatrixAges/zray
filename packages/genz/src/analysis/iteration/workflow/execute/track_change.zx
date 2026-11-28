@@ -25,7 +25,7 @@ export default function (in: Input): Output {
 
     const name = host.retainLoweringText(frame, generated.name)
 
-    host.setLoweringSerial(frame, generated.serial)
+    host.finishGeneratedAst(frame, generated.serial, false)
 
     return name
 }

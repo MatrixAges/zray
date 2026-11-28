@@ -1,41 +1,70 @@
 <Module>
     <Type from="model" as="Body" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Body.ZXBody} out={void} />
+
+    <Store from="compilation" as="compilation" />
 
     <Call
         module="prepare_zx"
         in={{
-            source: $in.source,
             check: true
         }}
     />
 
-    <Call fn="host.analyzeMixedZXBody" in={$in.body} />
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.AnalyzeZX
+        }}
+        setter={[$store.compilation.effect]}
+    />
 
-    <If on={$ctx.analyzeMixedZXBody != null}>
+    <Call fn="read_analysis" in={$store.compilation.effect} />
+
+    <If on={$ctx.read_analysis != null}>
         <If on={$in.setter}>
-            <Call fn="authorize_setter" in={$ctx.analyzeMixedZXBody} />
+            <Call fn="authorize_setter" in={$ctx.read_analysis} />
 
             <If on={$ctx.authorize_setter != null}>
                 <Call
-                    fn="host.rejectMixedZXSetter"
-                    in={[
-                        $in.body,
-                        $ctx.authorize_setter
-                    ]}
+                    fn="stage"
+                    in={{
+                        step: Effect.Step.RejectSetter,
+                        message: $ctx.authorize_setter
+                    }}
+                    setter={[$store.compilation.effect]}
                 />
 
                 <Else>
-                    <Call fn="host.installMixedZXSetter" in={$in.body} />
+                    <Call
+                        fn="stage"
+                        in={{
+                            step: Effect.Step.InstallSetter
+                        }}
+                        setter={[$store.compilation.effect]}
+                    />
                 </Else>
             </If>
         </If>
 
-        <Call fn="host.linkMixedZXBody" in={$in.body} />
+        <Call
+            fn="stage"
+            in={{
+                step: Effect.Step.LinkZX
+            }}
+            setter={[$store.compilation.effect]}
+        />
 
         <Else>
-            <Call fn="host.reportMixedZXBody" in={$in.body} />
+            <Call
+                fn="stage"
+                in={{
+                    step: Effect.Step.ReportZX
+                }}
+                setter={[$store.compilation.effect]}
+            />
         </Else>
     </If>
 </Module>

@@ -102,6 +102,8 @@ pub fn writeBackendWorkspace(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
     const context = self.context;
 
+    defer self.releaseRunner();
+
     self.workspace = artifacts.prepare(context.io, context.allocator, self.bundle, self.runner, self.configuration, self.abi, context.options.result == .json) catch |err| return self.failure.save(err);
 }
 
@@ -120,6 +122,9 @@ pub fn retainNodeResources(handle: *const anyopaque, target: NodeTarget) Error!v
     }
 
     const native = &self.node_sources.?;
+
+    defer self.releaseNodeSources();
+
     const node: []const node_resources.File = &native.files;
     const napi: []const node_resources.File = &native.napi;
     const node_paths = zx.memory.borrowTextColumn("path", node);
@@ -133,10 +138,6 @@ pub fn retainNodeResources(handle: *const anyopaque, target: NodeTarget) Error!v
         .node = &.{ .count = node.len, .paths = @ptrCast(&node_paths), .sources = @ptrCast(&node_sources) },
         .napi = &.{ .count = napi.len, .paths = @ptrCast(&napi_paths), .sources = @ptrCast(&napi_sources) },
     }, context.io) catch |err| return self.failure.save(err);
-}
-
-pub fn releaseBackendSources(handle: *const anyopaque) void {
-    State.get(handle).releaseSources();
 }
 
 pub fn prepareStagedParents(handle: *const anyopaque) Error!void {

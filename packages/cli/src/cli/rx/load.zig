@@ -290,12 +290,10 @@ pub fn recordCheckFunctionCalls(handle: *const anyopaque, module: u64, calls: []
     }
 }
 
-pub fn closeCheckGraph(handle: *const anyopaque) void {
-    State.get(handle).closeGraph();
-}
-
 pub fn checkStoreTypes(handle: *const anyopaque) Error!bool {
     const self = State.get(handle);
+
+    self.closeGraph();
 
     return @import("store_types.zig").validate(self.io, self.allocator, self.loaded.?.data, self.functions, self.project, self.writer) catch |err| return self.failure.save(err);
 }
@@ -313,12 +311,11 @@ pub fn checkFunction(handle: *const anyopaque, index: u64) Error!bool {
     return valid;
 }
 
-pub fn closeCheckFunctions(handle: *const anyopaque) void {
-    State.get(handle).closeFunctions();
-}
-
 pub fn checkCompiledModules(handle: *const anyopaque) Error!bool {
     const self = State.get(handle);
+
+    self.closeFunctions();
+
     var libraries = @import("../library/inputs.zig"){ .allocator = self.allocator };
 
     defer libraries.deinit();

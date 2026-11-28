@@ -7,7 +7,6 @@
         <Call
             module="windows/advance"
             in={{
-                state: $in.state,
                 batch_ends: $in.batch_ends,
                 length: $in.length,
                 retain: $in.retain,

@@ -1,4 +1,9 @@
-export { clipCollectionTarget } from "ast_rows"
+export {
+    astExpressionCount,
+    astStatementCount,
+    clipCollectionTarget,
+    takeAstSequence
+} from "ast_rows"
 export {
     LoopParameterLayout,
     enterLoopRepresentation,
@@ -9,8 +14,6 @@ export {
     renameIterationParameters,
     maskLoopBorrowedFields,
     declareProjectedLoopState,
-    publishLoopDeclarations,
-    frameLoweredLoop,
     restoreLoopFields
 } from "lowering_host"
 export { commitLoopUpdate, projectLoopAssignment } from "lowering_host"

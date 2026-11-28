@@ -1,4 +1,4 @@
-import type { CallAdmission, InvocationPreparation } from "rx_project_host"
+import type { CallAdmission } from "rx_project_host"
 import type {
     Input as ExportLookup
 } from "../../../../../zx/modules/compiled/imports/find"
@@ -9,7 +9,6 @@ import type { Kind } from "../../flow/traversal/model"
 import type { Signatures } from "../../references/call_signature"
 
 export type Previous = {
-    state: InvocationPreparation,
     previous_end: u32,
     previous_kind?: Kind
 }
@@ -22,7 +21,7 @@ export type Run = Previous & {
     signatures: Signatures
 }
 
-export type Compiled = Previous.Pick("state") & {
+export type Compiled = {
     edge?: u64,
     compiled: CompiledView
 }

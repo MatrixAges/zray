@@ -25,8 +25,11 @@ export declare function appendAstSequenceSpan(target: AstSequence, span: u64): v
 export declare function finishAstSequence(writer: AstWriter, target: AstSequence): u64
     throws { OutOfMemory }
 
-export declare function takeAstSequence(writer: AstWriter, target: AstSequence): u64
-    throws { OutOfMemory }
+export declare function takeAstSequence(
+    writer: AstWriter,
+    target: AstSequence,
+    at_tail: bool
+): u64 throws { OutOfMemory }
 
 export declare function publishAstScopedRows(
     writer: AstWriter,

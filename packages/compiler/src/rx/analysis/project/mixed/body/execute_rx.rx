@@ -1,0 +1,40 @@
+<Module>
+    <Type from="../operation" as="Operation" />
+
+    <Args in={Operation.Selection} out={void} />
+
+    <Store from="../operation" as="mixed" />
+
+    <Call
+        fn="../stage"
+        in={{
+            step: Operation.Step.AcceptedRX,
+            row: $in.prepared_row
+        }}
+        setter={[$store.mixed.effect]}
+    />
+
+    <Call fn="../read_prepared" in={$store.mixed.effect} />
+
+    <If on={$ctx.read_prepared != null}>
+        <Call
+            fn="../stage"
+            in={{
+                step: Operation.Step.LinkRX,
+                row: $ctx.read_prepared
+            }}
+            setter={[$store.mixed.effect]}
+        />
+
+        <Else>
+            <Call
+                fn="../stage"
+                in={{
+                    step: Operation.Step.LowerRX,
+                    selection: $in
+                }}
+                setter={[$store.mixed.effect]}
+            />
+        </Else>
+    </If>
+</Module>

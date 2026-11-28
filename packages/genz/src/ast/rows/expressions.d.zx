@@ -212,18 +212,6 @@ export type ExpressionExtensions = {
     container_type_declarations_len: u32[]
 }
 
-export type ProjectionRows = {
-    tags: ExpressionsKind[],
-    offsets: u32[],
-    identifier: u8[][],
-    field_target: u32[],
-    field_name: u8[][],
-    dereference: u32[],
-    binary_operator: ExpressionsBinaryOperator[],
-    binary_left: u32[],
-    binary_right: u32[]
-}
-
 export enum StatementsKind {
     Scope,
     DeferExpression,
@@ -382,16 +370,6 @@ export type AstAccessRows = {
     builtin_name: ExpressionsBuiltinName[]
 }
 
-export type AstArrayRows = {
-    tags: ExpressionsKind[],
-    offsets: u32[],
-    array_element_type: u32[],
-    array_values: u32[][],
-    address_of: u32[],
-    comptime_value: u32[],
-    builtin_name: ExpressionsBuiltinName[]
-}
-
 export type ExpressionLayouts = {
     optional_type: u32[],
     pointer: u32[],
@@ -400,20 +378,6 @@ export type ExpressionLayouts = {
     tuple_type: u32[][],
     struct_type_start: u32[],
     struct_type_len: u32[]
-}
-
-export type AstAllocationCallRows = {
-    tags: ExpressionsKind[],
-    offsets: u32[],
-    identifier: u8[][],
-    field_target: u32[],
-    field_name: u8[][],
-    call_callee: u32[],
-    try_value: u32[],
-    catch_value_value: u32[],
-    catch_value_capture: u8[][],
-    catch_value_label: u8[][],
-    catch_value_result: u32[]
 }
 
 export type AstWriter = mutable_opaque
@@ -453,19 +417,6 @@ export type AstFieldAddressRows = {
     field_target: u32[],
     field_name: u8[][],
     address_of: u32[]
-}
-
-export type AstLeafStatements = {
-    tags: StatementsKind[],
-    offsets: u32[],
-    expression: u32[],
-    discard: u32[],
-    constant_name: u8[][],
-    constant_type_expr: u32?[],
-    constant_value: u32[],
-    constant_exported: bool[],
-    break_value_label: u8[][],
-    break_value_value: u32[]
 }
 
 export enum AstPayloadOwnership {

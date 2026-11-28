@@ -20,48 +20,6 @@ export type Node = {
     signed: bool
 }
 
-export type HardwareBuild = mutable_opaque
-
-export type NodeSort = {
-    width: u16,
-    boolean: bool
-}
-
-export type NodeOrigin = {
-    file: string,
-    row: u64
-}
-
-export type CacheView = {
-    keys: string?[],
-    values: u32[],
-    full: bool,
-    node_count: u64
-}
-
-export type GraphCapacity = {
-    symbols: u64,
-    definitions: u64,
-    inputs: u64,
-    nodes: u64
-}
-
-export type InputPort = {
-    kind: Kind,
-    width: u16,
-    boolean: bool,
-    signed: bool
-}
-
-export type OutputPort = {
-    symbol: string,
-    path: string,
-    node: u32,
-    width: u64,
-    boolean: bool,
-    signed: bool
-}
-
 export enum Form {
     Invalid,
     Open,
@@ -77,51 +35,6 @@ export enum Form {
     SignExtend,
     ZeroExtend
 }
-
-export declare function reserveHardwareGraph(build: HardwareBuild, capacity: GraphCapacity): void
-    throws { OutOfMemory }
-
-export declare function writeHardwareInput(build: HardwareBuild, row: u64, port: InputPort?): void
-    throws { OutOfMemory, InvalidHardwareTerm }
-
-export declare function bindHardwareInputs(build: HardwareBuild): void
-    throws { OutOfMemory, InvalidHardwareTerm }
-
-export declare function hardwareVariable(build: HardwareBuild, name: string): u32?
-    throws { OutOfMemory, InvalidHardwareTerm }
-
-export declare function readHardwareCache(build: HardwareBuild): CacheView
-
-export declare function growHardwareCache(build: HardwareBuild): void
-    throws { OutOfMemory }
-
-export declare function appendHardwareTerm(
-    build: HardwareBuild,
-    position: u64,
-    key: string,
-    kind: Kind,
-    width: u16,
-    boolean: bool,
-    first: u64,
-    second: u32,
-    third: u32,
-    operator: u8,
-    extra: u16,
-    signed: bool,
-    origin: NodeOrigin?
-): u32 throws { OutOfMemory }
-
-export declare function publishHardwareDefinition(
-    build: HardwareBuild,
-    name: string,
-    width: u16,
-    node: u32
-): void throws { OutOfMemory, InvalidHardwareTerm }
-
-export declare function readHardwareSort(build: HardwareBuild, node: u32): NodeSort
-
-export declare function writeHardwareOutput(build: HardwareBuild, port: OutputPort?): void
-    throws { OutOfMemory, InvalidHardwareTerm }
 
 export declare function rejectHardwareTerm(): void
     throws { InvalidHardwareTerm }

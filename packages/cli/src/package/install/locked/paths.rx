@@ -35,7 +35,6 @@
         fn="../effects.fetchLocked"
         in={[
             $in.session,
-            $in.lock,
             $in.index
         ]}
     />
@@ -52,7 +51,6 @@
         fn="../effects.verifyLockedManifest"
         in={[
             $in.session,
-            $in.lock,
             $in.index,
             $ctx.canonicalPath
         ]}

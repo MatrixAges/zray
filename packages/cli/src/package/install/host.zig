@@ -6,12 +6,9 @@ const files = @import("files.zig");
 const pkgs = @import("pkgs");
 const Rendered = @import("cli_abi").layouts.@"zig:installation_host".Rendered;
 
-pub const LockData = struct {
+const SessionLock = struct {
     lock: pkgs.Lock,
     source: ?[]const u8 = null,
-    pub fn borrow(handle: *const anyopaque) *const LockData {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
 pub const Error = error{InstallHostFailure};
@@ -24,6 +21,7 @@ pub const Context = struct {
     cache: []const u8,
     members: []const workspace.Package,
     failure: *?anyerror,
+    lock: ?SessionLock = null,
     pub fn init(io: std.Io, allocator: std.mem.Allocator, options: Options, environment: *const std.process.Environ.Map, failure: *?anyerror) !Context {
         const root = try std.Io.Dir.cwd().realPathFileAlloc(io, std.fs.path.dirname(options.path) orelse ".", allocator);
         const discovered = try workspace.load(io, allocator, options.path);
@@ -43,8 +41,8 @@ pub const Context = struct {
         };
     }
 
-    pub fn get(handle: *const anyopaque) *const Context {
-        return @ptrCast(@alignCast(handle));
+    pub fn get(handle: *const anyopaque) *Context {
+        return @import("../../cli/sources/effects.zig").state(Context, handle);
     }
 
     pub fn fail(self: *const Context, err: anyerror) Error {
@@ -67,16 +65,16 @@ pub fn canonicalPath(handle: *const anyopaque, path: []const u8) Error![]const u
     return self.physicalPath(path) catch |err| self.fail(err);
 }
 
-pub fn currentWorkspaceMatches(handle: *const anyopaque, lock: *const anyopaque) Error!bool {
+pub fn currentWorkspaceMatches(handle: *const anyopaque) Error!bool {
     const self = Context.get(handle);
     const current = workspace.load(self.io, self.allocator, self.options.path) catch |err| return self.fail(err);
 
-    return current.diagnostic == null and model.matchesWorkspace(LockData.borrow(lock).lock, current.packages);
+    return current.diagnostic == null and model.matchesWorkspace(self.lock.?.lock, current.packages);
 }
 
-pub fn renderInstallation(handle: *const anyopaque, lock: *const anyopaque, paths: []const []const u8) Error!*const Rendered {
+pub fn renderInstallation(handle: *const anyopaque, paths: []const []const u8) Error!*const Rendered {
     const self = Context.get(handle);
-    const input = LockData.borrow(lock);
+    const input = self.lock.?;
     const publication = files.render(self.allocator, .{ .lock = input.lock, .paths = paths, .source = input.source }) catch |err| return self.fail(err);
     const digest = self.allocator.dupe(u8, &publication.digest) catch |err| return self.fail(err);
     const view = self.allocator.create(Rendered) catch |err| return self.fail(err);

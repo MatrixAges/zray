@@ -1,0 +1,45 @@
+import type { LoopEmissionSpans } from "lowering_host"
+import type { Output as RenewalPlan } from "../../deferred/model"
+import type { Output as StepPlan } from "../../step/model"
+import type { Input } from "./model"
+import type { Update } from "./update_model"
+
+export type Emit =
+    Input.Pick(
+        "frame",
+        "writer",
+        "body_seq",
+        "loop_seq",
+        "projected_seq",
+        "body",
+        "loop_frame",
+        "guard_info",
+        "initial_plan"
+    ) & {
+        schedule: StepPlan,
+        renewals: RenewalPlan,
+        projected: bool,
+        state: u32,
+        initial_value: u32,
+        update: Update
+    }
+
+export type Growth = Emit.Pick("loop_frame", "renewals", "schedule")
+
+export type Assignment = Emit.Pick(
+    "writer",
+    "loop_frame",
+    "loop_seq",
+    "body",
+    "schedule",
+    "update"
+)
+
+export type Recovery = Emit.Pick("loop_frame", "state") & {
+    restore: bool
+}
+
+export type Finish =
+    Emit.Omit("schedule", "renewals", "loop_seq", "projected_seq", "body") & {
+        spans: LoopEmissionSpans
+    }

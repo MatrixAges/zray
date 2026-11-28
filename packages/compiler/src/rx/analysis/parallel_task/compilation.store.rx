@@ -1,0 +1,10 @@
+<Store name="parallel_task_compilation" version={1}>
+    <Type from="effect" as="Task" />
+
+    <Object name="effect">
+        <Field name="step" type={Task.Step} value={Task.Step.CompileBody} />
+        <Field name="row" type={u64?} value={null} />
+        <Field name="visible" type={bool?} value={null} />
+        <Field name="id" type={u32} value={0} />
+    </Object>
+</Store>

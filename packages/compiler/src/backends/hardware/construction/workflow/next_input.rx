@@ -13,18 +13,12 @@
     />
 
     <Call
-        fn="host.writeHardwareInput"
-        in={[
-            $in.build,
-            $in.row,
-            $ctx.inputs
-        ]}
-    />
-
-    <Return
-        value={{
-            ...$in,
-            row: $in.row + 1
+        fn="append_input"
+        in={{
+            walk: $in,
+            port: $ctx.inputs
         }}
     />
+
+    <Return value={$ctx.append_input} />
 </Module>

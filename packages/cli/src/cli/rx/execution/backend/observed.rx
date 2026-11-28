@@ -28,11 +28,25 @@
 
     <Call module="prepare" in={$in} />
 
-    <If on={$ctx.prepare}>
-        <Call fn="index.spawnObservedBackend" in={$in.build} />
+    <If on={$ctx.prepare == null}>
+        <Call fn="index.takeTranslationFailure" in={$in.build} />
 
         <Else>
-            <Call fn="index.takeTranslationFailure" in={$in.build} />
+            <Call
+                fn="index.writeBackendCommand"
+                in={[
+                    $in.build,
+                    $ctx.prepare
+                ]}
+            />
+
+            <Call
+                fn="index.spawnObservedBackend"
+                in={[
+                    $in.build,
+                    $ctx.prepare
+                ]}
+            />
         </Else>
     </If>
 

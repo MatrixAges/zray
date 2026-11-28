@@ -20,46 +20,30 @@ pub const Frame = struct {
         self.topology.bind(graph);
 
         self.view = .{
-            .frame = @ptrCast(self),
             .graph = &self.topology.graph,
-            .parents = @ptrCast(&self.topology.parents),
+            .parents = self.topology.parents,
             .known = &self.topology.known,
             .sources = @ptrCast(projections.items(.source)),
             .values = @ptrCast(projections.items(.value)),
         };
     }
+    pub fn refresh(frame: *Frame) void {
+        frame.topology.bind(frame.graph);
+        frame.view.parents = frame.topology.parents;
+    }
+    pub fn register(frame: *Frame, row: usize, value: u32) zx.Error!u32 {
+        return @backingInt(try frame.graph.known(@fromBackingInt(value), frame.spans[row]));
+    }
 
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
+    pub fn reserve(frame: *Frame, row: usize, payload: u32) std.mem.Allocator.Error!u32 {
+        const created = Nodes.append(frame.graph, .{ .optional = @fromBackingInt(payload) }, frame.spans[row]) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => unreachable,
+        };
+
+        return @backingInt(created);
+    }
+    pub fn merge(frame: *Frame, row: usize, left: u32, right: u32) zx.Error!void {
+        try frame.graph.unify(@fromBackingInt(left), @fromBackingInt(right), frame.spans[row]);
     }
 };
-
-pub fn refreshNonNullTopology(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
-
-    frame.topology.bind(frame.graph);
-}
-
-pub fn registerNonNullPayload(handle: *anyopaque, row: u64, value: u32) zx.Error!u32 {
-    const frame = Frame.borrow(handle);
-    const span = frame.spans[@intCast(row)];
-
-    return @backingInt(try frame.graph.known(@fromBackingInt(value), span));
-}
-
-pub fn reserveNonNullSource(handle: *anyopaque, row: u64, payload: u32) std.mem.Allocator.Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    const created = Nodes.append(frame.graph, .{ .optional = @fromBackingInt(payload) }, frame.spans[@intCast(row)]) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
-    };
-
-    return @backingInt(created);
-}
-
-pub fn mergeNonNullProjection(handle: *anyopaque, row: u64, left: u32, right: u32) zx.Error!void {
-    const frame = Frame.borrow(handle);
-
-    try frame.graph.unify(@fromBackingInt(left), @fromBackingInt(right), frame.spans[@intCast(row)]);
-}

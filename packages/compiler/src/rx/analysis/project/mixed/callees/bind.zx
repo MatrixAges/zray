@@ -1,43 +1,77 @@
-import host from "rx_project_host"
-
-import admit from "../../../call/compiled_admission"
-import { Output as Admission } from "../../../call/compiled_admission"
 import {
     missing_member,
     missing_rx,
     missing_zx,
-    not_executable_library,
     not_executable_rx,
-    not_executable_zx,
-    unauthorized_transaction
+    not_executable_zx
 } from "./const"
 import lookup from "./lookup"
-import { Action } from "./model"
+import { Action, EffectKind } from "./model"
+import resume from "./resume"
 
-import type { MixedCallees } from "rx_project_host"
-import type { Published, Targets } from "./model"
+import type { Published, Reply, Request, Targets } from "./model"
 
 export type Input = {
     calls: Targets,
     published: Published,
     zx_count: u64,
     rx_end: u64,
-    binding: MixedCallees
+    position: u64,
+    reply?: Reply
 }
 
-export type Output = u32[]
+export type Output = {
+    ids: u32[],
+    effect: Request
+}
 
 export default function (in: Input): Output {
-    const ids: u32[] = []
+    const empty: u32[] = []
+
+    const { calls, published, zx_count, rx_end, reply } = in
+
+    const initial: Output = {
+        ids: empty,
+        effect: {
+            kind: EffectKind.Done,
+            position: in.position
+        }
+    }
+
+    const resumed = resume(reply)
+
+    if (resumed.message != null) {
+        return {
+            ...initial,
+            effect: {
+                kind: EffectKind.Reject,
+                position: in.position,
+                message: resumed.message
+            }
+        }
+    }
+
+    const function_id = resumed.function_id
+
+    const ids = match {
+        function_id != null => [function_id],
+        _ => empty
+    }
+
+    const first = reply == null ? in.position : in.position + 1
 
     return loop({
-        position: 0,
-        ids
+        cursor: first,
+        output: {
+            ...initial,
+            ids
+        }
     }, {
-        while: state => state.position < in.calls.rows.length,
+        while: state =>
+            state.cursor < calls.rows.length &&
+            state.output.effect.kind == EffectKind.Done,
         next: state => {
-            const { position } = state
-            const { calls, published, zx_count, rx_end, binding } = in
+            const position = state.cursor
             const target = calls.rows[position]
             const selected = lookup({
                 calls,
@@ -49,54 +83,22 @@ export default function (in: Input): Output {
             })
 
             const { action } = selected
+            const id = selected.id
 
             if (action == Action.LoadLibrary) {
-                const imported = host.importMixedCallee(binding, position, target)
-                const function_id = imported.function_id
-
-                if (function_id == null) {
-                    host.rejectMixedCallee(
-                        binding,
-                        position,
-                        false,
-                        not_executable_library
-                    )
-                } else {
-                    const verdict = admit({
-                        executable: true,
-                        setter: imported.setter,
-                        has_stores: imported.has_stores,
-                        orchestration: imported.orchestration
-                    })
-
-                    if (verdict != Admission.Executable) {
-                        host.rejectMixedCallee(
-                            binding,
-                            position,
-                            false,
-                            unauthorized_transaction
-                        )
-                    }
-
-                    state.ids = state.ids.push(function_id)[0]
+                state.output.effect = {
+                    kind: EffectKind.ImportLibrary,
+                    position,
+                    target
                 }
             } else if (action == Action.CompileSetter) {
-                const id = host.compileMixedSetter(binding, position, target)
-
-                host.restoreMixedCalleeOwner(binding)
-
-                if (id == null) {
-                    host.rejectMixedCallee(
-                        binding,
-                        position,
-                        false,
-                        not_executable_zx
-                    )
-                } else {
-                    state.ids = state.ids.push(id)[0]
+                state.output.effect = {
+                    kind: EffectKind.CompileSetter,
+                    position,
+                    target
                 }
-            } else if (selected.id != null) {
-                state.ids = state.ids.push(selected.id)[0]
+            } else if (id != null) {
+                state.output.ids = state.output.ids.push(id)[0]
             } else {
                 const message = match action {
                     Action.MissingMember => missing_member,
@@ -106,16 +108,16 @@ export default function (in: Input): Output {
                     _ => not_executable_zx
                 }
 
-                host.rejectMixedCallee(
-                    binding,
+                state.output.effect = {
+                    kind: EffectKind.Reject,
                     position,
-                    action == Action.MissingMember,
+                    name: action == Action.MissingMember,
                     message
-                )
+                }
             }
 
-            state.position += 1
+            state.cursor += 1
         },
-        return: state => state.ids
+        return: state => state.output
     })
 }

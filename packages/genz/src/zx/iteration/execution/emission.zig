@@ -8,6 +8,7 @@ const step = @import("../step.zig");
 const scope = @import("../../state_value/scope.zig");
 const result = @import("../result.zig");
 const renew_seed = @import("../renewal_seed.zig");
+const publication = @import("../../construction/publication.zig");
 const generated = @import("genz_options").generated_analysis;
 const Error = Lower.Error;
 const Api = @import("../../expressions/evaluate.zig").Api;
@@ -65,24 +66,28 @@ pub fn declareLoopState(handle: *anyopaque, form: Layout, projected: bool, mutab
     });
 }
 
-pub fn enterLoweredLoop(handle: *anyopaque) Error!void {
+pub fn enterLoweredLoop(handle: *anyopaque) Error!struct { growth: node.Block, declarations: node.Block } {
     const frame = Frame.borrow(handle);
     const projected = frame.fields != null;
-
-    frame.growth = try renew_seed.store(frame.lowering, frame.id, frame.type_id, .{ .reference = if (projected) frame.seed else frame.state });
+    const growth = try renew_seed.store(frame.lowering, frame.id, frame.type_id, .{ .reference = if (projected) frame.seed else frame.state });
 
     if (projected) {
         try maskLoopBorrowedFields(handle);
         try declareProjectedLoopState(handle);
     }
 
-    return publishLoopDeclarations(handle);
+    const output = frame.output();
+    const declaration_rows = try frame.lowering.builder.statements(output.items);
+
+    output.clearRetainingCapacity();
+
+    return .{ .growth = growth, .declarations = declaration_rows };
 }
 
-pub fn emitLoopRenewals(handle: *anyopaque, first: u64, end: u64, skipped: []const u64, filtered_inline: bool) Error!void {
+pub fn emitLoopRenewals(handle: *anyopaque, first: u64, end: u64, skipped: []const u64, filtered_inline: bool) Error!u64 {
     const frame = Frame.borrow(handle);
 
-    frame.growth = try @import("../../growth/delivery.zig").entry(frame.lowering, .{
+    const growth = try @import("../../growth/delivery.zig").entry(frame.lowering, .{
         .type_id = frame.type_id,
         .target = .{ .reference = if (frame.fields != null) frame.seed else frame.state },
         .first = @intCast(first),
@@ -90,6 +95,8 @@ pub fn emitLoopRenewals(handle: *anyopaque, first: u64, end: u64, skipped: []con
         .skipped = skipped,
         .filtered_inline = filtered_inline,
     });
+
+    return publication.packSpan(growth);
 }
 
 pub fn maskLoopBorrowedFields(handle: *anyopaque) Error!void {
@@ -110,22 +117,10 @@ pub fn declareProjectedLoopState(handle: *anyopaque) Error!void {
     });
 }
 
-pub fn publishLoopDeclarations(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-    const output = frame.output();
-
-    frame.prefix.declarations = if (generated) try output.block(self.allocator) else try self.builder.statements(output.items);
-
-    output.clearRetainingCapacity();
-
-    frame.recovered = frame.state;
-}
-
-pub fn writeLoopUpdate(handle: *anyopaque) Error!void {
+pub fn writeLoopUpdate(handle: *anyopaque) Error!node.Block {
     const frame = Frame.borrow(handle);
 
-    frame.update = try step.store(frame.lowering, &frame.loop, frame.schedule, .{
+    return step.store(frame.lowering, &frame.loop, frame.schedule, .{
         .type_id = frame.type_id,
         .origin = frame.iteration.body,
         .target = frame.state,
@@ -140,52 +135,45 @@ pub fn projectLoopAssignment(handle: *anyopaque, value: u32) Error!u32 {
     return @backingInt(try frame.fields.?.qualify(frame.lowering, &frame.loop, frame.iteration.body, @fromBackingInt(value)));
 }
 
-pub fn commitLoopUpdate(handle: *anyopaque, value: u32, state: bool) Error!void {
+pub fn commitLoopUpdate(handle: *anyopaque, value: u32, state: bool) Error!u64 {
     const frame = Frame.borrow(handle);
 
-    frame.update = try step.publish(frame.lowering, &frame.loop, .{
+    const update = try step.publish(frame.lowering, &frame.loop, .{
         .type_id = frame.type_id,
         .active = state and frame.lowering.state_active,
         .target = frame.state,
         .value = @fromBackingInt(value),
         .mark = if (frame.tracker) |flag| flag.generated else null,
     });
+
+    return publication.packSpan(update);
 }
 
-pub fn frameLoweredLoop(handle: *anyopaque, condition: u32, after_step: bool) Error!void {
-    const frame = Frame.borrow(handle);
-    const projected = frame.fields != null;
-
-    frame.prefix.renewals = if (projected) frame.growth else .{};
-
-    frame.prefix.frame = try @import("../frame.zig").lower(frame.lowering, if (projected) .{} else frame.growth, frame.update, .{
-        .condition = @fromBackingInt(condition),
-        .after_step = after_step,
-        .guarded_initial = !projected and frame.guard != null,
-    });
-}
-
-pub fn recoverLoweredLoop(handle: *anyopaque) Error!void {
+pub fn recoverLoweredLoop(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
 
     frame.output().clearRetainingCapacity();
 
-    frame.recovered = frame.state;
-
-    if (frame.schedule.restore_projected) try restoreLoopFields(handle);
+    return if (frame.schedule.restore_projected) restoreLoopFields(handle) else @backingInt(frame.state);
 }
 
-pub fn restoreLoopFields(handle: *anyopaque) Error!void {
+pub fn restoreLoopFields(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
 
-    frame.recovered = try aggregate.bind(self, frame.output(), try frame.fields.?.restore(self, frame.state));
+    return @backingInt(try aggregate.bind(self, frame.output(), try frame.fields.?.restore(self, frame.state)));
 }
 
-pub fn finishLoweredLoop(handle: *anyopaque) Error!u32 {
+pub fn finishLoweredLoop(handle: *anyopaque, state: u32, spans: result.Prefix) Error!u32 {
     const frame = Frame.borrow(handle);
     const initial = @backingInt(frame.initial_value);
-    const value = try completeLoopResult(handle, initial);
+
+    const value = @backingInt(try resultConfig(frame, frame.initial_value).lower(
+        frame.lowering,
+        frame.output(),
+        @fromBackingInt(state),
+        spans,
+    ));
 
     if (frame.fields != null) {
         if (frame.next.first) |first| return finishSkippedLoop(handle, initial, value, @backingInt(first));
@@ -212,10 +200,14 @@ fn resultConfig(frame: *Frame, initial: node.ExpressionId) result.Result {
     };
 }
 
-pub fn completeLoopResult(handle: *anyopaque, initial: u32) Error!u32 {
+pub fn completeLoopResult(handle: *anyopaque, initial: u32, state: u32, spans: *const Api.LoopEmissionSpans) Error!u32 {
     const frame = Frame.borrow(handle);
 
-    return @backingInt(try resultConfig(frame, @fromBackingInt(initial)).lower(frame.lowering, frame.output(), frame.recovered, frame.prefix));
+    return @backingInt(try resultConfig(frame, @fromBackingInt(initial)).lower(frame.lowering, frame.output(), @fromBackingInt(state), .{
+        .renewals = publication.unpackSpan(spans.renewals),
+        .declarations = publication.unpackSpan(spans.declarations),
+        .frame = publication.unpackSpan(spans.frame),
+    }));
 }
 
 pub fn finishSkippedLoop(handle: *anyopaque, initial: u32, value: u32, first: u32) Error!u32 {

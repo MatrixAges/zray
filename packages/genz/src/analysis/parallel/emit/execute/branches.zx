@@ -49,7 +49,7 @@ export default function (in: Input): Output {
 
             const thread_name = host.retainLoweringText(frame, thread_label.name)
 
-            host.setLoweringSerial(frame, thread_label.serial)
+            host.finishGeneratedAst(frame, thread_label.serial, false)
 
             const record: Record = {
                 argument,

@@ -2,14 +2,6 @@ export type Execution = mutable_opaque
 
 export type FlowExecution = mutable_opaque
 
-export type FlowQueue = {
-    first: u64[],
-    items: u32[],
-    indices: u32[],
-    queued: u8[],
-    count: u64
-}
-
 export enum RoundKind {
     Settle,
     Demand,
@@ -107,9 +99,6 @@ export declare function solveFlowLayer(
 export declare function keepFlowMemo(flow: FlowExecution, row: u64): void
 
 export declare function publishFlowMemo(flow: FlowExecution, row: u64): void
-    throws { OutOfMemory }
-
-export declare function openRecursiveFlow(flow: FlowExecution): FlowQueue
     throws { OutOfMemory }
 
 export declare function retainFlowFacts(flow: FlowExecution, index: u32): void

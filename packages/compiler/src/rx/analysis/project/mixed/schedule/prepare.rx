@@ -1,6 +1,6 @@
 <Module>
     <Type from="preparation" as="Preparation" />
-    <Type from="../ahead/reset" as="Reset" />
+    <Type from="../ahead/operation" as="Operation" />
 
     <Args in={Preparation.Request} out={u64} />
 
@@ -12,21 +12,31 @@
         fn="start"
         in={$in.pick([
             "selection",
-            "workspace",
             "minimum"
         ])}
     />
 
     <If on={$ctx.start != null}>
         <Call
-            fn="collect"
+            fn="../ahead/stage"
+            in={{
+                action: Operation.Action.Reserve,
+                row: 0
+            }}
+            setter={[$store.workspace.effect]}
+        />
+
+        <Call fn="../ahead/read_count" in={$store.workspace.effect} />
+
+        <Call
+            module="collect"
             in={{
                 ...$in.pick([
                     "selection",
-                    "workspace",
                     "capacity"
                 ]),
-                initial: $ctx.start
+                initial: $ctx.start,
+                limit: $ctx.read_count >= $in.minimum ? $ctx.read_count : $in.minimum
             }}
         />
 
@@ -36,30 +46,31 @@
                 accepted: $ctx.collect,
                 first: $in.selection.start,
                 end: $in.selection.end,
-                workers: $ctx.start.workers,
-                limit: $ctx.start.limit,
+                workers: $ctx.read_count,
+                limit: $ctx.read_count >= $in.minimum ? $ctx.read_count : $in.minimum,
                 minimum: $in.minimum
             }}
         />
 
         <If on={$ctx.prepared.participants != 0}>
             <Call
-                fn="host.executeMixedWorkers"
-                in={[
-                    $in.workspace,
-                    $ctx.prepared.participants
-                ]}
+                fn="../ahead/stage"
+                in={{
+                    action: Operation.Action.Execute,
+                    row: $ctx.prepared.participants
+                }}
+                setter={[$store.workspace.effect]}
             />
 
             <Else>
                 <If on={$ctx.collect.count != 0}>
                     <Call
-                        fn="../ahead/stage_recycle"
+                        fn="../ahead/stage"
                         in={{
-                            action: Reset.Action.ClearResults,
-                            worker: 0
+                            action: Operation.Action.ClearResults,
+                            row: 0
                         }}
-                        setter={[$store.workspace.recycle]}
+                        setter={[$store.workspace.effect]}
                     />
                 </If>
             </Else>

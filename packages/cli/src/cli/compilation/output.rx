@@ -2,23 +2,71 @@
     <Type from="index" as="IO" />
     <Type from="model" as="Compile" />
 
-    <Args in={Compile.Request} out={IO.Status} />
+    <Args in={Compile.TextPublication} out={IO.Status} />
 
     <If on={$in.settings.check}>
-        <Call fn="index.checkCompilationText" in={$in.compilation} />
+        <Call
+            fn="text_diagnostic"
+            in={{
+                source: $in.text.source,
+                original: $in.text.original,
+                path: $in.text.input_path,
+                notice: $in.formatting_notice
+            }}
+        />
 
-        <If on={!$ctx.checkCompilationText}>
-            <Return value={IO.Status.Failed} />
+        <If on={$ctx.text_diagnostic == null}>
+            <Return value={IO.Status.Success} />
+
+            <Else>
+                <Call
+                    fn="index.writeCompilationDiagnostic"
+                    in={[
+                        $in.compilation,
+                        $ctx.text_diagnostic
+                    ]}
+                />
+
+                <Call fn="index.flushCompilationDiagnostics" in={$in.compilation} />
+
+                <Return value={IO.Status.Failed} />
+            </Else>
         </If>
+    </If>
+
+    <If on={$in.settings.write}>
+        <Call
+            module="../workspace_files/write_program_text"
+            in={{
+                path: $in.text.input_path,
+                source: $in.text.source,
+                abi: $in.text.abi,
+                abi_base: $in.settings.output
+            }}
+        />
 
         <Return value={IO.Status.Success} />
     </If>
 
-    <If on={$in.settings.write || $in.settings.output != null}>
-        <Call fn="index.writeCompilationText" in={$in.compilation} />
+    <If on={$in.settings.output == null}>
+        <Call
+            fn="index.printCompilationText"
+            in={[
+                $in.compilation,
+                $in.text.source
+            ]}
+        />
 
         <Else>
-            <Call fn="index.printCompilationText" in={$in.compilation} />
+            <Call
+                module="../workspace_files/write_program_text"
+                in={{
+                    path: $in.settings.output,
+                    source: $in.text.source,
+                    abi: $in.text.abi,
+                    abi_base: $in.settings.output
+                }}
+            />
         </Else>
     </If>
 

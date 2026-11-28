@@ -30,8 +30,6 @@
         />
     </Loop>
 
-    <Call fn="../index.closeCheckFunctions" in={$in.check} />
-
     <If on={!$ctx.function_row.valid}>
         <Return value={false} />
     </If>

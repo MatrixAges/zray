@@ -28,10 +28,11 @@
     />
 
     <Call
-        fn="../../rows.setLoweringSerial"
+        fn="../../rows.finishGeneratedAst"
         in={[
             $in.frame,
-            $ctx.labels.serial
+            $ctx.labels.serial,
+            false
         ]}
     />
 

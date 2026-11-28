@@ -1,16 +1,15 @@
 import integers from "std:integer"
-import { Kind } from "hardware_graph_host"
+import host from "hardware_graph_host"
 import memory from "memory"
 
 import space from "../../terms/parse/space"
 import portType from "./port_type"
 
-import type { InputPort } from "hardware_graph_host"
-import type { InputWalk } from "./model"
+import type { InputPort, InputWalk } from "./model"
 
 export type Input = InputWalk.Pick("input_types", "types", "row")
 
-export type Output = InputPort?
+export type Output = InputPort
 
 export default function (in: Input): Output {
     const { input_types, types, row } = in
@@ -26,11 +25,10 @@ export default function (in: Input): Output {
     })
 
     if (!valid) {
-        return null
+        host.rejectHardwareTerm()
     }
 
     return {
-        kind: Kind.Input,
         width: integers.narrowShort(port.width),
         boolean: port.boolean,
         signed: port.signed

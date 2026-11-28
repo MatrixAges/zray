@@ -44,8 +44,13 @@ pub fn init(allocator: std.mem.Allocator, backing: std.mem.Allocator, graph: Sou
 
     if (comptime generated) {
         const rule = @import("generated_rx_open_mixed_state");
+        var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-        try @import("body.zig").run(rule, @ptrCast(&opening));
+        rule.executeIn(empty.allocator(), @ptrCast(&opening)) catch |err| return switch (err) {
+            error.OutOfMemory => error.OutOfMemory,
+            error.InvalidSourceGraph => error.InvalidSourceGraph,
+            else => unreachable,
+        };
     } else {
         try opening.installTypes();
         try opening.installNatives();

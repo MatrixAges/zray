@@ -6,23 +6,74 @@ const State = @import("state.zig");
 const object = @import("object.zig");
 const entry = @import("generated_rx_compile_store_initializer");
 const Request = std.meta.Child(entry.Input);
-const FieldNames = @import("rx_execution_abi").layouts.@"zig:rx_project_host".StoreFieldNames;
 const Value = @import("../initializer.zig").Value;
 const Error = std.mem.Allocator.Error;
+const StoreState = std.meta.Child(@FieldType(entry.zx_pending, "store_0"));
 
 const Frame = struct {
     state: *State,
-    field_names: FieldNames = undefined,
+    store_0: *StoreState,
+    snapshot: *std.meta.Child(StoreState),
+    pub fn commit(frame: *Frame, pending: anytype) zx.Error!void {
+        const effect = pending.store_0 orelse return;
+        const state = frame.state;
+
+        switch (effect.step) {
+            .Prepare => try state.prepare(@intCast(effect.index.?), false),
+            .Evaluate => {
+                try state.openField(@intCast(effect.index.?), Declarations.attribute(effect.name.?), Declarations.attribute(effect.value.?));
+
+                frame.snapshot.* = effect.*;
+                frame.snapshot.valid = try state.compileField();
+                frame.store_0.* = frame.snapshot;
+            },
+            .Record => try state.recordField(@intCast(effect.index.?), false),
+            .Link => {
+                frame.snapshot.* = effect.*;
+                frame.snapshot.valid = try state.linkField(@intCast(effect.index.?));
+                frame.store_0.* = frame.snapshot;
+            },
+            .Release => state.releaseField(),
+            .Resolve => {
+                try state.resolveType();
+
+                frame.snapshot.* = effect.*;
+                frame.snapshot.source = state.names;
+                frame.snapshot.canonical = state.table.?.get(state.output).object.names;
+                frame.store_0.* = frame.snapshot;
+            },
+            .InvalidLink => return state.invalidLink(),
+            .Finish => {
+                const root = try object.appendPositioned(&state.builder, state.output, effect.positions.?, state.evaluation, State.span);
+
+                try state.finishProgram(root);
+                try state.analyzeOwnership();
+                try state.verifyProgram();
+            },
+        }
+    }
 };
 
 pub fn run(state: *State) Error!Value {
     const options = state.options;
     const Fields = std.meta.Child(@FieldType(Request, "fields"));
     const Layout = std.meta.Child(@FieldType(Fields, "layout"));
-    var frame: Frame = .{ .state = state };
+
+    var snapshot: std.meta.Child(StoreState) = .{
+        .step = .Prepare,
+        .index = null,
+        .name = null,
+        .value = null,
+        .positions = null,
+        .valid = false,
+        .source = &.{},
+        .canonical = &.{},
+    };
+
+    var store: StoreState = &snapshot;
+    var frame: Frame = .{ .state = state, .store_0 = &store, .snapshot = &snapshot };
 
     const input: Request = .{
-        .frame = @ptrCast(&frame),
         .layout = &.{ .offsets = options.layout.offsets, .next = options.layout.next },
         .fields = &.{
             .pointers = std.mem.sliceAsBytes(options.layout.fields),
@@ -35,64 +86,11 @@ pub fn run(state: *State) Error!Value {
     var buffer: [4096]u8 = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, state.temporary);
 
-    entry.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    entry.executeIn(scratch.allocator(), &input, &frame) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         error.InvalidSource => return .{ .diagnostic = try state.report() },
         else => unreachable,
     };
 
     return if (state.diagnostic) |issue| .{ .diagnostic = issue } else .{ .program = state.program };
-}
-
-fn borrow(handle: *anyopaque) *Frame {
-    return @ptrCast(@alignCast(handle));
-}
-
-pub fn prepareStoreInitializer(handle: *anyopaque, count: u64) Error!void {
-    try borrow(handle).state.prepare(@intCast(count), false);
-}
-
-pub fn evaluateStoreField(handle: *anyopaque, row: u64, name: []const u8, value: []const u8) Error!bool {
-    const state = borrow(handle).state;
-
-    try state.openField(@intCast(row), Declarations.attribute(name), Declarations.attribute(value));
-
-    return state.compileField();
-}
-
-pub fn recordStoreField(handle: *anyopaque, position: u64) Error!void {
-    try borrow(handle).state.recordField(@intCast(position), false);
-}
-
-pub fn linkStoreField(handle: *anyopaque, position: u64) Error!bool {
-    return borrow(handle).state.linkField(@intCast(position));
-}
-
-pub fn releaseStoreField(handle: *anyopaque) void {
-    borrow(handle).state.releaseField();
-}
-
-pub fn resolveStoreInitializer(handle: *anyopaque, invalid: bool) zx.Error!*const FieldNames {
-    const frame = borrow(handle);
-    const state = frame.state;
-
-    try state.resolveType();
-
-    if (invalid) return state.invalidLink();
-
-    frame.field_names = .{
-        .source = state.names,
-        .canonical = state.table.?.get(state.output).object.names,
-    };
-
-    return &frame.field_names;
-}
-
-pub fn finishStoreInitializer(handle: *anyopaque, positions: []const u32) zx.Error!void {
-    const state = borrow(handle).state;
-    const root = try object.appendPositioned(&state.builder, state.output, positions, state.evaluation, State.span);
-
-    try state.finishProgram(root);
-    try state.analyzeOwnership();
-    try state.verifyProgram();
 }

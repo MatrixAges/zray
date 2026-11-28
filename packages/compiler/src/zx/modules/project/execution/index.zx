@@ -3,9 +3,3 @@ export {
     shrinkLengthSlot,
     advanceLengthSlot
 } from "memory"
-export {
-    analyzeProjectBody,
-    materializeProjectFunction,
-    bindProjectBodyExports,
-    checkProjectOwnership
-} from "project_host"

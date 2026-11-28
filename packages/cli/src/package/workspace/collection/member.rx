@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Workspace" />
 
-    <Args in={Workspace.Member} out={void} />
+    <Args in={Workspace.Member} out={string?} />
 
     <Store from="state" as="state" />
 
@@ -18,7 +18,7 @@
             fn="register_name"
             in={{
                 seen: $store.state.seen,
-                name: $ctx.readMember,
+                name: $ctx.readMember.name,
                 location: $in.path
             }}
             setter={[$store.state.seen]}
@@ -26,12 +26,15 @@
 
         <If on={$ctx.register_name != null}>
             <Call
-                fn="index.duplicateMember"
-                in={[
-                    $in.collection,
-                    $ctx.register_name
-                ]}
+                fn="duplicate_member"
+                in={{
+                    path: $ctx.readMember.path,
+                    name: $ctx.readMember.name,
+                    first: $ctx.register_name
+                }}
             />
+
+            <Return value={$ctx.duplicate_member} />
         </If>
 
         <Call fn="../paths/portable" in={$in.path} />
@@ -44,4 +47,6 @@
             ]}
         />
     </If>
+
+    <Return value={null} />
 </Module>

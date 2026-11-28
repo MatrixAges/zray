@@ -6,7 +6,8 @@ const rules = @import("cli_source");
 const effects = @import("../cli/sources/effects.zig");
 const Error = effects.Error;
 const Directory = @import("cli_abi").layouts.@"zig:package_workspace_host".Directory;
-const RootManifest = @import("cli_abi").layouts.@"zig:package_workspace_host".RootManifest;
+const layouts = @import("cli_abi").layouts.@"zig:package_workspace_host";
+const RootManifest = layouts.RootManifest;
 const constants = rules.workspace_constants.@"zx.constants";
 const Pending = rules.workspace_collect.zx_pending;
 const Store0 = std.meta.Child(@FieldType(Pending, "store_0"));
@@ -87,7 +88,7 @@ const State = struct {
     current_view: Directory = undefined,
     root_view: RootManifest = undefined,
     member: Manifest = undefined,
-    member_path: []const u8 = undefined,
+    member_view: layouts.ManifestMember = undefined,
     fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);
     }
@@ -131,8 +132,13 @@ fn collect(io: std.Io, result: *Result, request: Request) ![]const Package {
     var store_0: Store0 = &store_0_value;
     var store_1: Store1 = &store_1_value;
     var host: StoreHost = .{ .store_0 = &store_0, .store_1 = &store_1 };
+    const diagnostic = rules.workspace_collect.execute(&store_arena, @ptrCast(&reference), &host) catch |err| return state.failure.unwrap(err);
 
-    rules.workspace_collect.execute(&store_arena, @ptrCast(&reference), &host) catch |err| return state.failure.unwrap(err);
+    if (diagnostic) |message| {
+        result.diagnostic = try allocator.dupe(u8, message);
+
+        return error.InvalidWorkspace;
+    }
 
     return try state.packages.toOwnedSlice(allocator);
 }
@@ -150,17 +156,10 @@ pub fn readRoot(handle: *const anyopaque) Error!*const RootManifest {
     self.root_view = .{
         .patterns = if (data.workspace) |workspace| workspace.packages else &.{},
         .root_name = data.name,
+        .path = path,
     };
 
     return &self.root_view;
-}
-
-pub fn invalidPattern(handle: *const anyopaque, pattern: []const u8) Error!void {
-    const self = State.get(handle);
-
-    self.result.diagnostic = std.fmt.allocPrint(self.allocator, "{s}: unsupported workspace pattern: {s}", .{ self.request.path, pattern }) catch |err| return self.failure.save(err);
-
-    return self.failure.save(error.InvalidWorkspace);
 }
 
 pub fn openDirectory(handle: *const anyopaque) Error!void {
@@ -190,6 +189,8 @@ pub fn nextDirectory(handle: *const anyopaque) Error!?*const Directory {
         return &self.current_view;
     }
 
+    self.closeWalker();
+
     return null;
 }
 
@@ -205,15 +206,9 @@ pub fn enterDirectory(handle: *const anyopaque) Error!void {
     self.walker.?.enter(self.io, self.current) catch |err| return self.failure.save(err);
 }
 
-pub fn closeDirectory(handle: *const anyopaque) void {
-    State.get(handle).closeWalker();
-}
-
-pub fn readMember(handle: *const anyopaque, member: []const u8) Error!?[]const u8 {
+pub fn readMember(handle: *const anyopaque, member: []const u8) Error!?*const layouts.ManifestMember {
     const self = State.get(handle);
     const path = std.fs.path.join(self.allocator, &.{ self.result.root, member, constants.manifest_name }) catch |err| return self.failure.save(err);
-
-    self.member_path = path;
 
     self.member = read(self.io, self.result, path, self.request.inputs, self.manifests, self.request.member) catch |err| {
         if (err == error.FileNotFound) return null;
@@ -226,15 +221,9 @@ pub fn readMember(handle: *const anyopaque, member: []const u8) Error!?[]const u
         return self.failure.save(err);
     };
 
-    return self.member.name;
-}
+    self.member_view = .{ .name = self.member.name, .path = path };
 
-pub fn duplicateMember(handle: *const anyopaque, first: []const u8) Error!void {
-    const self = State.get(handle);
-
-    self.result.diagnostic = std.fmt.allocPrint(self.allocator, "{s}: duplicate workspace package {s}; first declared at {s}", .{ self.member_path, self.member.name, first }) catch |err| return self.failure.save(err);
-
-    return self.failure.save(error.InvalidWorkspace);
+    return &self.member_view;
 }
 
 pub fn publishMember(handle: *const anyopaque, path: []const u8) Error!void {

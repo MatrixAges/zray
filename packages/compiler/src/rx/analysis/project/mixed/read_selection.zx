@@ -1,0 +1,13 @@
+import type { Effect as Input, Selection } from "./operation"
+
+export type Output = Selection
+
+export default function (in: Input): Output {
+    return in.pick([
+        "action",
+        "index",
+        "position",
+        "following",
+        "prepared_row"
+    ])
+}

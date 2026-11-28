@@ -3,20 +3,24 @@
 
     <Args in={Registry.Load} out={Registry.Load} />
 
+    <Store from="loading" as="loading" />
+
     <Call
-        fn="host.bindStoreRegistryAliases"
-        in={[
-            $in.state,
-            $in.row
-        ]}
+        fn="stage_load"
+        in={{
+            step: Registry.LoadStep.BindAliases,
+            row: $in.row
+        }}
+        setter={[$store.loading.effect]}
     />
 
     <Call
-        fn="host.compileStoreRegistryEntry"
-        in={[
-            $in.state,
-            $in.row
-        ]}
+        fn="stage_load"
+        in={{
+            step: Registry.LoadStep.Compile,
+            row: $in.row
+        }}
+        setter={[$store.loading.effect]}
     />
 
     <Return

@@ -1,0 +1,26 @@
+<Module>
+    <Type from="preparation" as="Preparation" />
+
+    <Args in={Preparation.Collect} out={Preparation.Accepted} />
+
+    <Loop on={$in.accepted < $in.limit && $in.positions.length != 0}>
+        <Call
+            module="candidate"
+            in={{
+                ...$in.omit(["initial"]),
+                cursor: 0,
+                scan: $in.initial.next,
+                positions: $in.initial.positions,
+                accepted: 0,
+                last: 0
+            }}
+        />
+    </Loop>
+
+    <Return
+        value={{
+            count: $ctx.candidate.accepted,
+            last: $ctx.candidate.last
+        }}
+    />
+</Module>

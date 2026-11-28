@@ -1,14 +1,15 @@
 <Module>
     <Type from="model" as="Term" />
 
-    <Args in={Term.Input} out={u32} />
+    <Args in={Term.Input} out={Term.Term} />
 
-    <Call fn="begin" in={$in} />
+    <Call fn="begin" in={$in.expression} />
 
     <Call
         fn="walk"
         in={{
-            build: $in.build,
+            graph: $in.graph,
+            variables: $in.variables,
             expression: $in.expression,
             origin: $in.origin,
             source: $ctx.begin,
@@ -20,12 +21,16 @@
     <Call
         fn="finish"
         in={{
-            build: $in.build,
             source: $ctx.begin,
             offset: $ctx.walk.offset,
             closing: false
         }}
     />
 
-    <Return value={$ctx.walk.node} />
+    <Return
+        value={$ctx.walk.pick([
+            "graph",
+            "node"
+        ])}
+    />
 </Module>

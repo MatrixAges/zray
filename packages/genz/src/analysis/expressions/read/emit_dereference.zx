@@ -1,0 +1,31 @@
+import { appendExpressionRows, AstPayloadOwnership, astExpressionCount } from "ast_rows"
+
+import emptyExpressions from "../../../ast/expressions/empty"
+import { ExpressionsKind } from "../../../printer/model/expressions"
+
+import type { AstWriter } from "ast_rows"
+
+export type Input = {
+    writer: AstWriter,
+    value: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const base = astExpressionCount(in.writer)
+
+    appendExpressionRows(
+        in.writer,
+        {
+            ...emptyExpressions({}),
+            tags: [ExpressionsKind.Dereference],
+            offsets: [0],
+            dereference: [in.value]
+        },
+        null,
+        AstPayloadOwnership.Borrowed
+    )
+
+    return base
+}

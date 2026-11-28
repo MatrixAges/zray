@@ -37,7 +37,7 @@ export default function (in: Input): Output {
 
         const retained = host.retainLoweringText(frame, generated.name)
 
-        host.setLoweringSerial(frame, generated.serial)
+        host.finishGeneratedAst(frame, generated.serial, false)
 
         const started = host.startInlineTask(frame, child, retained, false)
 

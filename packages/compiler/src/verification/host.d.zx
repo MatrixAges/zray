@@ -22,6 +22,11 @@ export type CallSafety = {
     callee: string
 }
 
+export type SymbolicPath = {
+    path: string,
+    violations: string[]
+}
+
 export type ClauseTerm = {
     safe: string,
     predicate: string
@@ -45,9 +50,6 @@ export declare function evaluateClause(session: SymbolicSession, row: u64): Clau
 export declare function bindSymbolicBoolean(session: SymbolicSession, term: string): string
     throws { OutOfMemory, InvalidSource }
 
-export declare function publishClauseViolation(session: SymbolicSession, term: string): void
-    throws { OutOfMemory }
-
 export declare function selectSymbolicReturn(session: SymbolicSession, row: u64): string
     throws { OutOfMemory, InvalidSource }
 
@@ -63,13 +65,16 @@ export declare function bindSymbolicStatement(
 
 export declare function publishSymbolicStatementReturn(
     block: SymbolicBlock,
-    path: string,
+    path: SymbolicPath,
     value: SymbolicOutcome
-): void
-    throws { OutOfMemory, InvalidSource }
+): string[] throws { OutOfMemory, InvalidSource }
 
-export declare function runSymbolicChild(block: SymbolicBlock, body: u32, path: string): string
-    throws { OutOfMemory, InvalidSource }
+export declare function runSymbolicChild(
+    allocator,
+    block: SymbolicBlock,
+    body: u32,
+    path: SymbolicPath
+): SymbolicPath throws { OutOfMemory, InvalidSource }
 
 export declare function evaluateSymbolicOperand(
     frame: SymbolicExpression,

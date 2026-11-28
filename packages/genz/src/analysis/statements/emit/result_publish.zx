@@ -77,7 +77,7 @@ export default function (in: Input): Output {
         AstSequenceMode.BorrowingText
     )
 
-    host.setLoweringSerial(frame, built.serial)
+    host.finishGeneratedAst(frame, built.serial, false)
 
-    return takeAstSequence(writer, sequence)
+    return takeAstSequence(writer, sequence, true)
 }

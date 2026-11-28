@@ -1,7 +1,8 @@
-import strings from "std:string"
 import memory from "memory"
 
-import type { DefinitionWalk as Input } from "./model"
+import type { DefinitionWalk } from "./model"
+
+export type Input = DefinitionWalk.Pick("rows", "row", "origin_file")
 
 export type Output = string
 
@@ -15,5 +16,5 @@ export default function (in: Input): Output {
         }
     }
 
-    return strings.copy(file)
+    return file
 }

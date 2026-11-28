@@ -21,11 +21,12 @@ const Input = if (generated) std.meta.Child(@FieldType(std.meta.Child(entry.Inpu
 const AttributeView = if (generated) std.meta.Child(@FieldType(Input, "attributes")) else void;
 const EdgeView = if (generated) std.meta.Child(@FieldType(Input, "edges")) else void;
 const Reference = if (generated) std.meta.Child(std.meta.Child(@FieldType(EdgeView, "reference"))) else void;
-const Abi = if (generated) @import("rx_execution_abi").layouts.@"zig:rx_project_host" else void;
-const Admission = if (generated) Abi.CallAdmission else availability.Input;
-const Route = if (generated) Abi.CallRoute else availability.Route;
-const Callee = if (generated) Abi.CallCallee else availability.Callee;
-const CompiledStatus = if (generated) Abi.CompiledCallStatus else wrapper.Status;
+const StoreState = if (generated) std.meta.Child(@FieldType(entry.zx_pending, "store_0")) else void;
+const Effect = if (generated) std.meta.Child(StoreState) else void;
+const Publication = if (generated) std.meta.Child(std.meta.Child(@FieldType(Effect, "publication"))) else void;
+const Admission = if (generated) std.meta.Child(@FieldType(Input, "admission")) else availability.Input;
+const Route = if (generated) @FieldType(Publication, "route") else availability.Route;
+const Callee = if (generated) @FieldType(Publication, "callee") else availability.Callee;
 const CompiledView = if (generated) std.meta.Child(@FieldType(Input, "compiled")) else void;
 const CompiledMembers = if (generated) std.meta.Child(@FieldType(CompiledView, "members")) else void;
 const CompiledAdmission = if (generated) std.meta.Child(@FieldType(CompiledView, "admission")) else void;
@@ -62,13 +63,84 @@ pub const Invocation = struct {
     type_only: if (generated) memory.ReadColumn else void = undefined,
     members: MembersView = undefined,
     member_columns: if (generated) MemberColumns else void = undefined,
-    inline fn borrow(handle: *anyopaque) *Invocation {
-        return @ptrCast(@alignCast(handle));
+    snapshot: Effect = if (generated) .{
+        .step = .ReadCall,
+        .begin = null,
+        .issue = null,
+        .slots = null,
+        .edge = null,
+        .index = null,
+        .member = null,
+        .status = null,
+        .verification = null,
+        .publication = null,
+        .previous = null,
+        .name = null,
+        .flag = null,
+    } else {},
+    store: StoreState = undefined,
+    store_0: if (generated) *StoreState else void = undefined,
+    pub fn commit(state: *Invocation, pending: anytype) Error!void {
+        const effect = pending.store_0 orelse return;
+
+        switch (effect.step) {
+            .Begin => {
+                const begin = effect.begin.?;
+
+                try beginCall(state, begin.header, begin.implicit_header, begin.payload, begin.previous_end);
+            },
+            .RejectFlow => {
+                const issue = effect.issue.?;
+
+                return rejectFlow(state, issue.node, issue.at_output, issue.code, issue.message);
+            },
+            .ReadCall => {
+                const slots = effect.slots.?;
+
+                try readCall(state, slots.argument, slots.function, slots.module, slots.setter);
+            },
+            .AuthorizeSetter => try authorizeSetter(state),
+            .ReadTarget => state.admission = admission(state, &state.loader.references.edges[@intCast(effect.edge.?)]),
+            .ResolveLibrary => {
+                state.snapshot = effect.*;
+                state.snapshot.index = try resolveLibrary(state, effect.edge.?);
+            },
+            .FindLibrary => {
+                state.snapshot = effect.*;
+                state.snapshot.flag = findLibrary(state, effect.index.?);
+            },
+            .LinkLibrary => try linkLibrary(state, effect.index.?),
+            .ReadMembers => readLibraryMembers(state, effect.index.?, effect.edge.?),
+            .SelectMember => selectLibraryMember(state, effect.index.?, effect.member.?),
+            .RejectLibrary => return libraryError(state, switch (effect.status.?) {
+                inline else => |kind| @field(wrapper.Status, @tagName(kind)),
+            }),
+            .ValidateLibrary => {
+                const check = effect.verification.?;
+
+                try validateLibraryWords(state, check.verified_prefix, check.index, check.word, check.first);
+            },
+            .Publish => {
+                const call = effect.publication.?;
+                state.snapshot = effect.*;
+                state.snapshot.flag = try publishCall(state, call.edge.?, call.route, call.callee, call.module, call.signature, call.member, call.local);
+            },
+            .ReadPrevious => {
+                const source = effect.previous.?;
+                state.snapshot = effect.*;
+                state.snapshot.name = previous.name(state.loader, source.row, source.task);
+            },
+            .PublishPrevious => try publishPrevious(state, effect.name.?),
+        }
     }
+
     pub fn view(self: *Invocation) *const Input {
+        self.store = &self.snapshot;
+        self.store_0 = &self.store;
         self.reference = self.loader.references.view(Reference, .call);
         self.edges = .{ .reference = &self.reference, .first = 0 };
         self.attribute_view = .{ .names = @ptrCast(&self.names), .count = 0 };
+
         const signatures = self.loader.signatures;
 
         self.sources = .{ .zx_count = signatures.graph.sources.zx_count, .rx_end = signatures.graph.sources.rx_end };
@@ -100,7 +172,6 @@ pub const Invocation = struct {
         self.compiled_view = .{ .members = &self.compiled_members, .admission = &self.compiled_admission, .check = &self.compiled_check };
 
         self.input = .{
-            .state = @ptrCast(self),
             .attributes = &self.attribute_view,
             .edges = &self.edges,
             .admission = &self.admission,
@@ -140,12 +211,15 @@ pub fn bind(loader: *prepare.Loader, source: rx.ast.Node, previous_end: u32) Err
     state.open(source, previous_end);
 
     if (comptime generated) {
-        entry.executeIn(loader.allocator, &.{ .invocation = view, .body = null, .remaining = 0 }) catch |err| return prepare.loadError(err);
+        var scratch = std.heap.ArenaAllocator.init(loader.backing);
+
+        defer scratch.deinit();
+        entry.executeIn(scratch.allocator(), &.{ .invocation = view, .body = null, .remaining = 0 }, &state) catch |err| return prepare.loadError(err);
     } else {
         state.attributes = Attributes.seed(state.node.attributes);
 
         try readArgument(&state);
-        if (state.attributes.setter != null) try authorizePreparedSetter(&state);
+        if (state.attributes.setter != null) try authorizeSetter(&state);
 
         const row = loader.references.seedRow(.call);
         const facts = admission(&state, &loader.references.edges[row]);
@@ -155,7 +229,7 @@ pub fn bind(loader: *prepare.Loader, source: rx.ast.Node, previous_end: u32) Err
 
         const name = if (route == .NamedSource) @import("../../../result_name.zig").resolveCall(state.attributes.function.?.*).name else "";
         const callee = availability.seedCallee(loader.signatures, route, facts, name);
-        const accepts_previous = try publishPreparedCall(&state, row, route, callee.callee, callee.module, callee.signature, callee.member, route == .Source or route == .NamedSource);
+        const accepts_previous = try publishCall(&state, row, route, callee.callee, callee.module, callee.signature, callee.member, route == .Source or route == .NamedSource);
 
         if (previous_end != 0 and accepts_previous) {
             try previous.seed(loader, index, previous_end - 1);
@@ -165,9 +239,7 @@ pub fn bind(loader: *prepare.Loader, source: rx.ast.Node, previous_end: u32) Err
     return index;
 }
 
-pub inline fn beginPreparedCall(handle: *anyopaque, header: anytype, implicit_header: anytype, payload: anytype, previous_end: u32) std.mem.Allocator.Error!void {
-    const state = Invocation.borrow(handle);
-
+fn beginCall(state: *Invocation, header: anytype, implicit_header: anytype, payload: anytype, previous_end: u32) std.mem.Allocator.Error!void {
     try flow.apply(state.loader, &state.cursors, header, implicit_header, payload);
 
     if (payload.node) |bytes| {
@@ -176,25 +248,22 @@ pub inline fn beginPreparedCall(handle: *anyopaque, header: anytype, implicit_he
     }
 }
 
-pub fn rejectPreparedFlow(handle: *anyopaque, bytes: []const u8, at_output: bool, code: []const u8, message: []const u8) Error!void {
+fn rejectFlow(state: *Invocation, bytes: []const u8, at_output: bool, code: []const u8, message: []const u8) Error!void {
     const node = borrowNode(bytes);
     const location = if (at_output) target.attribute(node.*, "out").value_location else node.location;
 
-    return Invocation.borrow(handle).loader.fail(location, code, message);
+    return state.loader.fail(location, code, message);
 }
 
 fn borrowNode(bytes: []const u8) *const rx.ast.Node {
     return @ptrCast(@alignCast(bytes.ptr));
 }
 
-pub fn readPreparedCall(handle: *anyopaque, argument: ?u64, function: ?u64, module: ?u64, setter: ?u64) Error!bool {
-    const state = Invocation.borrow(handle);
+fn readCall(state: *Invocation, argument: ?u64, function: ?u64, module: ?u64, setter: ?u64) Error!void {
     const nodes = state.node.attributes;
     state.attributes = .{ .argument = at(nodes, argument), .function = at(nodes, function), .module = at(nodes, module), .setter = at(nodes, setter) };
 
     try readArgument(state);
-
-    return setter != null;
 }
 
 fn at(nodes: []const rx.ast.Attribute, slot: ?u64) ?*const rx.ast.Attribute {
@@ -212,8 +281,7 @@ fn readArgument(state: *Invocation) Error!void {
     state.getters = try StoreCall.reads(loader.allocator, loader.backing, parsed, loader.stores);
 }
 
-pub fn authorizePreparedSetter(handle: *anyopaque) Error!void {
-    const state = Invocation.borrow(handle);
+fn authorizeSetter(state: *Invocation) Error!void {
     const loader = state.loader;
     const attribute = state.attributes.setter.?;
     var parsed = try @import("../../../attribute.zig").parseBorrowed(loader.backing, attribute.*, loader.owner);
@@ -228,16 +296,9 @@ pub fn authorizePreparedSetter(handle: *anyopaque) Error!void {
     }
 }
 
-pub fn readPreparedCallTarget(handle: *anyopaque, row: ?u64) void {
-    const state = Invocation.borrow(handle);
-
-    state.admission = admission(state, &state.loader.references.edges[@intCast(row.?)]);
-}
-
-pub fn resolvePreparedLibrary(handle: *anyopaque, row: ?u64) Error!u64 {
-    const state = Invocation.borrow(handle);
+fn resolveLibrary(state: *Invocation, row: u64) Error!u64 {
     const loader = state.loader;
-    const edge = &loader.references.edges[@intCast(row.?)];
+    const edge = &loader.references.edges[@intCast(row)];
 
     return switch (try frontend.project.compiled.resolve.library(loader.backing, loader.project.compiled_libraries, loader.project.root_dir, edge.target.compiled)) {
         .found => |index| index,
@@ -246,16 +307,13 @@ pub fn resolvePreparedLibrary(handle: *anyopaque, row: ?u64) Error!u64 {
     };
 }
 
-pub fn findPreparedLibrary(handle: *anyopaque, index: u64) bool {
-    const state = Invocation.borrow(handle);
-
+fn findLibrary(state: *Invocation, index: u64) bool {
     state.compiled.binding = state.loader.libraries.bound.get(@intCast(index)) orelse return false;
 
     return true;
 }
 
-pub fn linkPreparedLibrary(handle: *anyopaque, index: u64) Error!void {
-    const state = Invocation.borrow(handle);
+fn linkLibrary(state: *Invocation, index: u64) Error!void {
     const loader = state.loader;
 
     state.compiled.binding = loader.libraries.link(&loader.project, @intCast(index)) catch |err| switch (err) {
@@ -264,18 +322,16 @@ pub fn linkPreparedLibrary(handle: *anyopaque, index: u64) Error!void {
     };
 }
 
-pub fn readPreparedLibraryMembers(handle: *anyopaque, index: u64, row: ?u64) void {
-    const state = Invocation.borrow(handle);
+fn readLibraryMembers(state: *Invocation, index: u64, row: u64) void {
     const loader = state.loader;
-    const name = loader.references.edges[@intCast(row.?)].target.compiled.name;
+    const name = loader.references.edges[@intCast(row)].target.compiled.name;
     const exports = loader.project.compiled_libraries[@intCast(index)].exports;
     state.compiled_names = memory.borrowTextColumn("name", exports);
     state.compiled_members = state.compiled.binding.exports.borrow(CompiledMembers, &state.compiled_names, name);
 }
 
-pub fn selectPreparedLibraryMember(handle: *anyopaque, index: u64, row: ?u64) void {
-    const state = Invocation.borrow(handle);
-    const exported = &state.loader.project.compiled_libraries[@intCast(index)].exports[@intCast(row.?)];
+fn selectLibraryMember(state: *Invocation, index: u64, row: u64) void {
+    const exported = &state.loader.project.compiled_libraries[@intCast(index)].exports[@intCast(row)];
 
     state.compiled.export_row = exported;
 
@@ -291,21 +347,13 @@ pub fn selectPreparedLibraryMember(handle: *anyopaque, index: u64, row: ?u64) vo
     }
 }
 
-pub fn rejectPreparedLibrary(handle: *anyopaque, status: CompiledStatus) Error!void {
-    return libraryError(Invocation.borrow(handle), switch (status) {
-        inline else => |kind| @field(wrapper.Status, @tagName(kind)),
-    });
-}
-
 fn libraryError(state: *const Invocation, status: wrapper.Status) Error {
     const issue = wrapper.rejection(status);
 
     return state.loader.fail(state.attributes.module.?.value_location, issue.code, issue.message);
 }
 
-pub fn validatePreparedLibrary(handle: *anyopaque, verified_prefix: bool, index: u64, word: u64, first: ?u64) Error!void {
-    const state = Invocation.borrow(handle);
-
+fn validateLibraryWords(state: *Invocation, verified_prefix: bool, index: u64, word: u64, first: ?u64) Error!void {
     try validateLibrary(state, verified_prefix);
 
     const words = state.compiled.binding.checked;
@@ -325,16 +373,16 @@ fn validateLibrary(state: *const Invocation, verified_prefix: bool) Error!void {
 }
 
 fn prepareLibrarySeed(state: *Invocation, row: u64) Error!void {
-    const index = try resolvePreparedLibrary(state, row);
+    const index = try resolveLibrary(state, row);
 
-    if (!findPreparedLibrary(state, index)) try linkPreparedLibrary(state, index);
+    if (!findLibrary(state, index)) try linkLibrary(state, index);
 
     const loader = state.loader;
     const name = loader.references.edges[@intCast(row)].target.compiled.name;
     const exports = loader.project.compiled_libraries[@intCast(index)].exports;
     const member = state.compiled.binding.exports.find(exports, name) orelse return libraryError(state, .MissingExport);
 
-    selectPreparedLibraryMember(state, index, member);
+    selectLibraryMember(state, index, member);
 
     const selected = state.compiled;
 
@@ -371,12 +419,11 @@ fn admission(state: *const Invocation, edge: *const Graph.Edge) Admission {
     };
 }
 
-pub fn publishPreparedCall(handle: *anyopaque, row: ?u64, route: Route, kind: Callee, module_row: ?u64, signature: ?u64, member: ?u64, local: bool) Error!bool {
-    const state = Invocation.borrow(handle);
+fn publishCall(state: *Invocation, row: u64, route: Route, kind: Callee, module_row: ?u64, signature: ?u64, member: ?u64, local: bool) Error!bool {
     const loader = state.loader;
     const index = loader.calls.len;
     const attributes = state.attributes;
-    const selected = loader.references.take(@intCast(row.?));
+    const selected = loader.references.take(@intCast(row));
     const edge = selected.edge;
 
     const callee: prepare.Callee = switch (route) {
@@ -431,12 +478,7 @@ fn loadSource(state: *const Invocation, edge: rx.ast.Location, named: bool, kind
     };
 }
 
-pub fn preparedPreviousName(handle: *anyopaque, row: u32, task: bool) ?[]const u8 {
-    return previous.name(Invocation.borrow(handle).loader, row, task);
-}
-
-pub fn publishPreparedPrevious(handle: *anyopaque, value: []const u8) std.mem.Allocator.Error!void {
-    const state = Invocation.borrow(handle);
+fn publishPrevious(state: *Invocation, value: []const u8) std.mem.Allocator.Error!void {
     const owned = try state.loader.allocator.dupe(u8, value);
 
     try previous.publish(state.loader, state.loader.calls.len - 1, owned);

@@ -12,7 +12,7 @@ const publication = compiler.input_generation;
 const generation = @import("shared_generation.zig");
 const generated = publication.generated;
 const Prepared = if (generated) @import("generation_execution_abi").layouts.@"zig:generation_host".PreparedGeneration else void;
-pub const resolveNative = compiler.native_lookup.Resolver(&.{ @This(), Generation, InputSnapshot, interface_inputs, collection }).resolve;
+pub const resolveNative = compiler.native_lookup.Resolver(&.{ @This(), Generation, collection }).resolve;
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
@@ -77,7 +77,11 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
 
     defer arena.deinit();
 
-    return workflow.executeIn(arena.allocator(), &input, io) catch |err| return frame.failure orelse err;
+    const summary = workflow.executeIn(arena.allocator(), &input, io) catch |err| return frame.failure orelse err;
+
+    if (summary) |text| return text;
+
+    return frame.interfaces.failure.?;
 }
 
 const Generation = struct {
@@ -389,11 +393,6 @@ const Generation = struct {
         const self = borrow(handle);
 
         return generation.restore(self.target(), self.previous.?, self.project.entries.len) catch |err| self.fail(err);
-    }
-    pub fn checkGenerationInterfaces(handle: *anyopaque) Error!void {
-        const self = borrow(handle);
-
-        if (self.interfaces.failure) |err| return self.fail(err);
     }
 };
 

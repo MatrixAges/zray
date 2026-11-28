@@ -1,33 +1,85 @@
 <Module>
     <Type from="../model" as="Backend" />
 
-    <Args in={Backend.BuildMode} out={bool} />
+    <Args in={Backend.Translation} out={Backend.TranslatedModule?} />
 
-    <Call fn="../index.writeNativeHeader" in={$in.build} />
+    <Call
+        fn="../../../../workspace_files/native_header"
+        in={{
+            directory: $in.options.directory,
+            name: $in.name,
+            header: $in.header
+        }}
+    />
+
+    <Call module="../../../../workspace_files/retain_file" />
+
+    <Call
+        fn="../../../../command/translation"
+        in={{
+            spec: {
+                tool: $in.options.tool,
+                library: $in.options.library,
+                local: $in.options.local,
+                global: $in.options.global,
+                settings: $in.settings,
+                includes: $in.includes,
+                header: $ctx.native_header.path
+            }
+        }}
+    />
 
     <Call
         fn="../index.spawnNativeTranslation"
         in={[
             $in.build,
-            $ctx.writeNativeHeader
+            $ctx.translation
         ]}
     />
 
-    <If on={!$ctx.spawnNativeTranslation}>
-        <Return value={false} />
-    </If>
-
-    <Call fn="../index.bindNativeTranslation" in={$in.build} />
-
-    <If on={$in.observed}>
-        <Call fn="../index.retainNativeTranslation" in={$in.build} />
+    <If on={$ctx.spawnNativeTranslation == null}>
+        <Return value={null} />
 
         <Else>
-            <Call fn="../index.releaseNativeTranslation" in={$in.build} />
+            <Call
+                fn="../../../../backend_dependencies/cache_path"
+                in={{
+                    root: $in.options.local,
+                    hash: $ctx.spawnNativeTranslation,
+                    stem: $in.name
+                }}
+            />
+
+            <If on={$in.observed}>
+                <Call fn="../index.retainNativeTranslation" in={$in.build} />
+
+                <Else>
+                    <Call fn="../index.releaseNativeTranslation" in={$in.build} />
+                </Else>
+            </If>
+
+            <Call
+                fn="../../../../workspace_files/native_path"
+                in={{
+                    directory: $in.options.directory,
+                    name: $in.name
+                }}
+            />
+
+            <Call
+                fn="../index.writeNativeAdapter"
+                in={[
+                    $in.build,
+                    $ctx.native_path
+                ]}
+            />
+
+            <Return
+                value={{
+                    path: $ctx.native_path,
+                    source: $ctx.cache_path
+                }}
+            />
         </Else>
     </If>
-
-    <Call fn="../index.writeNativeAdapter" in={$in.build} />
-
-    <Return value={true} />
 </Module>

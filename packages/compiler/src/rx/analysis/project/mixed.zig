@@ -14,7 +14,6 @@ const Publication = @import("mixed/publication.zig");
 const Dispatch = @import("mixed/schedule/dispatch.zig").Result;
 const Export = @import("../project.zig").Export;
 const generated = @import("rx_options").generated_graph;
-const Action = if (generated) @import("rx_execution_abi").layouts.@"zig:rx_project_host".MixedAction else void;
 
 /// Analyze and link each module in dependency order over the shared signature tables.
 pub fn compile(allocator: std.mem.Allocator, backing: std.mem.Allocator, derived: Frame, selected: []const rx.ModuleSource, sources: []const frontend.project.Source, exports: []const Export, cache: *frontend.project.ParseCache, record: ?*@import("history.zig").History, arguments: *const Inputs) std.mem.Allocator.Error!Module.Value {
@@ -68,7 +67,6 @@ const Transaction = struct {
     reuse: Reuse,
     ahead: Ahead = .{},
     entry: ?*@import("mixed/metadata.zig") = null,
-    pending: Dispatch = undefined,
     output: *Module.Contract,
     fn execute(self: *Transaction) Error!void {
         if (comptime generated) {
@@ -76,20 +74,89 @@ const Transaction = struct {
             const batch_ends = @import("history/columns.zig").words(std.mem.sliceAsBytes(self.derived.dependencies.batch_ends));
 
             const input: std.meta.Child(entry.Input) = .{
-                .state = @ptrCast(self),
                 .batch_ends = @ptrCast(&batch_ends),
                 .length = self.derived.dependencies.order.len,
                 .has_exports = self.exports.len != 0,
                 .retain = self.keep_skipped,
             };
 
-            var empty = std.heap.FixedBufferAllocator.init(&.{});
+            const Store = std.meta.Child(@FieldType(entry.zx_pending, "store_0"));
 
-            return entry.executeIn(empty.allocator(), &input) catch |err| switch (err) {
-                error.OutOfMemory => error.OutOfMemory,
-                error.InvalidSourceGraph => error.InvalidSourceGraph,
-                else => unreachable,
+            var snapshot: std.meta.Child(Store) = .{
+                .step = .Select,
+                .first = null,
+                .end = null,
+                .row = null,
+                .selection = null,
+                .action = .Exhausted,
+                .index = 0,
+                .position = 0,
+                .following = 0,
+                .prepared_row = null,
+                .count = 0,
+                .prepared = null,
+                .accepted = false,
             };
+
+            var store: Store = &snapshot;
+
+            const Host = struct {
+                transaction: *Transaction,
+                snapshot: *std.meta.Child(Store),
+                store_0: *Store,
+                pub fn commit(host: *@This(), pending: anytype) Error!void {
+                    const effect = pending.store_0 orelse return;
+                    const current = host.transaction;
+                    const state = current.state;
+
+                    switch (effect.step) {
+                        .Prefetch => host.snapshot.count = try current.prefetch(.{ .first = @intCast(effect.first.?), .end = @intCast(effect.end.?) }),
+                        .RestorePrefix => host.snapshot.count = try current.reuse.reuse(state, @intCast(effect.first.?), @intCast(effect.end.?)),
+                        .Select => {
+                            const next = current.ahead.next(state, @intCast(effect.first.?), @intCast(effect.end.?), current.keep_skipped);
+
+                            host.snapshot.action = .Exhausted;
+
+                            if (next) |selected| {
+                                const Action = @FieldType(std.meta.Child(Store), "action");
+                                state.owner = selected.index;
+
+                                host.snapshot.action = switch (selected.action) {
+                                    inline else => |tag| @field(Action, @tagName(tag)),
+                                };
+                                host.snapshot.index = selected.index;
+                                host.snapshot.position = selected.position;
+                                host.snapshot.following = selected.following;
+                                host.snapshot.prepared_row = selected.prepared_row;
+                            }
+                        },
+                        .Reject => return current.reject(@intCast(effect.selection.?.index)),
+                        .PreparedZX => host.snapshot.prepared = current.ahead.zxRow(if (effect.row) |row| @intCast(row) else null),
+                        .AcceptZX => host.snapshot.accepted = current.ahead.acceptsZX(state, @intCast(effect.row.?)),
+                        .RetireZX => current.ahead.retireZX(@intCast(effect.row.?)),
+                        .LinkZX => try current.ahead.linkZX(state, @intCast(effect.row.?), @intCast(effect.selection.?.index)),
+                        .AnalyzeZX => try current.analyzeAtTurn(@intCast(effect.selection.?.index)),
+                        .AcceptedRX => host.snapshot.prepared = current.ahead.acceptedRX(state, if (effect.row) |row| @intCast(row) else null),
+                        .LinkRX => if (try current.ahead.linkRX(state, @intCast(effect.row.?))) |metadata| {
+                            current.entry = metadata;
+                        },
+                        .LowerRX => try current.lowerAtTurn(@intCast(effect.selection.?.index)),
+                        .Record => {
+                            const selected = effect.selection.?;
+
+                            try current.reuse.analyzed(state, @intCast(selected.index), @intCast(selected.position));
+                        },
+                        .Materialize => try current.materialize(),
+                        .Observations => try current.publishObservations(),
+                        .Exports => try current.publishExports(),
+                        .Retain => current.reuse.finish(state, current.selected, current.sources),
+                    }
+                }
+            };
+
+            var host: Host = .{ .transaction = self, .snapshot = &snapshot, .store_0 = &store };
+
+            return @import("mixed/body.zig").run(entry, self.state.scratch.child_allocator, &input, &host);
         }
 
         return self.executeSeed();
@@ -124,8 +191,8 @@ const Transaction = struct {
             switch (next.action) {
                 .Skip => {},
                 .MissingSignature => return self.reject(next.index),
-                .AnalyzeZX => if (!try self.linkPreparedZX(next)) try self.analyzeAtTurn(next),
-                .LowerRX => if (!try self.linkPreparedRX(next)) try self.lowerAtTurn(next),
+                .AnalyzeZX => if (!try self.linkPreparedZX(next)) try self.analyzeAtTurn(next.index),
+                .LowerRX => if (!try self.linkPreparedRX(next)) try self.lowerAtTurn(next.index),
             }
 
             try self.reuse.analyzed(state, next.index, next.position);
@@ -188,10 +255,10 @@ const Transaction = struct {
 
         return true;
     }
-    fn analyzeAtTurn(self: *Transaction, next: Dispatch) Error!void {
+    fn analyzeAtTurn(self: *Transaction, index: usize) Error!void {
         const state = self.state;
 
-        try Zx.compile(state, self.cache, self.sources, next.index, null, state.finished.destination(next.index));
+        try Zx.compile(state, self.cache, self.sources, index, null, state.finished.destination(index));
     }
 
     fn linkPreparedRX(self: *Transaction, next: Dispatch) Error!bool {
@@ -201,129 +268,11 @@ const Transaction = struct {
 
         return true;
     }
-    fn lowerAtTurn(self: *Transaction, next: Dispatch) Error!void {
+    fn lowerAtTurn(self: *Transaction, index: usize) Error!void {
         const derived = self.derived;
-        const source = derived.dependencies.sources.at(next.index).rx;
-        const metadata = try Rx.compile(self.state, self.cache, self.sources, next.index, derived.loaded.modules[source], derived.resolved.at(source), self.arguments.module(source));
+        const source = derived.dependencies.sources.at(index).rx;
+        const metadata = try Rx.compile(self.state, self.cache, self.sources, index, derived.loaded.modules[source], derived.resolved.at(source), self.arguments.module(source));
 
         if (metadata) |entry| self.entry = entry;
     }
 };
-
-fn borrow(handle: *anyopaque) *Transaction {
-    return @ptrCast(@alignCast(handle));
-}
-
-pub fn prefetchMixedWindow(handle: *anyopaque, first: u64, end: u64) std.mem.Allocator.Error!u64 {
-    return try borrow(handle).prefetch(.{ .first = @intCast(first), .end = @intCast(end) });
-}
-
-pub fn restoreMixedPrefix(handle: *anyopaque, first: u64, limit: u64) std.mem.Allocator.Error!u64 {
-    const self = borrow(handle);
-
-    return try self.reuse.reuse(self.state, @intCast(first), @intCast(limit));
-}
-
-pub fn selectMixedBody(handle: *anyopaque, first: u64, limit: u64) Action {
-    const self = borrow(handle);
-    const next = self.ahead.next(self.state, @intCast(first), @intCast(limit), self.keep_skipped) orelse return .Exhausted;
-
-    self.state.owner = next.index;
-    self.pending = next;
-
-    return switch (next.action) {
-        .Skip => .Skip,
-        .MissingSignature => .MissingSignature,
-        .AnalyzeZX => .AnalyzeZX,
-        .LowerRX => .LowerRX,
-    };
-}
-
-pub fn rejectMixedBody(handle: *anyopaque) error{InvalidSourceGraph}!u64 {
-    const self = borrow(handle);
-
-    return self.reject(self.pending.index);
-}
-
-pub fn analyzeMixedZX(handle: *anyopaque) State.Error!u64 {
-    const self = borrow(handle);
-
-    try self.analyzeAtTurn(self.pending);
-
-    return self.pending.following;
-}
-
-pub fn lowerMixedRX(handle: *anyopaque) State.Error!u64 {
-    const self = borrow(handle);
-
-    try self.lowerAtTurn(self.pending);
-
-    return self.pending.following;
-}
-
-pub fn preparedMixedZXRow(handle: *anyopaque) ?u64 {
-    const self = borrow(handle);
-
-    return if (self.ahead.zxRow(self.pending.prepared_row)) |row| row else null;
-}
-
-pub fn acceptsPreparedMixedZX(handle: *anyopaque, row: u64) bool {
-    const self = borrow(handle);
-
-    return self.ahead.acceptsZX(self.state, @intCast(row));
-}
-
-pub fn retirePreparedMixedZX(handle: *anyopaque, row: u64) void {
-    borrow(handle).ahead.retireZX(@intCast(row));
-}
-
-pub fn linkPreparedMixedZX(handle: *anyopaque, row: u64) State.Error!u64 {
-    const self = borrow(handle);
-
-    try self.ahead.linkZX(self.state, @intCast(row), self.pending.index);
-
-    return self.pending.following;
-}
-
-pub fn acceptedPreparedMixedRX(handle: *anyopaque) ?u64 {
-    const self = borrow(handle);
-
-    return if (self.ahead.acceptedRX(self.state, self.pending.prepared_row)) |row| row else null;
-}
-
-pub fn linkPreparedMixedRX(handle: *anyopaque, row: u64) State.Error!u64 {
-    const self = borrow(handle);
-
-    if (try self.ahead.linkRX(self.state, @intCast(row))) |metadata| self.entry = metadata;
-
-    return self.pending.following;
-}
-
-pub fn skipMixedBody(handle: *anyopaque) u64 {
-    return borrow(handle).pending.following;
-}
-
-pub fn recordMixedBody(handle: *anyopaque) std.mem.Allocator.Error!void {
-    const self = borrow(handle);
-    const next = self.pending;
-
-    return self.reuse.analyzed(self.state, next.index, next.position);
-}
-
-pub fn materializeMixedModule(handle: *anyopaque) State.Error!void {
-    try borrow(handle).materialize();
-}
-
-pub fn publishMixedObservations(handle: *anyopaque) std.mem.Allocator.Error!void {
-    try borrow(handle).publishObservations();
-}
-
-pub fn publishMixedExports(handle: *anyopaque) State.Error!void {
-    try borrow(handle).publishExports();
-}
-
-pub fn retainMixedHistory(handle: *anyopaque) void {
-    const self = borrow(handle);
-
-    self.reuse.finish(self.state, self.selected, self.sources);
-}

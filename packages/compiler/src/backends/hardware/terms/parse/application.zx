@@ -15,11 +15,10 @@ import operandSort from "./operand_sort"
 import type { Apply as Input, Parsed as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { build, expression, source, head, left, right, third, offset } = in
+    const { graph, expression, source, head, left, right, third, offset } = in
     const { form, start, next, operator_start, bits } = head
 
     const end = finish({
-        build,
         source,
         offset,
         closing: true
@@ -52,15 +51,15 @@ export default function (in: Input): Output {
         family,
         extra,
         left: operandSort({
-            build,
+            nodes: graph.nodes,
             node: left
         }),
         right: operandSort({
-            build,
+            nodes: graph.nodes,
             node: right
         }),
         third: operandSort({
-            build,
+            nodes: graph.nodes,
             node: third
         })
     })
@@ -71,19 +70,21 @@ export default function (in: Input): Output {
 
     const key = memory.borrowTextRange(expression, start, end - start)
 
+    const term = intern({
+        ...sort,
+        graph,
+        key,
+        form,
+        first: integers.widen(left),
+        second: right ?? 0,
+        third: third ?? 0,
+        operator: token,
+        extra,
+        origin: in.origin
+    })
+
     return {
-        node: intern({
-            ...sort,
-            build,
-            key,
-            form,
-            first: integers.widen(left),
-            second: right ?? 0,
-            third: third ?? 0,
-            operator: token,
-            extra,
-            origin: in.origin
-        }),
+        ...term,
         offset: end
     }
 }

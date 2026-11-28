@@ -48,7 +48,4 @@ export type Publication = Parts & {
     source: Input
 }
 
-export type Output = {
-    start: u32,
-    count: u32
-}
+export type Output = u64

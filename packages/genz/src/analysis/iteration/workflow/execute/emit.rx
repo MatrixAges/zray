@@ -1,103 +1,94 @@
 <Module>
-    <Type from="model" as="Loop" />
-    <Type from="../../step/model" as="Step" />
+    <Type from="emission_model" as="Loop" />
+    <Type from="../../initial/model" as="Initial" />
 
     <Args in={Loop.Emit} out={u32} />
 
-    <If on={$in.renewals.emit}>
-        <Call
-            fn="index.emitLoopRenewals"
-            in={[
-                $in.loop_frame,
-                $in.renewals.first,
-                $in.renewals.end,
-                $in.renewals.skipped,
-                $in.schedule.inline_lists
-            ]}
-        />
-    </If>
+    <Call
+        module="growth"
+        in={$in.pick([
+            "loop_frame",
+            "renewals",
+            "schedule"
+        ])}
+    />
 
-    <If on={$in.schedule.assignment == Step.Assignment.Projected}>
+    <If on={$in.projected}>
         <Call fn="index.maskLoopBorrowedFields" in={$in.loop_frame} />
         <Call fn="index.declareProjectedLoopState" in={$in.loop_frame} />
     </If>
 
-    <Call fn="index.publishLoopDeclarations" in={$in.loop_frame} />
-
-    <If on={$in.schedule.assignment == Step.Assignment.Projected}>
-        <Call
-            fn="index.projectLoopAssignment"
-            in={[
-                $in.loop_frame,
-                $in.update.value
-            ]}
-        />
-
-        <Call
-            fn="index.commitLoopUpdate"
-            in={[
-                $in.loop_frame,
-                $ctx.projectLoopAssignment,
-                false
-            ]}
-        />
-
-        <Else>
-            <If on={$in.schedule.assignment == Step.Assignment.State}>
-                <Call
-                    fn="index.clipCollectionTarget"
-                    in={[
-                        $in.writer,
-                        $in.loop_seq,
-                        $in.body,
-                        $in.update.value
-                    ]}
-                />
-
-                <Call
-                    fn="index.commitLoopUpdate"
-                    in={[
-                        $in.loop_frame,
-                        $ctx.clipCollectionTarget,
-                        true
-                    ]}
-                />
-
-                <Else>
-                    <Call
-                        fn="index.commitLoopUpdate"
-                        in={[
-                            $in.loop_frame,
-                            $in.update.value,
-                            false
-                        ]}
-                    />
-                </Else>
-            </If>
-        </Else>
-    </If>
-
     <Call
-        fn="index.frameLoweredLoop"
+        fn="index.takeAstSequence"
         in={[
-            $in.loop_frame,
-            $in.update.condition,
-            $in.schedule.after_step
+            $in.writer,
+            $in.projected ? $in.projected_seq : $in.body_seq,
+            false
         ]}
     />
 
-    <If on={$in.schedule.restore_projected}>
-        <Call fn="index.restoreLoopFields" in={$in.loop_frame} />
-    </If>
+    <Call
+        module="assignment"
+        in={$in.pick([
+            "writer",
+            "loop_frame",
+            "loop_seq",
+            "body",
+            "schedule",
+            "update"
+        ])}
+    />
+
+    <Call fn="index.astExpressionCount" in={$in.writer} />
+    <Call fn="index.astStatementCount" in={$in.writer} />
+
+    <Call
+        fn="frame_input"
+        in={{
+            writer: $in.writer,
+            condition: $in.update.condition,
+            expression_base: $ctx.astExpressionCount,
+            statement_base: $ctx.astStatementCount,
+            prefix: $in.projected ? 0 : $ctx.growth,
+            body: $ctx.assignment,
+            after_step: $in.schedule.after_step,
+            guarded_initial:
+                !$in.projected && $in.initial_plan.guard != Initial.Guard.None
+        }}
+    />
+
+    <Call module="../../frame/build" />
+
+    <Call
+        module="recover"
+        in={{
+            loop_frame: $in.loop_frame,
+            state: $in.state,
+            restore: $in.schedule.restore_projected
+        }}
+    />
 
     <Call
         fn="finish"
-        in={$in.omit([
-            "schedule",
-            "renewals",
-            "loop_seq",
-            "body"
-        ])}
+        in={{
+            ...$in.pick([
+                "frame",
+                "writer",
+                "body_seq",
+                "loop_frame",
+                "guard_info",
+                "initial_plan",
+                "projected",
+                "initial_value",
+                "update"
+            ]),
+            state: $ctx.recover,
+            spans: {
+                renewals: $in.projected ? $ctx.growth : 0,
+                declarations: $ctx.takeAstSequence,
+                frame: $ctx.build
+            }
+        }}
     />
 
     <Return value={$ctx.finish} />

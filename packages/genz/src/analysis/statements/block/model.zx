@@ -1,8 +1,9 @@
+import type { Control as ControlTable } from "core/control_table/model"
 import type { ExpressionKind } from "core/expression_table/kinds"
 import type { StoreMode } from "core/function_table/complete"
 import type { Control as Statements } from "../../store/begin/model"
 
-export type Control = Statements & {
+export type Control = Statements & ControlTable.Pick("constant_symbols") & {
     results: u32?[]
 }
 
@@ -18,7 +19,9 @@ export type Input = {
     first: u64,
     count: u64,
     mode: StoreMode,
-    store_count: u64
+    store_count: u64,
+    stack_keys: u32[],
+    stack_buckets: u32[]
 }
 
 export type Output = u8[]

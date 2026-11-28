@@ -1,3 +1,4 @@
+import lookup from "core/bytes/map/lookup"
 import host from "hardware_graph_host"
 import memory from "memory"
 
@@ -5,25 +6,31 @@ import { Form } from "../model"
 import intern from "./intern"
 
 import type { Head } from "../model"
-import type { Input as Source } from "./model"
+import type { Input as Source, Term as Output } from "./model"
 
 export type Input = Source & {
     head: Head
 }
 
-export type Output = u32
-
 export default function (in: Input): Output {
-    const { build, expression, head } = in
+    const { graph, variables, expression, head } = in
     const { form, start, next } = head
 
     const key = memory.borrowTextRange(expression, start, next - start)
 
     if (form != Form.Constant) {
-        const binding = host.hardwareVariable(build, key)
+        const binding = lookup({
+            keys: variables.keys,
+            values: variables.values,
+            full: false,
+            key
+        }).value
 
         if (binding != null) {
-            return binding
+            return {
+                graph,
+                node: binding
+            }
         }
 
         if (form == Form.Name) {
@@ -41,7 +48,7 @@ export default function (in: Input): Output {
     }
 
     return intern({
-        build,
+        graph,
         key,
         form: Form.Constant,
         width,

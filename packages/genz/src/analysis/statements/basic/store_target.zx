@@ -2,11 +2,12 @@ import bytes from "std:bytes"
 import integers from "std:integer"
 import { max_u32 } from "core/const"
 
+import emptyExpressions from "../../../ast/expressions/empty"
 import { ExpressionsKind } from "../../../printer/model/expressions"
 import { pending_name } from "../../store/const"
 import retainSlotName from "../../store/retain_slot_name"
 
-import type { ProjectionRows } from "ast_rows"
+import type { ExpressionRows } from "ast_rows"
 import type { Lowering } from "lowering_host"
 
 export type Input = {
@@ -16,7 +17,7 @@ export type Input = {
 }
 
 export type Output = {
-    nodes: ProjectionRows,
+    nodes: ExpressionRows,
     root: u32,
     valid: bool
 }
@@ -24,17 +25,7 @@ export type Output = {
 export default function (in: Input): Output {
     if (in.base > max_u32 - 2) {
         return {
-            nodes: {
-                tags: [],
-                offsets: [],
-                identifier: [],
-                field_target: [],
-                field_name: [],
-                dereference: [],
-                binary_operator: [],
-                binary_left: [],
-                binary_right: []
-            },
+            nodes: emptyExpressions({}),
             root: 0,
             valid: false
         }
@@ -47,6 +38,7 @@ export default function (in: Input): Output {
 
     return {
         nodes: {
+            ...emptyExpressions({}),
             tags: [
                 ExpressionsKind.Identifier,
                 ExpressionsKind.Field
@@ -57,11 +49,7 @@ export default function (in: Input): Output {
             ],
             identifier: [bytes.fromText(pending_name)],
             field_target: [in.base],
-            field_name: [name],
-            dereference: [],
-            binary_operator: [],
-            binary_left: [],
-            binary_right: []
+            field_name: [name]
         },
         root: in.base + 1,
         valid: true

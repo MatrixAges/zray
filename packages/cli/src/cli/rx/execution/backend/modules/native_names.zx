@@ -1,0 +1,28 @@
+import memory from "memory"
+
+import type { TextColumn } from "memory"
+
+export type Input = {
+    names: TextColumn,
+    count: u64
+}
+
+export type Output = string[]
+
+export default function (in: Input): Output {
+    const empty: string[] = []
+
+    return loop({
+        names: empty,
+        index: 0
+    }, {
+        while: state => state.index < in.count,
+        next: state => {
+            state.names = state.names.push(
+                memory.readTextColumn(in.names, state.index)
+            )[0]
+            state.index += 1
+        },
+        return: state => state.names
+    })
+}

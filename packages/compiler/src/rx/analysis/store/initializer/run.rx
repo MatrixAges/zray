@@ -1,7 +1,10 @@
 <Module>
     <Type from="workflow" as="Initializer" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Initializer.Request} out={void} />
+
+    <Store from="initializer" as="initializer" />
 
     <Call
         module="fields/plan"
@@ -12,18 +15,18 @@
     />
 
     <Call
-        fn="host.prepareStoreInitializer"
-        in={[
-            $in.frame,
-            $ctx.plan.count
-        ]}
+        fn="stage"
+        in={{
+            step: Effect.Step.Prepare,
+            index: $ctx.plan.count
+        }}
+        setter={[$store.initializer.effect]}
     />
 
     <Loop on={$in.valid && ($in.row < $in.end || $in.next != null)}>
         <Call
             module="fields/step"
             in={{
-                frame: $in.frame,
                 layout: $in.layout,
                 fields: $in.fields,
                 row: $ctx.plan.first,
@@ -38,21 +41,34 @@
 
     <If on={$ctx.step.valid}>
         <Call
-            fn="host.resolveStoreInitializer"
-            in={[
-                $in.frame,
-                $ctx.step.invalid_link
-            ]}
+            fn="stage"
+            in={{
+                step: Effect.Step.Resolve
+            }}
+            setter={[$store.initializer.effect]}
         />
+
+        <If on={$ctx.step.invalid_link}>
+            <Call
+                fn="stage"
+                in={{
+                    step: Effect.Step.InvalidLink
+                }}
+                setter={[$store.initializer.effect]}
+            />
+        </If>
+
+        <Call fn="read_names" in={$store.initializer.effect} />
 
         <Call fn="../layout/field_positions" />
 
         <Call
-            fn="host.finishStoreInitializer"
-            in={[
-                $in.frame,
-                $ctx.field_positions
-            ]}
+            fn="stage"
+            in={{
+                step: Effect.Step.Finish,
+                positions: $ctx.field_positions
+            }}
+            setter={[$store.initializer.effect]}
         />
     </If>
 </Module>

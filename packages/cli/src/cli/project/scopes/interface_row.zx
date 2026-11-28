@@ -1,0 +1,13 @@
+import memory from "memory"
+
+import type { Input as Output } from "./rules/admission/interface"
+import type { InterfaceRead as Input } from "./workflow"
+
+export default function (in: Input): Output {
+    const { interfaces, row } = in
+
+    return {
+        specifier: memory.readTextColumn(interfaces.specifiers, row),
+        path: memory.readTextColumn(interfaces.paths, row)
+    }
+}

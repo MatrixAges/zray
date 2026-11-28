@@ -10,7 +10,6 @@ export {
     restoreGenerationAnalysis,
     prepareGenerationTemplates,
     prepareGenerationModules,
-    checkGenerationInterfaces,
     generateFromPreparedInputs,
     writeGenerationStamp,
     saveGenerationSnapshot

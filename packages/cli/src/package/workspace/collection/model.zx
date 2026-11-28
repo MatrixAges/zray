@@ -45,6 +45,7 @@ export type MergePathsInput = {
 export type Members = {
     collection: Collection,
     paths: string[],
+    diagnostic?: string,
     index: u64,
     running: bool
 }

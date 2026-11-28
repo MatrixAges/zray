@@ -1,0 +1,14 @@
+import type { Analysis, Effect as Input } from "./effect"
+
+export type Output = Analysis?
+
+export default function (in: Input): Output {
+    if (!in.ready) {
+        return null
+    }
+
+    return in.pick([
+        "declared",
+        "slots"
+    ])
+}

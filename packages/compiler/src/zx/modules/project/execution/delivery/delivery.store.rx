@@ -1,0 +1,17 @@
+<Store name="project_import_delivery" version={1}>
+    <Type from="effect" as="Effect" />
+    <Type from="model" as="Delivery" />
+
+    <Object name="effect">
+        <Field name="step" type={Effect.Step} value={Effect.Step.Route} />
+        <Field name="route" type={Delivery.ProjectImportRoute?} value={null} />
+        <Field name="action" type={Delivery.ProjectSourceAction?} value={null} />
+        <Field name="row" type={u64?} value={null} />
+        <Field name="native_row" type={u32?} value={null} />
+        <Field name="flag" type={bool?} value={null} />
+        <Field name="target" type={Delivery.ProjectImportTarget?} value={null} />
+        <Field name="signature" type={bool?} value={null} />
+        <Field name="exported" type={bool?} value={null} />
+        <Field name="message" type={string?} value={null} />
+    </Object>
+</Store>

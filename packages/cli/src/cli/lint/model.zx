@@ -5,6 +5,7 @@ import type {
     SourceLint,
     WorkspaceLint
 } from "./index"
+import type { MemberRows } from "./workspace/model"
 
 export enum Entry {
     Ordinary,
@@ -45,12 +46,18 @@ export enum SourceOutcome {
     Unformatted
 }
 
+export type SourceResult = {
+    status: SourceOutcome,
+    diagnostic?: string
+}
+
 export type SourceDocument = {
     host: SourceLint,
     source: u8[]
 }
 
 export type SourceInput = SourceDocument & {
+    maximum_lines: u64,
     input_path: u8[]
 }
 
@@ -67,5 +74,6 @@ export type SemanticLoaded = {
 
 export type WorkspaceInput = {
     host: WorkspaceLint,
-    input_path: u8[]
+    input_path: u8[],
+    members: MemberRows
 }
