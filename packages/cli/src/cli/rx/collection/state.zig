@@ -6,9 +6,7 @@ const Text = @import("../../sources/text.zig");
 const Collector = @import("../references/collector.zig");
 pub const effects = @import("../../sources/effects.zig");
 const Error = effects.Error;
-const abi = @import("cli_abi").native.@"zig:rx_collection_host";
 const PhysicalResolution = @import("cli_abi").layouts.@"zig:rx_collection_host".PhysicalResolution;
-pub const Kind = abi.Kind;
 pub const FileRead = @import("cli_abi").layouts.@"zig:rx_collection_host".FileRead;
 const rule = @import("cli_source").collect_rx_sources;
 const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
@@ -131,30 +129,3 @@ pub const State = struct {
         };
     }
 };
-
-pub fn registerCollectionEntry(handle: *const anyopaque, kind: Kind) Error!bool {
-    const self = State.get(handle);
-    const allocator = self.allocator;
-    const entry = self.options.entry;
-
-    const first = (switch (kind) {
-        .Zx => allocator.dupe(u8, entry),
-        .Gateway => rx.normalizeGatewayPath(allocator, entry),
-        .Store => rx.normalizeStorePath(allocator, entry),
-        .Module => rx.normalizeModulePath(allocator, entry),
-    }) catch |err| {
-        if (err == error.OutOfMemory) return self.failure.save(err);
-
-        self.options.writer.print("{s}: invalid RX entry path\n", .{entry}) catch |failure| return self.failure.save(failure);
-
-        return false;
-    };
-
-    self.queue.append(allocator, first) catch |err| return self.failure.save(err);
-
-    const absolute = std.fs.path.resolve(allocator, &.{ self.project.root_dir, first }) catch |err| return self.failure.save(err);
-
-    self.queued.put(allocator, absolute, {}) catch |err| return self.failure.save(err);
-
-    return true;
-}

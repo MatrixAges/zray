@@ -1,0 +1,38 @@
+<Module>
+    <Type from="model" as="Projection" />
+
+    <Args in={Projection.Minimum} out={Projection.Output} />
+
+    <If on={$in.capacity != null}>
+        <If on={$in.capacity.operation == $in.operation}>
+            <Call fn="model.astExpressionCount" in={$in.writer} />
+
+            <Call
+                fn="capacity_length"
+                in={{
+                    ...$in.pick([
+                        "types",
+                        "type_id",
+                        "value",
+                        "active",
+                        "selected"
+                    ]),
+                    capacity: $in.capacity,
+                    expression_base: $ctx.astExpressionCount
+                }}
+            />
+
+            <Call
+                fn="publish"
+                in={{
+                    writer: $in.writer,
+                    result: $ctx.capacity_length
+                }}
+            />
+
+            <Return value={$ctx.publish} />
+        </If>
+    </If>
+
+    <Return value={null} />
+</Module>

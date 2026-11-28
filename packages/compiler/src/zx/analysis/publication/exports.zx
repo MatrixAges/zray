@@ -1,7 +1,4 @@
 import strings from "std:string"
-import memory from "memory"
-
-import type { NamedColumns } from "memory"
 
 export type Row = {
     name: string,
@@ -9,32 +6,15 @@ export type Row = {
 }
 
 export type Input = {
-    source: NamedColumns,
-    count: u64
+    names: string[],
+    ids: u32[]
 }
 
 export type Output = Row[]
 
 export default function (in: Input): Output {
-    const { source, count } = in
-
-    const empty: Row[] = []
-
-    return loop({
-        row: 0,
-        rows: empty
-    }, {
-        while: state => state.row < count,
-        next: state => {
-            const name = strings.copy(memory.readNamedColumnName(source, state.row))
-            const type_id = memory.readNamedColumnId(source, state.row)
-
-            state.rows = state.rows.push({
-                name,
-                type_id
-            })[0]
-            state.row += 1
-        },
-        return: state => state.rows
-    })
+    return in.names.map((name, index) => ({
+        name: strings.copy(name),
+        type_id: in.ids[index]
+    }))[0]
 }

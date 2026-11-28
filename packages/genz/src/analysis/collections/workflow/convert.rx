@@ -5,16 +5,37 @@
 
     <If on={$in.state_active && !$in.result_selected}>
         <Call
-            fn="host.convertCollectionResult"
-            in={[
-                $in.ast.writer,
-                $in.ast.sequence,
-                $in.result_type,
-                $in.result
-            ]}
+            fn="../result/tuple_range"
+            in={{
+                types: $in.conversion.source.types,
+                id: $in.result_type
+            }}
         />
 
-        <Return value={$ctx.convertCollectionResult} />
+        <Call fn="model.readAstOrigin" in={$in.ast.writer} />
+        <Call fn="model.astFieldCount" in={$in.ast.writer} />
+
+        <Call
+            module="../result/execute"
+            in={{
+                frame: $in.ast.lower,
+                writer: $in.ast.writer,
+                body: $in.ast.sequence,
+                source: {
+                    value: $in.result,
+                    bases: {
+                        ...$ctx.readAstOrigin,
+                        field_base: $ctx.astFieldCount
+                    }
+                },
+                preparation: {
+                    ...$in.conversion,
+                    ...$ctx.tuple_range
+                }
+            }}
+        />
+
+        <Return value={$ctx.execute} />
     </If>
 
     <Return value={$in.result} />

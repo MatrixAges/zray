@@ -2,18 +2,18 @@ import type { Compiled, Request } from "compiler_rules/compiled/identity/aliases
 import type { Rows } from "compiler_rules/project/target/select"
 import type { ReadColumn, TextColumn } from "memory"
 import type { Admission, NativeScopeLoad, ScopeWindow } from "native_scope_host"
-import type { Publication, Settings } from "./model"
+import type { DeclarationBinding, Publication } from "./model"
 import type { Modules } from "./rules/admission/model"
 import type { Registry } from "./rules/naming/model"
 
 export type Workspace = {
     externals: Rows,
+    external_modules: TextColumn,
     interfaces: InterfacePaths,
     modules: Modules,
     binding: Binding,
     traversal: Traversal,
-    declarations: Publication,
-    settings: Settings
+    declarations: Publication
 }
 
 export type Input = {
@@ -47,7 +47,8 @@ export type Traversal = {
 
 export type InterfacePaths = {
     specifiers: TextColumn,
-    paths: TextColumn
+    paths: TextColumn,
+    modules: TextColumn
 }
 
 export type InterfaceRead = {
@@ -57,13 +58,14 @@ export type InterfaceRead = {
     status: Admission
 }
 
-export type BindingWalk = {
-    binding: Binding,
-    index: u64,
-    status: Admission
-}
+export type BindingWalk =
+    Workspace.Pick("externals", "external_modules", "interfaces", "binding") & {
+        index: u64,
+        status: Admission
+    }
 
 export type DeclarationRow = {
     row: u64,
-    external: bool
+    external: bool,
+    declaration: DeclarationBinding
 }

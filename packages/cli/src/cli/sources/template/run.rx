@@ -5,11 +5,20 @@
 
     <Store from="seen" as="seen" />
 
+    <Call
+        fn="index.resolveOwner"
+        in={[
+            $in.root,
+            $in.path
+        ]}
+    />
+
     <Loop on={$in.running}>
         <Call
             module="references"
             in={{
                 source: $in.source,
+                owner: $ctx.resolveOwner,
                 count: $in.count,
                 index: 0,
                 running: true

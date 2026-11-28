@@ -1,7 +1,6 @@
 import type { Body } from "../../../ast/body/model"
 import type { Input as Bases, State as Context } from "../../../ast/context/model"
 import type { Columns as Fields } from "../../../ast/fields/model"
-import type { Ast } from "../../state/list/model"
 import type { Output as Emission } from "../model"
 
 export type Input = {
@@ -17,7 +16,6 @@ export type Input = {
     retract: bool,
     removed_only: bool,
     shared: bool,
-    ast: Ast,
     bases: Bases
 }
 

@@ -1,0 +1,64 @@
+import bytes from "std:bytes"
+import strings from "std:string"
+
+import { current_directory, directory_separator, parent_directory } from "../const"
+import append from "./append"
+
+import type { Segments } from "./append"
+
+export type Input = {
+    root: string,
+    path: string
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { root, path } = in
+
+    const empty: Segments = {
+        names: [],
+        parents: 0,
+        absolute: false
+    }
+
+    const initial = match {
+        bytes.startsWithText(bytes.fromText(path), 0, directory_separator) => empty,
+        _ => append({
+            state: empty,
+            path: root
+        })
+    }
+
+    const resolved = append({
+        state: initial,
+        path
+    })
+
+    if (resolved.absolute && resolved.names.length == 0) {
+        return strings.copy(directory_separator)
+    }
+
+    if (resolved.parents == 0 && resolved.names.length == 0) {
+        return strings.copy(current_directory)
+    }
+
+    const root_parts: string[] = match {
+        resolved.absolute => [""],
+        _ => []
+    }
+
+    const parts = loop({
+        items: root_parts,
+        index: 0
+    }, {
+        while: value => value.index < resolved.parents,
+        next: value => {
+            value.items = value.items.push(parent_directory)[0]
+            value.index += 1
+        },
+        return: value => value.items
+    })
+
+    return strings.join(directory_separator, parts.concat(resolved.names)[0])
+}

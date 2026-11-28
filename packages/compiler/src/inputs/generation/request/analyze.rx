@@ -32,8 +32,7 @@
         fn="host.prepareGenerationModules"
         in={[
             $in.host,
-            $in.catalog,
-            $in.packages
+            $in.catalog
         ]}
     />
 
@@ -51,7 +50,7 @@
         in={[
             $in.host,
             $in.fingerprints.fingerprints,
-            $in.packages,
+            $in.catalog,
             $in.registered.bindings,
             $ctx.prepareGenerationTemplates,
             $ctx.prepareGenerationModules

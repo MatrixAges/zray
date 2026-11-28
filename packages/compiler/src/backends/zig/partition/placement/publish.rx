@@ -18,6 +18,7 @@
         fn="copies"
         in={{
             files: $in.files,
+            bodies: $ctx.bodies,
             prefixes: $ctx.prefixes,
             scopes: $in.scopes
         }}
@@ -27,28 +28,19 @@
         fn="stubs"
         in={{
             files: $in.files,
+            copies: $ctx.copies,
             prefixes: $ctx.prefixes,
-            scopes: $in.scopes,
-            first: $in.placement.first_stub
+            scopes: $in.scopes
         }}
     />
 
     <Call
         fn="roots"
         in={{
-            prefixes: $ctx.prefixes,
-            first: $in.placement.first_root
+            ...$ctx.stubs,
+            prefixes: $ctx.prefixes
         }}
     />
 
-    <Return
-        value={{
-            bodies: $ctx.bodies,
-            copies: $ctx.copies,
-            stub_paths: $ctx.stubs.paths,
-            root_paths: $ctx.roots.paths,
-            stub_jobs: $ctx.stubs.jobs,
-            root_jobs: $ctx.roots.jobs
-        }}
-    />
+    <Return value={$ctx.roots} />
 </Module>

@@ -1,5 +1,10 @@
 import type { ReadColumn, TextColumn } from "memory"
 
+export type DeclarationBinding = {
+    specifier: string,
+    module: string
+}
+
 export type PublishedDeclaration = {
     specifier: string,
     path: string,
@@ -43,8 +48,7 @@ export type Publication = {
 }
 
 export type Settings = {
-    names: TextColumn,
+    names: string[],
     root: string,
-    includes: string[],
-    count: u64
+    includes: string[]
 }

@@ -2,6 +2,7 @@ import type { AstSequence, AstWriter } from "ast_rows"
 import type { TransformKind } from "core/expression_table/kinds"
 import type { Lowering } from "lowering_host"
 import type { Source as RenewalSource } from "../../iteration/deferred/model"
+import type { Source as ElementStorage } from "../../state/elements/storage"
 
 export { TransformKind } from "core/expression_table/kinds"
 
@@ -10,7 +11,8 @@ export type Ast = {
     lower: Lowering,
     body: AstSequence,
     loop: AstSequence,
-    binding: AstSequence
+    binding: AstSequence,
+    elements: ElementStorage
 }
 
 export type Input = {

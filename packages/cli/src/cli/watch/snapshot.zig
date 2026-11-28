@@ -4,7 +4,7 @@ const Self = @This();
 const scan = @import("observation/scan.zig").scan;
 const reader = @import("observation/read.zig");
 const equality = @import("cli_source").same;
-const Fact = std.meta.Child(@FieldType(std.meta.Child(equality.Input), "left"));
+const Fact = @import("observation/storage.zig").Fact;
 
 pub const State = union(enum) {
     missing,
@@ -85,7 +85,7 @@ pub fn sameState(left: *const State, right: *const State) bool {
     return equality.executeValue(empty.allocator(), &.{ .left = &fact(left), .right = &fact(right) }) catch unreachable;
 }
 
-fn fact(state: *const State) Fact {
+pub fn fact(state: *const State) Fact {
     var value: Fact = .{ .kind = .Missing, .tag = 0, .digest = &.{}, .physical_path = "" };
 
     switch (state.*) {

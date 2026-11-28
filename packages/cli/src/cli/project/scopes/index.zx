@@ -1,6 +1,5 @@
 export {
     readNativeScopeInterface,
-    nativeScopeDeclaration,
     writeNativeScopeDeclaration,
     prepareNativeScopeModule,
     Admission,
@@ -16,9 +15,9 @@ export {
     reserveNativeScopeDeclarations,
     reserveNativeScopeIndex,
     reserveNativeScopeInterfaces,
-    reserveNativeScopeModules,
-    reserveNativeScopeSettings
+    reserveNativeScopeModules
 } from "native_scope_host"
 
+export { default as resolvePath } from "../standard/path/resolve"
 export { default as checkExternals } from "./rules/admission/externals"
 export { default as checkModules } from "./rules/admission/modules"

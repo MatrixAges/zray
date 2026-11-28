@@ -11,17 +11,9 @@ pub fn loadPartitionState(allocator: std.mem.Allocator, io: Io, objects: []const
         else => return err,
     };
 
-    try cwd.createDirPath(io, objects);
-
     const result = try allocator.create(native.loadPartitionState.OutputValue);
 
     result.* = .{ .path = path, .previous = previous };
 
     return result;
-}
-
-pub fn partitionObjectPresent(io: Io, path: []const u8) bool {
-    Io.Dir.cwd().access(io, path, .{}) catch return false;
-
-    return true;
 }

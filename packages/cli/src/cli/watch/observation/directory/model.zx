@@ -1,17 +1,19 @@
-import type { Directory, DirectoryEntry } from "snapshot_host"
-
 export type Collect = {
-    directory: Directory,
+    directory_tag: u8,
+    names: string[],
+    tags: u8[],
     all_entries: bool
 }
 
 export type Step = Collect & {
-    running: bool
+    index: u64
 }
 
 export type Admit = {
     all_entries: bool,
-    entry: DirectoryEntry
+    directory_tag: u8,
+    name: string,
+    tag: u8
 }
 
 export type Collected = {
@@ -21,7 +23,8 @@ export type Collected = {
 
 export type AppendInput = {
     collected: Collected,
-    entry: DirectoryEntry
+    name: string,
+    tag: u8
 }
 
 export type PayloadInput = {

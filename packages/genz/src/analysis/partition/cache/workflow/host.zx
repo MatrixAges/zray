@@ -1,10 +1,7 @@
-export { writeFileAtomic } from "std:fs"
-export { writeStderr } from "std:process"
 export {
-    startPartitionHash,
+    extendPartitionHash,
     hashExternalInput,
-    hashPartitionMembers,
+    digestPartitionKey,
     loadPartitionState,
-    partitionObjectPresent,
     compilePartitionObjects
 } from "partition_host"

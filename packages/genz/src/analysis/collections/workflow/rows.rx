@@ -13,64 +13,50 @@
         />
 
         <Call
-            fn="host.emitCollectionRows"
-            in={[
-                $in.ast.writer,
-                $in.ast.sequence,
-                $in.id,
-                $in.source_type,
-                $in.removed_only,
-                $in.rows,
-                null,
-                $ctx.collectionCompare
-            ]}
+            module="publish_rows"
+            in={{
+                ...$in,
+                compare: $ctx.collectionCompare
+            }}
         />
 
-        <Return value={$ctx.emitCollectionRows} />
+        <Return value={$ctx.publish_rows} />
     </If>
 
     <If
-        on={$in.kind == Flow.CollectionKind.Push ||
-            $in.kind == Flow.CollectionKind.Concat}
+        on={$in.capacity != null && (
+            $in.kind == Flow.CollectionKind.Push ||
+                $in.kind == Flow.CollectionKind.Concat
+        )}
     >
         <Call
-            fn="host.collectionMinimum"
-            in={[
-                $in.ast.lower,
-                $in.id
-            ]}
+            module="../../iteration/fields/projection/minimum"
+            in={{
+                ...$in.capacity,
+                writer: $in.ast.writer,
+                operation: $in.id
+            }}
         />
 
         <Call
-            fn="host.emitCollectionRows"
-            in={[
-                $in.ast.writer,
-                $in.ast.sequence,
-                $in.id,
-                $in.source_type,
-                $in.removed_only,
-                $in.rows,
-                $ctx.collectionMinimum,
-                null
-            ]}
+            module="publish_rows"
+            in={{
+                ...$in,
+                minimum: $ctx.minimum,
+                compare: []
+            }}
         />
 
-        <Return value={$ctx.emitCollectionRows} />
+        <Return value={$ctx.publish_rows} />
     </If>
 
     <Call
-        fn="host.emitCollectionRows"
-        in={[
-            $in.ast.writer,
-            $in.ast.sequence,
-            $in.id,
-            $in.source_type,
-            $in.removed_only,
-            $in.rows,
-            null,
-            null
-        ]}
+        module="publish_rows"
+        in={{
+            ...$in,
+            compare: []
+        }}
     />
 
-    <Return value={$ctx.emitCollectionRows} />
+    <Return value={$ctx.publish_rows} />
 </Module>

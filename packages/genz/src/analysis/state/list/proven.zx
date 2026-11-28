@@ -8,7 +8,7 @@ import type { Ast } from "./model"
 
 export type Input = {
     state: State,
-    ast: Ast,
+    ast?: Ast,
     header: u32,
     unique: u32
 }

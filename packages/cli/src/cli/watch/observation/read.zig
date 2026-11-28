@@ -14,6 +14,9 @@ pub const Context = struct {
     save_version: bool = false,
     verified_file: ?Snapshot.VerifiedFile = null,
     result: Snapshot.State = undefined,
+    left: storage.Fact = undefined,
+    right: storage.Fact = undefined,
+    comparison: storage.Comparison = undefined,
     failure: ?anyerror = null,
     pub const Scan = struct {
         entries: []Snapshot.Entry,

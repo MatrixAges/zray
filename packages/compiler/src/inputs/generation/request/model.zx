@@ -5,12 +5,14 @@ import type {
     GenerationRegistration,
     PreparedGeneration
 } from "generation_host"
+import type { Fields as PackageFields } from "./packages"
 
 export type Input = {
     host: GenerationIO,
     write: bool,
     stamp_path: string,
-    roots: u64
+    roots: u64,
+    packages: PackageFields
 }
 
 export type Current = {
@@ -28,7 +30,6 @@ export type Summary = {
 }
 
 export type Prepared = {
-    packages: GenerationArtifact,
     catalog: GenerationArtifact,
     registered: GenerationRegistration,
     fingerprints: PreparedGeneration
@@ -47,7 +48,6 @@ export type LoadStep = {
     row: u64
 }
 
-export type Prepare = {
-    host: GenerationIO,
+export type Prepare = Input.Pick("host", "packages") & {
     documents: u8[][]
 }

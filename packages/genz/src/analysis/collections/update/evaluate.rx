@@ -73,11 +73,12 @@
     />
 
     <Call
-        fn="../workflow/host.materializeElementType"
-        in={[
-            $in.ast.lower,
-            $in.source_type
-        ]}
+        fn="../../state/elements/materialize_type"
+        in={{
+            frame: $in.ast.lower,
+            source: $in.ast.elements,
+            list: $in.source_type
+        }}
     />
 
     <Return
@@ -86,7 +87,7 @@
             target: $ctx.bind_target.value,
             index: $ctx.operand,
             value: $ctx.convert,
-            element: $ctx.materializeElementType
+            element: $ctx.materialize_type
         }}
     />
 </Module>

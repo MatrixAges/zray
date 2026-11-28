@@ -1,13 +1,11 @@
 const std = @import("std");
 const compiler = @import("compiler");
 const memory = @import("zx").memory;
-const model = @import("../../../package/manifest/model.zig");
 const Request = std.meta.Child(@import("cli_source").native_scope_load.Input);
 const Workspace = std.meta.Child(@FieldType(Request, "workspace"));
 const Publication = std.meta.Child(@FieldType(Workspace, "declarations"));
 const Native = std.meta.Child(@FieldType(Publication, "declarations"));
 const External = std.meta.Child(@FieldType(Publication, "externals"));
-const Setting = std.meta.Child(@FieldType(Workspace, "settings"));
 const native_fields = .{ .identities = "identity", .specifiers = "specifier", .paths = "path", .modules = "module", .namespaces = "namespace" };
 const legacy_fields = .{ .identities = "identity", .names = "specifier" };
 
@@ -25,14 +23,5 @@ pub const Declarations = struct {
         self.native_views = self.native.bind(Native);
         self.legacy_views = self.legacy.bind(External);
         self.view = .{ .declarations = &self.native_views, .externals = &self.legacy_views };
-    }
-};
-
-pub const Settings = struct {
-    names: memory.TextColumn,
-    view: Setting,
-    pub fn init(self: *@This(), root: []const u8, includes: []const []const u8, modules: []const model.NativeModule) void {
-        self.names = memory.borrowTextColumn("name", modules);
-        self.view = .{ .names = @ptrCast(&self.names), .root = root, .includes = includes, .count = modules.len };
     }
 };

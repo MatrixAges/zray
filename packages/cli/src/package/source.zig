@@ -7,7 +7,6 @@ const Error = effects.Error;
 
 const State = struct {
     io: std.Io,
-    allocator: std.mem.Allocator,
     inputs: ?*Inputs,
     failure: effects.Failure = .{},
     fn get(handle: *const anyopaque) *State {
@@ -24,13 +23,12 @@ pub fn validateWithInputs(io: std.Io, allocator: std.mem.Allocator, path: []cons
 
     var state: State = .{
         .io = io,
-        .allocator = allocator,
         .inputs = inputs,
     };
 
     const owner = compiler.project.package_scope.owner(scopes, path);
     const reference = &state;
-    const status = rules.workspace_source.executeValue(allocator, &.{ .source = @ptrCast(&reference), .path = path, .root = if (owner) |index| scopes[index].root else null }) catch |err| return state.failure.unwrap(err);
+    const status = rules.workspace_source.executeIn(allocator, &.{ .source = @ptrCast(&reference), .path = path, .root = if (owner) |index| scopes[index].root else null }, io) catch |err| return state.failure.unwrap(err);
 
     switch (status) {
         .Valid => {},
@@ -38,12 +36,6 @@ pub fn validateWithInputs(io: std.Io, allocator: std.mem.Allocator, path: []cons
         .Alias => return error.PackageSourceMustUsePhysicalPath,
         .Undeclared => return error.SourceBelongsToUndeclaredPackage,
     }
-}
-
-pub fn physicalSource(handle: *const anyopaque, path: []const u8) Error![]const u8 {
-    const self = State.get(handle);
-
-    return std.Io.Dir.cwd().realPathFileAlloc(self.io, path, self.allocator) catch |err| return self.failure.save(err);
 }
 
 pub fn hasPackageManifest(handle: *const anyopaque, path: []const u8) Error!bool {

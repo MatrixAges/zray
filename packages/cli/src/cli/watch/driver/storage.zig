@@ -65,7 +65,8 @@ pub const State = struct {
         self.backend_arena.deinit();
         self.replaceSnapshot(.Failure, null);
         self.replaceSnapshot(.Success, null);
-        process.stopApplication(@ptrCast(&self), false) catch {};
+        process.discardPending(self);
+        process.stop(self, false) catch {};
     }
 
     pub fn get(handle: *const anyopaque) *State {

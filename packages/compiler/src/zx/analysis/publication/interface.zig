@@ -3,11 +3,10 @@ const zx = @import("zx");
 
 pub fn types(allocator: std.mem.Allocator, names: []const []const u8, ids: []const u32) std.mem.Allocator.Error![]const zx.ir.Export {
     const entry = @import("generated_analysis_publish_types");
-    const source: zx.memory.NamedColumns = .{ .names = names, .ids = ids };
 
     const request: std.meta.Child(entry.Input) = .{
-        .source = @ptrCast(&source),
-        .count = names.len,
+        .names = names,
+        .ids = ids,
     };
 
     const rows = entry.executeIn(allocator, &request) catch |err| switch (@as(anyerror, err)) {

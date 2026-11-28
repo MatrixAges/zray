@@ -9,7 +9,6 @@ export {
     reusePrior,
     readCurrent,
     comparePrevious,
-    recordFile,
-    compareRecorded,
+    resolveRecordedPath,
     publishObservation
 } from "snapshot_host"

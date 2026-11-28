@@ -59,13 +59,13 @@ pub fn renderStageBuild(allocator: std.mem.Allocator, handle: *const anyopaque) 
     return @import("../../library_config.zig").render(allocator, self.config, self.layout.public, self.layout.generated, self.abi.views) catch |err| self.failure.save(err);
 }
 
-pub fn writeStageInventory(handle: *const anyopaque) Error!void {
+pub fn writeStageInventory(handle: *const anyopaque, external_includes: []const []const u8) Error!void {
     const self = State.get(handle);
 
-    writeInventory(self) catch |err| return self.failure.save(err);
+    writeInventory(self, external_includes) catch |err| return self.failure.save(err);
 }
 
-fn writeInventory(self: *State) !void {
+fn writeInventory(self: *State, external_includes: []const []const u8) !void {
     const request = self.request;
     var file = try self.disk.create(inventory.name);
 
@@ -88,7 +88,7 @@ fn writeInventory(self: *State) !void {
         .generated_modules = InventoryModules{ .rows = self.layout.generated },
         .external_build_requirements = .{
             .libraries = self.config.libraries,
-            .include_paths = resources.external_includes.items,
+            .include_paths = external_includes,
             .library_paths = self.config.library_paths,
         },
     }, .{ .whitespace = .indent_2 }, &writer.interface) catch return writer.err.?;

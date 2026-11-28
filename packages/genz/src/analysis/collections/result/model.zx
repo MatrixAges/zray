@@ -26,7 +26,8 @@ export type State = {
 export type Output = Emission
 
 export type Preparation = {
-    types: u32[],
+    first: u64,
+    count: u64,
     source: ConversionSource.Omit("root", "mode"),
     resources: Resources,
     shared: bool

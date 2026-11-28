@@ -44,6 +44,19 @@ export type Expressions = {
     object_fields_len: u32[]
 }
 
+export type Minimum = Input.Pick(
+    "writer",
+    "types",
+    "type_id",
+    "value",
+    "capacity",
+    "operation",
+    "active",
+    "selected"
+)
+
+export { astExpressionCount } from "ast_rows"
+
 export type State = {
     source: Input,
     expressions: Expressions,

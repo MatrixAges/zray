@@ -54,7 +54,7 @@ pub fn find(self: *const Self, name: []const u8) ?Entry {
 
     const input: std.meta.Child(probe.Input) = .{
         .keys = @ptrCast(&keys),
-        .buckets = @ptrCast(&self.buckets),
+        .buckets = self.buckets,
         .capacity = self.buckets.len,
         .text = name,
     };
@@ -120,7 +120,7 @@ pub fn merge(self: *Self, allocator: std.mem.Allocator, values: []const Entry, r
         .source = &source,
         .registry = &.{
             .published = &published,
-            .buckets = @ptrCast(&self.buckets),
+            .buckets = self.buckets,
             .capacity = self.buckets.len,
             .count = self.rows.items.len,
         },

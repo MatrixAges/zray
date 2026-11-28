@@ -5,7 +5,6 @@ export type Fragment = {
     expressions: ExpressionRows,
     statements: StatementRows[],
     serial: u64,
-    valid: bool,
     uses_allocator: bool
 }
 

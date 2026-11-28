@@ -6,7 +6,6 @@ const State = @import("state.zig");
 const effects = @import("../../sources/effects.zig");
 const zx = @import("zx");
 const memory = zx.memory;
-const source_index = compiler.project.source_index;
 const abi = @import("cli_abi").layouts.@"zig:native_scope_host";
 
 pub fn openNativeScope(handle: *const anyopaque, index: u64) *const abi.ScopeWindow {
@@ -18,10 +17,18 @@ pub fn openNativeScope(handle: *const anyopaque, index: u64) *const abi.ScopeWin
     const root = self.scope().root;
 
     self.externals_view = memory.borrowTextColumn("specifier", config.externals);
+    self.external_modules = memory.borrowNestedColumn([]const u8, &.{ "implementation", "module" }, config.externals);
     self.external_rows = .{ .items = @ptrCast(&self.externals_view), .length = config.externals.len };
     self.interface_specifiers = memory.borrowTextColumn("specifier", config.native_interfaces);
     self.interface_paths = memory.borrowTextColumn("path", config.native_interfaces);
-    self.interface_rows = .{ .specifiers = @ptrCast(&self.interface_specifiers), .paths = @ptrCast(&self.interface_paths) };
+    self.interface_modules = memory.borrowTextColumn("module", config.native_interfaces);
+
+    self.interface_rows = .{
+        .specifiers = @ptrCast(&self.interface_specifiers),
+        .paths = @ptrCast(&self.interface_paths),
+        .modules = @ptrCast(&self.interface_modules),
+    };
+
     self.owner = .{ .owner = root, .entry_root = self.entry_root, .compiled = false };
 
     self.window = .{
@@ -37,12 +44,9 @@ pub fn openNativeScope(handle: *const anyopaque, index: u64) *const abi.ScopeWin
     return &self.window;
 }
 
-pub fn openNativeScopeArtifact(handle: *const anyopaque, relative: []const u8) effects.Error!void {
+pub fn openNativeScopeArtifact(handle: *const anyopaque, path: []const u8) effects.Error!void {
     const self = State.get(handle);
     const root = self.scope().root;
-    const path = std.fs.path.resolve(self.allocator, &.{ root, relative }) catch |err| return self.failure.save(err);
-
-    defer self.allocator.free(path);
 
     self.compiled = @import("../../library/artifact.zig").open(std.heap.page_allocator, .{
         .io = self.io,
@@ -132,23 +136,6 @@ pub fn publishNativeScopeNames(handle: *const anyopaque, buckets: []const u64, n
     self.registry_view = .{ .index = &self.naming_index, .names = self.names };
 }
 
-pub fn nativeScopeDeclaration(handle: *const anyopaque, row: u64, external: bool) *const abi.DeclarationBinding {
-    const self = State.get(handle);
-    const index: usize = @intCast(row);
-
-    if (external) {
-        const declaration = &self.legacy[index];
-
-        self.declaration = .{ .specifier = declaration.specifier, .module = declaration.implementation.module };
-    } else {
-        const declaration = &self.native[index];
-
-        self.declaration = .{ .specifier = declaration.specifier, .module = declaration.module };
-    }
-
-    return &self.declaration;
-}
-
 pub fn writeNativeScopeDeclaration(handle: *const anyopaque, row: u64, external: bool, identity: []const u8, module: []const u8, copy_module: bool) std.mem.Allocator.Error!void {
     const self = State.get(handle);
     const index: usize = @intCast(row);
@@ -226,8 +213,6 @@ pub fn resolveNativeScopePath(handle: *const anyopaque, path: []const u8) std.me
 
 pub fn reserveNativeScopeModules(handle: *const anyopaque) std.mem.Allocator.Error!void {
     const self = State.get(handle);
-
-    self.module_first = self.modules.items.len;
 
     try self.modules.ensureUnusedCapacity(self.allocator, self.config().native_modules.len);
 }
@@ -309,13 +294,6 @@ fn ownAliases(allocator: std.mem.Allocator, names: []const []const u8, specifier
     }
 
     return rows;
-}
-
-pub fn reserveNativeScopeSettings(handle: *const anyopaque) std.mem.Allocator.Error!void {
-    const self = State.get(handle);
-    const modules = self.modules.items[self.module_first..];
-
-    self.setting_views.init(self.scope().root, self.config().include_paths, modules);
 }
 
 pub fn publishNativeScopeSettings(handle: *const anyopaque, rows: []const *const abi.PublishedSetting) std.mem.Allocator.Error!void {

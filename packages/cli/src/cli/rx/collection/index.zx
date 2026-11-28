@@ -1,6 +1,5 @@
 export {
     collectGatewayService,
-    registerCollectionEntry,
     selectCollectionPath,
     resolveCollectionPhysicalPath,
     readCollectionFile,

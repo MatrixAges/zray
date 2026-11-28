@@ -1,0 +1,25 @@
+<Module>
+    <Type from="model" as="Collection" />
+    <Type from="../path/model" as="Path" />
+
+    <Args in={Collection.PhysicalInput} out={Path.Resolution} />
+
+    <Call
+        fn="../index.observePhysicalResource"
+        in={[
+            $in.collection,
+            $in.path
+        ]}
+    />
+
+    <Call
+        fn="../path/relative"
+        in={{
+            root: $in.canonical_root,
+            path: $ctx.observePhysicalResource,
+            separator: $in.separator
+        }}
+    />
+
+    <Return value={$ctx.relative} />
+</Module>

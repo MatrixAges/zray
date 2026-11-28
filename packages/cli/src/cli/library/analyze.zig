@@ -3,6 +3,7 @@ const compiler = @import("compiler");
 const store = @import("rx_analysis").store;
 const Loaded = @import("../project.zig").Loaded;
 const Inputs = @import("watch_inputs").Inputs;
+const memory = @import("zx").memory;
 const workflow = @import("cli_source").library_analyze;
 const State = @import("analysis/rows.zig").State;
 const linking = @import("link/inputs.zig");
@@ -55,12 +56,22 @@ pub const Options = struct {
 pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
     var analysis: State = .{ .allocator = allocator, .options = &options };
     const reference = &analysis;
+    const exports = options.loaded.config.exports;
+    const names = memory.borrowTextColumn("path", exports);
+    const sources = memory.borrowTextColumn("source", exports);
+    var invocation = std.heap.ArenaAllocator.init(options.backing);
 
+    defer invocation.deinit();
     defer analysis.deinit();
 
-    const outcome = workflow.executeIn(allocator, &.{
+    const outcome = workflow.executeIn(invocation.allocator(), &.{
         .analysis = @ptrCast(&reference),
-        .export_count = options.loaded.config.exports.len,
+        .export_count = exports.len,
+        .exports = &.{
+            .root = options.loaded.project.root_dir,
+            .names = @ptrCast(&names),
+            .sources = @ptrCast(&sources),
+        },
         .compiled = options.loaded.config.library != null,
     }) catch |err| return analysis.failure.unwrap(err);
 

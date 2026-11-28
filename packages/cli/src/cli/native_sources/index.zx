@@ -3,10 +3,8 @@ export {
     observePhysicalResource,
     openCollection,
     readBundle,
-    checkPending,
     readPending,
     observePending,
-    includeFiles,
     scanBuiltins,
     decodeLiteral
 } from "native_resource_host"

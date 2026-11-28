@@ -1,6 +1,5 @@
 const std = @import("std");
 const ReadColumn = @import("rows.zig").ReadColumn;
-const IndexError = error{IndexOutOfBounds};
 
 pub const Column = struct {
     items: [*]u8,
@@ -210,14 +209,4 @@ pub fn allocateRowStorage(allocator: std.mem.Allocator, resource: ?*const anyopa
     buffer.bytes = bytes[0..size];
 
     return true;
-}
-
-pub inline fn write(comptime T: type, target: *anyopaque, index: u64, value: T) IndexError!void {
-    const column: *Column = @ptrCast(@alignCast(target));
-
-    if (index >= column.count or column.width != @sizeOf(T)) return error.IndexOutOfBounds;
-
-    const address = column.items + @as(usize, @intCast(index)) * column.stride;
-
-    @as(*align(1) T, @ptrCast(address)).* = value;
 }

@@ -12,7 +12,7 @@
                 preparation: $in.preparation,
                 members: [],
                 row: 0,
-                running: $in.preparation.types.length != 0
+                running: $in.preparation.count != 0
             }}
         />
     </Loop>

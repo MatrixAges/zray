@@ -15,10 +15,11 @@
         />
     </Loop>
 
-    <If
-        on={$ctx.search.progress == Workspace.Progress.Advance ||
-            $ctx.search.progress == Workspace.Progress.Retained}
-    >
+    <If on={$ctx.search.progress == Workspace.Progress.Retained}>
+        <Return value={Workspace.Progress.Current} />
+    </If>
+
+    <If on={$ctx.search.progress == Workspace.Progress.Advance}>
         <If on={$ctx.search.has_nearest}>
             <Return value={Workspace.Progress.Nearest} />
         </If>

@@ -1,4 +1,3 @@
-import strings from "std:string"
 import memory from "memory"
 
 import type { TextColumn } from "memory"
@@ -14,15 +13,12 @@ export type Package = {
     entry: string
 }
 
-export type Input = {
-    fields: Fields,
-    retain: bool
-}
+export type Input = Fields
 
 export type Output = Package[]
 
 export default function (in: Input): Output {
-    const { fields, retain } = in
+    const fields = in
 
     const empty: Package[] = []
 
@@ -33,12 +29,12 @@ export default function (in: Input): Output {
         while: state => state.row < fields.count,
         next: state => {
             const row = state.row
-            const name = memory.readTextColumn(fields.specifiers, row)
+            const specifier = memory.readTextColumn(fields.specifiers, row)
             const entry = memory.readTextColumn(fields.entries, row)
 
             state.items = state.items.push({
-                specifier: retain ? strings.copy(name) : name,
-                entry: retain ? strings.copy(entry) : entry
+                specifier,
+                entry
             })[0]
 
             state.row += 1

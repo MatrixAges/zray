@@ -1,9 +1,13 @@
 <Module>
     <Type from="../model" as="Driver" />
 
-    <Args in={Driver.Watch} out={void} />
+    <Args in={Driver.Watch} out={string?} />
 
     <Call fn="../index.prepareApplication" in={$in} />
+
+    <If on={$ctx.prepareApplication != null}>
+        <Return value={$ctx.prepareApplication} />
+    </If>
 
     <Call
         fn="../index.stopApplication"
@@ -13,5 +17,11 @@
         ]}
     />
 
+    <If on={$ctx.stopApplication != null}>
+        <Return value={$ctx.stopApplication} />
+    </If>
+
     <Call fn="../index.startApplication" in={$in} />
+
+    <Return value={$ctx.startApplication} />
 </Module>

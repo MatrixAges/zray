@@ -12,7 +12,7 @@ export type Input = {
     count: u64,
     limit: u64,
     ranked: bool,
-    initial_marks: u8[]
+    initial_marks?: u8[]
 }
 
 export type Result = {

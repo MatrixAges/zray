@@ -1,9 +1,10 @@
 import encoding from "std:encoding"
 import path from "std:path"
 import strings from "std:string"
-import lexical from "lexical_path"
 
 import { current_directory, index_file, index_rx_file } from "../../../path/const"
+import parent from "../../../path/parent"
+import resolve from "../../../path/resolve"
 import trim from "../../../path/trim_directory"
 import { PathBase } from "../model"
 
@@ -24,7 +25,7 @@ export default function (in: Input): Output {
 
     const anchor = match base.kind {
         PathBase.Root => context.root,
-        _ => lexical.pathParent(context.from) ?? current_directory
+        _ => parent(context.from) ?? current_directory
     }
 
     if (directory) {
@@ -34,10 +35,10 @@ export default function (in: Input): Output {
         ])
 
         return {
-            path: lexical.resolvePathFrom(
-                anchor,
-                encoding.sliceBytes(leaf, base.prefix, leaf.length)
-            ),
+            path: resolve({
+                root: anchor,
+                path: encoding.sliceBytes(leaf, base.prefix, leaf.length)
+            }),
             fallback: false
         }
     }
@@ -45,10 +46,13 @@ export default function (in: Input): Output {
     const spelling = encoding.sliceBytes(stem.path, base.prefix, stem.path.length)
 
     return {
-        path: lexical.resolvePathFrom(anchor, strings.join("", [
-            spelling,
-            stem.suffix
-        ])),
+        path: resolve({
+            root: anchor,
+            path: strings.join("", [
+                spelling,
+                stem.suffix
+            ])
+        }),
         fallback: !stem.rx
     }
 }

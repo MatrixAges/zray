@@ -7,7 +7,7 @@ export {
     retain,
     checkPublishedTarget,
     prepareRetirement,
-    copyStagedFile
+    copyDirectoryFile
 } from "publication_host"
 export {
     checkPublishedTarget as checkAssemblyTarget,

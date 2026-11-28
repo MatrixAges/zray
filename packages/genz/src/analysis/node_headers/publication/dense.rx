@@ -4,8 +4,6 @@
 
     <Args in={Dense.Input} out={void} />
 
-    <Call fn="host.requireAllocation" in={$in.fragment.valid} />
-
     <Call
         fn="host.appendExpressionRows"
         in={[

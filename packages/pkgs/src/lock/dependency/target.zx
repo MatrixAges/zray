@@ -25,7 +25,11 @@ export default function (in: Input): Output {
     const { packages, row, target, name, requirement } = in
     const { flags, names, paths, versions, limit } = packages
 
-    const spec = parse(requirement)
+    const spec = parse({
+        name,
+        requirement
+    })
+
     const local = flags[target] == workspace_root
 
     if (spec.kind == Kind.External) {
@@ -72,9 +76,7 @@ export default function (in: Input): Output {
         return same ? Status.Valid : Status.InvalidLockWorkspaceTarget
     }
 
-    const wanted = spec.alias ?? name
-
-    if (wanted != memory.readTextColumn(names, target)) {
+    if (spec.name != memory.readTextColumn(names, target)) {
         return Status.InvalidLockWorkspaceTarget
     }
 

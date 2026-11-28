@@ -1,6 +1,7 @@
+export { equals } from "std:bytes"
+export { readFile, realpath } from "std:fs"
 export {
     seedMember,
-    canonicalPath,
     verifyLockedManifest,
     prepareIndex,
     finishFresh,
@@ -13,6 +14,5 @@ export {
     readArchive,
     recordArchive,
     currentWorkspaceMatches,
-    renderInstallation,
-    lockUnchanged
+    renderInstallation
 } from "installation_host"

@@ -10,14 +10,14 @@ pub const Specifier = union(enum) {
 
 pub fn parse(name: []const u8, text: []const u8) Specifier {
     var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const spec = rules.specifier.executeValue(empty.allocator(), text) catch unreachable;
+    const spec = rules.specifier.executeValue(empty.allocator(), &.{ .name = name, .requirement = text }) catch unreachable;
 
     return switch (spec.kind) {
         .External => .external,
         .Invalid => .invalid,
         .Path => .{ .path = spec.path.? },
         .Alias, .Name => .{ .named = .{
-            .name = spec.alias orelse name,
+            .name = spec.name.?,
             .range = spec.range,
         } },
     };

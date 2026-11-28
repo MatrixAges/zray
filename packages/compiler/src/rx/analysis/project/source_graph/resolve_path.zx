@@ -1,0 +1,78 @@
+import bytes from "std:bytes"
+import os from "std:os"
+import strings from "std:string"
+
+import { current_directory, parent_directory } from "../../../../const"
+import nativePath from "../../../../zx/modules/project/target/package/path"
+import scan from "./resolve_path/segments"
+
+import type { Segments } from "./resolve_path/segments"
+
+export type Input = {
+    root: string,
+    path: string
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    // Windows drive-relative paths and device roots follow the native path rules.
+    if (os.platform() == "win32") {
+        return nativePath(in)
+    }
+
+    const { root, path } = in
+
+    const absolute_path = bytes.startsWithText(bytes.fromText(path), 0, "/")
+    const absolute_root = bytes.startsWithText(bytes.fromText(root), 0, "/")
+
+    const initial: Segments = {
+        parts: [],
+        parents: 0
+    }
+
+    const tail = scan({
+        path,
+        initial
+    })
+
+    const result = match {
+        absolute_path => tail,
+        _ => scan({
+            path: root,
+            initial: tail
+        })
+    }
+
+    const absolute = absolute_path || absolute_root
+    const parents = absolute ? 0 : result.parents
+
+    if (result.parts.length == 0 && parents == 0) {
+        return absolute ? "/" : current_directory
+    }
+
+    const output: string[] = match {
+        absolute => [""],
+        _ => []
+    }
+
+    const ordered = loop({
+        output,
+        parents,
+        index: result.parts.length
+    }, {
+        while: state => state.parents != 0 || state.index != 0,
+        next: state => {
+            if (state.parents != 0) {
+                state.output = state.output.push(parent_directory)[0]
+                state.parents -= 1
+            } else {
+                state.index -= 1
+                state.output = state.output.push(result.parts[state.index])[0]
+            }
+        },
+        return: state => state.output
+    })
+
+    return strings.join("/", ordered)
+}

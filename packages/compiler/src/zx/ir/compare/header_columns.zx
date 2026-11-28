@@ -1,10 +1,8 @@
 import bytes from "std:bytes"
 import memory from "memory/columns"
 
-import optionalIds from "./optional_ids"
 import { Storage } from "./referenced/model"
 import tags from "./tags"
-import texts from "./texts"
 
 import type { Range as Input } from "./range"
 
@@ -15,7 +13,7 @@ export default function (in: Input): Output {
 
     const headers = layout.headers
 
-    return loop({
+    const equal = loop({
         index: 0,
         equal: true
     }, {
@@ -32,35 +30,36 @@ export default function (in: Input): Output {
                     null
                 )
 
+            const lhs = memory.readReferenceByteRange(left, first, end, width)
+            const rhs = memory.readReferenceByteRange(right, first, end, width)
+
             state.equal = match headers.storage[index] {
-                Storage.Bytes => bytes.equals(
-                    memory.readReferenceByteRange(
-                        left,
-                        first,
-                        end,
-                        width
-                    ),
-                    memory.readReferenceByteRange(right, first, end, width)
-                ),
                 Storage.Tags => tags({
-                    left: memory.readReferenceByteRange(left, first, end, width),
-                    right: memory.readReferenceByteRange(right, first, end, width),
+                    left: lhs,
+                    right: rhs,
                     mask: headers.masks[index]
                 }),
-                Storage.OptionalIds => optionalIds({
-                    left: memory.readReferenceOptionalU32Range(left, first, end),
-                    right: memory.readReferenceOptionalU32Range(
-                        right,
-                        first,
-                        end
-                    )
-                }),
-                _ => texts({
-                    left: memory.readReferenceTextRange(left, first, end),
-                    right: memory.readReferenceTextRange(right, first, end)
-                })
+                _ => bytes.equals(lhs, rhs)
             }
             state.index += 1
+        },
+        return: state => state.equal
+    })
+
+    return loop({
+        row: first,
+        equal
+    }, {
+        while: state => state.equal && state.row < end,
+        next: state => {
+            const row = state.row
+            const module =
+                in.earlier_native_modules[row] == in.current_native_modules[row]
+            const root = in.earlier_roots[row] == in.current_roots[row]
+
+            state.equal =
+                module && root && in.earlier_files[row] == in.current_files[row]
+            state.row += 1
         },
         return: state => state.equal
     })

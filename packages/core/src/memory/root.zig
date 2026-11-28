@@ -29,7 +29,6 @@ pub const emptyFunctionNativeRecord = column_set.zeroRecord;
 pub const functionRowLayout = column_set.rowLayout;
 pub const functionBodyLayout = column_set.projectedLayout;
 pub const functionNativeLayout = column_set.projectedLayout;
-pub const rowCellCount = column_set.rowCellCount;
 pub const writeColumnCell = column_set.writeCell;
 pub const column_transfer = @import("column_transfer.zig");
 pub const borrowTransferGroup = column_transfer.borrowGroup;
@@ -71,9 +70,6 @@ pub inline fn requireAllocation(success: bool) std.mem.Allocator.Error!void {
 
 const rows = @import("rows.zig");
 pub const NamedId = rows.NamedId;
-pub const NamedColumns = rows.NamedColumns;
-pub const readNamedColumnName = rows.readNamedColumnName;
-pub const readNamedColumnId = rows.readNamedColumnId;
 pub const borrowNamedRows = rows.borrow;
 pub const TextColumn = rows.TextColumn;
 const references = @import("reference_column.zig");
@@ -88,12 +84,6 @@ pub const sameReferenceRow = reference_rows.same;
 pub const readReferenceRange = reference_rows.range;
 pub const readReferenceColumn = reference_rows.column;
 pub const readReferenceByteRange = reference_rows.byteRange;
-pub const readReferenceOptionalU32Range = reference_rows.Span(?u32).read;
-pub const readReferenceTextRange = reference_rows.Span([]const u8).read;
-pub const readReferenceOptionalTextRange = reference_rows.Span(?[]const u8).read;
-pub const readReferenceTextListsRange = reference_rows.Span([]const []const u8).read;
-pub const readReferenceOptionalTextListsRange = reference_rows.Span(?[]const []const u8).read;
-pub const readReferenceOptionalNamedListsRange = reference_rows.Span(?[]const ?[]const u8).read;
 pub const selectReferenceRow = reference_rows.select;
 pub const readNestedReferenceRows = reference_rows.nested;
 pub const readReferenceRowBytes = reference_rows.bytes;
@@ -171,7 +161,6 @@ pub const borrowReadFields = field_columns.borrowRead;
 pub const borrowListFields = field_columns.borrowLists;
 pub const ReadFields = field_columns.ReadFields;
 pub const ListFields = field_columns.ListFields;
-pub const WriteColumn = column.Column;
 pub const RowBuffer = column.RowBuffer;
 pub const RowOutput = column.RowOutput;
 pub const RowGrowth = column.RowGrowth;
@@ -241,12 +230,6 @@ pub const SourceSpan = struct {
     start: usize,
     end: usize,
 };
-
-pub inline fn readU32(target: *const anyopaque, index: u64) error{IndexOutOfBounds}!u32 {
-    return read(u32, target, index);
-}
-
-pub const readU32View = readU32;
 
 pub inline fn readU64(target: *const anyopaque, index: u64) error{IndexOutOfBounds}!u64 {
     return read(u64, target, index);

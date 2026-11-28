@@ -85,11 +85,19 @@
     </Loop>
 
     <Call
-        fn="../index.copyStagedFile"
+        fn="relative_source"
+        in={{
+            target: $ctx.preflight.manifest,
+            prefix: $ctx.preflight.prefix
+        }}
+    />
+
+    <Call
+        fn="../index.copyDirectoryFile"
         in={[
             $in.directory,
-            $ctx.preflight.manifest,
-            $ctx.preflight.prefix
+            $ctx.relative_source,
+            $ctx.preflight.manifest
         ]}
     />
 

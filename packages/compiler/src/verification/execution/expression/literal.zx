@@ -4,7 +4,7 @@ import { ExpressionKind } from "core/expression_table/kinds"
 import encode from "../../predicate/literal"
 import { smt_false, smt_true } from "../../scalar/const"
 import enumWidth from "../../scalar/enum_width"
-import numeric from "../../scalar/numeric"
+import numeric from "../../scalar/integer_traits"
 
 import type { Outcome as Output, TypedPayload } from "./model"
 
@@ -26,7 +26,7 @@ export default function (in: Input): Output {
     const type_row = integers.widen(type_id)
 
     const width = match enumeration {
-        true => enumWidth(types.second[type_row]),
+        true => enumWidth(integers.widen(types.second[type_row])),
         _ => numeric(types.first[type_row]).width
     }
 

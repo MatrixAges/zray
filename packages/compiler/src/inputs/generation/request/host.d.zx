@@ -1,6 +1,11 @@
 export type GenerationIO = opaque
 export type GenerationArtifact = opaque
 
+export type GenerationPackage = {
+    specifier: string,
+    entry: string
+}
+
 export type GenerationObservation = {
     snapshot?: GenerationArtifact,
     digest?: u8[]
@@ -35,14 +40,11 @@ export declare function loadGenerationRoot(
     snapshot: GenerationArtifact?
 ): u8[] throws { GenerationRequestFailed }
 
-export declare function retainGenerationPackages(host: GenerationIO): GenerationArtifact
-    throws { GenerationRequestFailed }
-
 export declare function classifyGenerationDocuments(
     allocator,
     host: GenerationIO,
     documents: u8[][],
-    packages: GenerationArtifact
+    packages: GenerationPackage[]
 ): GenerationArtifact throws { GenerationRequestFailed }
 
 export declare function registerGenerationInterfaces(
@@ -75,15 +77,6 @@ export declare function invalidateGenerationStamp(io, path: string): void throws
     SystemResources, Unexpected
 }
 
-export declare function writeGenerationStamp(io, path: string, stamp: string): void throws {
-    AccessDenied, AntivirusInterference, BadPathName, BrokenPipe, Canceled, DeviceBusy,
-    DiskQuota, FileBusy, FileLocksUnsupported, FileNotFound, FileTooBig, InputOutput, IsDir,
-    LockViolation, NameTooLong, NetworkNotFound, NoDevice, NoSpaceLeft, NotDir,
-    NotOpenForWriting, PathAlreadyExists, PermissionDenied, PipeBusy, ProcessFdQuotaExceeded,
-    ReadOnlyFileSystem, SymLinkLoop, SystemFdQuotaExceeded, SystemResources, Unexpected,
-    WouldBlock
-}
-
 export declare function restoreGenerationAnalysis(
     io,
     host: GenerationIO,
@@ -99,15 +92,14 @@ export declare function prepareGenerationTemplates(
 export declare function prepareGenerationModules(
     allocator,
     host: GenerationIO,
-    catalog: GenerationArtifact,
-    packages: GenerationArtifact
+    catalog: GenerationArtifact
 ): GenerationArtifact throws { GenerationRequestFailed }
 
 export declare function generateFromPreparedInputs(
     io,
     host: GenerationIO,
     fingerprints: GenerationArtifact,
-    packages: GenerationArtifact,
+    catalog: GenerationArtifact,
     bindings: GenerationArtifact,
     sources: GenerationArtifact,
     modules: GenerationArtifact

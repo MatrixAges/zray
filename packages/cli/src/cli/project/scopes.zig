@@ -36,12 +36,12 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []compiler.project
 
     state.workspace = .{
         .externals = &state.external_rows,
+        .external_modules = @ptrCast(&state.external_modules),
         .interfaces = &state.interface_rows,
         .modules = &state.module_rows,
         .binding = &state.binding,
         .traversal = &state.traversal,
         .declarations = &state.declaration_views.view,
-        .settings = &state.setting_views.view,
     };
 
     state.binding = .{ .window = &state.window, .registry = &state.registry_view, .library = &state.compiled_view };

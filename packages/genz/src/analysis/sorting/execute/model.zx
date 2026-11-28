@@ -1,5 +1,6 @@
 import type { AstSequence, AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
+import type { Source as ElementStorage } from "../../state/elements/storage"
 
 export type Input = {
     id: u32,
@@ -9,6 +10,7 @@ export type Input = {
     target: u32,
     environment: u32,
     list_type: u32,
+    elements: ElementStorage,
     selected: bool,
     reusable: bool,
     errors?: u8[][]

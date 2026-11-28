@@ -1,6 +1,4 @@
-import integers from "std:integer"
-
-export type Input = u32
+export type Input = u64
 
 export type Output = u64
 
@@ -9,15 +7,13 @@ export default function (in: Input): Output {
         return 1
     }
 
-    const target = integers.widen(in)
-
     return loop({
         bits: 1,
-        limit: 2
+        remaining: in - 1
     }, {
-        while: state => state.limit < target,
+        while: state => state.remaining > 1,
         next: state => {
-            state.limit = state.limit * 2
+            state.remaining = state.remaining / 2
             state.bits += 1
         },
         return: state => state.bits

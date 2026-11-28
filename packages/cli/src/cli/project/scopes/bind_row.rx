@@ -6,19 +6,10 @@
     <Call fn="declaration_row" in={$in} />
 
     <Call
-        fn="index.nativeScopeDeclaration"
-        in={[
-            $in.binding.window.frame,
-            $ctx.declaration_row.row,
-            $ctx.declaration_row.external
-        ]}
-    />
-
-    <Call
         fn="bind"
         in={{
             binding: $in.binding,
-            declaration: $ctx.nativeScopeDeclaration
+            declaration: $ctx.declaration_row.declaration
         }}
     />
 

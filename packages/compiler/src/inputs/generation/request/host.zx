@@ -1,7 +1,6 @@
 export {
     observeGenerationInputs,
     loadGenerationRoot,
-    retainGenerationPackages,
     classifyGenerationDocuments,
     registerGenerationInterfaces,
     fingerprintGenerationInputs,
@@ -11,6 +10,5 @@ export {
     prepareGenerationTemplates,
     prepareGenerationModules,
     generateFromPreparedInputs,
-    writeGenerationStamp,
     saveGenerationSnapshot
 } from "generation_host"

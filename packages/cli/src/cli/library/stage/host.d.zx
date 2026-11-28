@@ -9,7 +9,8 @@ export declare function writeStageArtifact(stage: Stage): void throws { Publicat
 export declare function writeStageManifest(stage: Stage): void throws { PublicationFailure }
 export declare function renderStageBuild(allocator, stage: Stage): string
     throws { PublicationFailure }
-export declare function writeStageInventory(stage: Stage): void throws { PublicationFailure }
+export declare function writeStageInventory(stage: Stage, external_includes: string[]): void
+    throws { PublicationFailure }
 
 export declare function bindLibraryModule(
     stage: Stage,
@@ -21,7 +22,4 @@ export declare function bundleNativeModule(
     resources: Stage,
     record_bundle: bool
 ): string[] throws { PublicationFailure }
-export declare function addExternalIncludes(resources: Stage, paths: string[]): void
-    throws { PublicationFailure }
-export declare function writeLibraryNativeHeader(resources: Stage): void throws { PublicationFailure }
-export declare function writeLibraryNativeAdapter(resources: Stage): void throws { PublicationFailure }
+export declare function renderLibraryNativeAdapter(allocator): string throws { OutOfMemory }

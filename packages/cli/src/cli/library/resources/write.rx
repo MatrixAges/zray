@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Resources" />
 
-    <Args in={Resources.Preparation} out={string[]} />
+    <Args in={Resources.Preparation} out={Resources.Output} />
 
     <Call
         fn="../../command/scope/paths"
@@ -11,19 +11,22 @@
         }}
     />
 
-    <If on={$in.count != 0}>
+    <Loop on={$in.running}>
         <Call
-            module="walk"
+            module="modules"
             in={{
-                resources: $in.resources,
-                setup: $in.setup,
-                count: $in.count,
-                modules: $in.modules,
+                ...$in,
+                external_includes: [],
                 index: 0,
-                running: true
+                running: $in.count != 0
             }}
         />
-    </If>
+    </Loop>
 
-    <Return value={$ctx.paths} />
+    <Return
+        value={{
+            library_paths: $ctx.paths,
+            external_includes: $ctx.modules.external_includes
+        }}
+    />
 </Module>

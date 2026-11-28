@@ -1,0 +1,19 @@
+import { max_u64 } from "core/const"
+import { scalar_i32, scalar_i64 } from "core/type_table/const"
+
+import symbolicWidth from "./symbolic_width"
+
+import type { Numeric } from "./model"
+
+export type Input = u32
+
+export type Output = Numeric
+
+export default function (in: Input): Output {
+    const width = symbolicWidth(in)
+
+    return {
+        width: width == max_u64 ? 0 : width,
+        signed: in == scalar_i32 || in == scalar_i64
+    }
+}

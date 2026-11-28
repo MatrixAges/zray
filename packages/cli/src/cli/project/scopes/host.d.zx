@@ -29,11 +29,6 @@ export type ScopeWindow = {
     library_paths: string[]
 }
 
-export type DeclarationBinding = {
-    specifier: string,
-    module: string
-}
-
 export type PublishedDeclaration = {
     specifier: string,
     path: string,
@@ -61,11 +56,6 @@ export declare function publishNativeScopeNames(
     buckets: u64[],
     names: string[]
 ): void throws { OutOfMemory }
-export declare function nativeScopeDeclaration(
-    frame: NativeScopeLoad,
-    row: u64,
-    external: bool
-): DeclarationBinding
 export declare function writeNativeScopeDeclaration(
     frame: NativeScopeLoad,
     row: u64,
@@ -103,8 +93,6 @@ export declare function publishNativeScopeModule(
     names: string[],
     specifiers: string[]
 ): void throws { SourceLoadFailure }
-export declare function reserveNativeScopeSettings(frame: NativeScopeLoad): void
-    throws { OutOfMemory }
 export declare function publishNativeScopeSettings(
     frame: NativeScopeLoad,
     rows: PublishedSetting[]

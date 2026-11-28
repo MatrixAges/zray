@@ -38,9 +38,6 @@ export enum PublicationFileKind {
     Other
 }
 
-export declare function joinNativeParts(allocator, parts: string[]): string
-    throws { OutOfMemory } concurrent
-
 export declare function relativePathFrom(allocator, base: string, target: string): string
     throws { OutOfMemory } concurrent
 
@@ -58,11 +55,10 @@ export declare function copyPublishedFile(io, source: string, destination: strin
 export declare function openDirectory(directory: Directory, follow_symlinks: bool): void throws { PublicationFailure }
 export declare function nextEntry(directory: Directory, name: string): DirectoryEntry
     throws { PublicationFailure }
-export declare function copyEntry(directory: Directory): void throws { PublicationFailure }
-export declare function copyStagedFile(
+export declare function copyDirectoryFile(
     directory: Directory,
-    target: string,
-    prefix: u64
+    relative: string,
+    target: string
 ): void throws { PublicationFailure }
 export declare function removeRetiredFile(directory: Directory, target: string): void
     throws { PublicationFailure }

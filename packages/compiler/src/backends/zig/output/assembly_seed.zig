@@ -1,7 +1,7 @@
 const std = @import("std");
 const assembly = @import("assembly.zig");
 const Bundle = @import("../library.zig").Bundle;
-const File = @import("../partition/placement.zig").File;
+const File = @import("../partition.zig").File;
 pub const hash_batch = 32;
 
 pub fn positions(counts: assembly.Counts) assembly.Sections {

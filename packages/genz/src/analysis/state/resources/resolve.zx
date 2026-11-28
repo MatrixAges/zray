@@ -1,10 +1,12 @@
 import integers from "std:integer"
-import host from "lowering_host"
+import { retainLoweringText } from "lowering_host"
 
+import describeOrigin from "../../construction/origin/describe"
 import resolve from "./cache"
 import select from "./conversion"
 import { Resource } from "./model"
 
+import type { Table } from "core/type_table/model"
 import type { Lowering } from "lowering_host"
 import type { Plan } from "../conversion/model"
 import type { Types } from "./cache"
@@ -13,7 +15,7 @@ export type Input = {
     frame: Lowering,
     plan: Plan,
     types: Types,
-    children: u32[],
+    table: Table,
     referenced: bool[]
 }
 
@@ -25,7 +27,7 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { frame, plan, types, children, referenced } = in
+    const { frame, plan, types, table, referenced } = in
 
     const layouts: u32[] = []
     const targets: u32[] = []
@@ -73,20 +75,30 @@ export default function (in: Input): Output {
                 _ => resolve({
                     frame,
                     types,
-                    id: children[type_index],
+                    id: table.first[type_index],
                     kind: resource.element
                 }),
             }
 
-            const origin: u8[] = match {
-                resource.origin => host.loweringOrigin(frame, id),
-                _ => []
+            if (resource.origin) {
+                const origin = describeOrigin({
+                    types: table,
+                    id
+                })
+
+                const name = match {
+                    origin.owned => retainLoweringText(frame, origin.name),
+                    _ => origin.name
+                }
+
+                state.origins = state.origins.push(name)[0]
+            } else {
+                state.origins = state.origins.push([])[0]
             }
 
             state.layouts = state.layouts.push(layout)[0]
             state.targets = state.targets.push(target)[0]
             state.elements = state.elements.push(element)[0]
-            state.origins = state.origins.push(origin)[0]
             state.row += 1
         },
         return: state => ({

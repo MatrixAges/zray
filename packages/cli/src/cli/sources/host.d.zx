@@ -22,6 +22,6 @@ export declare function admitCompiledImport(discovery: Discovery): void throws {
 export declare function selectImportFile(discovery: Discovery): string? throws { SourceLoadFailure }
 export declare function loadImportText(discovery: Discovery, path: string): bool throws { SourceLoadFailure }
 
-export declare function resolveTemplateReference(template: Template, index: u64): string? throws { SourceLoadFailure }
+export declare function resolveTemplateReference(template: Template, owner: string, index: u64): string? throws { SourceLoadFailure }
 export declare function readTemplateFile(template: Template, path: string): void throws { SourceLoadFailure }
 export declare function expandSourceTemplate(template: Template): void throws { SourceLoadFailure }

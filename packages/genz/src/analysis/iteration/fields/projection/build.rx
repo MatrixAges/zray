@@ -4,31 +4,21 @@
     <Args in={Projection.Input} out={Projection.Output} />
 
     <If on={$in.mode == Projection.Mode.Minimum}>
-        <If on={$in.capacity != null}>
-            <If on={$in.capacity.operation == $in.operation}>
-                <Call fn="initialize" in={$in} />
+        <Call
+            module="minimum"
+            in={$in.pick([
+                "writer",
+                "types",
+                "type_id",
+                "value",
+                "capacity",
+                "operation",
+                "active",
+                "selected"
+            ])}
+        />
 
-                <Call
-                    fn="minimum"
-                    in={{
-                        state: $ctx.initialize,
-                        capacity: $in.capacity
-                    }}
-                />
-
-                <Call
-                    fn="publish"
-                    in={{
-                        writer: $in.writer,
-                        result: $ctx.minimum
-                    }}
-                />
-
-                <Return value={$ctx.publish} />
-            </If>
-        </If>
-
-        <Return value={null} />
+        <Return value={$ctx.minimum} />
     </If>
 
     <Call fn="initialize" in={$in} />

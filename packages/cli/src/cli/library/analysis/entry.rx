@@ -6,14 +6,27 @@
     <Call module="discover" in={$in} />
 
     <If on={$ctx.discover}>
-        <Call fn="index.inferLibraryRx" in={$in.analysis} />
+        <Call
+            fn="index.inferLibraryRx"
+            in={[
+                $in.analysis,
+                $in.entry.name,
+                $in.entry.path
+            ]}
+        />
 
         <If on={!$ctx.inferLibraryRx}>
             <Return value={false} />
         </If>
 
         <Else>
-            <Call fn="index.inferLibraryZx" in={$in.analysis} />
+            <Call
+                fn="index.inferLibraryZx"
+                in={[
+                    $in.analysis,
+                    $in.entry.name
+                ]}
+            />
         </Else>
     </If>
 

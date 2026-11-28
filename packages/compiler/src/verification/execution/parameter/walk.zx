@@ -81,7 +81,7 @@ export default function walk(in: Input): Output {
         index,
         proof,
         width: match shape {
-            Kind.Enumeration => enumWidth(types.second[row]),
+            Kind.Enumeration => enumWidth(integers.widen(types.second[row])),
             Kind.Scalar => symbolicWidth(start),
             _ => max_u64
         },

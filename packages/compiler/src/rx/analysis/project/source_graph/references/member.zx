@@ -1,7 +1,6 @@
 import bytes from "std:bytes"
 import encoding from "std:encoding"
 import { ascii_slash } from "core/ascii/const"
-import lexical from "lexical_path"
 
 import offset from "../../../../../zx/modules/path/call_member"
 
@@ -16,7 +15,10 @@ export default function (in: Input): Output {
         return null
     }
 
-    const name = lexical.pathBasename(in)
+    const separator = bytes.lastIndexOfScalar(spelling, ascii_slash)
+    const first: u64 = separator == null ? 0 : (separator ?? 0) + 1
+
+    const name = encoding.sliceBytes(in, first, spelling.length)
     const start = offset(name)
 
     if (start == null) {

@@ -13,13 +13,8 @@ export declare function observePhysicalResource(allocator, collection: Context, 
     throws { NativeResourceFailure }
 
 export declare function openCollection(collection: Context, root: string, entry: string?): string throws { NativeResourceFailure }
-export declare function readBundle(collection: Context, canonical_root: string, path: string): string[] throws { NativeResourceFailure }
-export declare function checkPending(collection: Context, canonical_root: string, path: string): void throws { NativeResourceFailure }
+export declare function readBundle(collection: Context, path: string): string[] throws { NativeResourceFailure }
 export declare function readPending(collection: Context, path: string): string throws { NativeResourceFailure }
 export declare function observePending(collection: Context, path: string, content: string): void throws { NativeResourceFailure }
-export declare function includeFiles(collection: Context, root: string, absolute: string): string[] throws {
-    NativeResourceFailure
-}
-
 export declare function scanBuiltins(collection: Context, content: string): Builtin[] throws { NativeResourceFailure }
 export declare function decodeLiteral(collection: Context, raw: string): string throws { NativeResourceFailure }

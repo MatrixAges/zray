@@ -11,20 +11,37 @@
         ]}
     />
 
-    <Call fn="index.recordFile" in={$in.registration} />
+    <Call fn="index.resolveRecordedPath" in={$in.registration} />
 
-    <If on={$ctx.recordFile && $ctx.openRegistration.consumed}>
-        <Call fn="index.compareRecorded" in={$in.registration} />
+    <If on={$ctx.resolveRecordedPath != null}>
+        <Call
+            fn="record_fact"
+            in={{
+                bytes: $in.bytes,
+                physical_path: $ctx.resolveRecordedPath
+            }}
+        />
+
+        <Call
+            fn="same"
+            in={{
+                left: $ctx.openRegistration.prior ?? $ctx.record_fact,
+                right: $ctx.record_fact
+            }}
+        />
 
         <Call
             fn="index.publishObservation"
             in={[
                 $in.registration,
-                false,
-                true,
-                $ctx.compareRecorded,
-                $ctx.openRegistration.backend_preloaded,
-                true
+                {
+                    directory_entries: false,
+                    consumed: true,
+                    consistent: $ctx.same,
+                    backend_preloaded: $ctx.openRegistration.backend_preloaded,
+                    update_state: true,
+                    recorded: $ctx.record_fact
+                }
             ]}
         />
 
@@ -33,11 +50,13 @@
                 fn="index.publishObservation"
                 in={[
                     $in.registration,
-                    false,
-                    $ctx.recordFile,
-                    $ctx.recordFile,
-                    $ctx.openRegistration.backend_preloaded,
-                    true
+                    {
+                        directory_entries: false,
+                        consumed: false,
+                        consistent: false,
+                        backend_preloaded: $ctx.openRegistration.backend_preloaded,
+                        update_state: true
+                    }
                 ]}
             />
         </Else>

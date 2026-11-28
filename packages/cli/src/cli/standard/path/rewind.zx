@@ -1,0 +1,22 @@
+import separator from "./separator"
+
+export type Input = [u8[], u64, u64, bool, bool]
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const [data, end, start, windows, separators] = in
+
+    return loop({
+        index: end
+    }, {
+        while: state => state.index > start && separator([
+            data[state.index - 1],
+            windows
+        ]) == separators,
+        next: state => {
+            state.index -= 1
+        },
+        return: state => state.index
+    })
+}

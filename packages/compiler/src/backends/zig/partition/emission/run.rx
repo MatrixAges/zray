@@ -37,10 +37,7 @@
     <Return
         value={{
             status: Partition.Status.Valid,
-            layout: $ctx.plan.pick([
-                "roots",
-                "placement"
-            ]),
+            roots: $ctx.plan.roots,
             files: $ctx.publish
         }}
     />

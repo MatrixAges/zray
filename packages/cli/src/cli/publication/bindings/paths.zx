@@ -1,6 +1,6 @@
 import encoding from "std:encoding"
-import { pathBasename } from "lexical_path"
 
+import pathBasename from "../../standard/path/basename"
 import {
     addon_extension,
     declaration_extension,

@@ -1,0 +1,67 @@
+import bytes from "std:bytes"
+import os from "std:os"
+import strings from "std:string"
+
+import separator from "./separator"
+import slice from "./slice"
+
+export type Input = string[]
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const paths = in
+
+    const windows = os.platform() == "win32"
+    const delimiter = windows ? "\\" : "/"
+    const empty: string[] = []
+
+    const parts = loop({
+        index: 0,
+        parts: empty,
+        started: false,
+        trailing: false
+    }, {
+        while: state => state.index < paths.length,
+        next: state => {
+            const current = paths[state.index]
+            const data = bytes.fromText(current)
+
+            if (data.length != 0) {
+                const leading = separator([
+                    data[0],
+                    windows
+                ])
+
+                if (state.started) {
+                    if (state.trailing && leading) {
+                        state.parts = state.parts.push(slice([
+                            current,
+                            1,
+                            data.length
+                        ]))[0]
+                    } else {
+                        if (!state.trailing && !leading) {
+                            state.parts = state.parts.push(delimiter)[0]
+                        }
+
+                        state.parts = state.parts.push(current)[0]
+                    }
+                } else {
+                    state.parts = state.parts.push(current)[0]
+                    state.started = true
+                }
+
+                state.trailing = separator([
+                    data[data.length - 1],
+                    windows
+                ])
+            }
+
+            state.index += 1
+        },
+        return: state => state.parts
+    })
+
+    return strings.join("", parts)
+}

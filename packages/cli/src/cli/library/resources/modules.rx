@@ -51,15 +51,19 @@
         module="module"
         in={{
             resources: $in.resources,
+            directory: $in.directory,
+            name: $ctx.native_module.name,
             includes: $ctx.includes,
+            external_includes: $in.external_includes,
             has_bundle: $ctx.native_module.has_bundle,
-            has_header: $ctx.native_module.has_header
+            header: $ctx.native_module.header
         }}
     />
 
     <Return
         value={{
             ...$in,
+            external_includes: $ctx.module,
             index: $in.index + 1,
             running: $in.index + 1 < $in.count
         }}

@@ -7,6 +7,7 @@ const borrow = @import("../expressions/evaluate.zig").borrow;
 const entry = @import("generated_execute_transform");
 const Input = std.meta.Child(entry.Input);
 const Ast = std.meta.Child(@FieldType(Input, "ast"));
+const Elements = std.meta.Child(@FieldType(Ast, "elements"));
 const RenewalSource = std.meta.Child(std.meta.Child(@FieldType(Input, "renewal_source")));
 const RenewalWorkspace = @import("../growth/renew_workspace.zig");
 const Error = Lower.Error;
@@ -65,6 +66,8 @@ fn execute(context: *Context, temporary: std.mem.Allocator, renewal_source: ?*co
     const context_symbol = if (has_context) @backingInt(transform.parameters[1]) else 0;
     const context_used = has_context and self.used[context_symbol];
     const element_symbol = if (transform.kind == .sort) 0 else @backingInt(transform.parameters[@intFromBool(transform.kind == .reduce)]);
+    var types: std.meta.Child(@FieldType(Elements, "types")) = undefined;
+    const elements = @import("../state_value/element_emission.zig").borrowSource(Elements, self, &types);
 
     const ast: Ast = .{
         .writer = @ptrCast(self),
@@ -72,6 +75,7 @@ fn execute(context: *Context, temporary: std.mem.Allocator, renewal_source: ?*co
         .body = @ptrCast(&context.body),
         .loop = @ptrCast(&context.loop),
         .binding = @ptrCast(&context.binding),
+        .elements = &elements,
     };
 
     const input: Input = .{

@@ -14,12 +14,19 @@ export type Output = void
 export default function (in: Input): Output {
     const { storage, row, layout, index } = in
 
-    const count = columns.rowCellCount(layout)
-
     const written = loop(0, {
-        while: slot => slot < count,
+        while: slot => slot < layout.length,
         next: slot => {
-            columns.writeColumnCell(storage, row, layout, slot, index)
+            const cell = layout[slot]
+
+            columns.writeColumnCell(
+                storage,
+                row,
+                cell.slot,
+                cell.offset,
+                cell.width,
+                index
+            )
             slot += 1
         }
     })

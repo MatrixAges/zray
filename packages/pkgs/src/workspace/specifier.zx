@@ -13,17 +13,22 @@ export enum Kind {
     Alias
 }
 
-export type Input = string
+export type Input = {
+    name: string,
+    requirement: string
+}
 
 export type Output = {
     kind: Kind,
     path?: string,
-    alias?: string,
+    name?: string,
     range?: string
 }
 
 export default function (in: Input): Output {
-    const text = bytes.fromText(in)
+    const { name, requirement } = in
+
+    const text = bytes.fromText(requirement)
     const body = bytes.fromText(scheme).length
 
     if (!bytes.startsWithText(text, 0, scheme)) {
@@ -38,12 +43,12 @@ export default function (in: Input): Output {
     if (local) {
         return {
             kind: Kind.Path,
-            path: encoding.sliceBytes(in, body, in.length)
+            path: encoding.sliceBytes(requirement, body, requirement.length)
         }
     }
 
     const separator = bytes.lastIndexOfScalar(text, ascii_at)
-    const at = separator ?? in.length
+    const at = separator ?? requirement.length
     const range = separator == null ? body : at + 1
 
     const kind = match {
@@ -52,7 +57,7 @@ export default function (in: Input): Output {
         _ => Kind.Name
     }
 
-    const constrained = match in.length - range {
+    const constrained = match requirement.length - range {
         0 => false,
         1 => match text[range] {
             ascii_asterisk => false,
@@ -65,7 +70,14 @@ export default function (in: Input): Output {
 
     return {
         kind,
-        alias: kind == Kind.Alias ? encoding.sliceBytes(in, body, at) : null,
-        range: constrained ? encoding.sliceBytes(in, range, in.length) : null
+        name: match kind {
+            Kind.Alias => encoding.sliceBytes(requirement, body, at),
+            Kind.Name => name,
+            _ => null
+        },
+        range: match {
+            constrained => encoding.sliceBytes(requirement, range, requirement.length),
+            _ => null
+        }
     }
 }

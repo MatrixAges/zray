@@ -1,0 +1,92 @@
+import { Kind } from "./root_model"
+import separator from "./separator"
+import skip from "./skip"
+import slice from "./slice"
+
+import type { Root } from "./root_model"
+
+export type Input = [string, u8[]]
+
+export type Output = Root
+
+export default function (in: Input): Output {
+    const [path, data] = in
+
+    const device_prefix = data.length > 2 && (data[2] == 46 || data[2] == 63)
+
+    if (device_prefix) {
+        if (data.length == 3 || separator([
+            data[3],
+            true
+        ])) {
+            const device = slice([
+                path,
+                2,
+                3
+            ])
+
+            return {
+                kind: Kind.Device,
+                end: data.length == 3 ? 3 : 4,
+                prefix: `\\\\${device}`,
+                needs_separator: true
+            }
+        }
+    }
+
+    const server_end = skip([
+        data,
+        2,
+        true,
+        false
+    ])
+
+    const server = slice([
+        path,
+        2,
+        server_end
+    ])
+
+    if (server_end == data.length) {
+        return {
+            kind: Kind.Unc,
+            end: server_end,
+            prefix: `\\\\${server}`,
+            needs_separator: server != ""
+        }
+    }
+
+    const share_start = skip([
+        data,
+        server_end,
+        true,
+        true
+    ])
+
+    const share_end = skip([
+        data,
+        share_start,
+        true,
+        false
+    ])
+
+    const share = slice([
+        path,
+        share_start,
+        share_end
+    ])
+
+    const trailing = share_end < data.length
+    const suffix = trailing ? "\\" : ""
+
+    return {
+        kind: Kind.Unc,
+        end: match {
+            share == "" => server_end + 1,
+            trailing => share_end + 1,
+            _ => share_end
+        },
+        prefix: `\\\\${server}\\${share}${suffix}`,
+        needs_separator: share != "" && !trailing
+    }
+}

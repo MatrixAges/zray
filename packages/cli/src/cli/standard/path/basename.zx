@@ -1,0 +1,45 @@
+import bytes from "std:bytes"
+import os from "std:os"
+
+import rewind from "./rewind"
+import parseRoot from "./root"
+import slice from "./slice"
+
+export type Input = string
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const path = in
+
+    const windows = os.platform() == "win32"
+
+    const data = bytes.fromText(path)
+
+    const root = parseRoot([
+        path,
+        windows
+    ])
+
+    const end = rewind([
+        data,
+        data.length,
+        root.end,
+        windows,
+        true
+    ])
+
+    const start = rewind([
+        data,
+        end,
+        root.end,
+        windows,
+        false
+    ])
+
+    return slice([
+        path,
+        start,
+        end
+    ])
+}

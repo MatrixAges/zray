@@ -1,6 +1,6 @@
 import { compareFile } from "artifact_io"
-import { resolvePathParts } from "lexical_path"
 
+import resolvePathParts from "../../standard/path/resolve"
 import { binding_marker } from "../const"
 
 export type Input = {

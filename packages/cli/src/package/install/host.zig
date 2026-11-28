@@ -59,12 +59,6 @@ pub const Context = struct {
     }
 };
 
-pub fn canonicalPath(handle: *const anyopaque, path: []const u8) Error![]const u8 {
-    const self = Context.get(handle);
-
-    return self.physicalPath(path) catch |err| self.fail(err);
-}
-
 pub fn currentWorkspaceMatches(handle: *const anyopaque) Error!bool {
     const self = Context.get(handle);
     const current = workspace.load(self.io, self.allocator, self.options.path) catch |err| return self.fail(err);
@@ -82,10 +76,4 @@ pub fn renderInstallation(handle: *const anyopaque, paths: []const []const u8) E
     view.* = .{ .lock = publication.lock, .mapping = publication.mapping, .digest = digest };
 
     return view;
-}
-
-pub fn lockUnchanged(handle: *const anyopaque, lock: []const u8) Error!bool {
-    const self = Context.get(handle);
-
-    return files.lockUnchanged(self.io, self.allocator, self.root, lock) catch |err| self.fail(err);
 }

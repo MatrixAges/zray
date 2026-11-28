@@ -6,13 +6,7 @@
 
     <Call fn="member_path" in={$in} />
 
-    <Call
-        fn="../effects.canonical"
-        in={[
-            $in.graph,
-            $ctx.member_path
-        ]}
-    />
+    <Call fn="../effects.realpath" />
 
     <Call
         fn="find_member"
@@ -34,7 +28,7 @@
                 value={{
                     status: Project.Status.Valid,
                     row: {
-                        path: $ctx.canonical,
+                        path: $ctx.realpath,
                         member: $ctx.find_member
                     }
                 }}

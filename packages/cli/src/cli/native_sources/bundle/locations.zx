@@ -1,4 +1,5 @@
-import { pathParent, resolvePathParts } from "lexical_path"
+import pathParent from "../../standard/path/parent"
+import resolvePathParts from "../../standard/path/resolve"
 
 import type { Input as Bundle } from "./model"
 

@@ -15,9 +15,10 @@ const Slot = struct {
 pub const Context = struct {
     inputs: *Inputs,
     io: std.Io,
-    bytes: []const u8 = &.{},
     slot: Slot = undefined,
+    pending_path: ?[]const u8 = null,
     flags: storage.Slot = undefined,
+    prior: storage.Fact = undefined,
     current: Snapshot.State = undefined,
     failure: ?anyerror = null,
     fn get(handle: *const anyopaque) *Context {
@@ -60,10 +61,19 @@ pub fn add(inputs: *Inputs, io: std.Io, path: []const u8, directory_entries: boo
 }
 
 pub fn record(inputs: *Inputs, io: std.Io, path: []const u8, bytes: []const u8) !void {
-    var context: Context = .{ .io = io, .inputs = inputs, .bytes = bytes };
+    var context: Context = .{ .io = io, .inputs = inputs };
     const handle = &context;
+    var arena = std.heap.ArenaAllocator.init(inputs.arena.child_allocator);
+    var space: [512]u8 = undefined;
+    var storage_allocator = std.heap.BufferFirstAllocator.init(&space, arena.allocator());
 
-    source.record.executeIn(inputs.arena.allocator(), &.{ .registration = @ptrCast(&handle), .path = path }) catch |err| return if (err == error.ObservationFailure) context.failure.? else err;
+    defer arena.deinit();
+
+    source.record.executeIn(storage_allocator.allocator(), &.{ .registration = @ptrCast(&handle), .path = path, .bytes = bytes }) catch |err| {
+        if (context.pending_path) |pending| _ = inputs.entries.remove(pending);
+
+        return if (err == error.ObservationFailure) context.failure.? else err;
+    };
 }
 
 pub fn openRegistration(handle: *const anyopaque, path: []const u8) Error!*const storage.Slot {
@@ -77,11 +87,18 @@ pub fn openRegistration(handle: *const anyopaque, path: []const u8) Error!*const
 
     const slot = self.slot;
 
+    self.pending_path = if (slot.existing) null else slot.path;
+
     self.flags = .{
         .existing = slot.existing,
         .consumed = slot.existing and slot.value.consumed,
         .directory_entries = slot.existing and slot.value.directory_entries,
         .backend_preloaded = slot.existing and slot.value.backend_preloaded,
+        .prior = if (slot.existing and slot.value.consumed) prior: {
+            self.prior = Snapshot.fact(&slot.value.state);
+
+            break :prior &self.prior;
+        } else null,
     };
 
     return &self.flags;
@@ -129,47 +146,40 @@ pub fn comparePrevious(handle: *const anyopaque) Error!bool {
     return self.inputs.consistent and Snapshot.sameState(&entry.state, &prior);
 }
 
-pub fn recordFile(handle: *const anyopaque) bool {
+pub fn resolveRecordedPath(handle: *const anyopaque) ?[]const u8 {
     const self = Context.get(handle);
 
-    const physical = reader.physicalPath(self.io, self.inputs.arena.allocator(), self.slot.path) catch |err| {
+    return reader.physicalPath(self.io, self.inputs.arena.allocator(), self.slot.path) catch |err| {
         self.failure = err;
 
-        return false;
+        return null;
     };
-
-    var digest: [32]u8 = undefined;
-
-    std.crypto.hash.sha2.Sha256.hash(self.bytes, &digest, .{});
-
-    self.current = .{ .file = .{ .digest = digest, .physical_path = physical } };
-
-    return true;
 }
 
-pub fn compareRecorded(handle: *const anyopaque) bool {
+pub fn publishObservation(handle: *const anyopaque, next: *const storage.Publication) Error!void {
     const self = Context.get(handle);
 
-    return self.inputs.consistent and Snapshot.sameState(&self.slot.value.state, &self.current);
-}
-
-pub fn publishObservation(handle: *const anyopaque, directory_entries: bool, consumed: bool, consistent: bool, backend_preloaded: bool, update_state: bool) Error!void {
-    const self = Context.get(handle);
-
-    if (!update_state) {
-        self.slot.value.backend_preloaded = backend_preloaded;
+    if (!next.update_state) {
+        self.slot.value.backend_preloaded = next.backend_preloaded;
 
         return;
     }
 
-    self.inputs.consistent = self.inputs.consistent and consistent;
+    self.inputs.consistent = self.inputs.consistent and next.consistent;
 
     self.slot.value.* = .{
-        .state = if (self.failure) |err| .{ .failed = err } else self.current,
-        .directory_entries = directory_entries,
-        .consumed = consumed,
-        .backend_preloaded = backend_preloaded,
+        .state = if (self.failure) |err|
+            .{ .failed = err }
+        else if (next.recorded) |recorded|
+            .{ .file = .{ .digest = recorded.digest[0..std.crypto.hash.sha2.Sha256.digest_length].*, .physical_path = recorded.physical_path } }
+        else
+            self.current,
+        .directory_entries = next.directory_entries,
+        .consumed = next.consumed,
+        .backend_preloaded = next.backend_preloaded,
     };
+
+    self.pending_path = null;
 
     if (self.failure != null) return error.ObservationFailure;
 }

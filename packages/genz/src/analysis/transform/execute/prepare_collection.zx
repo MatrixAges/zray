@@ -1,7 +1,7 @@
 import bytes from "std:bytes"
 import { TransformKind } from "core/expression_table/kinds"
-import host from "lowering_host"
 
+import materializeType from "../../state/elements/materialize_type"
 import { items } from "./const"
 import freshName from "./fresh_name"
 
@@ -24,7 +24,11 @@ export default function (in: Input): Output {
         })
     }
 
-    const element = host.materializeElementType(in.ast.lower, in.result_type)
+    const element = materializeType({
+        frame: in.ast.lower,
+        source: in.ast.elements,
+        list: in.result_type
+    })
 
     return {
         name,

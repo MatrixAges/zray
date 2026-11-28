@@ -17,6 +17,6 @@ export default function (in: Input): Output {
         ...state,
         members: state.members.push(member)[0],
         row,
-        running: row < state.preparation.types.length
+        running: row < state.preparation.count
     }
 }

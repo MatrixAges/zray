@@ -7,11 +7,10 @@ import select from "../workspace/target/select"
 import { Status } from "./model"
 
 import type { Output as Specifier } from "../workspace/specifier"
-import type { Request } from "../workspace/target/query"
 import type { Scan } from "./model"
 
 export type Input =
-    Scan.Pick("owner", "members", "limit") & Request.Omit("owner", "requirement") & {
+    Scan.Pick("owner", "members", "limit") & {
         spec: Specifier
     }
 
@@ -31,10 +30,7 @@ export default function (in: Input): Output {
     const owner = in.owner ?? ""
 
     const target = query({
-        ...in.pick([
-            "name",
-            "spec"
-        ]),
+        spec: in.spec,
         owner
     })
 

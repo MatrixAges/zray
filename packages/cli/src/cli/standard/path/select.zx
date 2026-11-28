@@ -1,0 +1,128 @@
+import bytes from "std:bytes"
+
+import parseRoot from "./root"
+import { Kind } from "./root_model"
+
+import type { Root } from "./root_model"
+
+export type Part = {
+    path: string,
+    root: Root
+}
+
+export type Selection = {
+    root: Root,
+    parts: Part[],
+    count: u64
+}
+
+export type Input = [string[], bool]
+
+export type Output = Selection
+
+export default function (in: Input): Output {
+    const [paths, windows] = in
+
+    const empty: Part[] = []
+
+    const selected = loop({
+        index: paths.length,
+        root: parseRoot([
+            "",
+            windows
+        ]),
+        parts: empty,
+        rooted: false,
+        drive_parts: 0,
+        done: false
+    }, {
+        while: state => state.index > 0 && !state.done,
+        next: state => {
+            state.index -= 1
+
+            const path = paths[state.index]
+            const root = parseRoot([
+                path,
+                windows
+            ])
+            const kind = state.root.kind
+
+            if (root.kind == Kind.Relative) {
+                if (kind != Kind.Rooted) {
+                    state.parts = state.parts.push({
+                        path,
+                        root
+                    })[0]
+                }
+            } else if (root.kind == Kind.Rooted) {
+                if (!state.rooted) {
+                    state.rooted = true
+
+                    if (kind == Kind.Relative) {
+                        state.root = root
+                    }
+
+                    state.parts = state.parts.push({
+                        path,
+                        root
+                    })[0]
+                }
+
+                state.done = !windows
+            } else if (
+                root.kind == Kind.DriveRelative || root.kind == Kind.DriveAbsolute
+            ) {
+                const drive =
+                    bytes.startsWithText(
+                        bytes.fromText(root.prefix),
+                        0,
+                        state.root.prefix
+                    )
+
+                if (kind != Kind.DriveRelative || drive) {
+                    if (state.rooted) {
+                        const prefix = match root.kind {
+                            Kind.DriveAbsolute => root.prefix,
+                            _ => `${root.prefix}\\`
+                        }
+
+                        state.root = {
+                            ...root,
+                            kind: Kind.DriveAbsolute,
+                            prefix
+                        }
+                        state.done = true
+                    } else {
+                        state.root = root
+                        state.parts = state.parts.push({
+                            path,
+                            root
+                        })[0]
+                        state.drive_parts = state.parts.length
+                        state.done = root.kind == Kind.DriveAbsolute
+                    }
+                }
+            } else if (kind != Kind.DriveRelative) {
+                if (kind != Kind.Rooted) {
+                    state.parts = state.parts.push({
+                        path,
+                        root
+                    })[0]
+                }
+
+                state.root = root
+                state.done = true
+            }
+        },
+        return: state => ({
+            root: state.root,
+            parts: state.parts,
+            count: match state.root.kind {
+                Kind.DriveRelative => state.drive_parts,
+                _ => state.parts.length
+            }
+        })
+    })
+
+    return selected
+}

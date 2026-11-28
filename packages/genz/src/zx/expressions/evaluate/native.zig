@@ -55,10 +55,6 @@ pub fn lowerLayout(frame: *anyopaque, id: u32) Error!u32 {
     return @backingInt(try borrow(frame).layoutExpr(@fromBackingInt(id)));
 }
 
-pub fn loweringOrigin(frame: *anyopaque, id: u32) Error![]const u8 {
-    return @import("../../state_value/origin.zig").name(borrow(frame), @fromBackingInt(id));
-}
-
 pub fn retainLoweringText(frame: *anyopaque, text: []const u8) Error![]const u8 {
     return borrow(frame).allocator.dupe(u8, text);
 }

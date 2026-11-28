@@ -119,7 +119,7 @@ fn resolve(io: std.Io, result: *Result, original: workspace.Request, captured: ?
             .production = @ptrCast(&declarations.production_names),
             .development = @ptrCast(&declarations.development_names),
         },
-    }) catch |err| switch (err) {
+    }, io) catch |err| switch (err) {
         error.PackageGraphHostFailure => return failure.?,
         else => return err,
     };

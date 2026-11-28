@@ -1,4 +1,4 @@
-import { resolvePathFrom } from "lexical_path"
+import resolvePathParts from "../../../standard/path/resolve"
 
 import type { DelegateMatch as Input } from "./model"
 
@@ -15,7 +15,10 @@ export default function (in: Input): Output {
         next: state => {
             const path = module_paths[state.index]
 
-            state.found = resolvePathFrom(root, path) == delegate
+            state.found = resolvePathParts([
+                root,
+                path
+            ]) == delegate
             state.index += 1
         },
         return: state => state.found

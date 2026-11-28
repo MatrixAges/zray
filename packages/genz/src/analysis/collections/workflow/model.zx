@@ -1,14 +1,20 @@
 import type { AstSequence, AstWriter, CollectionRows } from "ast_rows"
 import type { CollectionKind } from "core/expression_table/kinds"
 import type { Lowering } from "lowering_host"
+import type { Minimum } from "../../iteration/fields/projection/model"
+import type { Source as ElementStorage } from "../../state/elements/storage"
+import type { Preparation } from "../result/model"
 
 export { CollectionKind } from "core/expression_table/kinds"
 
 export type Ast = {
     lower: Lowering,
     writer: AstWriter,
-    sequence: AstSequence
+    sequence: AstSequence,
+    elements: ElementStorage
 }
+
+export type Capacity = Minimum.Omit("writer", "operation")
 
 export type Input = {
     id: u32,
@@ -17,10 +23,18 @@ export type Input = {
     kind: CollectionKind,
     target: u32,
     source_type: u32,
+    expression_types: u32[],
     result_type: u32,
+    conversion: Preparation.Omit("first", "count"),
     arguments: u32[],
     frontier: bool,
+    in_place: bool,
+    grow: bool,
+    lazy: bool,
+    retract: bool,
+    shared: bool,
     removed_only: bool,
+    capacity?: Capacity,
     state_active: bool,
     result_selected: bool,
     layout?: u32
@@ -47,9 +61,32 @@ export type Arguments = {
 
 export type Operation = Input & BoundTarget
 
-export type Rows = Input.Pick("id", "ast", "kind", "source_type", "removed_only") & {
+export type Rows = Input.Pick(
+    "id",
+    "ast",
+    "kind",
+    "source_type",
+    "represented",
+    "removed_only",
+    "capacity",
+    "frontier",
+    "in_place",
+    "grow",
+    "lazy",
+    "retract",
+    "shared"
+) & {
     rows: CollectionRows
 }
+
+export type RowEmission = Rows & {
+    minimum?: u32,
+    compare: u8[]
+}
+
+export type RowLayout = Rows.Pick("ast", "source_type", "represented")
+
+export { astFieldCount, readAstOrigin } from "ast_rows"
 
 export type Outcome =
     Input.Pick(
@@ -58,6 +95,7 @@ export type Outcome =
         "state_active",
         "result_selected",
         "result_type",
+        "conversion",
         "layout"
     ) & {
         result: u32

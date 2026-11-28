@@ -1,7 +1,5 @@
-import type { U32View } from "memory"
-
 export type ReadTable = {
     keys: u8[],
-    buckets: U32View,
+    buckets: u32[],
     capacity: u64
 }

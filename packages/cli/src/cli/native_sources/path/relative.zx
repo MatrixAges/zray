@@ -1,6 +1,6 @@
-import path from "std:path"
 import { relativePathFrom } from "publication_host"
 
+import isAbsolute from "../../standard/path/absolute"
 import { Issue } from "./model"
 import within from "./within"
 
@@ -11,7 +11,7 @@ export default function (in: Input): Output {
 
     const accepted = within({
         path: relative,
-        absolute: path.isAbsolute(relative),
+        absolute: isAbsolute(relative),
         separator: in.separator
     })
 

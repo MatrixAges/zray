@@ -1,5 +1,6 @@
-import { pathParent } from "lexical_path"
 import { resolvePublicationPath } from "publication_host"
+
+import pathParent from "../../standard/path/parent"
 
 import type { Ancestor as Output } from "./model"
 

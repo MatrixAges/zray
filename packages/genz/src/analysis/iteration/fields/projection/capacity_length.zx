@@ -1,0 +1,91 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+
+import field from "../../../../ast/context/field"
+import initialize from "../../../../ast/context/initialize"
+import emptyFields from "../../../../ast/fields/empty"
+import { length_member } from "../../../intrinsics/index/const"
+import selected from "../../../state/list/selected"
+import { items_field } from "../../../types/state/const"
+
+import type { Capacity } from "../model"
+import type { Minimum, Result as Output } from "./model"
+
+export type Input = Minimum.Pick("types", "type_id", "value", "active", "selected") & {
+    capacity: Capacity,
+    expression_base: u32
+}
+
+export default function (in: Input): Output {
+    const state = initialize({
+        expression_base: in.expression_base,
+        statement_base: 0,
+        field_base: 0,
+        serial: 0
+    })
+
+    const type_index = integers.widen(in.type_id)
+    const first = integers.widen(in.types.first[type_index])
+    const index = first + integers.widen(in.capacity.source)
+
+    const member = field({
+        state,
+        target: in.value,
+        name: bytes.fromText(in.types.field_names[index])
+    })
+
+    const type_id = integers.widen(in.types.field_types[index])
+    const active = in.active
+
+    const chosen = match {
+        active => in.selected[type_id],
+        _ => false
+    }
+
+    const kind = match {
+        active => in.types.kinds[type_id],
+        _ => 0
+    }
+
+    const buffered = selected({
+        active,
+        chosen,
+        kind
+    })
+
+    const items = match {
+        buffered => field({
+            state: member.state,
+            target: member.id,
+            name: bytes.fromText(items_field)
+        }),
+        _ => member
+    }
+
+    const length = field({
+        state: items.state,
+        target: items.id,
+        name: bytes.fromText(length_member)
+    })
+
+    return {
+        expressions: {
+            ...length.state.expressions.pick([
+                "tags",
+                "offsets",
+                "field_target",
+                "field_name",
+                "dereference"
+            ]),
+            ...length.state.forms.pick([
+                "address_of",
+                "object_type_expr",
+                "object_fields_start",
+                "object_fields_len"
+            ])
+        },
+        fields: emptyFields({}),
+        root: length.id,
+        valid: length.state.valid
+    }
+}

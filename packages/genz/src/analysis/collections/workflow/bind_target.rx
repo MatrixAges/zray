@@ -25,18 +25,18 @@
         />
 
         <Call
-            fn="host.readListItems"
-            in={[
-                $in.ast.lower,
-                $in.target,
-                $ctx.bind_operand
-            ]}
+            fn="../../state/list/bound_items"
+            in={{
+                writer: $in.ast.writer,
+                value: $ctx.bind_operand,
+                represented: true
+            }}
         />
 
         <Return
             value={{
                 value: $ctx.bind_operand,
-                items: $ctx.readListItems,
+                items: $ctx.bound_items,
                 represented: true
             }}
         />
@@ -53,18 +53,18 @@
     />
 
     <Call
-        fn="host.readListItems"
-        in={[
-            $in.ast.lower,
-            $in.target,
-            $ctx.bind_operand
-        ]}
+        fn="../../state/list/bound_items"
+        in={{
+            writer: $in.ast.writer,
+            value: $ctx.bind_operand,
+            represented: $in.represented
+        }}
     />
 
     <Return
         value={{
             value: $ctx.bind_operand,
-            items: $ctx.readListItems,
+            items: $ctx.bound_items,
             represented: $in.represented
         }}
     />

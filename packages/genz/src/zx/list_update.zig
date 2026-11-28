@@ -10,6 +10,9 @@ pub fn lower(self: *Lower, id: ir.ExprId) Error!node.ExpressionId {
 
     const update = self.program.expression(id).value.list_update;
     const entry = @import("generated_run_list_update");
+    const Input = std.meta.Child(entry.Input);
+    const Ast = std.meta.Child(@FieldType(Input, "ast"));
+    const Elements = std.meta.Child(@FieldType(Ast, "elements"));
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
@@ -21,11 +24,15 @@ pub fn lower(self: *Lower, id: ir.ExprId) Error!node.ExpressionId {
     defer scratch.deinit();
     defer body.deinit();
 
-    const input: std.meta.Child(entry.Input) = .{
+    var types: std.meta.Child(@FieldType(Elements, "types")) = undefined;
+    const elements = @import("state_value/element_emission.zig").borrowSource(Elements, self, &types);
+
+    const input: Input = .{
         .ast = &.{
             .lower = @ptrCast(self),
             .writer = @ptrCast(self),
             .sequence = @ptrCast(&body),
+            .elements = &elements,
         },
         .represented = represented,
         .deferred = represented and self.deferred_lists,

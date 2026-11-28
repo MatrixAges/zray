@@ -10,6 +10,15 @@ export type Headers = Columns & {
     current_offsets: u64[]
 }
 
+export type HeaderValues = {
+    earlier_files: string[],
+    current_files: string[],
+    earlier_native_modules: u32?[],
+    current_native_modules: u32?[],
+    earlier_roots: u32?[],
+    current_roots: u32?[]
+}
+
 export type Bodies = {
     earlier_offsets: u64[],
     current_offsets: u64[],
@@ -17,21 +26,24 @@ export type Bodies = {
 }
 
 export type Native = {
-    members: Offsets,
-    exports: Offsets,
-    errors: Offsets,
-    inputs: Offsets
+    earlier_members: string[][],
+    current_members: string[][],
+    earlier_exports: string?[],
+    current_exports: string?[],
+    earlier_errors: string[]?[],
+    current_errors: string[]?[],
+    earlier_inputs: string?[]?[],
+    current_inputs: string?[]?[]
 }
 
 export type Layout = {
     headers: Headers,
-    native: Native,
     bodies: Bodies,
     contract: Nested,
     contract_offsets: Offsets
 }
 
-export type Range = {
+export type Range = HeaderValues & Native & {
     earlier: ReferenceRow,
     current: ReferenceRow,
     first: u64,

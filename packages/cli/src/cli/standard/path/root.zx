@@ -1,0 +1,105 @@
+import bytes from "std:bytes"
+import integer from "std:integer"
+
+import driveWidth from "./drive_width"
+import { Kind } from "./root_model"
+import separator from "./separator"
+import slice from "./slice"
+import windowsNetworkRoot from "./windows_network_root"
+
+import type { Root } from "./root_model"
+
+export type Input = [string, bool]
+
+export type Output = Root
+
+export default function (in: Input): Output {
+    const [path, windows] = in
+
+    const data = bytes.fromText(path)
+
+    if (data.length == 0) {
+        return {
+            kind: Kind.Relative,
+            end: 0,
+            prefix: "",
+            needs_separator: false
+        }
+    }
+
+    if (separator([
+        data[0],
+        windows
+    ])) {
+        const unc = windows && data.length > 1 && separator([
+            data[1],
+            true
+        ])
+
+        if (unc) {
+            return windowsNetworkRoot([
+                path,
+                data
+            ])
+        }
+
+        return {
+            kind: Kind.Rooted,
+            end: 1,
+            prefix: windows ? "\\" : "/",
+            needs_separator: false
+        }
+    }
+
+    const width = match {
+        windows => driveWidth(data),
+        _ => 0
+    }
+
+    if (width != 0) {
+        const after_colon = width + 1
+
+        const absolute = data.length > after_colon && separator([
+            data[after_colon],
+            true
+        ])
+
+        const letter = slice([
+            path,
+            0,
+            width
+        ])
+
+        const lower = data[0] >= 97 && data[0] <= 122
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+        const upper = match {
+            lower => slice([
+                alphabet,
+                integer.widenByte(data[0]) - 97,
+                integer.widenByte(data[0]) - 96
+            ]),
+            _ => letter
+        }
+
+        const prefix = match {
+            absolute => `${upper}:\\`,
+            _ => `${upper}:`
+        }
+
+        return {
+            kind: absolute ? Kind.DriveAbsolute : Kind.DriveRelative,
+            end: absolute ? after_colon + 1 : after_colon,
+            prefix,
+            needs_separator: false
+        }
+    }
+
+    return {
+        kind: Kind.Relative,
+        end: 0,
+        prefix: "",
+        needs_separator: false
+    }
+}
+

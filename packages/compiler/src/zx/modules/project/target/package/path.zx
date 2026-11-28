@@ -1,4 +1,4 @@
-import lexical from "lexical_path"
+import resolve from "../../../path/resolve"
 
 export type Input = {
     root: string,
@@ -8,8 +8,5 @@ export type Input = {
 export type Output = string
 
 export default function (in: Input): Output {
-    return lexical.resolvePathParts([
-        in.root,
-        in.path
-    ])
+    return resolve(in)
 }

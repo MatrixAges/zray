@@ -1,22 +1,5 @@
 const std = @import("std");
 pub const NamedId = struct { name: []const u8, id: u32 };
-pub const NamedColumns = struct { names: []const []const u8, ids: []const u32 };
-
-pub fn readNamedColumnName(source: *const anyopaque, index: u64) error{IndexOutOfBounds}![]const u8 {
-    const columns: *const NamedColumns = @ptrCast(@alignCast(source));
-
-    if (index >= columns.names.len) return error.IndexOutOfBounds;
-
-    return columns.names[@intCast(index)];
-}
-
-pub fn readNamedColumnId(source: *const anyopaque, index: u64) error{IndexOutOfBounds}!u32 {
-    const columns: *const NamedColumns = @ptrCast(@alignCast(source));
-
-    if (index >= columns.ids.len) return error.IndexOutOfBounds;
-
-    return columns.ids[@intCast(index)];
-}
 
 pub const ReadColumn = struct {
     bytes: []const u8,

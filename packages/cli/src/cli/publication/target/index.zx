@@ -1,6 +1,7 @@
-export { resolvePathParts } from "lexical_path"
 export {
     PublicationFileKind,
     readPublicationFileKind,
     resolvePublicationPath
 } from "publication_host"
+
+export { default as resolvePathParts } from "../../standard/path/resolve"

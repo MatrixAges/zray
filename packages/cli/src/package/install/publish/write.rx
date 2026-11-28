@@ -47,14 +47,22 @@
 
     <If on={$in.reuse}>
         <Call
-            fn="../effects.lockUnchanged"
+            fn="../effects.readFile"
+            in={{
+                path: $ctx.artifacts.lock.path,
+                max_bytes: $in.maximum_bytes - 1
+            }}
+        />
+
+        <Call
+            fn="../effects.equals"
             in={[
-                $in.session,
-                $ctx.renderInstallation.lock
+                $ctx.readFile,
+                $ctx.artifacts.lock.data
             ]}
         />
 
-        <If on={!$ctx.lockUnchanged}>
+        <If on={!$ctx.equals}>
             <Return
                 value={{
                     status: Installation.Status.LockChangedDuringInstall

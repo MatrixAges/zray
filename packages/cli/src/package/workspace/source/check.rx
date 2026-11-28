@@ -4,15 +4,9 @@
     <Args in={Ownership.Input} out={Ownership.Status} />
 
     <If on={$in.root != null}>
-        <Call
-            fn="index.physicalSource"
-            in={[
-                $in.source,
-                $in.path
-            ]}
-        />
+        <Call fn="index.realpath" in={$in.path} />
 
-        <If on={$ctx.physicalSource != $in.path}>
+        <If on={$ctx.realpath != $in.path}>
             <Return value={Ownership.Status.Alias} />
         </If>
 

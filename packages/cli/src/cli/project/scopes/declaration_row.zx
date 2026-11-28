@@ -1,3 +1,5 @@
+import memory from "memory"
+
 import type { BindingWalk as Input, DeclarationRow as Output } from "./workflow"
 
 export default function (in: Input): Output {
@@ -6,8 +8,16 @@ export default function (in: Input): Output {
 
     const external = index >= declarations
 
+    const row = external ? index - declarations : index
+    const specifiers = external ? in.externals.items : in.interfaces.specifiers
+    const modules = external ? in.external_modules : in.interfaces.modules
+
     return {
-        row: external ? index - declarations : index,
-        external
+        row,
+        external,
+        declaration: {
+            specifier: memory.readTextColumn(specifiers, row),
+            module: memory.readTextColumn(modules, row)
+        }
     }
 }

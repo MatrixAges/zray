@@ -27,6 +27,10 @@ pub fn main(init: std.process.Init) !void {
         .count = count,
     });
 
+    const executable = try cwd.statFile(init.io, request.zig, .{});
+    const types = selected.types orelse return error.MissingGeneratedFile;
+    const signatures = selected.signatures orelse return error.MissingGeneratedFile;
+
     const input: std.meta.Child(Driver.Input) = .{
         .arguments = request.arguments,
         .external = request.inputs,
@@ -37,17 +41,18 @@ pub fn main(init: std.process.Init) !void {
         .offsets = selected.offsets,
         .paths = listed.paths,
         .prefix = @ptrCast(&@import("cache_key.zig").initial_hash),
-        .signatures = selected.signatures,
-        .types = selected.types,
+        .modified = @bitCast(@as(i64, @truncate(executable.mtime.nanoseconds))),
+        .signatures = signatures,
+        .size = executable.size,
+        .types = types,
         .zig = request.zig,
     };
 
     if (try Driver.execute(allocator, init.io, &input)) return error.PartitionCompileFailed;
 }
 
-pub const startPartitionHash = @import("cache_key.zig").startPartitionHash;
+pub const extendPartitionHash = @import("cache_key.zig").extendPartitionHash;
 pub const hashExternalInput = @import("cache_key.zig").hashExternalInput;
-pub const hashPartitionMembers = @import("cache_key.zig").hashPartitionMembers;
+pub const digestPartitionKey = @import("cache_key.zig").digestPartitionKey;
 pub const loadPartitionState = @import("state.zig").loadPartitionState;
-pub const partitionObjectPresent = @import("state.zig").partitionObjectPresent;
 pub const compilePartitionObjects = @import("workers.zig").compilePartitionObjects;

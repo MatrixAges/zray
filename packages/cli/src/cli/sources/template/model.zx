@@ -2,13 +2,16 @@ import type { Template } from "source_loader_host"
 
 export type Input = {
     source: Template,
+    root: string,
+    path: string,
     count: u64
 }
 
-export type Row = [Template, u64]
+export type Row = [Template, string, u64]
 
 export type Walk = {
     source: Template,
+    owner: string,
     count: u64,
     index: u64,
     running: bool

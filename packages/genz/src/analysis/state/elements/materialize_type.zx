@@ -1,0 +1,24 @@
+import host from "lowering_host"
+
+import storedType from "../resources/stored_type"
+import storage from "./storage"
+
+import type { Lowering } from "lowering_host"
+import type { Source } from "./storage"
+
+export type Input = {
+    frame: Lowering,
+    source: Source,
+    list: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const element = storage({
+        ...in.source,
+        list: in.list
+    })
+
+    return host.materializeType(in.frame, element.child, storedType(element.table))
+}

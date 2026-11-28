@@ -32,9 +32,9 @@ export declare function writeWatchNotice(watch: Watch, prefix: string, detail: s
 export declare function interrupted(watch: Watch): bool
 export declare function delay(watch: Watch, milliseconds: u64): void throws { WatchFailure }
 export declare function applicationFinished(watch: Watch): bool throws { WatchFailure }
-export declare function prepareApplication(watch: Watch): void throws { WatchFailure }
-export declare function stopApplication(watch: Watch, report_exit: bool): void throws { WatchFailure }
-export declare function startApplication(watch: Watch): void throws { WatchFailure }
+export declare function prepareApplication(watch: Watch): string? throws { WatchFailure }
+export declare function stopApplication(watch: Watch, report_exit: bool): string? throws { WatchFailure }
+export declare function startApplication(watch: Watch): string? throws { WatchFailure }
 export declare function scanInputs(watch: Watch, slot: SnapshotSlot): ScanResult throws {
     WatchFailure
 }
@@ -52,7 +52,6 @@ export declare function writeWatchDiagnostic(
 export declare function adoptPublishedSnapshot(watch: Watch): bool
 export declare function captureSnapshot(watch: Watch, slot: SnapshotSlot): void throws { WatchFailure }
 export declare function releaseSnapshot(watch: Watch, slot: SnapshotSlot): void
-export declare function restart(watch: Watch): void throws { WatchFailure }
 export declare function snapshotEntries(watch: Watch, slot: SnapshotSlot): ObservedEntry[] throws {
     WatchFailure
 }

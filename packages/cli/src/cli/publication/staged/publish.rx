@@ -27,7 +27,8 @@
         fn="sidecars"
         in={$in.pick([
             "directory",
-            "primary"
+            "binary_source",
+            "binary_target"
         ])}
     />
 

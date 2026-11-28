@@ -1,0 +1,18 @@
+import { StoredType } from "lowering_host"
+
+import { Resource } from "./model"
+
+export type Input = Resource
+
+export type Output = StoredType
+
+export default function (in: Input): Output {
+    return match in {
+        Resource.None => StoredType.None,
+        Resource.AbiType => StoredType.AbiType,
+        Resource.AbiLayout => StoredType.AbiLayout,
+        Resource.StateType => StoredType.StateType,
+        Resource.StateLayout => StoredType.StateLayout,
+        _ => StoredType.ViewType
+    }
+}

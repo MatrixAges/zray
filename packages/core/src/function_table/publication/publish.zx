@@ -16,13 +16,13 @@ export default function (in: Input): Output {
     const { storage, body, native } = in
 
     const binding = match {
-        native != null => columns.borrowFunctionNativeRecord(native, null),
-        _ => columns.emptyFunctionNativeRecord(null, null)
+        native != null => columns.borrowFunctionNativeRecord(native),
+        _ => columns.emptyFunctionNativeRecord(null)
     }
 
     publishRecords({
         storage,
-        body: columns.borrowFunctionBodyRecord(body, null),
+        body: columns.borrowFunctionBodyRecord(body),
         native: binding,
         body_layout: columns.functionBodyLayout(null, null, null),
         native_layout: columns.functionNativeLayout(null, null, null)

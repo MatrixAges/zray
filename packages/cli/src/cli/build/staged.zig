@@ -40,7 +40,6 @@ pub fn publish(self: Self, io: std.Io, allocator: std.mem.Allocator, options: Op
         .allocator = allocator,
         .failure = &failure,
         .source = std.fs.path.dirname(self.binary).?,
-        .destination = std.fs.path.dirname(options.output.?) orelse ".",
     };
 
     defer directory.deinit();
@@ -58,7 +57,6 @@ pub fn publish(self: Self, io: std.Io, allocator: std.mem.Allocator, options: Op
         .assembly_source = self.assembly,
         .assembly_target = options.assembly,
         .directory = @ptrCast(&cursor),
-        .primary = std.fs.path.basename(self.binary),
     }, io) catch |err| return failure.unwrap(err);
 
     if (!published) return error.UnsupportedBuildArtifact;

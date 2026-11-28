@@ -5,7 +5,7 @@ import compiledIdentity from "./rules/naming/compiled"
 import declaration from "./rules/naming/declaration"
 import registered from "./rules/naming/registered"
 
-import type { DeclarationBinding } from "native_scope_host"
+import type { DeclarationBinding } from "./model"
 import type { Output as Identity } from "./rules/naming/compiled"
 import type { Binding } from "./workflow"
 

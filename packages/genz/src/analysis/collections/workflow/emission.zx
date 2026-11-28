@@ -6,7 +6,7 @@ import type { Output as Emitted } from "../model"
 export { CollectionKind } from "core/expression_table/kinds"
 
 export type Input =
-    CollectionRows & Append.Pick("selected", "layout", "shared", "ast", "bases") & {
+    CollectionRows & Append.Pick("selected", "layout", "shared", "bases") & {
         kind: CollectionKind,
         in_place: bool,
         grow: bool,

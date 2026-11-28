@@ -9,9 +9,17 @@ export type RowBuffer = mutable_opaque
 export type RowGrowth = opaque
 export type ColumnSet = opaque
 export type ColumnGrowth = opaque
-export type ColumnRecord = opaque
-export type ColumnRowLayout = opaque
 export type ColumnAllocator = opaque
+
+export type ColumnRecord = u8[]
+
+export type ColumnCell = {
+    slot: u64,
+    offset: u64,
+    width: u64
+}
+
+export type ColumnRowLayout = ColumnCell[]
 
 export enum ColumnOwnership {
     Copy,

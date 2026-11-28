@@ -5,35 +5,32 @@
 
     <Store from="entries" as="state" />
 
-    <Call fn="index.nextDirectoryEntry" in={$in.directory} />
+    <Call
+        fn="admit_entry"
+        in={{
+            all_entries: $in.all_entries,
+            directory_tag: $in.directory_tag,
+            name: $in.names[$in.index],
+            tag: $in.tags[$in.index]
+        }}
+    />
 
-    <If on={$ctx.nextDirectoryEntry != null}>
+    <If on={$ctx.admit_entry}>
         <Call
-            fn="admit_entry"
+            fn="append_entry"
             in={{
-                all_entries: $in.all_entries,
-                entry: $ctx.nextDirectoryEntry
+                collected: $store.state.collected,
+                name: $in.names[$in.index],
+                tag: $in.tags[$in.index]
             }}
+            setter={[$store.state.collected]}
         />
-
-        <If on={$ctx.admit_entry}>
-            <Call
-                fn="append_entry"
-                in={{
-                    collected: $store.state.collected,
-                    entry: $ctx.nextDirectoryEntry
-                }}
-                setter={[$store.state.collected]}
-            />
-        </If>
-
-        <Return value={$in} />
     </If>
 
     <Return
         value={{
             ...$in,
-            running: false
+            index: $in.index + 1
         }}
     />
 </Module>

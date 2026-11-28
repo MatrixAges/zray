@@ -42,7 +42,10 @@ export default function (in: Input): Output {
                 const row = dev ? edge - production.count : edge
                 const name = memory.readTextColumn(entries.names, row)
                 const range = memory.readTextColumn(entries.requirements, row)
-                const spec = parse(range)
+                const spec = parse({
+                    name,
+                    requirement: range
+                })
 
                 if (spec.kind == Kind.External) {
                     s.rows = s.rows.push({
@@ -61,7 +64,6 @@ export default function (in: Input): Output {
                             "members",
                             "limit"
                         ]),
-                        name,
                         spec
                     })
                     s.status = result.status

@@ -2,8 +2,7 @@ const std = @import("std");
 const generation = @import("../partition.zig");
 const Scanning = @import("workers.zig");
 const parallel = @import("../output/parallel.zig");
-pub const File = @import("placement.zig").File;
-
+pub const File = generation.File;
 const Exported = struct { callee: u32, variants: []const []const u8 };
 
 /// Groups public entry closures into compilation units. Source builds retain ordinary calls throughout

@@ -3,7 +3,6 @@ const storage = @import("native_sources/storage.zig");
 const collection = @import("native_sources/collect.zig");
 const bundle = @import("native_sources/bundle/storage.zig");
 const ast = @import("native_sources/references/ast.zig");
-const includes = @import("native_sources/include/storage.zig");
 const rule = @import("cli_source").native_bundle;
 pub const File = storage.File;
 pub const Include = storage.Include;
@@ -133,6 +132,5 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @This(),
     bundle,
     collection,
-    includes,
     ast,
 }).resolve;

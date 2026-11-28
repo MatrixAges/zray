@@ -11,7 +11,8 @@
         fn="index.readCandidate"
         in={[
             $in.search,
-            $ctx.manifest
+            $ctx.manifest,
+            $in.progress == Workspace.Progress.Retained
         ]}
     />
 
@@ -32,8 +33,6 @@
     />
 
     <If on={$ctx.decision == Choice.Decision.Remember}>
-        <Call fn="index.rememberCandidate" in={$in.search} />
-
         <Return value={Workspace.Progress.Retained} />
     </If>
 

@@ -7,7 +7,7 @@ import type { Ast } from "./model"
 
 export type Input = {
     state: State,
-    ast: Ast,
+    ast?: Ast,
     value: u32
 }
 
@@ -25,7 +25,7 @@ export default function (in: Input): Output {
                     )
                 ]
         }
-    } else {
+    } else if (in.ast != null) {
         const index = integers.widen(in.value)
 
         if (in.ast.tags[index] == ExpressionsKind.Boolean) {

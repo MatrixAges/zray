@@ -4,6 +4,7 @@ import host from "lowering_host"
 import { StoredType } from "lowering_host"
 
 import { Resource } from "./model"
+import storedType from "./stored_type"
 
 import type { Lowering } from "lowering_host"
 
@@ -31,14 +32,7 @@ export default function (in: Input): Output {
         return 0
     }
 
-    const stored = match kind {
-        Resource.None => StoredType.None,
-        Resource.AbiType => StoredType.AbiType,
-        Resource.AbiLayout => StoredType.AbiLayout,
-        Resource.StateType => StoredType.StateType,
-        Resource.StateLayout => StoredType.StateLayout,
-        _ => StoredType.ViewType
-    }
+    const stored = storedType(kind)
 
     const rows: u32[] = match stored {
         StoredType.None => [],

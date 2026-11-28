@@ -1,7 +1,5 @@
 export {
-    addExternalIncludes,
     bindLibraryModule,
     bundleNativeModule,
-    writeLibraryNativeHeader,
-    writeLibraryNativeAdapter
+    renderLibraryNativeAdapter
 } from "library_stage_host"

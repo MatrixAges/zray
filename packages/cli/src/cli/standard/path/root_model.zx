@@ -1,0 +1,15 @@
+export enum Kind {
+    Relative,
+    Rooted,
+    DriveRelative,
+    DriveAbsolute,
+    Unc,
+    Device
+}
+
+export type Root = {
+    kind: Kind,
+    end: u64,
+    prefix: string,
+    needs_separator: bool
+}

@@ -1,5 +1,6 @@
-import { resolvePathFrom } from "lexical_path"
 import { readTextColumn } from "memory"
+
+import resolvePathParts from "../../standard/path/resolve"
 
 import type { Evidence as Input } from "./model"
 
@@ -15,7 +16,10 @@ export default function (in: Input): Output {
         while: state => state.row < in.count,
         next: state => {
             const relative = readTextColumn(in.paths, state.row)
-            const path = resolvePathFrom(in.root, relative)
+            const path = resolvePathParts([
+                in.root,
+                relative
+            ])
 
             state.paths = state.paths.push(path)[0]
             state.row += 1

@@ -31,7 +31,9 @@
         ]}
     />
 
-    <If on={$ctx.readRow && $in.versioned}>
+    <Call fn="same" />
+
+    <If on={$ctx.same && $in.versioned}>
         <Call
             fn="index.acceptVersion"
             in={[
@@ -45,7 +47,7 @@
         value={{
             ...$in,
             index: $in.index + 1,
-            same: $ctx.readRow
+            same: $ctx.same
         }}
     />
 </Module>

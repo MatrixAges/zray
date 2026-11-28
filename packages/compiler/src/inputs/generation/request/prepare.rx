@@ -3,14 +3,14 @@
 
     <Args in={Request.Prepare} out={Request.Prepared} />
 
-    <Call fn="host.retainGenerationPackages" in={$in.host} />
+    <Call fn="packages" in={$in.packages} />
 
     <Call
         fn="host.classifyGenerationDocuments"
         in={[
             $in.host,
             $in.documents,
-            $ctx.retainGenerationPackages
+            $ctx.packages
         ]}
     />
 
@@ -34,7 +34,6 @@
 
     <Return
         value={{
-            packages: $ctx.retainGenerationPackages,
             catalog: $ctx.classifyGenerationDocuments,
             registered: $ctx.registerGenerationInterfaces,
             fingerprints: $ctx.fingerprintGenerationInputs

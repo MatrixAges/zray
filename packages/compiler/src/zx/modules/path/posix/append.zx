@@ -1,0 +1,58 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+
+import {
+    current_directory,
+    directory_separator,
+    parent_directory
+} from "../const"
+
+export type Segments = {
+    names: string[],
+    parents: u64,
+    absolute: bool
+}
+
+export type Input = {
+    state: Segments,
+    path: string
+}
+
+export type Output = Segments
+
+export default function (in: Input): Output {
+    const { state, path } = in
+
+    const source = bytes.fromText(path)
+    const starts_at_root = bytes.startsWithText(source, 0, directory_separator)
+    const empty: string[] = []
+    const initial = starts_at_root ? empty : state.names
+
+    return loop({
+        cursor: 0,
+        names: initial,
+        parents: starts_at_root ? 0 : state.parents,
+        absolute: starts_at_root || state.absolute
+    }, {
+        while: value => value.cursor < source.length,
+        next: value => {
+            const end =
+                bytes.indexOfText(source, value.cursor, directory_separator) ??
+                source.length
+            const name = encoding.sliceBytes(path, value.cursor, end)
+
+            if (name == parent_directory) {
+                if (value.names.length != 0) {
+                    value.names = value.names.pop()[0]
+                } else if (!value.absolute) {
+                    value.parents += 1
+                }
+            } else if (name != "" && name != current_directory) {
+                value.names = value.names.push(name)[0]
+            }
+
+            value.cursor = end < source.length ? end + 1 : end
+        },
+        return: value => value.omit(["cursor"])
+    })
+}

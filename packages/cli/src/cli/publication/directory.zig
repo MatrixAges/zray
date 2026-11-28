@@ -85,23 +85,10 @@ pub fn nextNamed(self: *Self, name: []const u8) effects.Error!u8 {
     };
 }
 
-pub fn copyEntry(handle: *const anyopaque) effects.Error!void {
+pub fn copyDirectoryFile(handle: *const anyopaque, relative: []const u8, target: []const u8) effects.Error!void {
     const self = effects.state(Self, handle);
-    const target = std.fs.path.join(self.allocator, &.{ self.destination, self.path }) catch |err| return self.failure.save(err);
 
-    defer self.allocator.free(target);
-
-    return self.copy(self.path, target);
-}
-
-pub fn copy(self: *Self, relative: []const u8, target: []const u8) effects.Error!void {
     self.directory.copyFile(relative, .cwd(), target, self.io, .{ .make_path = true }) catch |err| return self.failure.save(err);
-}
-
-pub fn copyStagedFile(handle: *const anyopaque, target: []const u8, prefix: u64) effects.Error!void {
-    const self = effects.state(Self, handle);
-
-    return self.copy(target[@intCast(prefix)..], target);
 }
 
 pub fn removeRetiredFile(handle: *const anyopaque, target: []const u8) effects.Error!void {

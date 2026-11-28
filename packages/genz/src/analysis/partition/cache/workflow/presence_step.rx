@@ -3,13 +3,13 @@
 
     <Args in={Cache.Presence} out={Cache.Presence} />
 
-    <Call fn="host.partitionObjectPresent" in={$in.paths[$in.row]} />
+    <Call fn="object_exists" in={$in.paths[$in.row]} />
 
     <Call
         fn="presence"
         in={{
             state: $in,
-            present: $ctx.partitionObjectPresent
+            present: $ctx.object_exists
         }}
     />
 

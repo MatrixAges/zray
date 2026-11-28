@@ -1,5 +1,6 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
+import { requireAllocation } from "memory"
 
 import finish from "../../../ast/finish"
 import { block_prefix } from "./const"
@@ -12,20 +13,9 @@ export default function (in: Input): Output {
     const prefix = integers.widen(in.source.statement_base) + in.vector.tags.length +
         in.tail.tags.length
 
-    if (!in.valid || prefix + in.main.tags.length + 1 > integers.widen(max_u32)) {
-        return {
-            expressions: in.expressions,
-            statements: [
-                in.vector,
-                in.tail,
-                in.main
-            ],
-            root: 0,
-            serial: in.serial,
-            valid: false,
-            uses_allocator: true
-        }
-    }
+    requireAllocation(
+        in.valid && prefix + in.main.tags.length + 1 <= integers.widen(max_u32)
+    )
 
     const result = finish({
         expressions: in.expressions,
@@ -37,6 +27,8 @@ export default function (in: Input): Output {
         value: in.values.result
     })
 
+    requireAllocation(result.valid)
+
     return {
         expressions: result.expressions,
         statements: [
@@ -46,7 +38,6 @@ export default function (in: Input): Output {
         ],
         root: result.id,
         serial: result.serial,
-        valid: result.valid,
         uses_allocator: true
     }
 }

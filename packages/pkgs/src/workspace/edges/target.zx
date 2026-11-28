@@ -5,10 +5,12 @@ import query from "../target/query"
 import select from "../target/select"
 import { Status } from "./model"
 
-import type { Request } from "../target/query"
+import type { Input as Specifier } from "../specifier"
 import type { Members } from "./model"
 
-export type Input = Members & Request
+export type Input = Members & Specifier & {
+    owner: string
+}
 
 export type Output = {
     status: Status,
@@ -16,7 +18,10 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const spec = parse(in.requirement)
+    const spec = parse(in.pick([
+        "name",
+        "requirement"
+    ]))
 
     if (spec.kind == Kind.Invalid) {
         return {
@@ -28,7 +33,6 @@ export default function (in: Input): Output {
     const selected = select({
         ...query({
             ...in.pick([
-                "name",
                 "owner",
                 "root"
             ]),

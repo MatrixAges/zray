@@ -43,7 +43,8 @@
         module="prepare"
         in={{
             host: $in.host,
-            documents: $ctx.load
+            documents: $ctx.load,
+            packages: $in.packages
         }}
     />
 
@@ -95,11 +96,11 @@
         <Call fn="../stamp" in={$ctx.prepare.fingerprints.digest} />
 
         <Call
-            fn="host.writeGenerationStamp"
-            in={[
-                $in.stamp_path,
-                $ctx.stamp
-            ]}
+            fn="filesystem.writeText"
+            in={{
+                path: $in.stamp_path,
+                text: $ctx.stamp
+            }}
         />
 
         <Call

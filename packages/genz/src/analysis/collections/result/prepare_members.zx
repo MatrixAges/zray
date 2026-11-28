@@ -10,9 +10,9 @@ export type Input = PrepareCursor
 export type Output = u32?
 
 export default function (in: Input): Output {
-    const { types, source } = in.preparation
+    const { first, source } = in.preparation
 
-    const type_id = types[in.row]
+    const type_id = source.types.children[first + in.row]
 
     const represented = query({
         value: source.queries[integers.widen(type_id)],

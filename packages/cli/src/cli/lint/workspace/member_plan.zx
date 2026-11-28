@@ -1,6 +1,6 @@
-import { resolvePathParts } from "lexical_path"
 import memory from "memory"
 
+import resolvePathParts from "../../standard/path/resolve"
 import { manifest_file } from "../const"
 
 import type { Member as Input } from "./model"

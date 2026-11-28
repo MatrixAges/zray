@@ -1,0 +1,63 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+import { ascii_slash } from "core/ascii/const"
+
+import { current_directory, parent_directory } from "../../../../../const"
+
+export type Segments = {
+    parts: string[],
+    parents: u64
+}
+
+export type Input = {
+    path: string,
+    initial: Segments
+}
+
+export type Output = Segments
+
+export default function (in: Input): Output {
+    const { path, initial } = in
+
+    const source = bytes.fromText(path)
+
+    return loop({
+        offset: source.length,
+        ...initial
+    }, {
+        while: state => state.offset != 0,
+        next: state => {
+            const end = state.offset
+            const start = loop({
+                offset: end
+            }, {
+                while: segment =>
+                    segment.offset != 0 && source[segment.offset - 1] != ascii_slash,
+                next: segment => {
+                    segment.offset -= 1
+                },
+                return: segment => segment.offset
+            })
+
+            state.offset = start == 0 ? 0 : start - 1
+
+            if (start != end) {
+                const part = encoding.sliceBytes(path, start, end)
+
+                if (part == parent_directory) {
+                    state.parents += 1
+                } else if (part != current_directory) {
+                    if (state.parents != 0) {
+                        state.parents -= 1
+                    } else {
+                        state.parts = state.parts.push(part)[0]
+                    }
+                }
+            }
+        },
+        return: state => state.pick([
+            "parts",
+            "parents"
+        ])
+    })
+}

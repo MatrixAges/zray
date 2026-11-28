@@ -12,19 +12,13 @@
     />
 
     <If on={$ctx.workspace_path != null}>
-        <Call
-            fn="../effects.canonicalPath"
-            in={[
-                $in.session,
-                $ctx.workspace_path
-            ]}
-        />
+        <Call fn="../effects.realpath" in={$ctx.workspace_path} />
 
         <Call
             fn="append"
             in={{
                 walk: $in,
-                path: $ctx.canonicalPath
+                path: $ctx.realpath
             }}
         />
 
@@ -48,20 +42,14 @@
         ]}
     />
 
-    <Call
-        fn="../effects.canonicalPath"
-        in={[
-            $in.session,
-            $ctx.fetchArchive
-        ]}
-    />
+    <Call fn="../effects.realpath" />
 
     <Call
         fn="../effects.verifyLockedManifest"
         in={[
             $in.session,
             $in.index,
-            $ctx.canonicalPath
+            $ctx.realpath
         ]}
     />
 
@@ -69,7 +57,7 @@
         fn="append"
         in={{
             walk: $in,
-            path: $ctx.canonicalPath
+            path: $ctx.realpath
         }}
     />
 

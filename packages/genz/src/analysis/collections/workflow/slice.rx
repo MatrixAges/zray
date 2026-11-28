@@ -4,11 +4,12 @@
     <Args in={Flow.Operation} out={u32} />
 
     <Call
-        fn="host.materializeElementType"
-        in={[
-            $in.ast.lower,
-            $in.source_type
-        ]}
+        fn="../../state/elements/materialize_type"
+        in={{
+            frame: $in.ast.lower,
+            source: $in.ast.elements,
+            list: $in.source_type
+        }}
     />
 
     <Call
@@ -35,24 +36,33 @@
             items: $in.items,
             value: $in.value,
             header: $ctx.emit_flag,
-            element: $ctx.materializeElementType,
+            element: $ctx.materialize_type,
             length: $ctx.emit_length,
             unit: $ctx.emit_unit
         }}
     />
 
     <Call
-        fn="host.emitCollectionRows"
-        in={[
-            $in.ast.writer,
-            $in.ast.sequence,
-            $in.id,
-            $in.source_type,
-            $in.removed_only,
-            $ctx.slice_rows,
-            null,
-            null
-        ]}
+        module="publish_rows"
+        in={{
+            ...$in.pick([
+                "id",
+                "ast",
+                "kind",
+                "source_type",
+                "represented",
+                "removed_only",
+                "capacity",
+                "frontier",
+                "in_place",
+                "grow",
+                "lazy",
+                "retract",
+                "shared"
+            ]),
+            rows: $ctx.slice_rows,
+            compare: []
+        }}
     />
 
     <If on={$in.layout != null}>
@@ -61,7 +71,7 @@
             in={{
                 writer: $in.ast.writer,
                 layout: $in.layout,
-                value: $ctx.emitCollectionRows
+                value: $ctx.publish_rows
             }}
         />
 
@@ -84,7 +94,7 @@
             frame: $in.ast.lower,
             writer: $in.ast.writer,
             sequence: $in.ast.sequence,
-            value: $ctx.emitCollectionRows
+            value: $ctx.publish_rows
         }}
     />
 

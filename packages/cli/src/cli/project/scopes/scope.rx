@@ -24,10 +24,18 @@
 
     <If on={$ctx.native_artifact != null}>
         <Call
+            fn="index.resolvePath"
+            in={[
+                $ctx.openNativeScope.scope.owner,
+                $ctx.native_artifact
+            ]}
+        />
+
+        <Call
             fn="index.openNativeScopeArtifact"
             in={[
                 $in.frame,
-                $ctx.native_artifact
+                $ctx.resolvePath
             ]}
         />
     </If>
@@ -90,7 +98,12 @@
         <Call
             module="bind_row"
             in={{
-                binding: $in.workspace.binding,
+                ...$in.workspace.pick([
+                    "binding",
+                    "externals",
+                    "external_modules",
+                    "interfaces"
+                ]),
                 index: 0,
                 status: Host.Admission.Valid
             }}
@@ -139,8 +152,14 @@
             <Return value={$ctx.modules} />
         </If>
 
-        <Call fn="index.reserveNativeScopeSettings" in={$in.frame} />
-        <Call fn="settings" in={$in.workspace.settings} />
+        <Call
+            fn="settings"
+            in={{
+                names: $in.workspace.binding.registry.names,
+                root: $ctx.openNativeScope.scope.owner,
+                includes: $in.workspace.traversal.sources.default_includes
+            }}
+        />
 
         <Call
             fn="index.publishNativeScopeSettings"

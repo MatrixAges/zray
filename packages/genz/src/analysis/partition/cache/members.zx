@@ -6,7 +6,9 @@ import type { Member } from "./selection/model"
 export type Input = {
     paths: string[],
     hashes: u64[],
-    members: Member[]
+    members: Member[],
+    first?: u64,
+    end?: u64
 }
 
 export type Output = u8[]
@@ -14,13 +16,14 @@ export type Output = u8[]
 export default function (in: Input): Output {
     const { paths, hashes, members } = in
 
+    const end = in.end ?? members.length
     const parts: u8[][] = []
 
     const collected = loop({
-        index: 0,
+        index: in.first ?? 0,
         parts
     }, {
-        while: state => state.index < members.length,
+        while: state => state.index < end,
         next: state => {
             const index = state.index
             const row = integers.widen(members[index].row)
@@ -28,7 +31,7 @@ export default function (in: Input): Output {
             const next = index + 1
 
             if (
-                next == members.length ||
+                next == end ||
                     paths[integers.widen(members[next].row)] != path
             ) {
                 const raw = bytes.fromText(path)

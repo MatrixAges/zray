@@ -3,13 +3,19 @@
 
     <Args in={Analysis.EntryInput} out={bool} />
 
-    <Call fn="../../sources/path/is_rx" in={$in.entry_path} />
+    <Call fn="../../sources/path/is_rx" in={$in.entry.path} />
 
     <If on={$ctx.is_rx}>
         <Return value={true} />
     </If>
 
-    <Call fn="index.readLibraryDependencies" in={$in.analysis} />
+    <Call
+        fn="index.readLibraryDependencies"
+        in={[
+            $in.analysis,
+            $in.entry.path
+        ]}
+    />
 
     <Return value={$ctx.readLibraryDependencies} />
 </Module>

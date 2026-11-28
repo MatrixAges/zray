@@ -7,25 +7,9 @@ const Digest = [Blake3.digest_length]u8;
 const buffer_size = 16 * 1024;
 pub const initial_hash = Blake3.init(.{});
 
-pub fn startPartitionHash(allocator: std.mem.Allocator, io: Io, input: native.startPartitionHash.Input) !native.startPartitionHash.Output {
-    const stat = try Io.Dir.cwd().statFile(io, input.executable, .{});
-    const types = input.types orelse return error.MissingGeneratedFile;
-    const signatures = input.signatures orelse return error.MissingGeneratedFile;
-    var scratch = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
-
-    defer scratch.deinit();
-
-    const encoded = try rules.partition_cache_prefix.executeIn(scratch.allocator(), &.{
-        .executable = input.executable,
-        .size = stat.size,
-        .modified = @bitCast(@as(i64, @truncate(stat.mtime.nanoseconds))),
-        .arguments = input.arguments,
-        .types = types,
-        .signatures = signatures,
-    });
-
+pub fn extendPartitionHash(allocator: std.mem.Allocator, prefix: native.PartitionHash, encoded: []const u8) !native.PartitionHash {
+    const initial: *const Blake3 = @ptrCast(@alignCast(prefix));
     const hasher = try allocator.create(Blake3);
-    const initial: *const Blake3 = @ptrCast(@alignCast(input.prefix));
 
     hasher.* = initial.*;
 
@@ -110,18 +94,8 @@ fn external(allocator: std.mem.Allocator, hasher: *Blake3, path: []const u8, siz
     hasher.update(encoded);
 }
 
-pub fn hashPartitionMembers(allocator: std.mem.Allocator, input: native.hashPartitionMembers.Input) ![]const u8 {
-    const source: *const Blake3 = @ptrCast(@alignCast(input.prefix));
-    var scratch = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
-
-    defer scratch.deinit();
-
-    const encoded = try rules.partition_cache_members.executeIn(scratch.allocator(), &.{
-        .paths = input.paths,
-        .hashes = input.hashes,
-        .members = input.members[@intCast(input.first)..@intCast(input.end)],
-    });
-
+pub fn digestPartitionKey(allocator: std.mem.Allocator, prefix: native.PartitionHash, encoded: []const u8) ![]const u8 {
+    const source: *const Blake3 = @ptrCast(@alignCast(prefix));
     var hasher = source.*;
     var digest: Digest = undefined;
 

@@ -6,11 +6,9 @@ import type { BodyGroup as Input, File } from "./model"
 export type Output = File[]
 
 export default function (in: Input): Output {
-    const empty: File[] = []
-
     return loop({
         index: 0,
-        items: empty
+        items: in.output
     }, {
         while: state => state.index < in.rows.length,
         next: state => {

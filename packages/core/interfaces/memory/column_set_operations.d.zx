@@ -20,25 +20,13 @@ export declare function reserveColumnCell(
     count: u64
 ): void throws { OutOfMemory }
 
-export declare function borrowFunctionRecord(
-    row: FunctionRow,
-    output: ColumnRecord?
-): ColumnRecord
+export declare function borrowFunctionRecord(row: FunctionRow): ColumnRecord
 
-export declare function borrowFunctionBodyRecord(
-    row: FunctionBodyRow,
-    output: ColumnRecord?
-): ColumnRecord
+export declare function borrowFunctionBodyRecord(row: FunctionBodyRow): ColumnRecord
 
-export declare function borrowFunctionNativeRecord(
-    row: FunctionNativeRow,
-    output: ColumnRecord?
-): ColumnRecord
+export declare function borrowFunctionNativeRecord(row: FunctionNativeRow): ColumnRecord
 
-export declare function emptyFunctionNativeRecord(
-    shape: FunctionNativeRow?,
-    output: ColumnRecord?
-): ColumnRecord
+export declare function emptyFunctionNativeRecord(shape: FunctionNativeRow?): ColumnRecord
 
 export declare function functionRowLayout(
     shape: FunctionRow?,
@@ -57,12 +45,11 @@ export declare function functionNativeLayout(
     output: ColumnRowLayout?
 ): ColumnRowLayout
 
-export declare function rowCellCount(layout: ColumnRowLayout): u64
-
 export declare function writeColumnCell(
     storage: ColumnSet,
     row: ColumnRecord,
-    layout: ColumnRowLayout,
     slot: u64,
+    offset: u64,
+    width: u64,
     index: u64?
 ): void

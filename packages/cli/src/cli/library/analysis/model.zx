@@ -1,18 +1,32 @@
 import type { Analysis } from "library_workflow_host"
+import type { TextColumn } from "memory"
 
 export type Input = {
     analysis: Analysis,
     export_count: u64,
+    exports: Exports,
     compiled: bool
+}
+
+export type Exports = {
+    root: string,
+    names: TextColumn,
+    sources: TextColumn
+}
+
+export type Entry = {
+    name: string,
+    path: string
 }
 
 export type EntryInput = {
     analysis: Analysis,
-    entry_path: string
+    entry: Entry
 }
 
 export type Entries = {
     analysis: Analysis,
+    exports: Exports,
     count: u64,
     index: u64,
     valid: bool,

@@ -3,19 +3,29 @@ import type { NativeModules, Setup } from "../../command/scope/model"
 
 export type Preparation = {
     resources: Stage,
+    directory: string,
     setup: Setup,
     modules: NativeModules,
     count: u64
 }
 
+export type Output = {
+    library_paths: string[],
+    external_includes: string[]
+}
+
 export type Step = Preparation & {
+    external_includes: string[],
     index: u64,
     running: bool
 }
 
 export type ModuleInput = {
     resources: Stage,
+    directory: string,
+    name: string,
     includes: string[],
+    external_includes: string[],
     has_bundle: bool,
-    has_header: bool
+    header?: string
 }

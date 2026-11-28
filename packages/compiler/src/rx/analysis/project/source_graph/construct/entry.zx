@@ -1,6 +1,6 @@
 import bytes from "std:bytes"
 
-import resolve from "../../../../../zx/modules/project/target/package/path"
+import resolve from "../resolve_path"
 import probe from "./probe"
 
 import type { RootIssue, RootPaths } from "./model"

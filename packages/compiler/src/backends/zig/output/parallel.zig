@@ -4,6 +4,9 @@ const Scanning = @import("../partition/scanning.zig");
 const generated = @import("parser_options").generated_parser;
 const worker = if (generated) @import("generated_bootstrap_output_worker") else void;
 const Input = if (generated) std.meta.Child(worker.Input) else void;
+const PartitionOutput = if (generated) std.meta.Child(@import("generated_bootstrap_partition").Output) else void;
+const Publication = if (generated) std.meta.Child(@typeInfo(@FieldType(PartitionOutput, "files")).optional.child) else void;
+const Jobs = if (generated) @FieldType(Publication, "jobs") else void;
 pub const Request = if (generated) std.meta.Child(@FieldType(Input, "jobs")) else void;
 
 /// One arena per worker, so steps running at once never share an allocator; the workers are `io`'s pooled threads.
@@ -31,9 +34,9 @@ pub const Rendering = struct {
     workspace: std.mem.Allocator,
     columns: generation.layout.FunctionFiles,
     roots: @FieldType(generation.layout.Plan, "roots"),
-    jobs: []const generation.placement.Job,
-    files: []generation.placement.File,
-    fn publish(self: Rendering, job: generation.placement.Job, file: anytype) !void {
+    jobs: Jobs,
+    files: []generation.File,
+    fn publish(self: Rendering, job: std.meta.Elem(Jobs), file: anytype) !void {
         const source = switch (file.kind) {
             .Stub => try generation.namedStub(self.owner, self.workspace, self.columns.names[job.index], job.variants, job.comptime_entry),
             .Exports => blk: {

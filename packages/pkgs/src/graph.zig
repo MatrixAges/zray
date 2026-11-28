@@ -25,17 +25,24 @@ pub fn prepare(storage: []u8, packages: anytype, comptime mode: Mode) void {
 }
 
 pub fn check(allocator: std.mem.Allocator, packages: anytype, comptime mode: Mode) !Result {
-    const marks = try allocator.alloc(u8, packages.len);
+    const marks = if (mode == .lock) try allocator.alloc(u8, packages.len) else null;
 
-    defer allocator.free(marks);
-    prepare(marks, packages, mode);
+    defer if (marks) |storage| allocator.free(storage);
+
+    if (marks) |storage| prepare(storage, packages, .lock);
 
     const targets = memory.borrowListColumn(usize, "dependencies", "target", packages);
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();
 
-    const query = input(&targets, marks, mode == .lock);
+    const query: Input = .{
+        .targets = @ptrCast(&targets),
+        .count = packages.len,
+        .limit = depth_limit,
+        .ranked = mode == .lock,
+        .initial_marks = marks,
+    };
 
     return traversal.executeValue(arena.allocator(), &query);
 }

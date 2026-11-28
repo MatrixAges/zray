@@ -1,5 +1,4 @@
-import { joinNativeParts } from "publication_host"
-
+import joinNativeParts from "../../standard/path/join"
 import {
     lock_suffix,
     ready_file,

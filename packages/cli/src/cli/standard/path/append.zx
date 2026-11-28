@@ -1,0 +1,57 @@
+import bytes from "std:bytes"
+
+import skip from "./skip"
+import slice from "./slice"
+
+import type { Part } from "./select"
+
+export type Input = [string[], Part, bool, bool]
+
+export type Output = string[]
+
+export default function (in: Input): Output {
+    const [items, part, windows, absolute] = in
+
+    const data = bytes.fromText(part.path)
+
+    return loop({
+        items,
+        offset: part.root.end
+    }, {
+        while: state => state.offset < data.length,
+        next: state => {
+            const start = skip([
+                data,
+                state.offset,
+                windows,
+                true
+            ])
+            const end = skip([
+                data,
+                start,
+                windows,
+                false
+            ])
+            const component = slice([
+                part.path,
+                start,
+                end
+            ])
+
+            if (component == "..") {
+                const count = state.items.length
+
+                if (count != 0 && state.items[count - 1] != "..") {
+                    state.items = state.items.pop()[0]
+                } else if (!absolute) {
+                    state.items = state.items.push(component)[0]
+                }
+            } else if (component != "" && component != ".") {
+                state.items = state.items.push(component)[0]
+            }
+
+            state.offset = end
+        },
+        return: state => state.items
+    })
+}

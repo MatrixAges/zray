@@ -1,6 +1,7 @@
 import { directory_separator as slash } from "compiler_rules/path/const"
-import { pathBasename, resolvePathFrom } from "lexical_path"
 
+import pathBasename from "../../standard/path/basename"
+import resolvePathParts from "../../standard/path/resolve"
 import { assembly_directory, binary_directory, pending_directory } from "./const"
 
 export type Input = {
@@ -24,7 +25,13 @@ export default function (in: Input): Output {
 
     if (
         target != null &&
-            resolvePathFrom("", in.binary) == resolvePathFrom("", target)
+            resolvePathParts([
+                "",
+                in.binary
+            ]) == resolvePathParts([
+                "",
+                target
+            ])
     ) {
         return null
     }

@@ -1,3 +1,4 @@
-export { hasPackageManifest, physicalSource } from "package_workspace_host"
+export { realpath } from "std:fs"
+export { hasPackageManifest } from "package_workspace_host"
 
 export type { Source } from "package_workspace_host"

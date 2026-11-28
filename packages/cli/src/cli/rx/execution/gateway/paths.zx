@@ -1,5 +1,6 @@
-import { resolvePathParts } from "lexical_path"
 import { relativePathFrom } from "publication_host"
+
+import resolvePathParts from "../../../standard/path/resolve"
 
 import type { AnalysisInput } from "./model"
 

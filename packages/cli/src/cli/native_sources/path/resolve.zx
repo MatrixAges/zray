@@ -1,6 +1,7 @@
 import path from "std:path"
-import { pathParent, resolvePathFrom } from "lexical_path"
 
+import pathParent from "../../standard/path/parent"
+import resolvePathParts from "../../standard/path/resolve"
 import { Issue } from "./model"
 import reference from "./reference"
 import relative from "./relative"
@@ -38,7 +39,10 @@ export default function (in: Input): Output {
         }
     }
 
-    const absolute = resolvePathFrom(parent, spelling)
+    const absolute = resolvePathParts([
+        parent,
+        spelling
+    ])
 
     const contained = relative({
         root,

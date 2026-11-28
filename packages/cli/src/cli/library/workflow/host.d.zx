@@ -4,10 +4,9 @@ export type Link = opaque
 
 export declare function loadCompiledLibrary(analysis: Analysis): void throws { LibraryWorkflowFailure }
 export declare function beginLibraryAnalysis(analysis: Analysis): void throws { LibraryWorkflowFailure }
-export declare function selectLibraryExport(analysis: Analysis, index: u64): string throws { LibraryWorkflowFailure }
-export declare function readLibraryDependencies(analysis: Analysis): bool throws { LibraryWorkflowFailure }
-export declare function inferLibraryRx(analysis: Analysis): bool throws { LibraryWorkflowFailure }
-export declare function inferLibraryZx(analysis: Analysis): void throws { LibraryWorkflowFailure }
+export declare function readLibraryDependencies(analysis: Analysis, path: string): bool throws { LibraryWorkflowFailure }
+export declare function inferLibraryRx(analysis: Analysis, name: string, path: string): bool throws { LibraryWorkflowFailure }
+export declare function inferLibraryZx(analysis: Analysis, name: string): void throws { LibraryWorkflowFailure }
 export declare function recordLibraryAnalysis(analysis: Analysis): bool throws { LibraryWorkflowFailure }
 
 export declare function prepareLibraryLinkInput(link: Link, index: u64): void throws { LibraryWorkflowFailure }

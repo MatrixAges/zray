@@ -1,7 +1,7 @@
 import path from "std:path"
-import { resolvePathParts } from "lexical_path"
 import { relativePathFrom } from "publication_host"
 
+import resolvePathParts from "../../standard/path/resolve"
 import within from "../path/within"
 
 export type Input = {

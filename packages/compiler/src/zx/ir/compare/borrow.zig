@@ -223,7 +223,14 @@ fn included(comptime mode: Mode, comptime Table: type, comptime name: []const u8
 
         if (@typeInfo(Element) == .pointer and @typeInfo(Element).pointer.size == .one) return false;
 
-        return !std.mem.eql(u8, name, "native_members") and !std.mem.eql(u8, name, "native_inputs") and !std.mem.eql(u8, name, "native_errors") and !std.mem.eql(u8, name, "native_exports");
+        inline for (.{ "files", "roots", "native_modules", "native_members", "native_inputs", "native_errors", "native_exports" }) |typed| {
+            if (std.mem.eql(u8, name, typed)) return false;
+        }
+
+        return switch (classify(Element)) {
+            .words, .tags => true,
+            .options, .text => @compileError("Missing typed header comparison for " ++ name),
+        };
     }
 
     if (Table == ir.ContractTable) return !std.mem.eql(u8, name, "symbols") and !std.mem.eql(u8, name, "expressions");

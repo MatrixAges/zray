@@ -125,8 +125,15 @@ pub fn prepare(self: *Lower, temporary: std.mem.Allocator, decision: Decision, v
     };
 }
 
-pub fn materializeElementType(frame: *anyopaque, list_type: u32) Lower.Error!u32 {
-    return @backingInt(try typeExpr(@import("../expressions/evaluate.zig").borrow(frame), @fromBackingInt(list_type)));
+pub fn borrowSource(comptime Source: type, self: *const Lower, types: *std.meta.Child(@FieldType(Source, "types"))) Source {
+    types.* = ir.TypeTable.borrow(@TypeOf(types.*), self.program.types);
+
+    return .{
+        .types = types,
+        .active = self.state_active,
+        .selected = self.state_plan.selected,
+        .element_storage = self.state_plan.element_storage,
+    };
 }
 
 fn failure(err: anyerror) Lower.Error {

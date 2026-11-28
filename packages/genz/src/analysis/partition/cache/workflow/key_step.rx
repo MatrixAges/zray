@@ -4,9 +4,8 @@
     <Args in={Cache.Keys} out={Cache.Keys} />
 
     <Call
-        fn="host.hashPartitionMembers"
+        fn="../members"
         in={{
-            prefix: $in.prefix,
             paths: $in.files.paths,
             hashes: $in.files.hashes,
             members: $in.files.members,
@@ -16,10 +15,18 @@
     />
 
     <Call
+        fn="host.digestPartitionKey"
+        in={[
+            $in.prefix,
+            $ctx.members
+        ]}
+    />
+
+    <Call
         fn="keys"
         in={{
             keys: $in,
-            digest: $ctx.hashPartitionMembers
+            digest: $ctx.digestPartitionKey
         }}
     />
 

@@ -54,16 +54,14 @@ export type File = Document & {
     first: bool
 }
 
-export type Unavailable = {
-    collection: Collection,
-    kind: Kind,
-    first: bool,
+export type Unavailable = File & {
     availability: Availability,
     problem: string
 }
 
 export type Walk = {
     collection: Collection,
+    entry: string,
     index: u64,
     valid: bool,
     running: bool

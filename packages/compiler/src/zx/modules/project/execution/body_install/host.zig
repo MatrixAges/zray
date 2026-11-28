@@ -15,7 +15,7 @@ const native_shape: ?*const Layouts.FunctionNativeRow = null;
 const growth = zx.memory.functionColumnGrowth(target, @as(?@FieldType(Functions, "growth"), null));
 const body_layout = zx.memory.functionBodyLayout(body_shape, target, @as(?@FieldType(Functions, "body_layout"), null));
 const native_layout = zx.memory.functionNativeLayout(native_shape, target, @as(?@FieldType(Functions, "native_layout"), null));
-const empty_native = zx.memory.emptyFunctionNativeRecord(native_shape, @as(?@FieldType(Functions, "empty_native"), null));
+const empty_native = zx.memory.emptyFunctionNativeRecord(native_shape);
 const Rows = std.meta.Child(@FieldType(Input, "records"));
 const Self = @This();
 
@@ -50,7 +50,7 @@ pub fn bind(self: *Self, project: *Project) void {
 
     self.input = .{
         .functions = &self.functions,
-        .function = @ptrCast(&self.function),
+        .function = std.mem.asBytes(&self.function),
         .records = &self.record_rows,
         .cache = &self.cache_rows,
         .resource = @ptrCast(&project.allocator),

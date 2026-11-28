@@ -2,12 +2,11 @@ import type { Directory } from "publication_host"
 
 export type Sidecars = {
     directory: Directory,
-    primary: string
+    binary_source: string,
+    binary_target: string
 }
 
 export type Input = Sidecars & {
-    binary_source: string,
-    binary_target: string,
     assembly_source?: string,
     assembly_target?: string
 }

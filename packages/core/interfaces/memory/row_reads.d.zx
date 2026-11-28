@@ -1,13 +1,3 @@
-export declare function readNamedColumnName(
-    source: NamedColumns,
-    index: u64
-): string throws { IndexOutOfBounds }
-
-export declare function readNamedColumnId(
-    source: NamedColumns,
-    index: u64
-): u32 throws { IndexOutOfBounds }
-
 export declare function readTextColumn(
     source: TextColumn,
     index: u64

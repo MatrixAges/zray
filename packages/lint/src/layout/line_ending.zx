@@ -1,0 +1,19 @@
+import bytes from "std:bytes"
+
+import crlf from "../rx/crlf"
+
+import type { EntryInput } from "./model"
+
+export type Input = EntryInput.Pick("source", "newline")
+
+export type Output = u8[]
+
+export default function (in: Input): Output {
+    if (in.newline != null) {
+        return in.newline
+    }
+
+    const ending = crlf(in.source) ? "\r\n" : "\n"
+
+    return bytes.fromText(ending)
+}

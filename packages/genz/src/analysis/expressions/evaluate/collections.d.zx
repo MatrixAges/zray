@@ -1,5 +1,2 @@
 export declare function collectionCompare(frame: Lowering, source_type: u32): u8[]
     throws { OutOfMemory }
-
-export declare function collectionMinimum(frame: Lowering, id: u32): u32?
-    throws { OutOfMemory }

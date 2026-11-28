@@ -68,8 +68,12 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
     if (comptime !generated) return context.seed(io, stamp_path);
 
     const workflow = @import("generated_generation_request");
+    const Input = std.meta.Child(workflow.Input);
+    const columns = @import("zx").memory.borrowReadFields(.{ .specifiers = "specifier", .entries = "entry" }, project.packages);
+    const packages = columns.bind(std.meta.Child(@FieldType(Input, "packages")));
 
-    const input: std.meta.Child(workflow.Input) = .{
+    const input: Input = .{
+        .packages = &packages,
         .host = @ptrCast(&context),
         .write = request.write,
         .stamp_path = stamp_path,
@@ -99,6 +103,11 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
 }
 
 const Error = error{GenerationRequestFailed};
+
+const PreparedCatalog = struct {
+    inputs: collection.Catalog,
+    packages: []const compiler.project.Package,
+};
 
 const Digests = struct {
     frame: fingerprint.Frame,
@@ -167,31 +176,14 @@ const GenerationIO = struct {
             .output = try self.outputDigest(inputs, &frame.content),
         };
     }
-    fn preparePackages(self: *const GenerationIO) ![]const compiler.project.Package {
-        const packages = try self.owned.alloc(compiler.project.Package, self.project.packages.len);
+    fn retainPackages(self: *const GenerationIO, rows: anytype) ![]const compiler.project.Package {
+        const packages = try self.owned.alloc(compiler.project.Package, rows.len);
 
-        if (comptime generated) {
-            const rule = @import("generated_generation_packages");
-            const memory = @import("zx").memory;
-            const Input = std.meta.Child(rule.Input);
-            const fields = .{ .specifiers = "specifier", .entries = "entry" };
-            const source = memory.borrowReadFields(fields, self.project.packages);
-
-            const result = try rule.executeIn(self.owned, &.{
-                .fields = &source.bind(std.meta.Child(@FieldType(Input, "fields"))),
-                .retain = self.resident.request != null,
-            });
-
-            for (result, packages) |item, *slot| {
-                slot.* = .{ .specifier = item.specifier, .entry = item.entry };
-            }
-        } else {
-            for (self.project.packages, packages) |package, *slot| {
-                slot.* = .{
-                    .specifier = try self.resident.retainText(self.owned, package.specifier),
-                    .entry = try self.resident.retainText(self.owned, package.entry),
-                };
-            }
+        for (rows, packages) |row, *slot| {
+            slot.* = .{
+                .specifier = try self.resident.retainText(self.owned, row.specifier),
+                .entry = try self.resident.retainText(self.owned, row.entry),
+            };
         }
 
         return packages;
@@ -318,7 +310,7 @@ const GenerationIO = struct {
 
         for (self.project.roots, 0..) |_, row| try self.loadRoot(io, row, if (snapshot) |*observed| observed else null, &documents);
 
-        const packages = try self.preparePackages();
+        const packages = try self.retainPackages(self.project.packages);
         const inputs = try self.classify(self.allocator, documents.items, packages);
         const interfaces = try self.register(io, self.allocator, inputs);
         const digests = try self.prepareFingerprints(inputs, interfaces.bindings);
@@ -373,26 +365,19 @@ pub fn loadGenerationRoot(io: std.Io, reference: *const anyopaque, row: u64, obs
     return std.mem.sliceAsBytes(documents.items);
 }
 
-pub fn retainGenerationPackages(reference: *const anyopaque) Error!Host.GenerationArtifact {
+pub fn classifyGenerationDocuments(allocator: std.mem.Allocator, reference: *const anyopaque, batches: []const []const u8, package_rows: []const Host.GenerationPackage) Error!Host.GenerationArtifact {
     const host = borrow(GenerationIO, reference);
-    const packages = host.preparePackages() catch |err| return host.fail(err);
-
-    return @ptrCast(try keep(host, host.allocator, packages));
-}
-
-pub fn classifyGenerationDocuments(allocator: std.mem.Allocator, reference: *const anyopaque, batches: []const []const u8, package_rows: *const anyopaque) Error!Host.GenerationArtifact {
-    const host = borrow(GenerationIO, reference);
-    const packages = borrow([]const compiler.project.Package, package_rows);
+    const packages = host.retainPackages(package_rows) catch |err| return host.fail(err);
     const documents = collectDocuments(allocator, batches) catch |err| return host.fail(err);
-    const catalog = host.classify(allocator, documents, packages.*) catch |err| return host.fail(err);
+    const inputs = host.classify(allocator, documents, packages) catch |err| return host.fail(err);
 
-    return @ptrCast(try keep(host, allocator, catalog));
+    return @ptrCast(try keep(host, allocator, PreparedCatalog{ .inputs = inputs, .packages = packages }));
 }
 
 pub fn registerGenerationInterfaces(allocator: std.mem.Allocator, io: std.Io, reference: *const anyopaque, catalog: *const anyopaque) Error!Host.GenerationRegistration {
     const host = borrow(GenerationIO, reference);
-    const inputs = borrow(collection.Catalog, catalog);
-    const bindings = try keep(host, allocator, host.register(io, allocator, inputs.*) catch |err| return host.fail(err));
+    const prepared = borrow(PreparedCatalog, catalog);
+    const bindings = try keep(host, allocator, host.register(io, allocator, prepared.inputs) catch |err| return host.fail(err));
 
     return keep(host, allocator, @as(std.meta.Child(Host.GenerationRegistration), .{
         .bindings = @ptrCast(bindings),
@@ -402,9 +387,9 @@ pub fn registerGenerationInterfaces(allocator: std.mem.Allocator, io: std.Io, re
 
 pub fn fingerprintGenerationInputs(allocator: std.mem.Allocator, reference: *const anyopaque, catalog: *const anyopaque, interfaces: *const anyopaque, interfaces_loaded: bool) Error!Host.PreparedGeneration {
     const host = borrow(GenerationIO, reference);
-    const inputs = borrow(collection.Catalog, catalog);
+    const prepared = borrow(PreparedCatalog, catalog);
     const bindings = borrow(interface_inputs.Result, interfaces);
-    const digests = try keep(host, allocator, host.prepareFingerprints(inputs.*, bindings.bindings) catch |err| return host.fail(err));
+    const digests = try keep(host, allocator, host.prepareFingerprints(prepared.inputs, bindings.bindings) catch |err| return host.fail(err));
     const previous = if (interfaces_loaded) host.resident.exactAnalysis(&digests.output) else null;
 
     return keep(host, allocator, @as(std.meta.Child(Host.PreparedGeneration), .{
@@ -423,30 +408,29 @@ pub fn restoreGenerationAnalysis(io: std.Io, reference: *const anyopaque, previo
 
 pub fn prepareGenerationTemplates(allocator: std.mem.Allocator, reference: *const anyopaque, catalog: *const anyopaque) Error!Host.GenerationArtifact {
     const host = borrow(GenerationIO, reference);
-    const inputs = borrow(collection.Catalog, catalog);
-    const sources = host.prepareTemplates(inputs.*) catch |err| return host.fail(err);
+    const prepared = borrow(PreparedCatalog, catalog);
+    const sources = host.prepareTemplates(prepared.inputs) catch |err| return host.fail(err);
 
     return @ptrCast(try keep(host, allocator, sources));
 }
 
-pub fn prepareGenerationModules(allocator: std.mem.Allocator, reference: *const anyopaque, catalog: *const anyopaque, package_rows: *const anyopaque) Error!Host.GenerationArtifact {
+pub fn prepareGenerationModules(allocator: std.mem.Allocator, reference: *const anyopaque, catalog: *const anyopaque) Error!Host.GenerationArtifact {
     const host = borrow(GenerationIO, reference);
-    const inputs = borrow(collection.Catalog, catalog);
-    const packages = borrow([]const compiler.project.Package, package_rows);
-    const modules = host.prepareModules(inputs.*, packages.*) catch |err| return host.fail(err);
+    const prepared = borrow(PreparedCatalog, catalog);
+    const modules = host.prepareModules(prepared.inputs, prepared.packages) catch |err| return host.fail(err);
 
     return @ptrCast(try keep(host, allocator, modules));
 }
 
-pub fn generateFromPreparedInputs(io: std.Io, reference: *const anyopaque, digests: *const anyopaque, package_rows: *const anyopaque, interfaces: *const anyopaque, sources: *const anyopaque, modules: *const anyopaque) Error![]const u8 {
+pub fn generateFromPreparedInputs(io: std.Io, reference: *const anyopaque, digests: *const anyopaque, catalog: *const anyopaque, interfaces: *const anyopaque, sources: *const anyopaque, modules: *const anyopaque) Error![]const u8 {
     const host = borrow(GenerationIO, reference);
     const ready = borrow(Digests, digests);
-    const packages = borrow([]const compiler.project.Package, package_rows);
+    const prepared = borrow(PreparedCatalog, catalog);
     const bindings = borrow(interface_inputs.Result, interfaces);
     const source_rows = borrow([]const compiler.project.Source, sources);
     const module_rows = borrow([]const @import("rx").ModuleSource, modules);
 
-    return host.emit(io, ready.*, packages.*, bindings.*, source_rows.*, module_rows.*) catch |err| host.fail(err);
+    return host.emit(io, ready.*, prepared.packages, bindings.*, source_rows.*, module_rows.*) catch |err| host.fail(err);
 }
 
 pub fn saveGenerationSnapshot(io: std.Io, reference: *const anyopaque, observed: *const anyopaque, digest: []const u8) Error!void {
@@ -527,7 +511,7 @@ pub fn invalidateGenerationStamp(io: std.Io, path: []const u8) !void {
     };
 }
 
-pub fn writeGenerationStamp(io: std.Io, path: []const u8, stamp: []const u8) !void {
+fn writeGenerationStamp(io: std.Io, path: []const u8, stamp: []const u8) !void {
     try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = stamp });
 }
 

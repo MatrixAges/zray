@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import type { PublishedSetting, Settings as Input } from "./model"
 
 export type Output = PublishedSetting[]
@@ -11,9 +9,9 @@ export default function (in: Input): Output {
         row: 0,
         items: empty
     }, {
-        while: state => state.row < in.count,
+        while: state => state.row < in.names.length,
         next: state => {
-            const name = memory.readTextColumn(in.names, state.row)
+            const name = in.names[state.row]
 
             state.items = state.items.push({
                 name,

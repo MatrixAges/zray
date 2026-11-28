@@ -3,7 +3,7 @@ import { UnaryOperator } from "core/expression_table/kinds"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
-import numeric from "../../scalar/numeric"
+import numeric from "../../scalar/integer_traits"
 import evaluateUnary from "../../scalar/unary"
 import { unsupported_message } from "./const"
 

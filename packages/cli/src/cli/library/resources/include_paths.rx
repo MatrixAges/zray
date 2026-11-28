@@ -1,0 +1,35 @@
+<Module>
+    <Type from="model" as="Resources" />
+
+    <Args in={Resources.ModuleInput} out={string[]} />
+
+    <If on={$in.has_bundle}>
+        <Call
+            fn="index.bundleNativeModule"
+            in={[
+                $in.resources,
+                $in.header != null
+            ]}
+        />
+
+        <Call
+            fn="includes"
+            in={{
+                paths: $ctx.bundleNativeModule,
+                external_includes: $in.external_includes
+            }}
+        />
+
+        <Return value={$ctx.includes} />
+    </If>
+
+    <Call
+        fn="includes"
+        in={{
+            paths: $in.includes,
+            external_includes: $in.external_includes
+        }}
+    />
+
+    <Return value={$ctx.includes} />
+</Module>

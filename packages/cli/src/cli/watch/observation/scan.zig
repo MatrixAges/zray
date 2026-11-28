@@ -8,8 +8,10 @@ const rule = @import("cli_source").scan;
 
 pub fn scan(snapshot: Snapshot, io: std.Io, allocator: std.mem.Allocator, versioned: bool, reuse_versions: bool) !bool {
     var scratch = std.heap.ArenaAllocator.init(allocator);
+    var workflow = std.heap.ArenaAllocator.init(allocator);
 
     defer scratch.deinit();
+    defer workflow.deinit();
 
     var context: Context = .{
         .io = io,
@@ -20,7 +22,7 @@ pub fn scan(snapshot: Snapshot, io: std.Io, allocator: std.mem.Allocator, versio
 
     const handle = &context;
 
-    return rule.executeValue(allocator, &.{
+    return rule.execute(&workflow, &.{
         .scan = @ptrCast(&handle),
         .count = snapshot.entries.len,
         .consistent = snapshot.consistent,
@@ -35,7 +37,7 @@ pub fn versionMatches(handle: *const anyopaque, index: u64) Error!bool {
     return self.scan.?.entries[@intCast(index)].stillMatches(self.io) catch |err| self.fail(err);
 }
 
-pub fn readRow(handle: *const anyopaque, index: u64, versioned: bool) Error!bool {
+pub fn readRow(handle: *const anyopaque, index: u64, versioned: bool) Error!*const storage.Comparison {
     const self = Context.get(handle);
     const entry = &self.scan.?.entries[@intCast(index)];
 
@@ -46,7 +48,11 @@ pub fn readRow(handle: *const anyopaque, index: u64, versioned: bool) Error!bool
 
     read.observe(self, entry.directory_entries) catch |err| return self.fail(err);
 
-    return Snapshot.sameState(&entry.state, &self.result);
+    self.left = Snapshot.fact(&entry.state);
+    self.right = Snapshot.fact(&self.result);
+    self.comparison = .{ .left = &self.left, .right = &self.right };
+
+    return &self.comparison;
 }
 
 pub fn acceptVersion(handle: *const anyopaque, index: u64) void {

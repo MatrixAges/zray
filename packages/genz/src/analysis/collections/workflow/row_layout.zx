@@ -1,0 +1,14 @@
+import host from "lowering_host"
+import { StoredType } from "lowering_host"
+
+import type { RowLayout as Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    if (!in.represented) {
+        return 0
+    }
+
+    return host.materializeType(in.ast.lower, in.source_type, StoredType.StateType)
+}

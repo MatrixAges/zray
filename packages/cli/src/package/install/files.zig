@@ -48,13 +48,6 @@ pub fn render(allocator: std.mem.Allocator, prepared: @import("model.zig").Prepa
     return .{ .lock = source, .mapping = mapping, .digest = digest };
 }
 
-pub fn lockUnchanged(io: std.Io, allocator: std.mem.Allocator, root: []const u8, source: []const u8) !bool {
-    const path = try std.fs.path.join(allocator, &.{ root, "pkg.lock.json" });
-    const current = try read(io, allocator, path, null);
-
-    return std.mem.eql(u8, current, source);
-}
-
 fn mapPath(allocator: std.mem.Allocator, root: []const u8, digest: []const u8) ![]const u8 {
     return std.fs.path.join(allocator, &.{ root, ".zxc", "packages", try std.fmt.allocPrint(allocator, "{s}.json", .{digest}) });
 }

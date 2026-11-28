@@ -1,4 +1,4 @@
-import { resolvePathFrom } from "lexical_path"
+import resolvePathParts from "../../standard/path/resolve"
 
 export type Input = {
     root: string,
@@ -16,7 +16,10 @@ export default function (in: Input): Output {
     }, {
         while: state => state.row < in.paths.length,
         next: state => {
-            const path = resolvePathFrom(in.root, in.paths[state.row])
+            const path = resolvePathParts([
+                in.root,
+                in.paths[state.row]
+            ])
 
             state.out = state.out.push(path)[0]
             state.row += 1

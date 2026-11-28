@@ -1,0 +1,26 @@
+import bytes from "std:bytes"
+
+import emitField from "../../expressions/read/emit_field"
+import { items_field } from "../../types/state/const"
+
+import type { AstWriter } from "ast_rows"
+
+export type Input = {
+    writer: AstWriter,
+    value: u32,
+    represented: bool
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    if (!in.represented) {
+        return in.value
+    }
+
+    return emitField({
+        writer: in.writer,
+        target: in.value,
+        name: bytes.fromText(items_field)
+    })
+}

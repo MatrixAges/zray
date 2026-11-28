@@ -2,7 +2,7 @@ import bytes from "std:bytes"
 
 import { module_extension } from "../../../../../../zx/modules/path/const"
 import selectSource from "../../../../../../zx/modules/path/select_source"
-import resolve from "../../../../../../zx/modules/project/target/package/path"
+import resolve from "../../resolve_path"
 
 import type { Allocator } from "memory"
 import type { Source } from "./model"

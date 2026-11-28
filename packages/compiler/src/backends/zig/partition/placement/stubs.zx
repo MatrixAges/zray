@@ -1,24 +1,23 @@
 import stubScope from "./stub_scope"
 
 import type { Scope } from "../demand/model"
-import type { Job, State, StubsOutput } from "./model"
+import type { File, Job, Output as Publication, State } from "./model"
 
 export type Input = {
     files: State,
+    copies: File[],
     prefixes: string[],
-    scopes: Scope[],
-    first: u64
+    scopes: Scope[]
 }
 
-export type Output = StubsOutput
+export type Output = Publication
 
 export default function (in: Input): Output {
-    const empty_paths: string[] = []
     const empty_jobs: Job[] = []
 
     return loop({
         scope: 0,
-        paths: empty_paths,
+        files: in.copies,
         jobs: empty_jobs
     }, {
         while: state => state.scope < in.scopes.length,
@@ -27,21 +26,20 @@ export default function (in: Input): Output {
             const prefix = use_prefix ? in.prefixes[state.scope] : ""
 
             const updated = stubScope({
-                files: in.files,
+                originals: in.files,
                 scope: in.scopes[state.scope],
                 prefix,
                 use_prefix,
-                first_destination: in.first + state.jobs.length,
-                paths: state.paths,
+                files: state.files,
                 jobs: state.jobs
             })
 
-            state.paths = updated.paths
+            state.files = updated.files
             state.jobs = updated.jobs
             state.scope += 1
         },
         return: state => state.pick([
-            "paths",
+            "files",
             "jobs"
         ])
     })

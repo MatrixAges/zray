@@ -1,6 +1,9 @@
+import { relativePathFrom } from "publication_host"
+
 import type { Seen } from "../collect/model"
 
 export type Input = {
+    root: string,
     files: string[],
     seen: Seen
 }
@@ -8,7 +11,7 @@ export type Input = {
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { files, seen } = in
+    const { root, files, seen } = in
 
     return loop({
         index: 0,
@@ -16,7 +19,7 @@ export default function (in: Input): Output {
     }, {
         while: row => row.valid && row.index < files.length,
         next: row => {
-            const target = files[row.index]
+            const target = relativePathFrom(root, files[row.index])
 
             const admitted = loop(0, {
                 while: item =>

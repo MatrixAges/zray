@@ -1,0 +1,43 @@
+import integers from "std:integer"
+import kind from "core/type_table/kind"
+import { Kind } from "core/type_table/model"
+
+import inlineStored from "../locals/inline_stored"
+import { Resource } from "../resources/model"
+
+import type { Elements } from "../locals/model"
+
+export type Source = Elements.Omit("list") & {
+    active: bool
+}
+
+export type Input = Source & {
+    list: u32
+}
+
+export type Output = {
+    child: u32,
+    kind: Kind,
+    selected: bool,
+    table: Resource
+}
+
+export default function (in: Input): Output {
+    const child = in.types.first[integers.widen(in.list)]
+    const target = kind(in.types.kinds[integers.widen(child)])
+
+    const selected = inlineStored(in.omit(["active"]))
+
+    const table = match {
+        !in.active || !selected => Resource.AbiType,
+        target == Kind.List => Resource.StateType,
+        _ => Resource.AbiLayout
+    }
+
+    return {
+        child,
+        kind: target,
+        selected,
+        table
+    }
+}

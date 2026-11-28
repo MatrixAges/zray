@@ -1,4 +1,4 @@
-import type { ReadColumn, ListColumn, WriteColumn } from "memory"
+import type { ReadColumn, ListColumn } from "memory"
 import type { Planned } from "../ordered/model"
 import type { Phase } from "./phase"
 
@@ -42,14 +42,6 @@ export type PlanReads = {
     paths: ReadColumn,
     transfers: ReadColumn,
     slot_first: ReadColumn
-}
-
-export type PlanWrites = {
-    flags: WriteColumn,
-    keys: WriteColumn,
-    paths: WriteColumn,
-    transfers: WriteColumn,
-    slot_first: WriteColumn
 }
 
 export type Plans = Scan.Pick("planned", "changed") & {

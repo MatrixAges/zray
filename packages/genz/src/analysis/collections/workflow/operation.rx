@@ -19,16 +19,18 @@
             "source_type",
             "ast",
             "kind",
-            "arguments"
+            "arguments",
+            "expression_types"
         ])}
     />
 
     <Call
-        fn="host.materializeElementType"
-        in={[
-            $in.ast.lower,
-            $in.source_type
-        ]}
+        fn="../../state/elements/materialize_type"
+        in={{
+            frame: $in.ast.lower,
+            source: $in.ast.elements,
+            list: $in.source_type
+        }}
     />
 
     <Call
@@ -53,7 +55,7 @@
                 $in.items,
                 $in.value,
                 $ctx.header,
-                $ctx.materializeElementType,
+                $ctx.materialize_type,
                 $ctx.emit_length
             ]}
         />
@@ -69,14 +71,22 @@
                 "ast",
                 "kind",
                 "source_type",
-                "removed_only"
+                "represented",
+                "removed_only",
+                "capacity",
+                "frontier",
+                "in_place",
+                "grow",
+                "lazy",
+                "retract",
+                "shared"
             ]),
             rows: {
                 ...$ctx.arguments,
                 items: $in.items,
                 value: $in.value,
                 header: $ctx.header,
-                element: $ctx.materializeElementType,
+                element: $ctx.materialize_type,
                 length: $ctx.emit_length,
                 unit: $ctx.emit_unit
             }

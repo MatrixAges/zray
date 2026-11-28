@@ -1,15 +1,10 @@
 export {
     clipCollectionTarget,
     writeCollectionElement,
-    emitCollectionRows,
-    emitCollectionPop,
-    convertCollectionResult
+    emitCollectionPop
 } from "ast_rows"
 export {
-    readListItems,
-    materializeElementType,
     collectionCompare,
-    collectionMinimum,
     constructValue,
     lowerExpression
 } from "lowering_host"

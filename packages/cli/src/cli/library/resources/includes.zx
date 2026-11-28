@@ -1,19 +1,22 @@
 import path from "std:path"
 
-export type Input = string[]
+export type Input = {
+    paths: string[],
+    external_includes: string[]
+}
 
 export type Output = string[]
 
 export default function (in: Input): Output {
-    const paths: string[] = []
+    const { paths, external_includes } = in
 
     return loop({
         index: 0,
-        paths
+        paths: external_includes
     }, {
-        while: state => state.index < in.length,
+        while: state => state.index < paths.length,
         next: state => {
-            const item = in[state.index]
+            const item = paths[state.index]
 
             if (path.isAbsolute(item)) {
                 state.paths = state.paths.push(item)[0]

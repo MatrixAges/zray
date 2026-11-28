@@ -1,5 +1,5 @@
-import { pathBasename } from "lexical_path"
-import { joinNativeParts } from "publication_host"
+import pathBasename from "../../standard/path/basename"
+import joinNativeParts from "../../standard/path/join"
 
 export type Input = {
     path?: string,

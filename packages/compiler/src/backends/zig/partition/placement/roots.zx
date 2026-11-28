@@ -2,37 +2,37 @@ import integers from "std:integer"
 
 import { root_file, functions_file } from "./const"
 
-import type { Job, RootsOutput } from "./model"
+import type { Output as Publication } from "./model"
 
-export type Input = {
-    prefixes: string[],
-    first: u64
+export type Input = Publication & {
+    prefixes: string[]
 }
 
-export type Output = RootsOutput
+export type Output = Publication
 
 export default function (in: Input): Output {
-    const empty_paths: string[] = []
-    const empty_jobs: Job[] = []
     const empty_variants: u8[][] = []
 
     return loop({
         scope: 0,
-        paths: empty_paths,
-        jobs: empty_jobs
+        files: in.files,
+        jobs: in.jobs
     }, {
         while: state => state.scope < in.prefixes.length,
         next: state => {
             const scope = state.scope
             const prefix = in.prefixes[scope]
-            const row = in.first + scope * 2
+            const destination = state.files.length
 
-            state.paths = state.paths.push(`${prefix}${root_file}`)[0]
-                .push(
-                    `${prefix}${functions_file}`
-                )[0]
+            state.files = state.files.push({
+                path: `${prefix}${root_file}`,
+                source: ""
+            })[0].push({
+                path: `${prefix}${functions_file}`,
+                source: ""
+            })[0]
             state.jobs = state.jobs.push({
-                destination: row,
+                destination,
                 index: integers.narrow(scope),
                 root: true,
                 variants: empty_variants,
@@ -41,7 +41,7 @@ export default function (in: Input): Output {
             state.scope += 1
         },
         return: state => state.pick([
-            "paths",
+            "files",
             "jobs"
         ])
     })

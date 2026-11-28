@@ -1,6 +1,5 @@
 export {
     readCandidate,
-    rememberCandidate,
     loadAncestor,
     Probe
 } from "package_workspace_host"

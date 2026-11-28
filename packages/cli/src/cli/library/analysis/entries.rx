@@ -4,18 +4,18 @@
     <Args in={Step.Entries} out={Step.Entries} />
 
     <Call
-        fn="index.selectLibraryExport"
-        in={[
-            $in.analysis,
-            $in.index
-        ]}
+        fn="export_entry"
+        in={{
+            exports: $in.exports,
+            index: $in.index
+        }}
     />
 
     <Call
         module="entry"
         in={{
             analysis: $in.analysis,
-            entry_path: $ctx.selectLibraryExport
+            entry: $ctx.export_entry
         }}
     />
 

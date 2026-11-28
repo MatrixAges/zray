@@ -3,7 +3,7 @@ const zx = @import("zx");
 const generation = @import("../partition.zig");
 const Scanning = @import("workers.zig");
 const parallel = @import("../output/parallel.zig");
-pub const File = generation.placement.File;
+pub const File = generation.File;
 const available = generation.groups.available and generation.layout.available;
 
 /// Groups public entry closures into separately compiled units.
@@ -47,17 +47,19 @@ pub fn plan(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocat
 
     try generation.Scanning.valid(result.status);
 
-    const layout = result.layout.?;
-    const publication = try generation.placement.materialize(temporary, layout.placement, result.files.?);
+    const publication = result.files.?;
+    const files = try temporary.alloc(File, publication.files.len);
+
+    for (publication.files, files) |item, *file| file.* = .{ .path = item.path, .source = item.source };
 
     if (publication.jobs.len != 0) try parallel.eachRender(arenas, .{
         .owner = allocator,
         .workspace = workspace,
         .columns = columns,
-        .roots = zx.columns.slice(@FieldType(parallel.Rendering, "roots"), layout.roots),
+        .roots = zx.columns.slice(@FieldType(parallel.Rendering, "roots"), result.roots.?),
         .jobs = publication.jobs,
-        .files = publication.files,
+        .files = files,
     });
 
-    return publication.files;
+    return files;
 }

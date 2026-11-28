@@ -1,15 +1,14 @@
 import bytes from "std:bytes"
 import integers from "std:integer"
-import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
 import { Mode } from "../conversion/model"
-import inlineStored from "../locals/inline_stored"
 import { Property } from "../queries/model"
 import read from "../queries/read"
 import { Resource } from "../resources/model"
 import { discard_name } from "./const"
 import { Operation } from "./model"
+import storage from "./storage"
 
 import type { Query as Input, Choice as Output } from "./model"
 
@@ -41,25 +40,18 @@ export default function (in: Input): Output {
     }
 
     const source = in.source
-    const root = integers.widen(source.root)
-    const child = source.types.first[root]
-    const index = integers.widen(child)
-    const target = kind(source.types.kinds[index])
 
-    const selected = inlineStored({
+    const element = storage({
         ...source.pick([
             "types",
             "selected",
             "element_storage"
         ]),
-        list: source.root
+        list: source.root,
+        active: in.active
     })
 
-    const table = match {
-        !in.active || !selected => Resource.AbiType,
-        target == Kind.List => Resource.StateType,
-        _ => Resource.AbiLayout
-    }
+    const { child, selected, table } = element
 
     if (in.operation == Operation.Type) {
         return {
@@ -74,7 +66,7 @@ export default function (in: Input): Output {
     }
 
     const represented = read({
-        value: source.queries[index],
+        value: source.queries[integers.widen(child)],
         property: Property.Represented
     })
 
@@ -84,7 +76,7 @@ export default function (in: Input): Output {
         passthrough: !represented && !selected,
         discard: false,
         discard_name: [],
-        stored: selected && target == Kind.List,
+        stored: selected && element.kind == Kind.List,
         bind: input && selected,
         capture,
         type_id: child,

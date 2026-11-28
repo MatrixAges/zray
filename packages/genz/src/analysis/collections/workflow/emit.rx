@@ -22,7 +22,6 @@
                     "selected",
                     "layout",
                     "shared",
-                    "ast",
                     "bases"
                 ]),
                 argument: $in.first,
@@ -46,7 +45,6 @@
                     "retract",
                     "removed_only",
                     "shared",
-                    "ast",
                     "bases"
                 ]),
                 source: $in.items,
@@ -71,7 +69,6 @@
                 "selected",
                 "layout",
                 "shared",
-                "ast",
                 "bases"
             ]),
             source: $in.items,

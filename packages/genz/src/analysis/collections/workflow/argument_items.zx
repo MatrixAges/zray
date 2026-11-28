@@ -1,0 +1,34 @@
+import integers from "std:integer"
+
+import boundItems from "../../state/list/bound_items"
+import selected from "../../state/list/selected"
+
+import type { Input as Request } from "./model"
+
+export type Input = Request.Pick("ast", "expression_types") & {
+    origin: u32,
+    value: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { ast, expression_types, origin, value } = in
+
+    const type_id = integers.widen(expression_types[integers.widen(origin)])
+
+    const represented = match {
+        ast.elements.active => selected({
+            active: true,
+            chosen: ast.elements.selected[type_id],
+            kind: ast.elements.types.kinds[type_id]
+        }),
+        _ => false
+    }
+
+    return boundItems({
+        writer: ast.writer,
+        value,
+        represented
+    })
+}

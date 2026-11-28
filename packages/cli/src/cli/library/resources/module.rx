@@ -1,42 +1,40 @@
 <Module>
     <Type from="model" as="Resources" />
 
-    <Args in={Resources.ModuleInput} out={void} />
+    <Args in={Resources.ModuleInput} out={string[]} />
 
-    <If on={$in.has_bundle}>
+    <Call module="include_paths" in={$in} />
+
+    <If on={$in.header != null}>
         <Call
-            fn="index.bundleNativeModule"
-            in={[
-                $in.resources,
-                $in.has_header
-            ]}
+            fn="../../workspace_files/native_header"
+            in={{
+                directory: $in.directory,
+                name: $in.name,
+                header: $in.header
+            }}
         />
 
-        <Call fn="includes" />
+        <Call module="../../workspace_files/write_artifact" />
 
         <Call
-            fn="index.addExternalIncludes"
-            in={[
-                $in.resources,
-                $ctx.includes
-            ]}
+            fn="../../workspace_files/native_path"
+            in={{
+                directory: $in.directory,
+                name: $in.name
+            }}
         />
 
-        <Else>
-            <Call fn="includes" in={$in.includes} />
+        <Call fn="index.renderLibraryNativeAdapter" />
 
-            <Call
-                fn="index.addExternalIncludes"
-                in={[
-                    $in.resources,
-                    $ctx.includes
-                ]}
-            />
-        </Else>
+        <Call
+            module="../../workspace_files/write_artifact"
+            in={{
+                path: $ctx.native_path,
+                source: $ctx.renderLibraryNativeAdapter
+            }}
+        />
     </If>
 
-    <If on={$in.has_header}>
-        <Call fn="index.writeLibraryNativeHeader" in={$in.resources} />
-        <Call fn="index.writeLibraryNativeAdapter" in={$in.resources} />
-    </If>
+    <Return value={$ctx.include_paths} />
 </Module>

@@ -2,7 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const memory = zx.memory;
 const available = @import("../output.zig").available;
-const File = @import("../partition/placement.zig").File;
+const File = @import("../partition.zig").File;
 const ModuleFile = @import("../modules.zig").File;
 const FunctionFiles = @import("../partition/layout.zig").FunctionFiles;
 

@@ -11,7 +11,7 @@
         fn="index.prepareStageLayout"
         in={[
             $in.stage,
-            $ctx.write
+            $ctx.write.library_paths
         ]}
     />
 
@@ -66,5 +66,12 @@
     </Task>
 
     <Call fn="index.collectStageInventory" in={$in.stage} />
-    <Call fn="index.writeStageInventory" in={$in.stage} />
+
+    <Call
+        fn="index.writeStageInventory"
+        in={[
+            $in.stage,
+            $ctx.write.external_includes
+        ]}
+    />
 </Module>

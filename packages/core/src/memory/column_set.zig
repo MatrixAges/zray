@@ -108,42 +108,52 @@ pub fn reserveCell(resource: *const anyopaque, target: *const anyopaque, layout:
     if (!operations.*[index](slots(target)[index], borrowAllocator(resource), items)) return error.OutOfMemory;
 }
 
-const Cell = struct { slot: usize, offset: usize, width: usize };
-
-pub fn borrowRecord(row: anytype, output: anytype) std.meta.Child(@TypeOf(output)) {
-    return @ptrCast(row);
+pub fn borrowRecord(row: anytype) []const u8 {
+    return std.mem.asBytes(row);
 }
 
-pub fn zeroRecord(shape: anytype, output: anytype) std.meta.Child(@TypeOf(output)) {
+pub fn zeroRecord(shape: anytype) []const u8 {
     const Row = std.meta.Child(std.meta.Child(@TypeOf(shape)));
 
     const empty = struct {
         const value = std.mem.zeroes(Row);
     };
 
-    return @ptrCast(&empty.value);
+    return std.mem.asBytes(&empty.value);
 }
 
 pub fn rowLayout(shape: anytype, output: anytype) std.meta.Child(@TypeOf(output)) {
     const Row = std.meta.Child(std.meta.Child(@TypeOf(shape)));
 
-    return @ptrCast(staticCells(Row, Row));
+    return staticCells(Row, Row, std.meta.Child(@TypeOf(output)));
 }
 
 pub fn projectedLayout(shape: anytype, target: anytype, output: anytype) std.meta.Child(@TypeOf(output)) {
     const Row = std.meta.Child(std.meta.Child(@TypeOf(shape)));
     const Destination = std.meta.Child(std.meta.Child(@TypeOf(target)));
 
-    return @ptrCast(staticCells(Row, Destination));
+    return staticCells(Row, Destination, std.meta.Child(@TypeOf(output)));
 }
 
-fn staticCells(comptime Row: type, comptime Destination: type) *const []const Cell {
-    return &struct {
-        const values: []const Cell = &rowCells(Row, Destination);
-    }.values;
+fn staticCells(comptime Row: type, comptime Destination: type, comptime Layout: type) Layout {
+    const Cell = std.meta.Child(std.meta.Elem(Layout));
+
+    const Cells = struct {
+        const values = rowCells(Row, Destination, Cell);
+
+        const pointers = block: {
+            var result: [values.len]*const Cell = undefined;
+
+            for (&values, &result) |*value, *pointer| pointer.* = value;
+
+            break :block result;
+        };
+    };
+
+    return &Cells.pointers;
 }
 
-fn rowCells(comptime Row: type, comptime Destination: type) [@typeInfo(Row).@"struct".field_names.len]Cell {
+fn rowCells(comptime Row: type, comptime Destination: type, comptime Cell: type) [@typeInfo(Row).@"struct".field_names.len]Cell {
     const names = @typeInfo(Row).@"struct".field_names;
     var result: [names.len]Cell = undefined;
 
@@ -162,24 +172,13 @@ fn rowCells(comptime Row: type, comptime Destination: type) [@typeInfo(Row).@"st
     return result;
 }
 
-fn cellsAt(layout: *const anyopaque) []const Cell {
-    const cells: *const []const Cell = @ptrCast(@alignCast(layout));
-
-    return cells.*;
-}
-
-pub inline fn rowCellCount(layout: *const anyopaque) u64 {
-    return cellsAt(layout).len;
-}
-
-pub inline fn writeCell(target: *const anyopaque, row: *const anyopaque, layout: *const anyopaque, lane: u64, at: ?u64) void {
-    const cell = cellsAt(layout)[@intCast(lane)];
-    const storage = storageAt(target, cell.slot);
+pub inline fn writeCell(target: *const anyopaque, row: []const u8, slot: u64, offset: u64, width: u64, at: ?u64) void {
+    const storage = storageAt(target, slot);
     const position = storage.items.len + @as(usize, @intCast(at orelse 0));
-    const bytes: [*]const u8 = @ptrCast(row);
+    const size: usize = @intCast(width);
 
     std.debug.assert(position < storage.capacity);
-    @memcpy(storage.items.ptr[position * cell.width ..][0..cell.width], bytes[cell.offset..][0..cell.width]);
+    @memcpy(storage.items.ptr[position * size ..][0..size], row[@intCast(offset)..][0..size]);
 
     if (at == null) storage.items.len += 1;
 }

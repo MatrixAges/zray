@@ -22,7 +22,6 @@ const State = struct {
     project: *const compiler.project.Options,
     inputs: ?*Inputs,
     references: []const resources.Reference,
-    owner: []const u8,
     reporter: zx.Reporter,
     failure: effects.Failure = .{},
     files: std.ArrayList(compiler.project.Resource) = .empty,
@@ -46,7 +45,6 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, source: compiler.projec
         .project = &project,
         .inputs = inputs,
         .references = references,
-        .owner = try std.fs.path.resolve(allocator, &.{ project.root_dir, source.path }),
         .reporter = reporter,
     };
 
@@ -60,17 +58,19 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, source: compiler.projec
 
     rule.execute(&arena, &.{
         .source = @ptrCast(&reference),
+        .root = project.root_dir,
+        .path = source.path,
         .count = references.len,
     }, &host) catch |err| return load.failure.unwrap(err);
 
     return load.source;
 }
 
-pub fn resolveTemplateReference(handle: *const anyopaque, index: u64) Error!?[]const u8 {
+pub fn resolveTemplateReference(handle: *const anyopaque, owner: []const u8, index: u64) Error!?[]const u8 {
     const self = effects.state(State, handle);
     const reference = self.references[@intCast(index)];
 
-    return resources.resolve(self.allocator, self.owner, reference, self.project.*, &self.reporter) catch |err| {
+    return resources.resolve(self.allocator, owner, reference, self.project.*, &self.reporter) catch |err| {
         if (err == error.OutOfMemory) return self.failure.save(err);
 
         return null;

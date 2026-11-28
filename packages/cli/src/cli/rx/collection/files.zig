@@ -6,13 +6,20 @@ const Error = state.effects.Error;
 const FileRead = state.FileRead;
 const PhysicalResolution = @import("cli_abi").layouts.@"zig:rx_collection_host".PhysicalResolution;
 
-pub fn selectCollectionPath(handle: *const anyopaque, row: u64) Error!?[]const u8 {
+pub fn selectCollectionPath(handle: *const anyopaque, row: u64, first: []const u8) Error!?[]const u8 {
     const self = State.get(handle);
     const allocator = self.allocator;
     const root = self.project.root_dir;
     const options = self.options;
 
     self.releaseDocument();
+
+    if (row == 0) {
+        const absolute = std.fs.path.resolve(allocator, &.{ root, first }) catch |err| return self.failure.save(err);
+
+        self.queue.append(allocator, first) catch |err| return self.failure.save(err);
+        self.queued.put(allocator, absolute, {}) catch |err| return self.failure.save(err);
+    }
 
     if (row >= self.queue.items.len) return null;
 
@@ -82,8 +89,8 @@ pub fn readCollectionFile(handle: *const anyopaque, retained: bool) Error!*const
     return &self.file_read;
 }
 
-pub fn writeCollectionDiagnostic(handle: *const anyopaque, message: []const u8) Error!void {
+pub fn writeCollectionDiagnostic(handle: *const anyopaque, path: []const u8, message: []const u8) Error!void {
     const self = State.get(handle);
 
-    self.options.writer.print("{s}: {s}\n", .{ self.file.path, message }) catch |err| return self.failure.save(err);
+    self.options.writer.print("{s}: {s}\n", .{ path, message }) catch |err| return self.failure.save(err);
 }

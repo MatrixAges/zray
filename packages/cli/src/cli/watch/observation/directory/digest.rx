@@ -5,13 +5,12 @@
 
     <Store from="entries" as="state" />
 
-    <Loop on={$in.running}>
+    <Loop on={$in.index < $in.names.length}>
         <Call
             module="collect_step"
             in={{
-                directory: $in.directory,
-                all_entries: $in.all_entries,
-                running: true
+                ...$in,
+                index: 0
             }}
         />
     </Loop>

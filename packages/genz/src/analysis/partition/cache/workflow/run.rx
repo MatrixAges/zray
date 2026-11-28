@@ -6,14 +6,23 @@
     <Store from="state" as="state" />
 
     <Call
-        fn="host.startPartitionHash"
+        fn="../prefix"
         in={{
-            prefix: $in.prefix,
             executable: $in.zig,
+            size: $in.size,
+            modified: $in.modified,
             arguments: $in.arguments,
             types: $in.types,
             signatures: $in.signatures
         }}
+    />
+
+    <Call
+        fn="host.extendPartitionHash"
+        in={[
+            $in.prefix,
+            $ctx.prefix
+        ]}
     />
 
     <Loop on={$in.row < $in.paths.length}>
@@ -21,7 +30,7 @@
             module="external_step"
             in={{
                 paths: $in.external,
-                prefix: $ctx.startPartitionHash,
+                prefix: $ctx.extendPartitionHash,
                 row: 0
             }}
         />
@@ -50,6 +59,14 @@
             $in.objects,
             "state"
         ]}
+    />
+
+    <Call
+        fn="effects.mkdir"
+        in={{
+            path: $in.objects,
+            recursive: true
+        }}
     />
 
     <Call

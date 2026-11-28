@@ -1,6 +1,6 @@
-import { resolvePathParts } from "lexical_path"
 import memory from "memory"
 
+import resolvePathParts from "../standard/path/resolve"
 import { prefix_zig_lib, prefix_local_cache, prefix_global_cache } from "./const"
 
 import type { RowWalk } from "./model"

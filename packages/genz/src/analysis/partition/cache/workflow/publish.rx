@@ -14,7 +14,7 @@
     />
 
     <Call
-        fn="host.writeFileAtomic"
+        fn="effects.writeFileAtomic"
         in={{
             path: $in.path,
             data: $ctx.publish,

@@ -1,6 +1,6 @@
+export { realpath } from "std:fs"
 export {
     assembleWorkspace,
-    canonical,
     openLock,
     openMapping,
     readInstalledArchive,

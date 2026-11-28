@@ -4,4 +4,6 @@ export {
     resolveTemplateReference
 } from "source_loader_host"
 
+export { default as resolveOwner } from "../../standard/path/resolve"
+
 export type { Template } from "source_loader_host"

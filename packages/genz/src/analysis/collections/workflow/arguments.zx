@@ -2,12 +2,14 @@ import { writeCollectionElement } from "ast_rows"
 import host from "lowering_host"
 
 import bindOperand from "../../aggregate/execute/bind_operand"
+import items from "./argument_items"
 import { unused_expression } from "./const"
 import { CollectionKind } from "./model"
 
 import type { Arguments, Input as Request } from "./model"
 
-export type Input = Request.Pick("ast", "kind", "arguments", "source_type")
+export type Input =
+    Request.Pick("ast", "kind", "arguments", "source_type", "expression_types")
 
 export type Output = Arguments
 
@@ -43,7 +45,12 @@ export default function (in: Input): Output {
             value: replacement
         })
 
-        const third = host.readListItems(ast.lower, replacement_id, value)
+        const third = items({
+            ast,
+            expression_types: in.expression_types,
+            origin: replacement_id,
+            value
+        })
 
         return {
             first,
@@ -71,7 +78,12 @@ export default function (in: Input): Output {
                     source_type,
                     bound
                 ),
-            _ => host.readListItems(ast.lower, id, bound)
+            _ => items({
+                ast,
+                expression_types: in.expression_types,
+                origin: id,
+                value: bound
+            })
         }
 
         return {

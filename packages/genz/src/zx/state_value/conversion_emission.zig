@@ -89,7 +89,7 @@ fn prepare(self: *Lower, temporary: std.mem.Allocator, id: ir.TypeId, value: nod
     const resources: Resources = .{
         .frame = view.frame,
         .types = &tables,
-        .children = self.program.types.first,
+        .table = zx.columns.pointer(@FieldType(Resources, "table"), &types),
         .referenced = self.state_plan.borrowed,
     };
 

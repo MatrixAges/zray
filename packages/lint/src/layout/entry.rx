@@ -51,10 +51,18 @@
             />
 
             <Call
+                fn="line_ending"
+                in={$in.pick([
+                    "source",
+                    "newline"
+                ])}
+            />
+
+            <Call
                 fn="render_edits"
                 in={{
                     edits: $ctx.edits,
-                    newline: $in.newline
+                    newline: $ctx.line_ending
                 }}
             />
 

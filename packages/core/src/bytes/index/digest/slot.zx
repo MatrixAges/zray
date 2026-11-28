@@ -34,7 +34,7 @@ export default function (in: Input): Output {
     }, {
         while: state => !state.done,
         next: state => {
-            const entry = memory.readU32View(buckets, state.slot)
+            const entry = buckets[state.slot]
 
             if (entry == 0) {
                 state.done = true

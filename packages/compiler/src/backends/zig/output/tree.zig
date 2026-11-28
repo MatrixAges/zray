@@ -4,7 +4,7 @@ const ledger = @import("../output.zig");
 const partition = @import("../partition.zig");
 const layout = @import("../partition/build.zig");
 const Bundle = @import("../library.zig").Bundle;
-const File = @import("../partition/placement.zig").File;
+const File = @import("../partition.zig").File;
 const available = ledger.available;
 
 pub fn write(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocator, output: []const u8, bundle: Bundle, partitions: u32) !void {

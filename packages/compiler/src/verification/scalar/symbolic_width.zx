@@ -1,18 +1,29 @@
 import { max_u64 } from "core/const"
-import { scalar_bool } from "core/type_table/const"
+import {
+    scalar_bool,
+    scalar_u8,
+    scalar_u16,
+    scalar_u32,
+    scalar_u64,
+    scalar_i32,
+    scalar_i64
+} from "core/type_table/const"
 
-import numeric from "./numeric"
+import { bits_byte, bits_short, bits_word, bits_long } from "./const"
 
 export type Input = u32
 
 export type Output = u64
 
 export default function (in: Input): Output {
-    if (in == scalar_bool) {
-        return 0
+    return match in {
+        scalar_bool => 0,
+        scalar_u8 => bits_byte,
+        scalar_u16 => bits_short,
+        scalar_u32 => bits_word,
+        scalar_i32 => bits_word,
+        scalar_u64 => bits_long,
+        scalar_i64 => bits_long,
+        _ => max_u64
     }
-
-    const traits = numeric(in)
-
-    return traits.width == 0 ? max_u64 : traits.width
 }

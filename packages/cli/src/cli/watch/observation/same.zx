@@ -1,24 +1,7 @@
 import bytes from "std:bytes"
+import { FactKind } from "snapshot_host"
 
-export enum Kind {
-    Missing,
-    Failed,
-    Other,
-    File,
-    Directory
-}
-
-export type State = {
-    kind: Kind,
-    tag: u32,
-    digest: u8[],
-    physical_path: string
-}
-
-export type Input = {
-    left: State,
-    right: State
-}
+import type { Comparison as Input } from "snapshot_host"
 
 export type Output = bool
 
@@ -30,9 +13,9 @@ export default function (in: Input): Output {
     }
 
     return match left.kind {
-        Kind.Missing => true,
-        Kind.Failed => left.tag == right.tag,
-        Kind.Other => left.tag == right.tag,
+        FactKind.Missing => true,
+        FactKind.Failed => left.tag == right.tag,
+        FactKind.Other => left.tag == right.tag,
         _ => bytes.equals(left.digest, right.digest) &&
             left.physical_path == right.physical_path
     }

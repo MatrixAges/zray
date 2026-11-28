@@ -121,7 +121,20 @@
             </If>
 
             <Call fn="index.flush" in={$in.watch} />
-            <Call fn="index.restart" in={$in.watch} />
+
+            <Call module="application/restart" in={$in.watch} />
+
+            <If on={$ctx.restart != null}>
+                <Call
+                    fn="index.writeWatchNotice"
+                    in={[
+                        $in.watch,
+                        "zxc watch: application start: ",
+                        $ctx.restart,
+                        false
+                    ]}
+                />
+            </If>
         </If>
     </If>
 

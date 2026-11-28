@@ -74,6 +74,10 @@ export type Scope = Root & {
     canonical_root: string
 }
 
+export type PhysicalInput = Scope.Pick("collection", "canonical_root", "separator") & {
+    path: string
+}
+
 export type SeedBundleStep = Scope & {
     bundle_files: string[],
     issue?: Issue,

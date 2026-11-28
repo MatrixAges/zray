@@ -26,7 +26,9 @@ export type AddInput = {
     backend_input: bool
 }
 
-export type RecordInput = AddInput.Pick("registration", "path")
+export type RecordInput = AddInput.Pick("registration", "path") & {
+    bytes: u8[]
+}
 
 export enum Admission {
     Unchanged,

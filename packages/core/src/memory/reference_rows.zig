@@ -38,18 +38,6 @@ pub inline fn byteRange(source: *const anyopaque, first: u64, end: u64, width: u
     return list.ptr[start..][0..length];
 }
 
-pub fn Span(comptime T: type) type {
-    return struct {
-        pub inline fn read(source: *const anyopaque, first: u64, end: u64) IndexError![]const T {
-            const list: *const []const T = @ptrCast(@alignCast(source));
-
-            if (first > end or end > list.len) return error.IndexOutOfBounds;
-
-            return list.*[@intCast(first)..@intCast(end)];
-        }
-    };
-}
-
 pub inline fn nested(source: anytype, row: u64, offset: u64) IndexError!@TypeOf(source) {
     return @ptrCast(try field(Rows, try at(source, row), offset));
 }

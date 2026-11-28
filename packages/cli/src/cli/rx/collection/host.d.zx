@@ -25,12 +25,10 @@ export type FileRead = {
     problem: string
 }
 
-export declare function registerCollectionEntry(collection: Collection, kind: Kind): bool throws { SourceLoadFailure }
-
-export declare function selectCollectionPath(collection: Collection, row: u64): string? throws { SourceLoadFailure }
+export declare function selectCollectionPath(collection: Collection, row: u64, first: string): string? throws { SourceLoadFailure }
 export declare function resolveCollectionPhysicalPath(collection: Collection): PhysicalResolution throws { SourceLoadFailure }
 export declare function readCollectionFile(collection: Collection, retained: bool): FileRead throws { SourceLoadFailure }
-export declare function writeCollectionDiagnostic(collection: Collection, message: string): void throws { SourceLoadFailure }
+export declare function writeCollectionDiagnostic(collection: Collection, path: string, message: string): void throws { SourceLoadFailure }
 
 export declare function collectZxReferences(collection: Collection): void throws { SourceLoadFailure }
 export declare function recordCollectionZx(collection: Collection): void throws { SourceLoadFailure }

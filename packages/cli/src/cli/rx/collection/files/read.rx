@@ -14,6 +14,7 @@
             in={{
                 collection: $in.collection,
                 kind: $in.kind,
+                path: $in.path,
                 first: $in.first,
                 availability: $ctx.resolveCollectionPhysicalPath.availability,
                 problem: $ctx.resolveCollectionPhysicalPath.problem
@@ -30,6 +31,7 @@
             fn="../index.writeCollectionDiagnostic"
             in={[
                 $in.collection,
+                $in.path,
                 $ctx.escape_diagnostic
             ]}
         />
@@ -61,6 +63,7 @@
             fn="../index.writeCollectionDiagnostic"
             in={[
                 $in.collection,
+                $in.path,
                 $ctx.alias_message
             ]}
         />
@@ -82,6 +85,7 @@
             in={{
                 collection: $in.collection,
                 kind: $in.kind,
+                path: $in.path,
                 first: $in.first,
                 availability: $ctx.readCollectionFile.availability,
                 problem: $ctx.readCollectionFile.problem

@@ -1,4 +1,4 @@
-import type { Input as Layout, Output as LayoutPlan } from "../layout/model"
+import type { Input as Layout, Root } from "../layout/model"
 import type { State, Output as Placement } from "../placement/model"
 import type { Batch, Status } from "../scanning/model"
 
@@ -11,6 +11,6 @@ export type Input = Layout.Omit("top_callees", "top_variants") & {
 
 export type Output = {
     status: Status,
-    layout?: LayoutPlan.Pick("roots", "placement"),
+    roots?: Root[],
     files?: Placement
 }

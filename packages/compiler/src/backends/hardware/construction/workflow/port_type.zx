@@ -3,7 +3,7 @@ import { scalar_bool } from "core/type_table/const"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 
-import numeric from "../../../../verification/scalar/numeric"
+import integerTraits from "../../../../verification/scalar/integer_traits"
 
 import type { Ports } from "../../../../verification/execution/program/model"
 
@@ -40,7 +40,7 @@ export default function (in: Input): Output {
     }
 
     return {
-        ...numeric(scalar),
+        ...integerTraits(scalar),
         boolean: false
     }
 }

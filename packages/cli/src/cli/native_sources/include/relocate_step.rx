@@ -26,10 +26,9 @@
 
         <If on={$ctx.find}>
             <Call
-                fn="../index.includeFiles"
+                fn="../index.readBundle"
                 in={[
                     $in.collection,
-                    $in.root,
                     $ctx.target.absolute
                 ]}
             />
@@ -37,7 +36,8 @@
             <Call
                 fn="all_seen"
                 in={{
-                    files: $ctx.includeFiles,
+                    root: $in.root,
+                    files: $ctx.readBundle,
                     seen: $in.seen
                 }}
             />

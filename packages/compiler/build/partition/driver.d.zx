@@ -1,27 +1,5 @@
 export type PartitionHash = opaque
 
-export type PartitionHashPrefix = {
-    prefix: PartitionHash,
-    executable: string,
-    arguments: string[],
-    types?: u64,
-    signatures?: u64
-}
-
-export type PartitionMember = {
-    partition: u32,
-    row: u32
-}
-
-export type PartitionMemberRange = {
-    prefix: PartitionHash,
-    paths: string[],
-    hashes: u64[],
-    members: PartitionMember[],
-    first: u64,
-    end: u64
-}
-
 export type PartitionStateFile = {
     path: u8[],
     previous: u8[]
@@ -34,10 +12,10 @@ export type PartitionCompilation = {
     indexed: u32[]
 }
 
-export declare function startPartitionHash(
+export declare function extendPartitionHash(
     allocator,
-    io,
-    in: PartitionHashPrefix
+    prefix: PartitionHash,
+    encoded: u8[]
 ): PartitionHash throws
 
 export declare function hashExternalInput(
@@ -47,9 +25,10 @@ export declare function hashExternalInput(
     path: string
 ): PartitionHash throws
 
-export declare function hashPartitionMembers(
+export declare function digestPartitionKey(
     allocator,
-    in: PartitionMemberRange
+    prefix: PartitionHash,
+    encoded: u8[]
 ): u8[] throws
 
 export declare function loadPartitionState(
@@ -58,8 +37,6 @@ export declare function loadPartitionState(
     objects: string,
     state_file: string
 ): PartitionStateFile throws
-
-export declare function partitionObjectPresent(io, path: string): bool
 
 export declare function compilePartitionObjects(
     allocator,

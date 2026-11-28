@@ -1,40 +1,40 @@
 import integers from "std:integer"
 
 import type { Scope } from "../demand/model"
-import type { Job, State, StubsOutput } from "./model"
+import type { Output as Publication, State } from "./model"
 
-export type Input = {
-    files: State,
+export type Input = Publication & {
+    originals: State,
     scope: Scope,
     prefix: string,
-    use_prefix: bool,
-    first_destination: u64,
-    paths: string[],
-    jobs: Job[]
+    use_prefix: bool
 }
 
-export type Output = StubsOutput
+export type Output = Publication
 
 export default function (in: Input): Output {
     const demand = in.scope.stubs
 
     return loop({
         index: 0,
-        paths: in.paths,
+        files: in.files,
         jobs: in.jobs
     }, {
         while: state => state.index < demand.callees.length,
         next: state => {
             const index = state.index
             const callee = demand.callees[index]
-            const name = in.files.paths[integers.widen(callee)]
+            const name = in.originals.paths[integers.widen(callee)]
             const path = match in.use_prefix {
                 true => `${in.prefix}${name}`,
                 _ => name
             }
-            const destination = in.first_destination + index
+            const destination = state.files.length
 
-            state.paths = state.paths.push(path)[0]
+            state.files = state.files.push({
+                path,
+                source: ""
+            })[0]
             state.jobs = state.jobs.push({
                 destination,
                 index: callee,
@@ -45,7 +45,7 @@ export default function (in: Input): Output {
             state.index += 1
         },
         return: state => state.pick([
-            "paths",
+            "files",
             "jobs"
         ])
     })

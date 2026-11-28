@@ -6,7 +6,7 @@
     <Call fn="diagnostic" in={$in.messages[$in.row]} />
 
     <If on={$ctx.diagnostic != null}>
-        <Call fn="host.writeStderr" in={$ctx.diagnostic} />
+        <Call fn="effects.writeStderr" in={$ctx.diagnostic} />
     </If>
 
     <Return

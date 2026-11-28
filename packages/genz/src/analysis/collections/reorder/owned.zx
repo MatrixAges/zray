@@ -31,7 +31,6 @@ export default function (in: Input): Output {
 
     const storage = proven({
         state: unique.state,
-        ast: in.source.ast,
         header: header.id,
         unique: unique.id
     })

@@ -17,7 +17,7 @@ pub const State = struct {
     cache: *compiler.project.ParseCache = undefined,
     libraries: ?Libraries = null,
     texts: ?Text.Cache = null,
-    active: compiler.project.Options = undefined,
+    active: ?compiler.project.Options = null,
     detected: []const compiler.project.Source = &.{},
     pub fn deinit(self: *State) void {
         if (self.texts) |*texts| texts.deinit();
@@ -77,44 +77,47 @@ pub fn beginLibraryAnalysis(handle: *const anyopaque) Error!void {
     self.texts = .{ .allocator = owned };
 }
 
-pub fn selectLibraryExport(handle: *const anyopaque, index: u64) Error![]const u8 {
+pub fn readLibraryDependencies(handle: *const anyopaque, path: []const u8) Error!bool {
     const self = effects.state(State, handle);
-    const exported = self.exports()[@intCast(index)];
     var project = self.options.loaded.project;
-    project.entry = std.fs.path.resolve(self.memory(), &.{ project.root_dir, exported.source }) catch |err| return self.failure.save(err);
-    self.active = project;
+    project.entry = self.memory().dupe(u8, path) catch |err| return self.failure.save(err);
 
-    self.module().name = exported.path;
-
-    return self.active.entry;
-}
-
-pub fn readLibraryDependencies(handle: *const anyopaque) Error!bool {
-    const self = effects.state(State, handle);
     const options = self.options;
-    const stored = @import("../../sources.zig").readLibrary(options.io, self.memory(), self.active, self.cache, options.inputs, &self.libraries.?, &self.texts.?) catch |err| return self.failure.save(err);
+    const stored = @import("../../sources.zig").readLibrary(options.io, self.memory(), project, self.cache, options.inputs, &self.libraries.?, &self.texts.?) catch |err| return self.failure.save(err);
 
-    self.active.compiled_libraries = self.libraries.?.libraries.items;
+    project.compiled_libraries = self.libraries.?.libraries.items;
+    self.active = project;
     self.detected = stored.sources;
 
     return stored.has_rx;
 }
 
-pub fn inferLibraryRx(handle: *const anyopaque) Error!bool {
+pub fn inferLibraryRx(handle: *const anyopaque, name: []const u8, path: []const u8) Error!bool {
     const self = effects.state(State, handle);
     const options = self.options;
     const module = self.module();
 
+    const project = self.active orelse direct: {
+        var direct = options.loaded.project;
+
+        direct.entry = self.memory().dupe(u8, path) catch |err| return self.failure.save(err);
+
+        break :direct direct;
+    };
+
+    self.active = null;
+
     const prepared = (@import("../../rx/analyze.zig").run(self.memory(), .{
         .io = options.io,
-        .project = self.active,
+        .project = project,
         .writer = options.writer,
         .parse_cache = self.cache,
         .inputs = options.inputs,
-        .exports = &.{.{ .name = module.name, .path = self.active.entry }},
+        .exports = &.{.{ .name = name, .path = project.entry }},
         .texts = &self.texts.?,
     }) catch |err| return self.failure.save(err)) orelse return false;
 
+    module.name = name;
     module.analysis = prepared.analysis;
     module.sources = prepared.sources;
     module.store_definitions = prepared.store_definitions;
@@ -122,11 +125,13 @@ pub fn inferLibraryRx(handle: *const anyopaque) Error!bool {
     return true;
 }
 
-pub fn inferLibraryZx(handle: *const anyopaque) Error!void {
+pub fn inferLibraryZx(handle: *const anyopaque, name: []const u8) Error!void {
     const self = effects.state(State, handle);
     const module = self.module();
 
-    module.analysis = compiler.analyzeProjectWithCache(self.memory(), self.detected, self.active, self.cache) catch |err| return self.failure.save(err);
+    module.name = name;
+    module.analysis = compiler.analyzeProjectWithCache(self.memory(), self.detected, self.active.?, self.cache) catch |err| return self.failure.save(err);
+    self.active = null;
     module.sources = self.detected;
     module.store_definitions = &.{};
 }

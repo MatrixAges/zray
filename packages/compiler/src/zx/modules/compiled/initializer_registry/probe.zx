@@ -46,7 +46,7 @@ export default function (in: Input): Output {
             const entry = match {
                 buckets != null => integers.widen(buckets[slot]),
                 item != null => registry.count + item + 1,
-                _ => integers.widen(memory.readU32View(registry.buckets, slot))
+                _ => integers.widen(registry.buckets[slot])
             }
             const matches = match {
                 entry == 0 => true,

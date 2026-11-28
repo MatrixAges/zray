@@ -7,13 +7,8 @@ import { Key } from "./model"
 import type { Output as Specifier } from "../specifier"
 import type { Query } from "./model"
 
-export type Request = {
+export type Input = {
     owner: string,
-    name: string,
-    requirement: string
-}
-
-export type Input = Request.Omit("requirement") & {
     root?: string,
     spec: Specifier
 }
@@ -21,7 +16,7 @@ export type Input = Request.Omit("requirement") & {
 export type Output = Query
 
 export default function (in: Input): Output {
-    const { spec, name, owner, root } = in
+    const { spec, owner, root } = in
 
     const path = spec.path
 
@@ -58,7 +53,7 @@ export default function (in: Input): Output {
 
     return {
         kind: Key.Name,
-        value: spec.alias ?? name,
+        value: spec.name ?? "",
         owner,
         range: spec.range
     }

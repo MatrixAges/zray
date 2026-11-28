@@ -44,7 +44,7 @@ pub fn attributeRequired(source: []const u8, level: usize, prefix: usize) bool {
     return output.required;
 }
 
-pub fn format(allocator: std.mem.Allocator, source: []const u8, projection: ProjectionData, options: Options, newline: []const u8) std.mem.Allocator.Error![]u8 {
+pub fn format(allocator: std.mem.Allocator, source: []const u8, projection: ProjectionData, options: Options, newline: ?[]const u8) std.mem.Allocator.Error![]u8 {
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();

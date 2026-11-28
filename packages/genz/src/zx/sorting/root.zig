@@ -14,6 +14,8 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.Transform) Error!node.Expres
     if (!@import("genz_options").generated_analysis) return @import("root_seed.zig").lower(self, id, value);
 
     const entry = @import("generated_execute_sort");
+    const Input = std.meta.Child(entry.Input);
+    const Elements = std.meta.Child(@FieldType(Input, "elements"));
     var scratch: std.heap.ArenaAllocator = .init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory: std.heap.BufferFirstAllocator = .init(&buffer, scratch.allocator());
@@ -26,7 +28,10 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.Transform) Error!node.Expres
 
     defer body.deinit();
 
-    const input: std.meta.Child(entry.Input) = .{
+    var types: std.meta.Child(@FieldType(Elements, "types")) = undefined;
+    const elements = @import("../state_value/element_emission.zig").borrowSource(Elements, self, &types);
+
+    const input: Input = .{
         .id = @backingInt(id),
         .writer = @ptrCast(self),
         .lower = @ptrCast(self),
@@ -34,6 +39,7 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.Transform) Error!node.Expres
         .target = @backingInt(value.target),
         .environment = @backingInt(value.initial.?),
         .list_type = @backingInt(list_type),
+        .elements = &elements,
         .selected = lists.selected(self, list_type),
         .reusable = self.plan.get(id).in_place,
         .errors = errors,

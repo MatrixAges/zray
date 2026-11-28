@@ -25,10 +25,29 @@
     </If>
 
     <Call
+        module="physical"
+        in={{
+            collection: $in.collection,
+            canonical_root: $in.canonical_root,
+            separator: $in.separator,
+            path: $ctx.resolve.path
+        }}
+    />
+
+    <If on={$ctx.physical.issue != null}>
+        <Return
+            value={{
+                ...$in,
+                running: false,
+                issue: $ctx.physical.issue
+            }}
+        />
+    </If>
+
+    <Call
         fn="../index.readBundle"
         in={[
             $in.collection,
-            $in.canonical_root,
             $ctx.resolve.path
         ]}
     />

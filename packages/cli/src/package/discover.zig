@@ -74,9 +74,14 @@ pub fn find(state: *Project) !Result {
     return search.result;
 }
 
-pub fn readCandidate(handle: *const anyopaque, path: []const u8) Error!Probe {
+pub fn readCandidate(handle: *const anyopaque, path: []const u8, keep_previous: bool) Error!Probe {
     const project = Project.get(handle);
     const self = &project.search;
+
+    if (keep_previous) {
+        self.nearest = self.candidate;
+        self.candidate = null;
+    }
 
     self.discardProbe();
 
@@ -108,14 +113,6 @@ pub fn readCandidate(handle: *const anyopaque, path: []const u8) Error!Probe {
             return if (data.workspace == null) .Package else .Workspace;
         },
     }
-}
-
-pub fn rememberCandidate(handle: *const anyopaque) void {
-    const project = Project.get(handle);
-    const self = &project.search;
-
-    self.nearest = self.candidate;
-    self.candidate = null;
 }
 
 fn selectCandidate(self: *Search, selected: *?Candidate) void {

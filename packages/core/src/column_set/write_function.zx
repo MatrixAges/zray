@@ -17,7 +17,7 @@ export default function (in: Input): Output {
 
     writeCells({
         storage,
-        row: columns.borrowFunctionRecord(row, null),
+        row: columns.borrowFunctionRecord(row),
         layout: columns.functionRowLayout(null, null),
         index
     })

@@ -1,4 +1,3 @@
-import appendFiles from "./append_files"
 import bodyGroup from "./body_group"
 
 import type { Scope } from "../demand/model"
@@ -6,6 +5,7 @@ import type { File, State } from "./model"
 
 export type Input = {
     files: State,
+    bodies: File[],
     prefixes: string[],
     scopes: Scope[]
 }
@@ -13,26 +13,20 @@ export type Input = {
 export type Output = File[]
 
 export default function (in: Input): Output {
-    const empty: File[] = []
-
     return loop({
         scope: 0,
-        files: empty
+        files: in.bodies
     }, {
         while: state => state.scope < in.scopes.length,
         next: state => {
             const present = state.scope < in.prefixes.length
             const prefix = present ? in.prefixes[state.scope] : ""
 
-            const items = bodyGroup({
+            state.files = bodyGroup({
                 files: in.files,
+                output: state.files,
                 rows: in.scopes[state.scope].copies,
                 prefix
-            })
-
-            state.files = appendFiles({
-                target: state.files,
-                items
             })
             state.scope += 1
         },

@@ -41,11 +41,12 @@ pub fn write(request: Request) ![]const inventory.File {
         .files = &state.files,
         .resources = &.{
             .resources = @ptrCast(&stage_ref),
+            .directory = request.directory,
             .setup = &paths.setup,
             .modules = &native_columns.view,
             .count = modules.len,
         },
-    }) catch |err| return failure.unwrap(err);
+    }, request.io) catch |err| return failure.unwrap(err);
 
     return state.managed;
 }

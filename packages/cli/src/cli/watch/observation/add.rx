@@ -25,11 +25,13 @@
                 fn="index.publishObservation"
                 in={[
                     $in.registration,
-                    $ctx.openRegistration.directory_entries,
-                    $ctx.openRegistration.consumed,
-                    true,
-                    false,
-                    false
+                    {
+                        directory_entries: $ctx.openRegistration.directory_entries,
+                        consumed: $ctx.openRegistration.consumed,
+                        consistent: true,
+                        backend_preloaded: false,
+                        update_state: false
+                    }
                 ]}
             />
         </If>
@@ -45,11 +47,13 @@
                 fn="index.publishObservation"
                 in={[
                     $in.registration,
-                    false,
-                    false,
-                    true,
-                    false,
-                    true
+                    {
+                        directory_entries: false,
+                        consumed: false,
+                        consistent: true,
+                        backend_preloaded: false,
+                        update_state: true
+                    }
                 ]}
             />
 
@@ -72,11 +76,14 @@
             fn="index.publishObservation"
             in={[
                 $in.registration,
-                $in.directory_entries,
-                $ctx.openRegistration.consumed,
-                $ctx.comparePrevious,
-                $ctx.openRegistration.backend_preloaded && !$in.backend_input,
-                true
+                {
+                    directory_entries: $in.directory_entries,
+                    consumed: $ctx.openRegistration.consumed,
+                    consistent: $ctx.comparePrevious,
+                    backend_preloaded:
+                        $ctx.openRegistration.backend_preloaded && !$in.backend_input,
+                    update_state: true
+                }
             ]}
         />
 
@@ -87,11 +94,14 @@
         fn="index.publishObservation"
         in={[
             $in.registration,
-            $in.directory_entries,
-            false,
-            $ctx.readCurrent || !$ctx.openRegistration.existing,
-            $ctx.openRegistration.backend_preloaded && !$in.backend_input,
-            true
+            {
+                directory_entries: $in.directory_entries,
+                consumed: false,
+                consistent: $ctx.readCurrent || !$ctx.openRegistration.existing,
+                backend_preloaded:
+                    $ctx.openRegistration.backend_preloaded && !$in.backend_input,
+                update_state: true
+            }
         ]}
     />
 

@@ -6,11 +6,10 @@ pub const initializer = @import("initializer.zig");
 
 pub fn range(comptime Target: type, earlier: *const ir.FunctionTable, current: *const ir.FunctionStorage, first: usize, end: usize) Target {
     const Layout = std.meta.Child(@FieldType(Target, "layout"));
-    const Native = std.meta.Child(@FieldType(Layout, "native"));
     const Bodies = std.meta.Child(@FieldType(Layout, "bodies"));
     const Header = std.meta.Child(@FieldType(Layout, "headers"));
     const Groups = std.meta.Child(@FieldType(Bodies, "columns"));
-    const Offsets = std.meta.Child(@FieldType(Native, "members"));
+    const Offsets = std.meta.Child(@FieldType(Layout, "contract_offsets"));
     const Contract = std.meta.Child(@FieldType(Layout, "contract"));
     const groups = referenced.groups;
 
@@ -34,16 +33,8 @@ pub fn range(comptime Target: type, earlier: *const ir.FunctionTable, current: *
             .current_offsets = &offsets[1],
             .columns = columns.groups(Groups, groups),
         };
-        const native: Native = .{
-            .members = &columns.offsets(Offsets, "native_members"),
-            .exports = &columns.offsets(Offsets, "native_exports"),
-            .errors = &columns.offsets(Offsets, "native_errors"),
-            .inputs = &columns.offsets(Offsets, "native_inputs"),
-        };
-
         const layout: Layout = .{
             .headers = columns.headers(Header),
-            .native = &native,
             .bodies = &bodies,
             .contract = referenced.contractLayout(Contract),
             .contract_offsets = &columns.offsets(Offsets, "contracts"),
@@ -53,6 +44,20 @@ pub fn range(comptime Target: type, earlier: *const ir.FunctionTable, current: *
     return .{
         .earlier = @ptrCast(earlier),
         .current = @ptrCast(current),
+        .earlier_files = earlier.files,
+        .current_files = current.files.items,
+        .earlier_native_modules = earlier.native_modules,
+        .current_native_modules = current.native_modules.items,
+        .earlier_roots = earlier.roots,
+        .current_roots = current.roots.items,
+        .earlier_members = earlier.native_members,
+        .current_members = current.native_members.items,
+        .earlier_exports = earlier.native_exports,
+        .current_exports = current.native_exports.items,
+        .earlier_errors = earlier.native_errors,
+        .current_errors = current.native_errors.items,
+        .earlier_inputs = earlier.native_inputs,
+        .current_inputs = current.native_inputs.items,
         .first = first,
         .end = end,
         .layout = &Static.layout,

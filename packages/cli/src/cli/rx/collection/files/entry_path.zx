@@ -1,0 +1,83 @@
+import bytes from "std:bytes"
+import strings from "std:string"
+import { ascii_backslash, ascii_colon, ascii_null, ascii_slash } from "core/ascii/const"
+
+import append from "../../../standard/path/append"
+import parseRoot from "../../../standard/path/root"
+import { gateway_suffix, parent_component, store_suffix } from "../const"
+import { Kind } from "../index"
+
+export type Input = {
+    path: string,
+    kind: Kind
+}
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const { kind, path } = in
+
+    if (kind == Kind.Zx) {
+        return path
+    }
+
+    const text = bytes.fromText(path)
+
+    if (text.length == 0) {
+        return null
+    }
+
+    const rooted = text[0] == ascii_slash || text[text.length - 1] == ascii_slash
+
+    const invalid = bytes.count(text, ascii_backslash) != 0 ||
+        bytes.count(text, ascii_colon) != 0 || bytes.count(text, ascii_null) != 0
+
+    if (rooted || invalid) {
+        return null
+    }
+
+    const slash = bytes.lastIndexOfScalar(text, ascii_slash)
+
+    const start: u64 = match {
+        slash != null => slash + 1,
+        _ => 0
+    }
+
+    const suffix = match kind {
+        Kind.Gateway => gateway_suffix,
+        Kind.Store => store_suffix,
+        _ => ".rx"
+    }
+
+    const length = text.length - start
+
+    const application = length == "app.rx".length &&
+        bytes.startsWithText(text, start, "app.rx")
+
+    if (length <= suffix.length || application) {
+        return null
+    }
+
+    if (!bytes.startsWithText(text, text.length - suffix.length, suffix)) {
+        return null
+    }
+
+    const parts = append([
+        [],
+        {
+            path,
+            root: parseRoot([
+                path,
+                false
+            ])
+        },
+        false,
+        false
+    ])
+
+    if (parts.length > 0 && parts[0] == parent_component) {
+        return null
+    }
+
+    return strings.join("/", parts)
+}

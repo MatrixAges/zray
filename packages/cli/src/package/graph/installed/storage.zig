@@ -44,12 +44,6 @@ pub fn openMapping(allocator: std.mem.Allocator, handle: *const anyopaque, root:
     return view;
 }
 
-pub fn canonical(allocator: std.mem.Allocator, handle: *const anyopaque, path: []const u8) host.Error![]const u8 {
-    const self = host.Context.get(handle);
-
-    return std.Io.Dir.cwd().realPathFileAlloc(self.io, path, allocator) catch |err| self.fail(err);
-}
-
 pub fn verifyReceipt(allocator: std.mem.Allocator, handle: *const anyopaque, parent: []const u8, digest: []const u8) host.Error!void {
     const self = host.Context.get(handle);
     const io = self.io;

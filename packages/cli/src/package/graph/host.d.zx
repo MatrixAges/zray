@@ -34,9 +34,6 @@ export declare function openLock(allocator, graph: GraphIO, root: string): bool?
 export declare function openMapping(allocator, graph: GraphIO, root: string): Mapping?
     throws { PackageGraphHostFailure }
 
-export declare function canonical(allocator, graph: GraphIO, path: string): string
-    throws { PackageGraphHostFailure }
-
 export declare function verifyReceipt(allocator, graph: GraphIO, directory: string, digest: string): void
     throws { PackageGraphHostFailure }
 

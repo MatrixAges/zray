@@ -1,5 +1,4 @@
 import type { Index } from "core/integer/wide_index/model"
-import type { U32View } from "memory"
 import type { Functions } from "../../../ir/compare/linked/model"
 import type { Source } from "../../link/source/initializers/model"
 
@@ -26,7 +25,7 @@ export type Range = {
 
 export type Storage = {
     published: Source,
-    buckets: U32View,
+    buckets: u32[],
     capacity: u64,
     count: u64
 }

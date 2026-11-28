@@ -1,0 +1,27 @@
+import { readTextColumn } from "memory"
+
+import resolvePathParts from "../../standard/path/resolve"
+
+import type {
+    Entry as Output,
+    Exports
+} from "./model"
+
+export type Input = {
+    exports: Exports,
+    index: u64
+}
+
+export default function (in: Input): Output {
+    const { exports, index } = in
+
+    const path = readTextColumn(exports.sources, index)
+
+    return {
+        name: readTextColumn(exports.names, index),
+        path: resolvePathParts([
+            exports.root,
+            path
+        ])
+    }
+}

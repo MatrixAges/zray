@@ -1,0 +1,18 @@
+import crypto from "std:crypto"
+import { FactKind } from "snapshot_host"
+
+import type { Fact as Output } from "snapshot_host"
+
+export type Input = {
+    bytes: u8[],
+    physical_path: string
+}
+
+export default function (in: Input): Output {
+    return {
+        kind: FactKind.File,
+        tag: 0,
+        digest: crypto.sha256(in.bytes),
+        physical_path: in.physical_path
+    }
+}

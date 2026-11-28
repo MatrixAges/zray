@@ -4,11 +4,19 @@
     <Args in={Model.Copy} out={Model.Copy} />
 
     <Call
-        fn="../index.copyStagedFile"
+        fn="relative_source"
+        in={{
+            target: $in.paths[$in.index],
+            prefix: $in.prefix
+        }}
+    />
+
+    <Call
+        fn="../index.copyDirectoryFile"
         in={[
             $in.directory,
-            $in.paths[$in.index],
-            $in.prefix
+            $ctx.relative_source,
+            $in.paths[$in.index]
         ]}
     />
 

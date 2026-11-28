@@ -48,7 +48,6 @@ export default function (in: Input): Output {
 
     const storage = choose({
         state: header.state,
-        ast: in.source.ast,
         condition: header.id,
         yes: Storage.Shared,
         no: Storage.Plain

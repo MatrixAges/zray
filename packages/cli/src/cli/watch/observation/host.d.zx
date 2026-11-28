@@ -1,18 +1,40 @@
 export type Observation = opaque
 export type Registration = opaque
-export type Directory = opaque
+export enum FactKind {
+    Missing,
+    Failed,
+    Other,
+    File,
+    Directory
+}
 
-export type DirectoryEntry = {
-    name: string,
-    is_directory: bool,
-    kind_tag: u8
+export type Fact = {
+    kind: FactKind,
+    tag: u32,
+    digest: u8[],
+    physical_path: string
+}
+
+export type Comparison = {
+    left: Fact,
+    right: Fact
+}
+
+export type Publication = {
+    directory_entries: bool,
+    consumed: bool,
+    consistent: bool,
+    backend_preloaded: bool,
+    update_state: bool,
+    recorded?: Fact
 }
 
 export type Slot = {
     existing: bool,
     consumed: bool,
     directory_entries: bool,
-    backend_preloaded: bool
+    backend_preloaded: bool,
+    prior?: Fact
 }
 
 export enum PathKind {
@@ -28,7 +50,7 @@ export enum Reuse {
 }
 
 export declare function versionMatches(scan: Observation, index: u64): bool throws { ObservationFailure }
-export declare function readRow(scan: Observation, index: u64, versioned: bool): bool throws {
+export declare function readRow(scan: Observation, index: u64, versioned: bool): Comparison throws {
     ObservationFailure
 }
 export declare function acceptVersion(scan: Observation, index: u64): void
@@ -40,10 +62,6 @@ export declare function readDirectory(
 ): void throws { ObservationFailure }
 export declare function readFile(observation: Observation): void throws { ObservationFailure }
 
-export declare function nextDirectoryEntry(directory: Directory): DirectoryEntry? throws {
-    ObservationFailure
-}
-
 export declare function openRegistration(registration: Registration, path: string): Slot throws {
     ObservationFailure
 }
@@ -52,13 +70,8 @@ export declare function readCurrent(registration: Registration, directory_entrie
 export declare function comparePrevious(registration: Registration): bool throws {
     ObservationFailure
 }
-export declare function recordFile(registration: Registration): bool
-export declare function compareRecorded(registration: Registration): bool
+export declare function resolveRecordedPath(registration: Registration): string?
 export declare function publishObservation(
     registration: Registration,
-    directory_entries: bool,
-    consumed: bool,
-    consistent: bool,
-    backend_preloaded: bool,
-    update_state: bool
+    next: Publication
 ): void throws { ObservationFailure }

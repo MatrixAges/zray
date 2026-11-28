@@ -1,0 +1,17 @@
+import os from "std:os"
+import lexical from "lexical_path"
+
+import resolvePosix from "./posix/resolve"
+
+import type { Input as Path } from "./posix/resolve"
+
+export type Input = Path
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return match os.platform() {
+        "win32" => lexical.resolvePathFrom(in.root, in.path),
+        _ => resolvePosix(in)
+    }
+}

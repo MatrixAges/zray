@@ -1,4 +1,4 @@
-import { resolvePathFrom } from "lexical_path"
+import resolvePathParts from "../../../../standard/path/resolve"
 
 export type Input = {
     root: string,
@@ -11,7 +11,10 @@ export default function (in: Input): Output {
     const { root, path } = in
 
     return match {
-        path != null => resolvePathFrom(root, path),
+        path != null => resolvePathParts([
+            root,
+            path
+        ]),
         _ => null
     }
 }

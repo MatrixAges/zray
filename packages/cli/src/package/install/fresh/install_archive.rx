@@ -38,18 +38,12 @@
         ]}
     />
 
-    <Call
-        fn="../effects.canonicalPath"
-        in={[
-            $in.session,
-            $ctx.fetchArchive
-        ]}
-    />
+    <Call fn="../effects.realpath" in={$ctx.fetchArchive} />
 
     <Return
         value={{
             target: $ctx.recordArchive,
-            path: $ctx.canonicalPath
+            path: $ctx.realpath
         }}
     />
 </Module>

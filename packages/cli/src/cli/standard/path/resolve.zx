@@ -1,0 +1,91 @@
+import bytes from "std:bytes"
+import os from "std:os"
+import strings from "std:string"
+import { resolvePathParts as windowsPath } from "lexical_path"
+
+import append from "./append"
+import driveWidth from "./drive_width"
+import { Kind } from "./root_model"
+import select from "./select"
+import slice from "./slice"
+
+export type Input = string[]
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const paths = in
+    const windows = os.platform() == "win32"
+
+    if (windows) {
+        // Windows accepts a single WTF-16 code unit as a drive designator.
+        const examined = loop(0, {
+            while: index =>
+                index < paths.length &&
+                driveWidth(bytes.fromText(paths[index])) <= 1,
+            next: index => {
+                index += 1
+            }
+        })
+
+        if (examined < paths.length) {
+            return windowsPath(paths)
+        }
+    }
+
+    const { root, parts, count } = select([
+        paths,
+        windows
+    ])
+
+    const absolute = root.kind != Kind.Relative && root.kind != Kind.DriveRelative
+    const empty: string[] = []
+
+    const components = loop({
+        count,
+        items: empty
+    }, {
+        while: state => state.count > 0,
+        next: state => {
+            state.count -= 1
+            state.items = append([
+                state.items,
+                parts[state.count],
+                windows,
+                absolute
+            ])
+        },
+        return: state => state.items
+    })
+
+    if (components.length == 0) {
+        return root.prefix == "" ? "." : root.prefix
+    }
+
+    const delimiter = windows ? "\\" : "/"
+
+    if (root.kind == Kind.Relative) {
+        return strings.join(delimiter, components)
+    }
+
+    if (root.kind == Kind.DriveRelative) {
+        const first = `${root.prefix}${components[0]}`
+
+        if (components.length == 1) {
+            return first
+        }
+
+        return strings.join(delimiter, components.splice(0, 1, [first])[0])
+    }
+
+    const prefix = match {
+        root.needs_separator => root.prefix,
+        _ => slice([
+            root.prefix,
+            0,
+            root.prefix.length - 1
+        ])
+    }
+
+    return strings.join(delimiter, components.splice(0, 0, [prefix])[0])
+}

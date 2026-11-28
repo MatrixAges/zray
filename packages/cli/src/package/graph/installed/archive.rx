@@ -13,15 +13,9 @@
         />
 
         <Else>
-            <Call
-                fn="../effects.canonical"
-                in={[
-                    $in.graph,
-                    $in.path
-                ]}
-            />
+            <Call fn="../effects.realpath" in={$in.path} />
 
-            <If on={$ctx.canonical != $in.path}>
+            <If on={$ctx.realpath != $in.path}>
                 <Return
                     value={{
                         status: Project.Status.InvalidPackageInstallation
@@ -43,7 +37,7 @@
                         in={[
                             $in.graph,
                             $in.index,
-                            $ctx.canonical
+                            $ctx.realpath
                         ]}
                     />
 
@@ -59,7 +53,7 @@
                                 value={{
                                     status: Project.Status.Valid,
                                     row: {
-                                        path: $ctx.canonical
+                                        path: $ctx.realpath
                                     }
                                 }}
                             />

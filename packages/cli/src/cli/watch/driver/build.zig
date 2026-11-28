@@ -96,20 +96,6 @@ pub fn adoptPublishedSnapshot(handle: *const anyopaque) bool {
     return true;
 }
 
-pub fn restart(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    @import("cli_source").restart_application.executeIn(self.turn.?.arena.allocator(), @ptrCast(handle)) catch |cause| {
-        const err = if (cause == error.WatchFailure) self.failure.? else cause;
-
-        storage.process.discardPending(self);
-
-        if (err == error.OutOfMemory or err == error.Canceled) return self.fail(err);
-
-        self.stderr.print("zxc watch: application start: {s}\n", .{@errorName(err)}) catch |failure| return self.fail(failure);
-    };
-}
-
 pub fn snapshotEntries(handle: *const anyopaque, slot: storage.SnapshotSlot) Error![]const ObservedEntry {
     const self = State.get(handle);
     const snapshot = self.snapshotSlot(slot).* orelse return &.{};

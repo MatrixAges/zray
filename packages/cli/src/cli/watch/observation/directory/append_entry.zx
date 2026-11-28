@@ -6,7 +6,7 @@ export default function (in: Input, {
     $store
 }): Output {
     $store.state.collected = {
-        names: in.collected.names.push(in.entry.name)[0],
-        tags: in.collected.tags.push(in.entry.kind_tag)[0]
+        names: in.collected.names.push(in.name)[0],
+        tags: in.collected.tags.push(in.tag)[0]
     }
 }

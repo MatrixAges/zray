@@ -46,13 +46,24 @@
     </If>
 
     <Call
-        fn="../index.checkPending"
-        in={[
-            $in.collection,
-            $in.canonical_root,
-            $in.path
-        ]}
+        module="physical"
+        in={{
+            collection: $in.collection,
+            canonical_root: $in.canonical_root,
+            separator: $in.separator,
+            path: $in.path
+        }}
     />
+
+    <If on={$ctx.physical.issue != null}>
+        <Return
+            value={{
+                ...$in.flags,
+                valid: false,
+                issue: $ctx.physical.issue
+            }}
+        />
+    </If>
 
     <Call
         module="load_pending"

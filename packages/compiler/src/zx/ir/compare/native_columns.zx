@@ -1,116 +1,24 @@
-import memory from "memory/columns"
-
 import type { Range as Input } from "./range"
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { earlier, current, first, end } = in
-
-    const native = in.layout.native
-
-    const left_members = memory.readReferenceTextListsRange(
-        memory.readReferenceColumn(
-            earlier,
-            native.members.earlier
-            ,
-            null
-        ),
-        first,
-        end
-    )
-
-    const right_members = memory.readReferenceTextListsRange(
-        memory.readReferenceColumn(
-            current,
-            native.members.current
-            ,
-            null
-        ),
-        first,
-        end
-    )
-
-    const left_exports = memory.readReferenceOptionalTextRange(
-        memory.readReferenceColumn(
-            earlier,
-            native.exports.earlier
-            ,
-            null
-        ),
-        first,
-        end
-    )
-
-    const right_exports = memory.readReferenceOptionalTextRange(
-        memory.readReferenceColumn(
-            current,
-            native.exports.current
-            ,
-            null
-        ),
-        first,
-        end
-    )
-
-    const left_error_lists = memory.readReferenceOptionalTextListsRange(
-        memory.readReferenceColumn(
-            earlier,
-            native.errors.earlier
-            ,
-            null
-        ),
-        first,
-        end
-    )
-
-    const right_error_lists = memory.readReferenceOptionalTextListsRange(
-        memory.readReferenceColumn(
-            current,
-            native.errors.current
-            ,
-            null
-        ),
-        first,
-        end
-    )
-
-    const left_inputs = memory.readReferenceOptionalNamedListsRange(
-        memory.readReferenceColumn(
-            earlier,
-            native.inputs.earlier
-            ,
-            null
-        ),
-        first,
-        end
-    )
-
-    const right_inputs = memory.readReferenceOptionalNamedListsRange(
-        memory.readReferenceColumn(
-            current,
-            native.inputs.current
-            ,
-            null
-        ),
-        first,
-        end
-    )
+    const { first, end } = in
 
     return loop({
-        index: 0,
-        equal: left_members.length == right_members.length
+        index: first,
+        equal: true
     }, {
-        while: row => row.equal && row.index < left_members.length,
+        while: row => row.equal && row.index < end,
         next: row => {
             const i = row.index
-            const lhs = left_members[i]
-            const rhs = right_members[i]
+            const lhs = in.earlier_members[i]
+            const rhs = in.current_members[i]
 
             const members = loop({
                 index: 0,
-                equal: lhs.length == rhs.length && left_exports[i] ==
-                    right_exports[i]
+                equal: lhs.length == rhs.length && in.earlier_exports[i] ==
+                    in.current_exports[i]
             }, {
                 while: item => item.equal && item.index < lhs.length,
                 next: item => {
@@ -120,8 +28,8 @@ export default function (in: Input): Output {
                 return: item => item.equal
             })
 
-            const left_errors = left_error_lists[i]
-            const right_errors = right_error_lists[i]
+            const left_errors = in.earlier_errors[i]
+            const right_errors = in.current_errors[i]
             const errors = match {
                 !members => false,
                 left_errors == null || right_errors == null =>
@@ -140,8 +48,8 @@ export default function (in: Input): Output {
                 })
             }
 
-            const left_names = left_inputs[i]
-            const right_names = right_inputs[i]
+            const left_names = in.earlier_inputs[i]
+            const right_names = in.current_inputs[i]
 
             row.equal = match {
                 !errors => false,

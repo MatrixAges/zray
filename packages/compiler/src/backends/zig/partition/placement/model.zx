@@ -1,6 +1,5 @@
 import type { TextColumn } from "memory"
 import type { Scope } from "../demand/model"
-import type { Placement } from "../layout/model"
 
 export type State = {
     paths: string[],
@@ -20,34 +19,20 @@ export type Job = {
     comptime_entry: bool
 }
 
-export type StubsOutput = {
-    paths: string[],
-    jobs: Job[]
-}
-
-export type RootsOutput = {
-    paths: string[],
-    jobs: Job[]
-}
-
 export type Input = {
     files: State,
     members: u32[][],
-    scopes: Scope[],
-    placement: Placement
+    scopes: Scope[]
 }
 
 export type Output = {
-    bodies: File[],
-    copies: File[],
-    stub_paths: string[],
-    root_paths: string[],
-    stub_jobs: Job[],
-    root_jobs: Job[]
+    files: File[],
+    jobs: Job[]
 }
 
 export type BodyGroup = {
     files: State,
+    output: File[],
     rows: u32[],
     prefix: string
 }

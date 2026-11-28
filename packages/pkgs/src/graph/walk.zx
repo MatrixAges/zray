@@ -12,7 +12,9 @@ export type Output = Result & {
 }
 
 export default function (in: Input): Output {
-    const { ranked, targets } = in
+    const { ranked, targets, initial_marks } = in
+
+    const marks = initial_marks ?? bytes.repeat(in.count, workspace_root)
 
     const initial_heights: u8[] = match {
         ranked => bytes.repeat(in.count, 0),
@@ -24,7 +26,7 @@ export default function (in: Input): Output {
     return loop({
         root: 0,
         completed: 0,
-        marks: in.initial_marks,
+        marks,
         heights: initial_heights,
         nodes: empty_stack,
         cursors: empty_stack,

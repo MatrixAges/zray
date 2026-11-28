@@ -1,0 +1,24 @@
+export type Input = u8[]
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    if (in.length < 2) {
+        return 0
+    }
+
+    const lead = in[0]
+
+    const width: u64 = match {
+        lead < 128 => 1,
+        lead >= 192 && lead < 224 => 2,
+        lead >= 224 && lead < 240 => 3,
+        _ => 0
+    }
+
+    if (width == 0 || width >= in.length) {
+        return 0
+    }
+
+    return in[width] == 58 ? width : 0
+}

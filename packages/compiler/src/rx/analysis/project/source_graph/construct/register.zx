@@ -1,10 +1,10 @@
 import bytes from "std:bytes"
-import lexical from "lexical_path"
 import memory from "memory"
 
 import { store_suffix } from "../../../../../const"
 import { Kind } from "../../../../path_kind/model"
 import normalize from "../../../../path_segments/normalize"
+import resolve from "../resolve_path"
 import zeroes from "../zeroes"
 import { duplicate_path, duplicate_store, invalid_registration } from "./const"
 import probe from "./probe"
@@ -51,10 +51,10 @@ export default function (in: Input): Output {
             }
 
             if (index.issue == null) {
-                const absolute = lexical.resolvePathParts([
+                const absolute = resolve({
                     root,
                     path
-                ])
+                })
 
                 const slot = probe({
                     index: index.pick([

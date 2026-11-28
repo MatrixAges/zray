@@ -8,28 +8,38 @@
     <Call fn="kind" in={$in.entry} />
 
     <Call
-        fn="index.registerCollectionEntry"
+        fn="files/entry_path"
+        in={{
+            path: $in.entry,
+            kind: $ctx.kind
+        }}
+    />
+
+    <If on={$ctx.entry_path != null}>
+        <Loop on={$in.running}>
+            <Call
+                module="walk"
+                in={{
+                    collection: $in.collection,
+                    entry: $ctx.entry_path,
+                    index: 0,
+                    valid: true,
+                    running: true
+                }}
+            />
+        </Loop>
+
+        <Return value={$ctx.walk.valid} />
+    </If>
+
+    <Call
+        fn="index.writeCollectionDiagnostic"
         in={[
             $in.collection,
-            $ctx.kind
+            $in.entry,
+            "invalid RX entry path"
         ]}
     />
 
-    <If on={!$ctx.registerCollectionEntry}>
-        <Return value={false} />
-    </If>
-
-    <Loop on={$in.running}>
-        <Call
-            module="walk"
-            in={{
-                collection: $in.collection,
-                index: 0,
-                valid: true,
-                running: true
-            }}
-        />
-    </Loop>
-
-    <Return value={$ctx.walk.valid} />
+    <Return value={false} />
 </Module>
