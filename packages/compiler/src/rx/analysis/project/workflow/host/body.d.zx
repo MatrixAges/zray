@@ -50,33 +50,3 @@ export declare function appendBodyFunctionEntry(frame: BodyStatements): void
 
 export declare function emitBodyCall(frame: BodyStatements): u32
     throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
-
-export declare function reserveExpressionLink(frame: ExpressionLink, returned: u32?, rows: u32[], bindings: u32[], count: u64): u32
-    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
-
-export declare function prepareLinkSymbols(frame: ExpressionLink): bool
-    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
-
-export declare function prepareLinkLiterals(frame: ExpressionLink): bool
-    throws { OutOfMemory, InvalidModule, UnreachableFlow, IncompleteFlow }
-
-export declare function bindExpressionOperands(
-    frame: ExpressionLink,
-    index: u32,
-    route: OperandRoute,
-    count: u32,
-    evaluation_count: u32
-): void throws { InvalidModule }
-
-export declare function expressionOperandWords(
-    frame: ExpressionLink,
-    column: OperandColumn
-): u32[]
-
-export declare function expressionOperandBytes(
-    frame: ExpressionLink,
-    column: OperandColumn
-): u8[]
-
-export declare function requireExpressionOperand(valid: bool): void
-    throws { InvalidModule }

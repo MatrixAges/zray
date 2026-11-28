@@ -12,13 +12,13 @@ pub fn emitCircuit(allocator: std.mem.Allocator, module: hardware.Circuit, clock
 
 fn renderModule(allocator: std.mem.Allocator, module: anytype, clocked: bool) ![]u8 {
     const View = @import("../hardware/graph/view.zig");
-    var view: View = undefined;
-
-    view.init(module);
-
     var temporary = std.heap.ArenaAllocator.init(allocator);
 
     defer temporary.deinit();
+
+    var view: View = undefined;
+
+    try view.init(temporary.allocator(), module);
 
     const render = @import("generated_render_verilog");
     const Input = std.meta.Child(render.Input);

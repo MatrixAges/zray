@@ -1,7 +1,6 @@
-import type { AstSequence, AstWriter } from "ast_rows"
+import type { AstSequence, AstWriter, CallTarget, StateValueMode } from "ast_rows"
 import type {
     CallArgument,
-    CallFrame,
     IterationResourceFrame,
     Lowering
 } from "lowering_host"
@@ -12,14 +11,16 @@ export type Input = {
     frame: Lowering,
     writer: AstWriter,
     body: AstSequence,
-    call: CallFrame,
+    target: CallTarget,
     operand: u32,
     operand_type: u32,
+    input_type: u32,
+    output_type: u32,
     argument: CallArgument,
-    adapt: bool,
+    adapt?: StateValueMode,
     clip: bool,
-    stores: bool,
-    convert: bool,
+    mapping?: u32[],
+    convert?: StateValueMode,
     finish: bool,
     unwrap_empty: bool
 }
@@ -31,8 +32,10 @@ export type Emission =
         "frame",
         "writer",
         "body",
-        "call",
-        "stores",
+        "target",
+        "operand",
+        "output_type",
+        "mapping",
         "convert",
         "finish",
         "unwrap_empty"

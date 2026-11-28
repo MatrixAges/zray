@@ -1,12 +1,17 @@
-import yaml from "manifest_yaml_document"
+import bytes from "std:bytes"
 
 import { bad_mapping, duplicate_key, mapping_size } from "./const"
+import issue from "./issue"
+import locate from "./mapping/locate"
 import nodeAt from "./node_at"
 import text from "./text"
 
-import type { Input } from "./value"
+import type { Diagnostic, Input } from "./value"
 
-export type Output = u32[]
+export type Output = {
+    pairs: u32[],
+    problem?: Diagnostic
+}
 
 export default function (in: Input): Output {
     const { document, node } = in
@@ -14,13 +19,19 @@ export default function (in: Input): Output {
     const pairs = node.pairs
 
     if (pairs == null) {
-        yaml.reject(document.parser, node, bad_mapping)
-
-        return []
+        return {
+            pairs: [],
+            problem: issue([
+                node,
+                bad_mapping
+            ])
+        }
     }
 
     if (pairs.length == 0) {
-        return pairs
+        return {
+            pairs
+        }
     }
 
     if (pairs.length == mapping_size) {
@@ -32,34 +43,59 @@ export default function (in: Input): Output {
             })
         })
 
-        return pairs
+        return {
+            pairs,
+            problem: validated[1]
+        }
     }
 
-    yaml.prepareKeys(document.parser, pairs.length / mapping_size)
+    const zero: u64 = 0
+    const no_issue: Diagnostic? = null
+    const slots = bytes.repeat(pairs.length, 0).map(byte => zero)[0]
 
-    const checked = loop(0, {
-        while: index => index < pairs.length,
-        next: index => {
+    const checked = loop({
+        index: 0,
+        problem: no_issue,
+        slots
+    }, {
+        while: state => state.problem == null && state.index < pairs.length,
+        next: state => {
             const key = nodeAt({
                 document,
-                id: pairs[index]
+                id: pairs[state.index]
             })
-            const value = text({
+            const [value, problem] = text({
                 document,
                 node: key
             })
 
-            if (!yaml.claimKey(
-                document.parser,
-                index / mapping_size,
-                value
-            )) {
-                yaml.reject(document.parser, key, duplicate_key)
+            if (problem != null) {
+                state.problem = problem
+            } else {
+                const slot = locate({
+                    document,
+                    pairs,
+                    slots: state.slots,
+                    key: value
+                })
+
+                if (state.slots[slot] == 0) {
+                    state.slots[slot] = state.index + 1
+                } else {
+                    state.problem = issue([
+                        key,
+                        duplicate_key
+                    ])
+                }
             }
 
-            index += mapping_size
-        }
+            state.index += mapping_size
+        },
+        return: state => state.problem
     })
 
-    return pairs
+    return {
+        pairs,
+        problem: checked
+    }
 }

@@ -11,12 +11,9 @@ const Materialization = @import("materialize.zig");
 const Rows = @import("rows.zig");
 
 const Frame = struct {
-    program: *const zx.ir.Program,
     record: *const Record,
     allocator: std.mem.Allocator,
-    scope: *zx.memory.ArenaScope,
     materialization: Materialization = undefined,
-    bound: bool = false,
     rows: Rows = .{},
     pub fn commit(self: *Frame, pending: anytype) std.mem.Allocator.Error!void {
         if (pending.store_0) |entry| {
@@ -35,32 +32,56 @@ pub fn extract(allocator: std.mem.Allocator, scratch: std.mem.Allocator, analysi
 
     try preparation.bind(scratch, analysis, &record);
 
-    var scope: zx.memory.ArenaScope = .{ .active = scratch };
-    var frame: Frame = .{ .program = &analysis.value.ir, .record = &record, .allocator = allocator, .scope = &scope };
+    var frame: Frame = .{ .record = &record, .allocator = allocator };
 
-    const input: std.meta.Child(generated.Input) = .{
+    var input: std.meta.Child(generated.Input) = .{
         .preparation = &preparation.input,
-        .materialization = &frame.materialization.input,
-        .frame = @ptrCast(&frame),
+        .materialization = null,
+        .prepared = null,
     };
 
-    errdefer frame.rows.release(allocator, record.imports);
-
-    errdefer if (frame.bound) {
-        frame.materialization.exported.release(allocator);
-        frame.materialization.imported.release(allocator);
-    };
-
-    const result = generated.executeIn(scope.allocator(), &input, &frame) catch |err| switch (err) {
+    const plan = generated.executeIn(scratch, &input, &frame) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
 
-    const materialized = result.artifact orelse return switch (result.status) {
+    const prepared = plan.prepared orelse return switch (plan.status) {
         .MissingOrigin => error.MissingNominalOrigin,
         else => error.InvalidModule,
     };
 
+    const program = &analysis.value.ir;
+    const body = prepared.body;
+
+    const source = if (body.function_id) |row|
+        zx.ir.FunctionView.at(&program.functions, row)
+
+    else if (body.use_entry)
+        zx.ir.FunctionView.borrow(program)
+    else
+        null;
+
+    const nodes: Nodes = .{
+        .allocator = allocator,
+        .types = .{ .planned = prepared.plan.state.mapping },
+        .functions = .{ .planned = prepared.plan.functions.mapping },
+        .native_modules = .{ .planned = prepared.plan.natives.mapping },
+    };
+
+    frame.materialization.bind(&nodes, program, if (source) |*value| value else null, body.copy_entry_stores, &record);
+    errdefer frame.rows.release(allocator, record.imports);
+    errdefer frame.materialization.exported.release(allocator);
+    errdefer frame.materialization.imported.release(allocator);
+
+    input.materialization = &frame.materialization.input;
+    input.prepared = prepared;
+
+    const result = generated.executeIn(allocator, &input, &frame) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => return error.InvalidModule,
+    };
+
+    const materialized = result.artifact orelse return error.InvalidModule;
     const types = zx.columns.view(zx.ir.TypeTable, materialized.table);
     const origins = zx.columns.view(Origins.Table, materialized.origins);
     const native_modules = zx.columns.view(zx.ir.NativeModuleTable, materialized.natives);
@@ -92,29 +113,4 @@ pub fn extract(allocator: std.mem.Allocator, scratch: std.mem.Allocator, analysi
         .function = function,
         .stores = stores,
     };
-}
-
-pub fn bindArtifactMaterialization(handle: *anyopaque, function: ?u32, use_entry: bool, copy_entry_stores: bool, types: []const u64, functions: []const u64, natives: []const u64) void {
-    const frame: *Frame = @ptrCast(@alignCast(handle));
-    frame.scope.active = frame.allocator;
-    const program = frame.program;
-
-    const source = if (function) |row|
-        zx.ir.FunctionView.at(&program.functions, row)
-
-    else if (use_entry)
-        zx.ir.FunctionView.borrow(program)
-    else
-        null;
-
-    const nodes: Nodes = .{
-        .allocator = frame.allocator,
-        .types = .{ .planned = types },
-        .functions = .{ .planned = functions },
-        .native_modules = .{ .planned = natives },
-    };
-
-    frame.materialization.bind(&nodes, program, if (source) |*value| value else null, copy_entry_stores, frame.record);
-
-    frame.bound = true;
 }

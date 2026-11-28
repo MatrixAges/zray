@@ -1,5 +1,3 @@
-import type { SourceBody } from "project_host"
-
 export type Boundary = {
     functions: u64,
     types: u64
@@ -12,14 +10,13 @@ export type Body = {
 }
 
 export type Request = {
-    body: SourceBody,
     source: bool,
-    initializers: u8[],
-    shared: u8[],
     boundary: Body
 }
 
 export type Result = {
-    verified?: u64,
-    message?: string
+    replace_prefix: bool,
+    type_prefix?: u64,
+    shared_initializers: bool,
+    message: string
 }

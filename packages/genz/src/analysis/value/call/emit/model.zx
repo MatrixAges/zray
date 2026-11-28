@@ -11,7 +11,7 @@ export type Input = {
     context: Context,
     value: u32,
     target?: Target,
-    plan?: Policy
+    plan?: Policy.Pick("legacy", "legacy_deref", "result")
 }
 
 export type Work = {

@@ -9,6 +9,7 @@ export type Bindings = {
 
 export type Input = {
     verification: Verification,
+    versioned: bool,
     succeeded: bool,
     complete: bool,
     new_inputs: bool,

@@ -1,3 +1,5 @@
+import memory from "memory"
+
 import equivalent from "../fields/equivalent"
 import { Action as FieldAction } from "../fields/existing"
 import field from "../fields/existing"
@@ -27,6 +29,8 @@ export type Output = Application & {
 }
 
 export default function (in: Input): Output {
+    const parents = memory.u32Views(in.parents)
+
     const fallback: Field = {
         action: FieldAction.Field,
         value: 0
@@ -64,7 +68,7 @@ export default function (in: Input): Output {
                 Route.Bind => equivalent({
                     target,
                     source,
-                    parents: in.parents
+                    parents
                 }),
                 _ => false
             }

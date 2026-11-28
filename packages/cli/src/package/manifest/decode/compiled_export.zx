@@ -1,42 +1,50 @@
-import yaml from "manifest_yaml_document"
-
 import field from "../schema/field"
 import { Field, Mapping } from "../schema/model"
-import { bad_export_module, mapping_size } from "./const"
+import { bad_export_module, empty_text, mapping_size } from "./const"
+import issue from "./issue"
 import mapping from "./mapping"
 import nodeAt from "./node_at"
+import text from "./text"
 
-import type { Node } from "manifest_yaml_document"
+import type { Output } from "./text"
 import type { Input } from "./value"
-
-export type Output = Node
 
 export default function (in: Input): Output {
     const { document, node } = in
+    const { pairs, problem } = mapping(in)
 
-    const pairs = mapping({
-        document: in.document,
-        node: in.node
-    })
-
-    if (pairs.length != mapping_size) {
-        yaml.reject(document.parser, node, bad_export_module)
+    if (problem != null) {
+        return [
+            empty_text,
+            problem
+        ]
     }
 
-    const key = nodeAt({
-        document,
-        id: pairs[0]
-    })
+    if (pairs.length == mapping_size) {
+        const key = nodeAt({
+            document,
+            id: pairs[0]
+        })
 
-    if (field({
-        mapping: Mapping.Export,
-        key: key.text
-    }) != Field.Module) {
-        yaml.reject(document.parser, node, bad_export_module)
+        if (field({
+            mapping: Mapping.Export,
+            key: key.text
+        }) == Field.Module) {
+            return text({
+                document,
+                node: nodeAt({
+                    document,
+                    id: pairs[1]
+                })
+            })
+        }
     }
 
-    return nodeAt({
-        document,
-        id: pairs[1]
-    })
+    return [
+        empty_text,
+        issue([
+            node,
+            bad_export_module
+        ])
+    ]
 }

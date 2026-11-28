@@ -6,40 +6,50 @@
     <Call
         fn="../effects.advanceDependency"
         in={[
-            $in.host,
+            $in.catalog.build,
             $in.remaining
         ]}
     />
 
-    <If on={!$ctx.advanceDependency}>
+    <If on={$ctx.advanceDependency == null}>
         <Return
             value={{
                 ...$in,
                 running: false
             }}
         />
+
+        <Else>
+            <Call
+                module="archive"
+                in={{
+                    ...$in.pick([
+                        "session",
+                        "catalog",
+                        "root",
+                        "members"
+                    ]),
+                    release: $ctx.advanceDependency
+                }}
+            />
+
+            <Call
+                fn="../effects.acceptArchive"
+                in={[
+                    $in.catalog.build,
+                    $ctx.archive.target
+                ]}
+            />
+
+            <Call
+                fn="next"
+                in={{
+                    dependency: $in,
+                    archive: $ctx.archive
+                }}
+            />
+
+            <Return value={$ctx.next} />
+        </Else>
     </If>
-
-    <Call
-        module="archive"
-        in={$in.pick([
-            "host",
-            "members"
-        ])}
-    />
-
-    <Call
-        fn="../effects.acceptArchive"
-        in={[
-            $in.host,
-            $ctx.archive
-        ]}
-    />
-
-    <Return
-        value={{
-            ...$in,
-            count: $ctx.archive < $in.count ? $in.count : $ctx.archive + 1
-        }}
-    />
 </Module>

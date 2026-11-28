@@ -3,106 +3,54 @@
 
     <Args in={Import.Input} out={Import.Result} />
 
-    <Call fn="index.resolveCompiledImport" in={$in.frame} />
-
-    <Call
-        fn="index.findAdded"
-        in={[
-            $in.frame,
-            $ctx.resolveCompiledImport,
-            false
-        ]}
-    />
-
-    <If on={$ctx.findAdded != null}>
+    <If on={$in.initializers != null}>
         <Call
-            fn="select"
-            in={{
-                member: $in.member,
-                count: $ctx.findAdded
-            }}
+            fn="../../../../core/row_buffer/reserve_append"
+            in={[
+                $in.initializers.rows,
+                $in.initializers.first,
+                $in.initializers.count,
+                $in.initializers.owner
+            ]}
         />
 
         <Return
             value={{
-                row: $ctx.select,
-                published: $in.initializers.first
+                published: $in.initializers.first + $in.initializers.count,
+                inherited: false
             }}
         />
     </If>
 
-    <Call
-        fn="index.findInherited"
-        in={[
-            $in.frame,
-            $ctx.resolveCompiledImport,
-            true
-        ]}
-    />
+    <If on={$in.added != null}>
+        <Call fn="find" in={$in.added} />
 
-    <If on={$ctx.findInherited != null}>
-        <Call
-            fn="select"
-            in={{
-                member: $in.member,
-                count: $ctx.findInherited
+        <Return
+            value={{
+                row: $ctx.find,
+                inherited: false
             }}
+        />
+    </If>
+
+    <If on={$in.inherited != null}>
+        <Call
+            fn="find"
+            in={$in.inherited}
         />
 
         <Return
             value={{
-                row: $ctx.select,
-                published: $in.initializers.first
+                row: $ctx.find,
+                inherited: true
             }}
         />
     </If>
-
-    <Call
-        fn="index.reserveCompiledUnit"
-        in={[
-            $in.frame,
-            $ctx.resolveCompiledImport
-        ]}
-    />
-
-    <Call
-        fn="../../../../core/row_buffer/reserve_append"
-        in={[
-            $in.initializers.rows,
-            $in.initializers.first,
-            $ctx.reserveCompiledUnit.initializers,
-            $in.initializers.owner
-        ]}
-    />
-
-    <Call
-        fn="index.bindCompiledImport"
-        in={[
-            $in.frame,
-            $ctx.resolveCompiledImport
-        ]}
-    />
-
-    <Call
-        fn="index.rememberCompiledLibrary"
-        in={[
-            $in.frame,
-            $ctx.resolveCompiledImport
-        ]}
-    />
-
-    <Call
-        fn="select"
-        in={{
-            member: $in.member,
-            count: $ctx.bindCompiledImport
-        }}
-    />
 
     <Return
         value={{
-            row: $ctx.select,
-            published: $in.initializers.first + $ctx.reserveCompiledUnit.initializers
+            row: null,
+            inherited: false
         }}
     />
 </Module>

@@ -10,7 +10,7 @@ export default function (in: Input): Output {
     return loop({
         seen: in.seen,
         queue: in.queue,
-        cursor: 0,
+        cursor: in.first,
         end: in.end
     }, {
         while: state => state.cursor < targets.length,

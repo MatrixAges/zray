@@ -3,7 +3,6 @@ export {
     beginSymbolicCall,
     checkSymbolicUnit,
     ensureSymbolicGraph,
-    symbolicQueryPrefix,
     publishSymbolicParameter,
     publishSymbolicProgramResult,
     runSymbolicProgramBody,

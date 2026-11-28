@@ -27,11 +27,7 @@ const Request = struct {
     span: zx.Span,
     fingerprint: [32]u8,
     slot: entries.Pending,
-    cached: ?*const entries.Entry = null,
     result: Loaded.Result = undefined,
-    fn borrow(handle: *anyopaque) *Request {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
 pub fn load(self: *Self, allocator: std.mem.Allocator, entry: Native, current: Current, reporter: *zx.Reporter, span: zx.Span) zx.Error!Loaded.Result {
@@ -53,23 +49,21 @@ pub fn load(self: *Self, allocator: std.mem.Allocator, entry: Native, current: C
         const generated = @import("generated_semantic_cache_load_native");
         const usage: zx.memory.ColumnLengths = &.{ &self.analyzed, &self.reused };
         const Input = std.meta.Child(generated.Input);
-        const Lookup = std.meta.Child(@FieldType(Input, "lookup"));
+        const Lookup = std.meta.Child(@typeInfo(@FieldType(Input, "lookup")).optional.child);
         const Candidate = std.meta.Child(@FieldType(Lookup, "candidate"));
+        const Slot = std.meta.Child(@typeInfo(@FieldType(Input, "slot")).optional.child);
         const cached = self.items.get(entry.key());
-
-        request.cached = cached;
-
         const candidate = if (cached) |stored| stored.digestView(std.meta.Child(Candidate)) else null;
 
-        const input: Input = .{
-            .frame = @ptrCast(&request),
-            .slot = &request.slot.installView(std.meta.Child(@FieldType(Input, "slot")), entry.key()),
+        var input: Input = .{
+            .slot = null,
             .lookup = &.{
                 .candidate = if (candidate) |*value| value else null,
                 .source = &request.fingerprint,
                 .context = &empty_context,
             },
             .usage = @ptrCast(&usage),
+            .restored = null,
         };
 
         var arena = std.heap.ArenaAllocator.init(current.backing);
@@ -78,10 +72,32 @@ pub fn load(self: *Self, allocator: std.mem.Allocator, entry: Native, current: C
 
         var buffer: [256]u8 = undefined;
         var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
-        const outcome = generated.executeIn(scratch.allocator(), &input) catch |err| return @import("../project/execution/invoke.zig").errorSet(err);
+        const errorSet = @import("../project/execution/invoke.zig").errorSet;
+        const found = generated.executeIn(scratch.allocator(), &input) catch |err| return errorSet(err);
+        const restored = found.candidate and try restoreEntry(&request, cached.?);
 
-        if (outcome.pending) |prepared| request.slot.commit(prepared.replacement);
-        if (outcome.admitted) cached.?.native_admitted = true;
+        input.lookup = null;
+        input.restored = restored;
+        _ = generated.executeIn(scratch.allocator(), &input) catch |err| return errorSet(err);
+
+        if (restored) {
+            cached.?.native_admitted = true;
+        } else {
+            try buildNativeCacheEntry(&request);
+
+            const view = request.slot.installView(Slot, entry.key());
+
+            input.restored = null;
+            input.slot = &view;
+
+            const outcome = generated.executeIn(scratch.allocator(), &input) catch |err| return errorSet(err);
+            const prepared = outcome.pending.?;
+
+            if (prepared.replacement == null) try request.slot.stage(prepared.bucket);
+            try validateNativeCacheEntry(&request);
+
+            request.slot.commit(prepared.replacement);
+        }
     } else {
         try seed(&request);
     }
@@ -110,12 +126,6 @@ fn seed(request: *Request) zx.Error!void {
     request.slot.commit(replacement);
 }
 
-pub fn restoreCachedNative(handle: *anyopaque) std.mem.Allocator.Error!bool {
-    const request = Request.borrow(handle);
-
-    return restoreEntry(request, request.cached.?);
-}
-
 fn restoreEntry(request: *Request, cached: *const entries.Entry) std.mem.Allocator.Error!bool {
     const entry = request.native.*;
 
@@ -127,8 +137,7 @@ fn restoreEntry(request: *Request, cached: *const entries.Entry) std.mem.Allocat
     return true;
 }
 
-pub fn buildNativeCacheEntry(handle: *anyopaque) zx.Error!void {
-    const request = Request.borrow(handle);
+fn buildNativeCacheEntry(request: *Request) zx.Error!void {
     const artifact = try @import("native_artifact.zig").create(request.cache.allocator, request.native.*, request.fingerprint, request.allocator, request.reporter, request.span);
 
     request.slot.value = .{
@@ -138,8 +147,7 @@ pub fn buildNativeCacheEntry(handle: *anyopaque) zx.Error!void {
     };
 }
 
-pub fn validateNativeCacheEntry(handle: *anyopaque) zx.Error!void {
-    const request = Request.borrow(handle);
+fn validateNativeCacheEntry(request: *Request) zx.Error!void {
     const artifact = &request.slot.value.?.result.value;
 
     request.result = restoring.restore(request.allocator, artifact, request.native.*, request.current, false) catch |err| switch (err) {
@@ -147,10 +155,6 @@ pub fn validateNativeCacheEntry(handle: *anyopaque) zx.Error!void {
         error.InvalidIr => return request.reporter.fail(.module, request.span, "native declarations produced invalid interface IR"),
         else => return request.reporter.fail(.module, request.span, "native interface artifact could not be mapped into the project"),
     };
-}
-
-pub fn stageNativeCacheEntry(handle: *anyopaque, bucket: u64) std.mem.Allocator.Error!void {
-    try Request.borrow(handle).slot.stage(bucket);
 }
 
 fn digest(allocator: std.mem.Allocator, entry: Native) std.mem.Allocator.Error![32]u8 {

@@ -1,23 +1,32 @@
 <Module>
     <Type from="../model" as="Project" />
+    <Type from="diagnostic" as="Assembly" />
 
     <Args in={Project.Workspace} out={Project.Result} />
 
-    <Call fn="../effects.prepareWorkspace" in={$in.host} />
+    <Call fn="offsets" in={$in.counts} />
 
-    <Loop on={$in.index < $in.edge_counts.length}>
-        <Call
-            module="seed"
-            in={{
-                host: $in.host,
-                edge_counts: $ctx.prepareWorkspace,
-                index: 0,
-                first: 0
+    <Call
+        fn="../effects.assembleWorkspace"
+        in={[
+            $in.graph,
+            $in.root,
+            $in.counts,
+            $ctx.offsets.firsts,
+            $ctx.offsets.total
+        ]}
+    />
+
+    <If on={$ctx.assembleWorkspace.status == Assembly.WorkspaceStatus.Valid}>
+        <Return
+            value={{
+                status: Project.Status.Valid,
+                workspace: $ctx.assembleWorkspace.workspace
             }}
         />
-    </Loop>
+    </If>
 
-    <Call fn="assemble" in={$in} />
+    <Call fn="diagnostic" in={$ctx.assembleWorkspace} />
 
-    <Return value={$ctx.assemble} />
+    <Return value={$ctx.diagnostic} />
 </Module>

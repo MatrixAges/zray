@@ -6,7 +6,7 @@ import conjunction from "../../scalar/conjunction"
 import { smt_true } from "../../scalar/const"
 import watch from "./watch"
 
-import type { Outcome as Output, Payload } from "./model"
+import type { AggregateField, Outcome as Output, Payload } from "./model"
 
 export type Input = Payload & {
     object: bool
@@ -19,8 +19,6 @@ export default function (in: Input): Output {
         true => columns.object_count[payload],
         _ => columns.sequence_count[payload]
     }
-
-    host.reserveSymbolicAggregate(frame, count)
 
     const safe = match object {
         true => watch({
@@ -39,9 +37,12 @@ export default function (in: Input): Output {
         }
     )
 
+    const fields: AggregateField[] = []
+
     const completed = loop({
         field: 0,
-        safe
+        safe,
+        fields
     }, {
         while: state => state.field < integers.widen(count),
         next: state => {
@@ -54,23 +55,28 @@ export default function (in: Input): Output {
                 true => columns.object_field_indices[row],
                 _ => integers.narrow(state.field)
             }
-            const safe =
-                host.evaluateSymbolicOperand(frame, SymbolicOperand.First, value).safe
+            const result =
+                host.evaluateSymbolicOperand(frame, SymbolicOperand.First, value)
 
-            host.writeSymbolicAggregateField(frame, index)
+            state.fields = state.fields.push({
+                index,
+                text: result.text,
+                fields: result.fields
+            })[0]
 
             const checked = conjunction({
                 left: state.safe,
-                right: safe
+                right: result.safe
             })
             state.safe = host.bindSymbolicExpressionSafety(frame, checked)
             state.field += 1
         },
-        return: state => state.safe
+        return: state => state
     })
 
     return {
         scalar: null,
-        safe: completed
+        safe: completed.safe,
+        fields: completed.fields
     }
 }

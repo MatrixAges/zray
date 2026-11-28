@@ -1,91 +1,22 @@
-export enum StatementsKind {
-    Scope,
-    DeferExpression,
-    ErrdeferExpression,
-    DeferScope,
-    DiscardError,
-    Constant,
-    Variable,
-    Assignment,
-    ForLoop,
-    WhileLoop,
-    BreakLoop,
-    ContinueLoop,
-    BreakValue,
-    UnreachableStmt,
-    Result,
-    Branch,
-    Discard,
-    Expression
-}
+export declare function readAstOrigin(allocator, writer: AstWriter): AstOrigin
+    throws { OutOfMemory }
 
-export type StatementRows = {
-    tags: StatementsKind[],
-    offsets: u32[],
-    errdefer_expression: u32[],
-    defer_expression: u32[],
-    expression: u32[],
-    discard: u32[],
-    result: u32?[],
-    constant_name: u8[][],
-    constant_type_expr: u32?[],
-    constant_value: u32[],
-    constant_exported: bool[],
-    assignment_target: u32[],
-    assignment_value: u32[],
-    for_loop_iterable: u32[],
-    for_loop_capture: u8[][],
-    for_loop_body_start: u32[],
-    for_loop_body_len: u32[],
-    for_loop_capture_reference: bool[],
-    for_loop_index_capture: u8[]?[],
-    break_value_label: u8[][],
-    break_value_value: u32[],
-    branch_condition: u32[],
-    branch_yes_start: u32[],
-    branch_yes_len: u32[],
-    branch_no_start: u32[],
-    branch_no_len: u32[],
-    branch_capture: u8[]?[],
-    branch_capture_reference: bool[],
-    branch_error_capture: u8[]?[]
-}
+export declare function appendExpressionRows(
+    writer: AstWriter,
+    rows: ExpressionRows,
+    forms: ExpressionForms?,
+    ownership: AstPayloadOwnership
+): void throws { OutOfMemory }
 
-export type StatementVariables = {
-    variable_name: u8[][],
-    variable_type_expr: u32?[],
-    variable_value: u32[],
-    variable_exported: bool[]
-}
+export declare function appendStatementRows(
+    writer: AstWriter,
+    rows: StatementRows,
+    variables: StatementVariables?,
+    ownership: AstPayloadOwnership
+): void throws { OutOfMemory }
 
-export type BindingRows = {
-    tags: StatementsKind[],
-    offsets: u32[],
-    constant_name: u8[][],
-    constant_type_expr: u32?[],
-    constant_value: u32[],
-    constant_exported: bool[],
-    variable_name: u8[][],
-    variable_type_expr: u32?[],
-    variable_value: u32[],
-    variable_exported: bool[],
-    discard: u32[],
-    break_value_label: u8[][],
-    break_value_value: u32[]
-}
-
-export type BasicStatementRows = {
-    tags: StatementsKind[],
-    offsets: u32[],
-    discard: u32[],
-    assignment_target: u32[],
-    assignment_value: u32[],
-    branch_condition: u32[],
-    branch_yes_start: u32[],
-    branch_yes_len: u32[],
-    branch_no_start: u32[],
-    branch_no_len: u32[],
-    branch_capture: u8[]?[],
-    branch_capture_reference: bool[],
-    branch_error_capture: u8[]?[]
-}
+export declare function appendAstBlockRows(
+    writer: AstWriter,
+    rows: AstBlockRows,
+    conditionals: AstConditionalRows?
+): void throws { OutOfMemory }

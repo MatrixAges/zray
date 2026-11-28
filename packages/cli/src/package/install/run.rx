@@ -3,40 +3,64 @@
 
     <Args in={Installation.Input} out={Installation.Result} />
 
-    <If on={$in.reuse}>
+    <If on={$in.reuse && $in.previous != null}>
         <Call
             module="locked/replay"
-            in={$in.pick([
-                "host",
-                "locked_rows",
-                "root"
-            ])}
+            in={{
+                ...$in.pick([
+                    "session",
+                    "locked_workspace",
+                    "root"
+                ]),
+                lock: $in.previous
+            }}
         />
 
-        <Else>
-            <If on={$in.frozen}>
-                <Call fn="frozen" in={$in.has_lock} />
+        <Call
+            module="publish/write"
+            in={{
+                ...$in.pick([
+                    "session",
+                    "reuse",
+                    "maximum_bytes"
+                ]),
+                prepared: $ctx.replay
+            }}
+        />
 
-                <Return value={$ctx.frozen} />
-            </If>
+        <Return value={$ctx.write} />
+    </If>
 
-            <Call
-                module="fresh/resolve"
-                in={$in.pick([
-                    "host",
-                    "members",
-                    "maximum_edges"
-                ])}
-            />
-        </Else>
+    <If on={$in.frozen}>
+        <Call fn="frozen" in={$in.previous != null} />
+
+        <Return
+            value={{
+                status: $ctx.frozen
+            }}
+        />
     </If>
 
     <Call
-        module="publish/write"
+        module="fresh/resolve"
         in={$in.pick([
-            "host",
-            "reuse"
+            "session",
+            "members",
+            "maximum_edges",
+            "root"
         ])}
+    />
+
+    <Call
+        module="publish/write"
+        in={{
+            ...$in.pick([
+                "session",
+                "reuse",
+                "maximum_bytes"
+            ]),
+            prepared: $ctx.resolve
+        }}
     />
 
     <Return value={$ctx.write} />

@@ -9,9 +9,8 @@ const Error = effects.Error;
 const Package = compiler.project.Package;
 const Scope = compiler.project.PackageScope;
 const Input = std.meta.Child(rules.package_scope_bindings.Input);
-const root_export = rules.package_scope_constants.@"zx.constants".root_export;
 const Surface = struct { bindings: []Package };
-const SurfaceView = @import("cli_abi").layouts.@"zig:package_workspace_host".Surface;
+const abi = @import("cli_abi").layouts.@"zig:package_workspace_host";
 
 const State = struct {
     allocator: std.mem.Allocator,
@@ -19,31 +18,26 @@ const State = struct {
     graph: *const graph.Result,
     scopes: []Scope,
     surfaces: []Surface,
-    surface_view: SurfaceView = undefined,
-    current: usize = undefined,
-    compiled_path: []const u8 = undefined,
-    paths: memory.ListColumn = undefined,
-    dependencies: graph.DependencyColumns = undefined,
+    paths: memory.ListColumn,
+    dependencies: graph.DependencyColumns,
     diagnostic: ?[]const u8 = null,
     failure: effects.Failure = .{},
     fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);
     }
-    fn root(self: *const State) []const u8 {
-        return self.scopes[self.current].root;
-    }
-    fn destination(self: *State, index: usize) *Package {
-        return &self.surfaces[self.current].bindings[index];
-    }
 };
 
 pub fn bind(allocator: std.mem.Allocator, scratch: std.mem.Allocator, project: *const graph.Result, scopes: []Scope) !?[]const u8 {
+    const surfaces = try scratch.alloc(Surface, scopes.len);
+
     var state: State = .{
         .allocator = allocator,
         .scratch = scratch,
         .graph = project,
         .scopes = scopes,
-        .surfaces = try scratch.alloc(Surface, scopes.len),
+        .surfaces = surfaces,
+        .paths = memory.borrowListColumn([]const u8, "bindings", "specifier", surfaces),
+        .dependencies = project.dependencyColumns(),
     };
 
     const reference = &state;
@@ -53,62 +47,47 @@ pub fn bind(allocator: std.mem.Allocator, scratch: std.mem.Allocator, project: *
     return state.diagnostic;
 }
 
-pub fn prepareSurface(handle: *const anyopaque, row: u64) Error!*const SurfaceView {
+pub fn readScopeSurface(handle: *const anyopaque, row: u64) Error!*const abi.Surface {
     const self = State.get(handle);
-    const index: usize = @intCast(row);
-    const package = &self.graph.packages[index];
-    const root = std.fs.path.resolve(self.allocator, &.{ self.graph.root, package.path }) catch |err| return self.failure.save(err);
-    const count = package.manifest.exports.len + @intFromBool(package.manifest.entry != null);
-    const items = self.scratch.alloc(Package, count) catch |err| return self.failure.save(err);
+    const package = &self.graph.packages[@intCast(row)];
+    const exports = package.manifest.exports;
+    const values = self.scratch.alloc(abi.SurfaceExport, exports.len) catch |err| return self.failure.save(err);
+    const references = self.scratch.alloc(*const abi.SurfaceExport, exports.len) catch |err| return self.failure.save(err);
+    const view = self.scratch.create(abi.Surface) catch |err| return self.failure.save(err);
 
-    self.current = index;
-    self.scopes[index] = .{ .root = root, .packages = &.{} };
-    self.surfaces[index] = .{ .bindings = items };
+    for (exports, values, references) |item, *value, *reference| {
+        value.* = .{ .specifier = item.path, .source = item.source, .module = item.module };
+        reference.* = value;
+    }
 
-    self.surface_view = .{
-        .exports = package.manifest.exports.len,
+    view.* = .{
+        .root = self.graph.root,
+        .path = package.path,
+        .exports = references,
         .entry = package.manifest.entry,
         .library = package.manifest.library,
     };
 
-    return &self.surface_view;
+    return view;
 }
 
-pub fn writeScopeEntry(handle: *const anyopaque, entry: []const u8) Error!void {
-    const self = State.get(handle);
-    const path = std.fs.path.resolve(self.allocator, &.{ self.root(), entry }) catch |err| return self.failure.save(err);
-
-    self.destination(0).* = .{ .specifier = root_export, .entry = path };
-}
-
-pub fn prepareLibrarySurface(handle: *const anyopaque, library: []const u8) Error!void {
-    const self = State.get(handle);
-
-    self.compiled_path = std.fs.path.resolve(self.allocator, &.{ self.root(), library }) catch |err| return self.failure.save(err);
-}
-
-pub fn writeCompiledExport(handle: *const anyopaque, index: u64) void {
+pub fn publishScopeSurface(handle: *const anyopaque, index: u64, surface: *const abi.PublishedSurface) Error!void {
     const self = State.get(handle);
     const row: usize = @intCast(index);
-    const item = &self.graph.packages[self.current].manifest.exports[row];
+    const root = self.allocator.dupe(u8, surface.root) catch |err| return self.failure.save(err);
+    const items = self.scratch.alloc(Package, surface.rows.len) catch |err| return self.failure.save(err);
+    const artifact = if (surface.artifact) |path| self.allocator.dupe(u8, path) catch |err| return self.failure.save(err) else null;
 
-    self.destination(row).* = .{ .specifier = item.path, .compiled = .{ .instance = self.root(), .artifact = self.compiled_path, .name = item.module.? } };
-}
+    for (surface.rows, items) |entry, *package| {
+        package.* = if (artifact) |path|
+            .{ .specifier = entry.specifier, .compiled = .{ .instance = root, .artifact = path, .name = entry.module.? } }
 
-pub fn writeSourceExport(handle: *const anyopaque, index: u64) Error!void {
-    const self = State.get(handle);
-    const row: usize = @intCast(index);
-    const item = &self.graph.packages[self.current].manifest.exports[row];
-    const path = std.fs.path.resolve(self.allocator, &.{ self.root(), item.source }) catch |err| return self.failure.save(err);
+        else
+            .{ .specifier = entry.specifier, .entry = self.allocator.dupe(u8, entry.source) catch |err| return self.failure.save(err) };
+    }
 
-    self.destination(row).* = .{ .specifier = item.path, .entry = path };
-}
-
-pub fn borrowScopeColumns(handle: *const anyopaque) void {
-    const self = State.get(handle);
-
-    self.paths = memory.borrowListColumn([]const u8, "bindings", "specifier", self.surfaces);
-    self.dependencies = self.graph.dependencyColumns();
+    self.scopes[row] = .{ .root = root, .packages = &.{} };
+    self.surfaces[row] = .{ .bindings = items };
 }
 
 pub fn bindScope(handle: *const anyopaque, index: u64) Error!bool {

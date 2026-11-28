@@ -22,14 +22,19 @@ pub const Scan = struct {
     pub fn deinit(self: *Scan) void {
         self.finish(false);
     }
+    pub fn open(self: *Scan, paths: []const []const u8, buckets: []const u64) std.mem.Allocator.Error!void {
+        const registered = self.collector.paths;
 
+        @memcpy(registered.keys, paths);
+        @memcpy(registered.buckets, buckets);
+
+        return self.prefetch();
+    }
     fn prefetch(self: *Scan) std.mem.Allocator.Error!void {
         const paths = self.collector.modules.items(.path);
-
         self.parsed = try self.cache.?.prefetchRegistered(self.collector.backing, self.sources, paths[0..self.sources.len]);
     }
-
-    fn finish(self: *Scan, retain_parses: bool) void {
+    pub fn finish(self: *Scan, retain_parses: bool) void {
         if (!retain_parses) self.parsed.deinit(self.collector.backing);
 
         const cache = self.cache orelse return;
@@ -58,9 +63,9 @@ pub const Scan = struct {
                 .store => |row| try self.collectRX(owner, self.stores[row]),
             }
 
-            const targets = try self.publish(owner, frontier.edge_end);
+            const targets = try self.publish(owner);
 
-            next = frontier.advance(adjacency, .{ .targets = targets, .end = collector.targets.items.len });
+            next = frontier.advance(adjacency, .{ .targets = targets[frontier.edge_end..], .end = targets.len });
         }
 
         adjacency.targets = collector.targets.items;
@@ -93,34 +98,16 @@ pub const Scan = struct {
         self.collector.begin(owner, "");
         try rx_edges.collect(self.collector, module);
     }
-    fn publish(self: *Scan, owner: usize, start: usize) std.mem.Allocator.Error![]const u64 {
+    fn publish(self: *Scan, owner: usize) std.mem.Allocator.Error![]const u64 {
         const collector = self.collector;
 
         collector.modules.items(.dependencies)[owner] = try collector.edges.toOwnedSlice(collector.allocator);
 
         _ = collector.temporary.reset(.retain_capacity);
 
-        return collector.targets.items[start..];
+        return collector.targets.items;
     }
 };
-
-pub fn openSourceGraphScanner(handle: *anyopaque, paths: []const []const u8, buckets: []const u64) std.mem.Allocator.Error!void {
-    const scan = Scan.borrow(handle);
-    const registered = scan.collector.paths;
-
-    @memcpy(registered.keys, paths);
-    @memcpy(registered.buckets, buckets);
-
-    return scan.prefetch();
-}
-
-pub fn finishSourceGraphScan(handle: *anyopaque, retain_parses: bool) []const u64 {
-    const scan = Scan.borrow(handle);
-
-    scan.finish(retain_parses);
-
-    return scan.collector.targets.items;
-}
 
 pub fn readSourceGraphZX(handle: *anyopaque, owner: u64) Collector.Error!void {
     try Scan.borrow(handle).collectZX(@intCast(owner));
@@ -133,6 +120,6 @@ pub fn readSourceGraphRX(handle: *anyopaque, owner: u64, row: u64, store: bool) 
     try scan.collectRX(@intCast(owner), if (store) scan.stores[index] else scan.modules[index]);
 }
 
-pub fn publishSourceGraphDependencies(handle: *anyopaque, owner: u64, start: u64) std.mem.Allocator.Error![]const u64 {
-    return Scan.borrow(handle).publish(@intCast(owner), @intCast(start));
+pub fn publishSourceGraphDependencies(handle: *anyopaque, owner: u64) std.mem.Allocator.Error![]const u64 {
+    return Scan.borrow(handle).publish(@intCast(owner));
 }

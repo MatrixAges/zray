@@ -12,10 +12,9 @@ const Slot = struct {
     existing: bool,
 };
 
-const Context = struct {
+pub const Context = struct {
     inputs: *Inputs,
     io: std.Io,
-    path: []const u8,
     bytes: []const u8 = &.{},
     slot: Slot = undefined,
     flags: storage.Slot = undefined,
@@ -47,32 +46,34 @@ fn lookup(inputs: *Inputs, path: []const u8) !Slot {
 pub const Addition = struct { entry: *Inputs.Observation, inserted: bool };
 
 pub fn add(inputs: *Inputs, io: std.Io, path: []const u8, directory_entries: bool) !Addition {
-    var context: Context = .{ .io = io, .inputs = inputs, .path = path };
+    var context: Context = .{ .io = io, .inputs = inputs };
     const handle = &context;
 
     const admission = source.add.executeIn(inputs.arena.allocator(), &.{
         .registration = @ptrCast(&handle),
+        .path = path,
         .directory_entries = directory_entries,
+        .backend_input = false,
     }) catch |err| return if (err == error.ObservationFailure) context.failure.? else err;
 
     return .{ .entry = context.slot.value, .inserted = admission == .New };
 }
 
 pub fn record(inputs: *Inputs, io: std.Io, path: []const u8, bytes: []const u8) !void {
-    var context: Context = .{ .io = io, .inputs = inputs, .path = path, .bytes = bytes };
+    var context: Context = .{ .io = io, .inputs = inputs, .bytes = bytes };
     const handle = &context;
 
-    source.record.executeIn(inputs.arena.allocator(), @ptrCast(&handle)) catch |err| return if (err == error.ObservationFailure) context.failure.? else err;
+    source.record.executeIn(inputs.arena.allocator(), &.{ .registration = @ptrCast(&handle), .path = path }) catch |err| return if (err == error.ObservationFailure) context.failure.? else err;
 }
 
-pub fn openRegistration(handle: *const anyopaque) Error!*const storage.Slot {
+pub fn openRegistration(handle: *const anyopaque, path: []const u8) Error!*const storage.Slot {
     const self = Context.get(handle);
 
-    self.slot = if (self.inputs.entries.getEntry(self.path)) |entry|
+    self.slot = if (self.inputs.entries.getEntry(path)) |entry|
         .{ .path = entry.key_ptr.*, .value = entry.value_ptr, .existing = true }
 
     else
-        lookup(self.inputs, self.path) catch |err| return self.fail(err);
+        lookup(self.inputs, path) catch |err| return self.fail(err);
 
     const slot = self.slot;
 
@@ -80,6 +81,7 @@ pub fn openRegistration(handle: *const anyopaque) Error!*const storage.Slot {
         .existing = slot.existing,
         .consumed = slot.existing and slot.value.consumed,
         .directory_entries = slot.existing and slot.value.directory_entries,
+        .backend_preloaded = slot.existing and slot.value.backend_preloaded,
     };
 
     return &self.flags;
@@ -151,8 +153,14 @@ pub fn compareRecorded(handle: *const anyopaque) bool {
     return self.inputs.consistent and Snapshot.sameState(&self.slot.value.state, &self.current);
 }
 
-pub fn publishObservation(handle: *const anyopaque, directory_entries: bool, consumed: bool, consistent: bool) Error!void {
+pub fn publishObservation(handle: *const anyopaque, directory_entries: bool, consumed: bool, consistent: bool, backend_preloaded: bool, update_state: bool) Error!void {
     const self = Context.get(handle);
+
+    if (!update_state) {
+        self.slot.value.backend_preloaded = backend_preloaded;
+
+        return;
+    }
 
     self.inputs.consistent = self.inputs.consistent and consistent;
 
@@ -160,7 +168,7 @@ pub fn publishObservation(handle: *const anyopaque, directory_entries: bool, con
         .state = if (self.failure) |err| .{ .failed = err } else self.current,
         .directory_entries = directory_entries,
         .consumed = consumed,
-        .backend_preloaded = self.slot.existing and self.slot.value.backend_preloaded,
+        .backend_preloaded = backend_preloaded,
     };
 
     if (self.failure != null) return error.ObservationFailure;

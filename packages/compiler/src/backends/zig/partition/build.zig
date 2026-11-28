@@ -1,13 +1,10 @@
 const std = @import("std");
-const memory = @import("zx").memory;
 const generation = @import("../partition.zig");
 const Scanning = @import("workers.zig");
 const parallel = @import("../output/parallel.zig");
 const Failure = @import("../output/failure.zig");
 pub const File = generation.placement.File;
 const available = generation.groups.available and generation.layout.available;
-const native = if (available) @import("output_execution_abi").layouts.@"zig:output_host" else struct {};
-const Kind = if (available) native.PartitionFile else void;
 
 /// Groups public entry closures into separately compiled units.
 pub fn plan(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocator, functions: []const File, columns: generation.layout.FunctionFiles, top: []const File, count: u32) ![]File {
@@ -119,56 +116,12 @@ pub fn placePartitionFiles(handle: *anyopaque) Failure.Error!u64 {
 }
 
 fn emitJobs(frame: *const Frame) !void {
-    const render: Rendering = .{
+    return parallel.eachRender(frame.arenas, .{
         .owner = frame.allocator,
         .workspace = frame.workspace,
         .columns = frame.columns,
         .roots = frame.planned.?.value.roots,
         .jobs = frame.publication.jobs,
         .files = frame.publication.files,
-    };
-
-    const roots = memory.borrowReadColumn(bool, "root", render.jobs);
-
-    try parallel.each(frame.arenas, .{
-        .count = render.jobs.len,
-        .scan = null,
-        .hash = null,
-        .write = null,
-        .render = &.{ .target = @ptrCast(&render), .roots = @ptrCast(&roots) },
     });
-}
-
-const Rendering = struct {
-    owner: std.mem.Allocator,
-    workspace: std.mem.Allocator,
-    columns: generation.layout.FunctionFiles,
-    roots: @FieldType(generation.layout.Plan, "roots"),
-    jobs: []const generation.placement.Job,
-    files: []File,
-    fn render(self: *const Rendering, job: *const generation.placement.Job, kind: Kind) !void {
-        const row: usize = @intCast(job.destination);
-
-        switch (kind) {
-            .Stub => self.files[row].source = try generation.namedStub(self.owner, self.workspace, self.columns.names[job.index], job.variants, job.comptime_entry),
-            .Exports => {
-                const selected = self.roots[job.index];
-
-                self.files[row].source = try generation.indexedExports(self.owner, self.workspace, self.columns.names, selected.entries, selected.variants);
-            },
-            .Modules => {
-                const selected = self.roots[job.index];
-
-                self.files[row + 1].source = try generation.indexedRoot(self.owner, self.workspace, self.columns, selected.callees);
-            },
-        }
-    }
-};
-
-pub fn renderPartitionFile(handle: *const anyopaque, index: u64, kind: Kind) u32 {
-    const rendering: *const Rendering = @ptrCast(@alignCast(handle));
-
-    rendering.render(&rendering.jobs[@intCast(index)], kind) catch |err| return @intFromError(err);
-
-    return 0;
 }

@@ -19,6 +19,7 @@ pub fn publish(io: std.Io, backing: std.mem.Allocator, staging: []const u8, outp
 
     defer verification.deinit();
 
+    const observation = &verification;
     const managed_paths = try allocator.alloc([]const u8, managed.len);
 
     for (managed, managed_paths) |file, *path| path.* = file.path;
@@ -27,7 +28,8 @@ pub fn publish(io: std.Io, backing: std.mem.Allocator, staging: []const u8, outp
         .managed = managed_paths,
         .destination = destination,
         .directory = @ptrCast(&cursor),
-        .verification = @ptrCast(&verification),
+        .verification = @ptrCast(&observation),
+        .versioned = inputs.retain_versions,
         .observed = @ptrCast(&verification.observed),
         .separator = std.fs.path.sep,
     }) catch |err| return failure.unwrap(err);

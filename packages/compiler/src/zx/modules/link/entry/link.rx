@@ -1,20 +1,9 @@
 <Module>
-    <Type from="assemble" as="Binding" />
+    <Type from="../graph/model" as="Graph" />
 
-    <Args in={Binding.Link} out={void} />
+    <Args in={Graph.Input} out={Graph.Output} />
 
-    <Call fn="host.orderArtifactLink" in={$in} />
-    <Call fn="host.registerArtifactTypes" in={$in} />
-    <Call fn="host.openArtifactBinding" in={$in} />
+    <Call module="../graph/order" in={$in} />
 
-    <Loop on={$in.first < $in.binding.length}>
-        <Call
-            module="bind"
-            in={{
-                link: $in,
-                binding: $ctx.openArtifactBinding,
-                first: 0
-            }}
-        />
-    </Loop>
+    <Return value={$ctx.order} />
 </Module>

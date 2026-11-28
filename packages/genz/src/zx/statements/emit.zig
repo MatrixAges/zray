@@ -17,15 +17,6 @@ pub fn emitParallelStatement(handle: *const anyopaque, slot: u64, index: u64) ?u
     return rows.packSpan(span);
 }
 
-pub fn borrowStatementBinding(handle: *const anyopaque, symbol: u32, value: u32) Lower.Error!?u32 {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-    const locals = @import("../value_call/locals.zig");
-    const borrowed = try locals.optionalCall(self, &frame.sequence, @fromBackingInt(symbol), @fromBackingInt(value), self.program.output_type);
-
-    return if (borrowed) |id| @backingInt(id) else null;
-}
-
 pub fn emitStatementBinding(handle: *const anyopaque, raw_symbol: u32, value: u32) ?u64 {
     const frame = Frame.borrow(handle);
     const symbol: @import("zx").ir.SymbolId = @fromBackingInt(raw_symbol);
@@ -39,27 +30,4 @@ pub fn emitStatementBinding(handle: *const anyopaque, raw_symbol: u32, value: u3
     }) catch return null;
 
     return rows.packSpan(span);
-}
-
-pub fn fuseStatementResult(handle: *anyopaque, symbol: u32, binding: u32, value: u32, by_value: bool) Lower.Error!?u32 {
-    const lowering = @import("../expressions/evaluate.zig").borrow(handle);
-    const fused = try @import("../iteration_consumer.zig").lower(lowering, @fromBackingInt(symbol), @fromBackingInt(binding), @fromBackingInt(value), by_value);
-
-    return if (fused) |id| @backingInt(id) else null;
-}
-
-pub fn clipStatementResult(handle: *const anyopaque, source: u32, value: u32) ?u32 {
-    const frame = Frame.borrow(handle);
-    const result = @import("../state_value/ownership.zig").clip(frame.lowering, &frame.sequence, @fromBackingInt(source), @fromBackingInt(value)) catch return null;
-
-    return @backingInt(result);
-}
-
-pub fn viewStatementResult(handle: *const anyopaque, value: u32) ?u32 {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-    const boundary = @import("../aggregate.zig").bind(self, &frame.sequence, @fromBackingInt(value)) catch return null;
-    const result = @import("../state_value/conversion.zig").convert(self, &frame.sequence, self.program.output_type, boundary, .view_layout) catch return null;
-
-    return @backingInt(result);
 }

@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import { clipCollectionTarget, convertStateValue, StateValueMode } from "ast_rows"
 import host from "lowering_host"
 
 import { fuse_route } from "../block/const"
@@ -9,7 +10,7 @@ import type { Body, Input } from "./model"
 export type Output = Body?
 
 export default function (in: Input): Output {
-    const { traversal, context, statement, route } = in
+    const { context, statement, route } = in
     const { control } = context
 
     const payload = integers.widen(control.statement_payloads[statement])
@@ -40,7 +41,7 @@ export default function (in: Input): Output {
 
     const fused: u32? = match {
         previous != null =>
-            host.fuseStatementResult(
+            host.consumeScopeResult(
                 context.frame,
                 control.constant_symbols[previous],
                 control.constant_values[previous],
@@ -55,23 +56,22 @@ export default function (in: Input): Output {
         _ => host.lowerExpression(context.frame, source, false, null)
     }
 
-    const owned: u32? = match {
+    const owned: u32 = match {
         !context.state_active => lowered,
-        _ => host.clipStatementResult(traversal, source, lowered)
+        _ => clipCollectionTarget(context.writer, context.sequence, source, lowered)
     }
 
-    if (owned == null) {
-        return null
-    }
-
-    const output: u32? = match {
+    const output: u32 = match {
         context.state_active && context.public_value_output =>
-            host.viewStatementResult(traversal, owned),
+            convertStateValue(
+                context.writer,
+                context.sequence,
+                context.output_type,
+                owned,
+                StateValueMode.ViewLayout,
+                true
+            ),
         _ => owned
-    }
-
-    if (output == null) {
-        return null
     }
 
     return {

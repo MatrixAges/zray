@@ -13,9 +13,7 @@ const Frame = struct {
     session: Session.Frame,
     scope: *const Scope,
     evaluator: Expressions,
-    outcome: terms.Evaluation = undefined,
     outcome_view: native.SymbolicOutcome = undefined,
-    completed: []terms.Evaluation = &.{},
     fn borrow(handle: *anyopaque) *@This() {
         return @ptrCast(@alignCast(handle));
     }
@@ -65,8 +63,6 @@ fn within(conditions: *Conditions, scope: *const Scope, environment: []?terms.Va
         .count = count,
     };
 
-    defer if (frame.completed.len != 0) conditions.allocator.free(frame.completed);
-
     const continuation = walk.executeIn(conditions.allocator, &input) catch |err| return Session.failure(err);
 
     if (continuation) |next_path| return next_path;
@@ -77,32 +73,27 @@ fn within(conditions: *Conditions, scope: *const Scope, environment: []?terms.Va
 pub fn evaluateSymbolicStatement(handle: *anyopaque, expression: ?u32) zx.Error!*const native.SymbolicOutcome {
     const frame = Frame.borrow(handle);
     const outcome: terms.Evaluation = if (expression) |id| try frame.evaluator.evaluate(@fromBackingInt(id)) else .{ .value = .{ .fields = &.{} } };
-    frame.outcome = outcome;
 
     frame.outcome_view = .{
         .safe = outcome.safe,
         .text = outcome.value.scalar,
+        .fields = std.mem.sliceAsBytes(outcome.value.fields),
     };
 
     return &frame.outcome_view;
 }
 
-pub fn bindSymbolicStatement(handle: *anyopaque, symbol: u32) void {
+pub fn bindSymbolicStatement(handle: *anyopaque, symbol: u32, input: *const native.SymbolicOutcome, field: ?u64) void {
     const frame = Frame.borrow(handle);
+    const value = terms.Value.borrow(input.text, input.fields);
 
-    frame.evaluator.environment[symbol] = frame.outcome.value;
+    frame.evaluator.environment[symbol] = if (field) |index| value.fields[@intCast(index)] else value;
 }
 
-pub fn bindSymbolicStatementField(handle: *anyopaque, symbol: u32, field: u64) void {
-    const frame = Frame.borrow(handle);
-
-    frame.evaluator.environment[symbol] = frame.outcome.value.fields[@intCast(field)];
-}
-
-pub fn publishSymbolicStatementReturn(handle: *anyopaque, path: []const u8) zx.Error!void {
+pub fn publishSymbolicStatementReturn(handle: *anyopaque, path: []const u8, input: *const native.SymbolicOutcome) zx.Error!void {
     const frame = Frame.borrow(handle);
     const conditions = frame.session.conditions;
-    const value = frame.outcome.value;
+    const value = terms.Value.borrow(input.text, input.fields);
 
     try conditions.postconditions(path, value);
     try conditions.returns.append(conditions.allocator, .{ .path = path, .value = value });
@@ -120,28 +111,4 @@ pub fn runSymbolicChild(handle: *anyopaque, body: u32, path: []const u8) zx.Erro
         control.block_count[body],
         path,
     );
-}
-
-pub fn reserveSymbolicParallel(handle: *anyopaque, count: u64) std.mem.Allocator.Error!void {
-    const frame = Frame.borrow(handle);
-
-    if (frame.completed.len != 0) {
-        frame.evaluator.allocator.free(frame.completed);
-
-        frame.completed = &.{};
-    }
-
-    frame.completed = try frame.evaluator.allocator.alloc(terms.Evaluation, @intCast(count));
-}
-
-pub fn saveSymbolicParallel(handle: *anyopaque, index: u64) void {
-    const frame = Frame.borrow(handle);
-
-    frame.completed[@intCast(index)] = frame.outcome;
-}
-
-pub fn bindSymbolicParallel(handle: *anyopaque, index: u64, symbol: u32) void {
-    const frame = Frame.borrow(handle);
-
-    frame.evaluator.environment[symbol] = frame.completed[@intCast(index)].value;
 }

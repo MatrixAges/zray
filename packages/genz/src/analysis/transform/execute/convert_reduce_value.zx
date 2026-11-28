@@ -1,11 +1,12 @@
-import host from "lowering_host"
+import { convertReduceValue } from "ast_rows"
 
-import type { Frame } from "./model"
+import type { AstSequence, AstWriter } from "ast_rows"
 
 export type Input = {
-    frame: Frame,
+    writer: AstWriter,
+    sequence: AstSequence,
+    result_type: u32,
     value: u32,
-    initial: bool,
     active: bool
 }
 
@@ -16,5 +17,5 @@ export default function (in: Input): Output {
         return in.value
     }
 
-    return host.convertReduceValue(in.frame, in.value, in.initial)
+    return convertReduceValue(in.writer, in.sequence, in.result_type, in.value)
 }

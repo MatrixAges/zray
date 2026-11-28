@@ -1,5 +1,3 @@
-import yaml from "manifest_yaml_document"
-
 import field from "../schema/field"
 import { Field, Mapping } from "../schema/model"
 import {
@@ -7,59 +5,76 @@ import {
     missing_workspace_packages,
     unknown_workspace_field
 } from "./const"
+import issue from "./issue"
 import mapping from "./mapping"
 import nodeAt from "./node_at"
 import strings from "./strings"
 
-import type { Input as Value } from "./value"
-
-export type Input = Value
-
-export type Output = string[]
+import type { Output } from "./strings"
+import type { Input } from "./value"
 
 export default function (in: Input): Output {
     const { document, node } = in
+    const { pairs, problem } = mapping(in)
 
-    const pairs = mapping({
-        document: in.document,
-        node: in.node
-    })
-
-    if (pairs.length == 0) {
-        yaml.reject(document.parser, node, missing_workspace_packages)
+    if (problem != null) {
+        return [
+            [],
+            problem
+        ]
     }
 
-    const empty: string[] = []
+    if (pairs.length == 0) {
+        return [
+            [],
+            issue([
+                node,
+                missing_workspace_packages
+            ])
+        ]
+    }
 
-    return loop({
-        index: 0,
-        packages: empty
-    }, {
-        while: state => state.index < pairs.length,
-        next: state => {
-            const key = nodeAt({
-                document,
-                id: pairs[state.index]
-            })
-
-            if (field({
-                mapping: Mapping.Workspace,
-                key: key.text
-            }) != Field.Packages) {
-                yaml.reject(document.parser, key, unknown_workspace_field)
-            }
-
-            state.packages = strings({
-                document,
-                node: nodeAt({
-                    document,
-                    id: pairs[state.index + 1]
-                }),
-                workspace: true
-            })
-
-            state.index += mapping_size
-        },
-        return: state => state.packages
+    const key = nodeAt({
+        document,
+        id: pairs[0]
     })
+
+    if (field({
+        mapping: Mapping.Workspace,
+        key: key.text
+    }) != Field.Packages) {
+        return [
+            [],
+            issue([
+                key,
+                unknown_workspace_field
+            ])
+        ]
+    }
+
+    const parsed = strings({
+        document,
+        node: nodeAt({
+            document,
+            id: pairs[1]
+        }),
+        workspace: true
+    })
+
+    if (parsed[1] == null && pairs.length > mapping_size) {
+        const extra = nodeAt({
+            document,
+            id: pairs[mapping_size]
+        })
+
+        return [
+            parsed[0],
+            issue([
+                extra,
+                unknown_workspace_field
+            ])
+        ]
+    }
+
+    return parsed
 }

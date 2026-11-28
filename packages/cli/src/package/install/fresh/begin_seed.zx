@@ -1,0 +1,11 @@
+import type { MemberWalk as Output } from "../model"
+
+export type Input = Output.Pick("members", "catalog")
+
+export default function (in: Input): Output {
+    return {
+        ...in,
+        index: 0,
+        paths: []
+    }
+}

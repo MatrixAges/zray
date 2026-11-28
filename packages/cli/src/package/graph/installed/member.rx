@@ -1,0 +1,45 @@
+<Module>
+    <Type from="../model" as="Project" />
+    <Type from="member_path" as="Member" />
+
+    <Args in={Member.Input} out={Project.RowResult} />
+
+    <Call fn="member_path" in={$in} />
+
+    <Call
+        fn="../effects.canonical"
+        in={[
+            $in.graph,
+            $ctx.member_path
+        ]}
+    />
+
+    <Call
+        fn="../effects.borrowMember"
+        in={[
+            $in.graph,
+            $in.ordinal,
+            $in.relative
+        ]}
+    />
+
+    <If on={$ctx.borrowMember == null}>
+        <Return
+            value={{
+                status: Project.Status.LockFileOutdated
+            }}
+        />
+
+        <Else>
+            <Return
+                value={{
+                    status: Project.Status.Valid,
+                    row: {
+                        path: $ctx.canonical,
+                        manifest: $ctx.borrowMember
+                    }
+                }}
+            />
+        </Else>
+    </If>
+</Module>

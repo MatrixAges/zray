@@ -1,0 +1,47 @@
+import { joinNativeParts } from "publication_host"
+
+import {
+    lock_suffix,
+    ready_file,
+    resources_prefix,
+    staging_suffix,
+    toolchains
+} from "../const"
+
+import type { CachePaths as Output } from "./model"
+
+export type Input = {
+    base: string,
+    digest: string,
+    resources_only: bool
+}
+
+export default function (in: Input): Output {
+    const name = match {
+        in.resources_only => `${resources_prefix}${in.digest}`,
+        _ => in.digest
+    }
+
+    const parent = joinNativeParts([
+        in.base,
+        toolchains
+    ])
+
+    const root = joinNativeParts([
+        parent,
+        name
+    ])
+
+    const staging = `${root}${staging_suffix}`
+
+    return {
+        parent,
+        root,
+        lock: `${root}${lock_suffix}`,
+        staging,
+        marker: joinNativeParts([
+            staging,
+            ready_file
+        ])
+    }
+}

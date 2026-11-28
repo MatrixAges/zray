@@ -9,8 +9,6 @@ export {
     analyzeIndependentEntry,
     buildBasisSlots,
     hashBasis,
-    buildBasisFlow,
-    buildBasisReturns,
-    buildBasisEffects
+    buildBasisFlow
 } from "lowering_host"
 export { requireAllocation } from "memory"

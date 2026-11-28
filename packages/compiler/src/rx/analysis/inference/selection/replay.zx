@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import memory from "memory"
 
 import equivalent from "../fields/equivalent"
 import { Action as FieldAction } from "../fields/existing"
@@ -29,6 +30,8 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
+    const parents = memory.u32Views(in.parents)
+
     const missing: u32? = null
 
     const fallback: Field = {
@@ -67,7 +70,7 @@ export default function (in: Input): Output {
             const same = equivalent({
                 target,
                 source,
-                parents: in.parents
+                parents
             })
 
             if (same) {

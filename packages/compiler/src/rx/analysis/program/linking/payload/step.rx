@@ -1,7 +1,7 @@
 <Module>
     <Type from="workflow" as="Payload" />
 
-    <Args in={Payload.Cursor} out={Payload.Step} />
+    <Args in={Payload.Cursor} out={Payload.Step?} />
 
     <Call
         fn="publish"
@@ -31,21 +31,25 @@
         }}
     />
 
-    <Call
-        fn="store"
-        in={{
-            columns: $in.columns,
-            row: $ctx.publish.row,
-            value: $ctx.apply.value
-        }}
-    />
+    <If on={$ctx.apply != null}>
+        <Call
+            fn="store"
+            in={{
+                columns: $in.columns,
+                row: $ctx.publish.row,
+                value: $ctx.apply.value
+            }}
+        />
 
-    <Return
-        value={{
-            next: $ctx.publish.next,
-            writes: $ctx.publish.writes,
-            operand: $ctx.store,
-            patch: $ctx.apply.patch
-        }}
-    />
+        <Return
+            value={{
+                next: $ctx.publish.next,
+                writes: $ctx.publish.writes,
+                operand: $ctx.store,
+                patch: $ctx.apply.patch
+            }}
+        />
+    </If>
+
+    <Return value={null} />
 </Module>

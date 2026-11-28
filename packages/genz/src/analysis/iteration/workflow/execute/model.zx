@@ -25,10 +25,12 @@ export type Input = {
     frame: Lowering,
     writer: AstWriter,
     body_seq: AstSequence,
+    loop_seq: AstSequence,
     loop_frame: LoopFrame,
     loop_state: LoopState,
     guard_info: GuardInfo,
     id: u32,
+    type_id: u32,
     initial: u32,
     parameters: View,
     initial_plan: InitialPlan,
@@ -61,7 +63,14 @@ export type ParametersOutcome = {
     projected: bool
 }
 
-export type StorageInput = Input.Pick("loop_frame", "writer", "initial_plan") & {
+export type StorageInput = Input.Pick(
+    "loop_frame",
+    "writer",
+    "body_seq",
+    "type_id",
+    "initial",
+    "initial_plan"
+) & {
     initial_value: u32
 }
 
@@ -90,6 +99,8 @@ export type Emit =
         "frame",
         "writer",
         "body_seq",
+        "loop_seq",
+        "body",
         "loop_frame",
         "guard_info",
         "initial_plan"
@@ -101,7 +112,7 @@ export type Emit =
         update: Update
     }
 
-export type Finish = Emit.Omit("schedule", "renewals")
+export type Finish = Emit.Omit("schedule", "renewals", "loop_seq", "body")
 
 export type Output = {
     expression?: u32

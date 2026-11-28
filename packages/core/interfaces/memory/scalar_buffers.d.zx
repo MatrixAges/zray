@@ -18,8 +18,6 @@ export declare function readU64View(
     index: u64
 ): u64 throws { IndexOutOfBounds }
 
-export declare function u64ViewSlice(source: U64View): u64[]
-
 export declare function readU8(
     target: U8Buffer,
     index: u64

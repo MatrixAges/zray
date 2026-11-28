@@ -6,11 +6,36 @@
     <Call fn="mapping" in={$in.mapping} />
 
     <If on={!$ctx.mapping}>
-        <Return value={Project.Status.InvalidPackageInstallation} />
+        <Return
+            value={{
+                status: Project.Status.InvalidPackageInstallation
+            }}
+        />
     </If>
 
-    <Call fn="../effects.prepareInstalled" in={$in.host} />
-    <Call fn="rows" in={$in} />
+    <Call fn="begin" in={$in} />
 
-    <Return value={$ctx.rows} />
+    <Loop
+        on={$in.status == Project.Status.Valid && $in.index < $in.mapping.paths.length}
+    >
+        <Call module="step" />
+    </Loop>
+
+    <If on={$ctx.step.status != Project.Status.Valid}>
+        <Return
+            value={{
+                status: $ctx.step.status
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            status: Project.Status.Valid,
+            installed: {
+                lock: $in.lock,
+                rows: $ctx.step.rows
+            }
+        }}
+    />
 </Module>

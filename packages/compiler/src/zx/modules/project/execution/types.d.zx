@@ -1,23 +1,4 @@
-export type ProjectWalk = mutable_opaque
-
-export type ProjectState = mutable_opaque
-
-export type ProjectSignatures = mutable_opaque
-
 export type ProjectBody = mutable_opaque
-
-export type ProjectEntry = mutable_opaque
-
-export type CompiledImport = mutable_opaque
-
-export type CompiledUnitSize = {
-    exports: u64,
-    initializers: u64
-}
-
-export type ArtifactLink = mutable_opaque
-
-export type ArtifactExtraction = mutable_opaque
 
 export enum CacheWrite {
     Ready,
@@ -51,8 +32,6 @@ export enum ProjectSourceAction {
     Depth
 }
 
-export type NativeCacheLoad = mutable_opaque
-
 export type CacheInstall = {
     key: u8[],
     keys: u8[][],
@@ -64,19 +43,7 @@ export type CacheProbe = {
     row: u64
 }
 
-export type SourceBody = opaque
-
 export type ProjectSourceSelection = {
     action: ProjectSourceAction,
     row: u64
-}
-
-export type ProjectFrameHeader = {
-    count: u64,
-    suspended: u64
-}
-
-export type ArtifactBinding = {
-    length: u64,
-    capacity: u64
 }

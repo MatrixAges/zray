@@ -1,9 +1,15 @@
 <Module>
     <Type from="model" as="Toolchain" />
 
-    <Args in={Toolchain.Input} out={Toolchain.Status} />
+    <Args in={Toolchain.CacheInput} out={Toolchain.Status} />
 
-    <Call fn="index.createStaging" in={$in.toolchain} />
+    <Call
+        fn="index.createStaging"
+        in={[
+            $in.toolchain,
+            $in.paths.staging
+        ]}
+    />
 
     <If on={$in.override == null}>
         <Call fn="index.loadZig" in={$in.toolchain} />
@@ -21,17 +27,29 @@
         </If>
 
         <If on={$in.zip}>
-            <Call fn="index.extractZip" in={$in.toolchain} />
+            <Call
+                fn="index.extractZip"
+                in={[
+                    $in.toolchain,
+                    $ctx.loadZig
+                ]}
+            />
 
             <Else>
-                <Call fn="index.extractTar" in={$in.toolchain} />
+                <Call
+                    fn="index.extractTar"
+                    in={[
+                        $in.toolchain,
+                        $ctx.loadZig
+                    ]}
+                />
             </Else>
         </If>
 
         <Call fn="index.renameZig" in={$in.toolchain} />
     </If>
 
-    <Call module="standard" in={$in} />
+    <Call module="standard" in={$in.omit(["paths"])} />
 
     <If on={$ctx.standard != Toolchain.Status.Ready}>
         <Return value={$ctx.standard} />
@@ -40,18 +58,18 @@
     <Call fn="index.closeDirectory" in={$in.toolchain} />
 
     <Call
-        fn="index.writeMarker"
-        in={[
-            $in.toolchain,
-            $in.expected_marker
-        ]}
+        module="../../workspace_files/write_artifact"
+        in={{
+            path: $in.paths.marker,
+            source: $in.expected_marker
+        }}
     />
 
     <Call
         fn="index.openStaging"
         in={[
             $in.toolchain,
-            true
+            $in.paths.staging
         ]}
     />
 
@@ -59,14 +77,21 @@
         <Return value={Toolchain.Status.IncompleteToolchainCache} />
     </If>
 
-    <Call fn="ready" in={$in} />
+    <Call fn="ready" in={$in.omit(["paths"])} />
 
     <If on={!$ctx.ready}>
         <Return value={Toolchain.Status.IncompleteToolchainCache} />
     </If>
 
     <Call fn="index.closeDirectory" in={$in.toolchain} />
-    <Call fn="index.publish" in={$in.toolchain} />
+
+    <Call
+        fn="index.publish"
+        in={[
+            $in.toolchain,
+            $in.paths.root
+        ]}
+    />
 
     <Return value={Toolchain.Status.Ready} />
 </Module>

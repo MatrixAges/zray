@@ -1,9 +1,5 @@
 export {
-    writeCompiledExport,
-    writeSourceExport,
     bindScope,
-    prepareSurface,
-    writeScopeEntry,
-    prepareLibrarySurface,
-    borrowScopeColumns
+    publishScopeSurface,
+    readScopeSurface
 } from "package_workspace_host"

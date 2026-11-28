@@ -8,26 +8,18 @@ pub const Scan = std.meta.Child(validate_graph.Input);
 const Graph = std.meta.Child(@FieldType(Scan, "graph"));
 const Ports = std.meta.Child(@FieldType(Graph, "inputs"));
 const Sorts = std.meta.Child(@FieldType(Graph, "sorts"));
+const NodeColumns = std.meta.Child(@FieldType(Scan, "nodes"));
+const node_fields = @typeInfo(NodeColumns).@"struct".field_names;
 const Self = @This();
 
 input_columns: PortColumns,
 output_columns: PortColumns,
-widths: memory.ReadColumn,
-booleans: memory.ReadColumn,
 inputs: Ports,
 outputs: Ports,
 sorts: Sorts,
 graph: Graph,
-nodes: Nodes,
-
-const Nodes = union(enum) {
-    direct: []const node.Row,
-    legacy: struct {
-        nodes: []const ir.Node,
-        current: node.Node = undefined,
-    },
-};
-
+nodes: NodeColumns,
+node_columns: [node_fields.len]memory.ReadColumn,
 const PortColumns = struct {
     names: memory.TextColumn,
     widths: memory.ReadColumn,
@@ -56,46 +48,49 @@ const PortColumns = struct {
 };
 
 /// Binds the borrowed column descriptors in place for this graph's synchronous consumers.
-pub fn init(self: *Self, module: anytype) void {
+pub fn init(self: *Self, allocator: std.mem.Allocator, module: anytype) std.mem.Allocator.Error!void {
     self.input_columns = .init(module.inputs);
     self.output_columns = .init(module.outputs);
 
     if (@TypeOf(module) == Circuit) {
-        self.widths = memory.borrowNestedColumn(u16, &.{ "node", "width" }, module.nodes);
-        self.booleans = memory.borrowNestedColumn(bool, &.{ "node", "boolean" }, module.nodes);
-        self.nodes = .{ .direct = module.nodes };
+        self.bindNodes(module.nodes);
     } else {
-        self.widths = memory.borrowNestedColumn(u16, &.{ "sort", "width" }, module.nodes);
-        self.booleans = memory.borrowNestedColumn(bool, &.{ "sort", "boolean" }, module.nodes);
-        self.nodes = .{ .legacy = .{ .nodes = module.nodes } };
+        const rows = try allocator.alloc(node.Node, module.nodes.len);
+
+        for (module.nodes, rows) |*legacy, *flat| flat.* = node.fromLegacy(legacy);
+
+        self.bindNodes(@as([]const node.Node, rows));
     }
 
     self.inputs = self.input_columns.view();
     self.outputs = self.output_columns.view();
-    self.sorts = .{ .widths = @ptrCast(&self.widths), .booleans = @ptrCast(&self.booleans) };
+    self.sorts = .{ .widths = self.nodes.width, .booleans = self.nodes.boolean };
     self.graph = .{ .inputs = &self.inputs, .outputs = &self.outputs, .sorts = &self.sorts, .count = module.nodes.len, .safe = @backingInt(module.safe) };
 }
 
-pub fn scan(self: *Self) Scan {
-    return .{ .graph = &self.graph, .nodes = @ptrCast(&self.nodes) };
+fn bindNodes(self: *Self, rows: anytype) void {
+    const nested = std.meta.Elem(@TypeOf(rows)) == node.Row;
+
+    inline for (node_fields, 0..) |name, index| {
+        const Member = @FieldType(node.Node, name);
+
+        self.node_columns[index] = if (nested)
+            memory.borrowNestedColumn(Member, &.{ "node", name }, rows)
+
+        else
+            memory.borrowReadColumn(Member, name, rows);
+
+        @field(self.nodes, name) = @ptrCast(&self.node_columns[index]);
+    }
 }
 
-pub fn validate(self: *Self) bool {
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-    return validate_graph.executeIn(empty.allocator(), &self.scan()) catch unreachable;
+pub fn scan(self: *const Self) Scan {
+    return .{ .graph = &self.graph, .nodes = &self.nodes };
 }
 
-pub fn readHardwareGraphNode(handle: *anyopaque, index: u64) *const node.Node {
-    const nodes: *Nodes = @ptrCast(@alignCast(handle));
-    const row: usize = @intCast(index);
-
-    return switch (nodes.*) {
-        .direct => |rows| &rows[row].node,
-        .legacy => |*legacy| value: {
-            legacy.current = node.fromLegacy(&legacy.nodes[row]);
-
-            break :value &legacy.current;
-        },
+pub fn validate(self: *const Self, allocator: std.mem.Allocator) bool {
+    return validate_graph.executeIn(allocator, &self.scan()) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory => false,
+        else => unreachable,
     };
 }

@@ -7,6 +7,7 @@
         fn="../index.bundlePath"
         in={[
             $in.collection,
+            $in.root,
             $in.bundle_files[$in.index]
         ]}
     />

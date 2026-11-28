@@ -47,15 +47,6 @@ export declare function prepareLoopFields(frame: LoopFrame): bool throws { OutOf
 export declare function deepenLoopInitial(frame: LoopFrame, value: u32): u32
     throws { OutOfMemory }
 
-export declare function representLoopInitial(
-    frame: LoopFrame,
-    value: u32,
-    by_value: bool
-): u32 throws { OutOfMemory }
-
-export declare function clipLoopInitial(frame: LoopFrame, value: u32): u32
-    throws { OutOfMemory }
-
 export declare function emitLoopRenewals(
     frame: LoopFrame,
     first: u64,
@@ -71,9 +62,6 @@ export declare function declareProjectedLoopState(frame: LoopFrame): void throws
 export declare function publishLoopDeclarations(frame: LoopFrame): void throws { OutOfMemory }
 
 export declare function projectLoopAssignment(frame: LoopFrame, value: u32): u32
-    throws { OutOfMemory }
-
-export declare function clipLoopAssignment(frame: LoopFrame, value: u32): u32
     throws { OutOfMemory }
 
 export declare function commitLoopUpdate(frame: LoopFrame, value: u32, state: bool): void

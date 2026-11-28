@@ -105,6 +105,7 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
         .control = &control,
         .expressions = &expressions,
         .types = &types,
+        .output_type = @backingInt(self.program.output_type),
         .store_mode = @fromBackingInt(@backingInt(self.program.store_mode)),
         .store_count = self.program.stores.count(),
         .names = self.names,

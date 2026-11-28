@@ -10,12 +10,12 @@ const Input = if (enabled) std.meta.Child(entry.Input) else void;
 const Target = if (enabled) std.meta.Child(@FieldType(Input, "target")) else void;
 pub const View = if (enabled) std.meta.Child(@FieldType(Target, "graph")) else void;
 
-pub fn borrow(graph: *const Graph, parents: *[]u32) View {
+pub fn borrow(graph: *const Graph, parents: []const u32) View {
     const rows = graph.nodes.slice();
     const types = &graph.types.items;
 
     return .{
-        .parents = @ptrCast(parents),
+        .parents = parents,
         .kinds = rows.items(.kind),
         .arguments = rows.items(.argument),
         .allowed = rows.items(.allowed),
@@ -27,11 +27,10 @@ pub fn borrow(graph: *const Graph, parents: *[]u32) View {
 pub fn restrict(graph: *Graph, id: Graph.Id, allowed: Scalar.Mask, span: zx.Span) zx.Error!void {
     if (!enabled) return restrictSeed(graph, id, allowed, span);
 
-    var parents: []u32 = graph.parents();
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
     const input: Input = .{
-        .target = &.{ .graph = &borrow(graph, &parents), .node = @backingInt(id) },
+        .target = &.{ .graph = &borrow(graph, graph.parents()), .node = @backingInt(id) },
         .requested = allowed.bits.mask,
     };
 

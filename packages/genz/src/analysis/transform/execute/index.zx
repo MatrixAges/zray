@@ -1,5 +1,6 @@
 export {
     appendStatementSequence,
+    bindTransformElement,
     appendAstBindingRows,
     extendStatementSequence,
     joinAstStatementRows,
@@ -13,7 +14,6 @@ export {
     lowerTransformSort,
     enterTransformParameters,
     tryTransformSimd,
-    bindTransformElement,
     finishGeneratedAst,
     emitReduceRenewals,
     lowerExpression,

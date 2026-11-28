@@ -21,8 +21,12 @@ export type ReadInput = {
 
 export type AddInput = {
     registration: Registration,
-    directory_entries: bool
+    path: string,
+    directory_entries: bool,
+    backend_input: bool
 }
+
+export type RecordInput = AddInput.Pick("registration", "path")
 
 export enum Admission {
     Unchanged,

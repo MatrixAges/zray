@@ -3,13 +3,16 @@ import type { Cache } from "package_cache_host"
 export enum Status {
     Ready,
     PackageNotCached,
-    CorruptPackageStore
+    CorruptPackageStore,
+    PackageArchiveTooLarge,
+    PackageArchiveChecksumMismatch
 }
 
 export type Input = {
     cache: Cache,
     offline: bool,
     root: string,
+    destination: string,
     hex: string,
     source: string,
     base: string
@@ -26,7 +29,6 @@ export type Payload = {
     downloaded: bool
 }
 
-export type Stage = {
-    cache: Cache,
+export type Stage = Input.Pick("cache", "root", "hex") & {
     bytes: u8[]
 }

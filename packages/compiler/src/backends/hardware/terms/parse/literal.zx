@@ -4,12 +4,10 @@ import memory from "memory"
 import { Form } from "../model"
 import intern from "./intern"
 
-import type { HardwareBuild } from "hardware_graph_host"
 import type { Head } from "../model"
+import type { Input as Source } from "./model"
 
-export type Input = {
-    build: HardwareBuild,
-    expression: string,
+export type Input = Source & {
     head: Head
 }
 
@@ -52,6 +50,7 @@ export default function (in: Input): Output {
         second: 0,
         third: 0,
         operator: null,
-        extra: 0
+        extra: 0,
+        origin: in.origin
     })
 }

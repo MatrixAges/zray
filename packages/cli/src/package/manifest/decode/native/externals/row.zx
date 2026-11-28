@@ -1,0 +1,126 @@
+import { missing_external } from "../../../schema/const"
+import field from "../../../schema/field"
+import { Field, Mapping } from "../../../schema/model"
+import { empty_text, mapping_size, unknown_external_field } from "../../const"
+import issue from "../../issue"
+import mapping from "../../mapping"
+import nodeAt from "../../node_at"
+import text from "../../text"
+import implementation from "../implementation"
+
+import type { External, ExternalImplementation } from "../../model"
+import type { Diagnostic, Input as Value } from "../../value"
+
+export type Input = Value
+
+export type Record = {
+    index: u64,
+    problem?: Diagnostic,
+    specifier: string,
+    signature: string,
+    export_name?: string,
+    implementation?: ExternalImplementation
+}
+
+export type Output = [External?, Diagnostic?]
+
+export default function (in: Input): Output {
+    const { document, node } = in
+    const { pairs, problem } = mapping(in)
+
+    const initial: Record = {
+        index: 0,
+        problem,
+        specifier: empty_text,
+        signature: empty_text,
+        export_name: null,
+        implementation: null
+    }
+
+    const data = loop(initial, {
+        while: pair => pair.problem == null && pair.index < pairs.length,
+        next: pair => {
+            const key = nodeAt({
+                document,
+                id: pairs[pair.index]
+            })
+            const item = nodeAt({
+                document,
+                id: pairs[pair.index + 1]
+            })
+            const value = {
+                document,
+                node: item
+            }
+            const selected = field({
+                mapping: Mapping.External,
+                key: key.text
+            })
+
+            switch (selected) {
+                case Field.Specifier:
+                    const [parsed, field_issue] = text(value)
+
+                    pair.specifier = parsed
+                    pair.problem = field_issue
+                case Field.Signature:
+                    const [parsed, field_issue] = text(value)
+
+                    pair.signature = parsed
+                    pair.problem = field_issue
+                case Field.ExportName:
+                    const [parsed, field_issue] = text(value)
+
+                    pair.export_name = parsed
+                    pair.problem = field_issue
+                case Field.Implementation:
+                    const [parsed, field_issue] = implementation(value)
+
+                    pair.implementation = parsed
+                    pair.problem = field_issue
+                default:
+                    pair.problem = issue([
+                        key,
+                        unknown_external_field
+                    ])
+            }
+
+            pair.index += mapping_size
+        }
+    })
+
+    if (data.problem != null) {
+        return [
+            null,
+            data.problem
+        ]
+    }
+
+    const parsed = data.implementation
+
+    const missing = (
+        - data.specifier == empty_text
+        - or data.signature == empty_text
+        - or parsed == null
+    )
+
+    if (missing || parsed == null) {
+        return [
+            null,
+            issue([
+                node,
+                missing_external
+            ])
+        ]
+    }
+
+    return [
+        {
+            specifier: data.specifier,
+            signature: data.signature,
+            export_name: data.export_name,
+            implementation: parsed
+        },
+        null
+    ]
+}

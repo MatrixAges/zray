@@ -1,6 +1,7 @@
 import integers from "std:integer"
+import memory from "memory"
 
-import representative from "../forest/borrowed_root"
+import representative from "../forest/root"
 import { Kind } from "../unification/model"
 
 import type { U32Buffer } from "memory"
@@ -15,6 +16,7 @@ export type Input = {
 export type Output = u64?
 
 export default function (in: Input): Output {
+    const parents = memory.u32Views(in.parents)
     const missing: u64? = null
 
     return loop({
@@ -25,7 +27,7 @@ export default function (in: Input): Output {
         next: state => {
             const row = state.row
             const parent = representative({
-                parents: in.parents,
+                parents,
                 value: in.targets[row]
             })
             const root = integers.widen(parent)

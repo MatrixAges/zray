@@ -1,6 +1,0 @@
-export {
-    orderArtifactLink,
-    registerArtifactTypes,
-    openArtifactBinding,
-    bindArtifactWindow
-} from "project_host"

@@ -10,16 +10,20 @@ pub const Paths = struct { root: []const u8, executable: []const u8, library: []
 pub fn resolve(io: std.Io, allocator: std.mem.Allocator, environment: *const std.process.Environ.Map) !Paths {
     const zig = environment.get(constants.zig_override);
     const windows = builtin.os.tag == .windows;
-    var state: workflow.State = .{ .io = io, .allocator = allocator, .environment = environment };
-
-    defer state.deinit();
-
+    var state: workflow.State = .{ .io = io, .allocator = allocator };
     var scratch = std.heap.ArenaAllocator.init(allocator);
 
     defer scratch.deinit();
+    defer state.deinit();
 
-    const outcome = source.resolve.executeIn(scratch.allocator(), &.{
-        .toolchain = @ptrCast(&state),
+    const Entry = source.resolve;
+    const Config = std.meta.Child(@FieldType(std.meta.Child(Entry.Input), "cache_config"));
+    const config = cache.config(Config, environment);
+    const resources = &state;
+
+    const outcome = Entry.executeIn(scratch.allocator(), &.{
+        .toolchain = @ptrCast(&resources),
+        .cache_config = &config,
         .override = zig,
         .windows = windows,
         .expected_marker = if (zig != null) bundle.resources_digest else bundle.digest,
@@ -32,19 +36,24 @@ pub fn resolve(io: std.Io, allocator: std.mem.Allocator, environment: *const std
             .system = constants.system_lib,
             .sibling = constants.sibling_lib,
         },
-    }) catch |err| return if (err == error.ToolchainHostFailure) state.failure.? else err;
+    }, io) catch |err| return if (err == error.ToolchainHostFailure) state.failure.? else err;
 
     switch (outcome.status) {
         .Ready => {},
         .IncompleteToolchainCache => return error.IncompleteToolchainCache,
         .ZxcZigLibraryNotFound => return error.ZxcZigLibraryNotFound,
         .CorruptBundledToolchain => return error.CorruptBundledToolchain,
+        .InvalidZxcCacheDirectory => return error.InvalidZxcCacheDirectory,
+        .MissingUserCacheDirectory => return error.MissingUserCacheDirectory,
+        .InvalidUserCacheDirectory => return error.InvalidUserCacheDirectory,
     }
 
+    const root = try allocator.dupe(u8, outcome.root.?);
+
     return .{
-        .root = state.root,
-        .executable = outcome.executable orelse try std.fs.path.join(allocator, &.{ state.root, constants.zig_directory, if (windows) constants.windows_zig_executable else constants.zig_directory }),
-        .library = outcome.library orelse try std.fs.path.join(allocator, &.{ state.root, constants.zig_directory, constants.official_lib }),
-        .standard = try std.fs.path.join(allocator, &.{ state.root, constants.standard_directory }),
+        .root = root,
+        .executable = outcome.executable orelse try std.fs.path.join(allocator, &.{ root, constants.zig_directory, if (windows) constants.windows_zig_executable else constants.zig_directory }),
+        .library = outcome.library orelse try std.fs.path.join(allocator, &.{ root, constants.zig_directory, constants.official_lib }),
+        .standard = try std.fs.path.join(allocator, &.{ root, constants.standard_directory }),
     };
 }

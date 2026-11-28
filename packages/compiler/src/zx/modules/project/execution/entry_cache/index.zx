@@ -1,8 +1,1 @@
 export { readColumnIndex, advanceLengthSlot } from "memory"
-export {
-    CacheWrite,
-    extractProjectCacheArtifact,
-    projectCacheSlot,
-    publishProjectCacheEntry,
-    rejectProjectCacheArtifact
-} from "project_host"

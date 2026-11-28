@@ -5,57 +5,57 @@ const storage = @import("storage.zig");
 const Context = storage.Context;
 const Error = storage.Error;
 
-pub fn openCollection(handle: *anyopaque) Error!void {
+pub fn openCollection(handle: *const anyopaque, root: []const u8, entry: ?[]const u8) Error![]const u8 {
     const self = Context.get(handle);
 
-    if (self.entry) |path| if (self.inputs) |inputs| inputs.add(self.io, path) catch |err| return self.fail(err);
+    if (entry) |path| if (self.inputs) |inputs| inputs.add(self.io, path) catch |err| return self.fail(err);
 
-    self.canonical_root = std.Io.Dir.cwd().realPathFileAlloc(self.io, self.root, self.allocator) catch |err| return self.fail(err);
+    return std.Io.Dir.cwd().realPathFileAlloc(self.io, root, self.allocator) catch |err| return self.fail(err);
 }
 
-pub fn readBundle(handle: *anyopaque, path: []const u8) Error![]const []const u8 {
+pub fn readBundle(handle: *const anyopaque, root: []const u8, canonical_root: []const u8, path: []const u8) Error![]const []const u8 {
     const self = Context.get(handle);
-    const absolute = referencedPath(self.allocator, self.root, self.root, path) catch |err| return self.fail(err);
+    const absolute = referencedPath(self.allocator, root, root, path) catch |err| return self.fail(err);
 
-    checkPhysical(self, absolute) catch |err| return self.fail(err);
+    checkPhysical(self, canonical_root, absolute) catch |err| return self.fail(err);
 
     return resources.files(self.io, self.allocator, absolute, self.inputs) catch |err| return self.fail(err);
 }
 
-pub fn relativePath(handle: *anyopaque, path: []const u8) Error![]const u8 {
+pub fn relativePath(handle: *const anyopaque, root: []const u8, path: []const u8) Error![]const u8 {
     const self = Context.get(handle);
 
-    return withinRelativePath(self.allocator, self.root, path) catch |err| return self.fail(err);
+    return withinRelativePath(self.allocator, root, path) catch |err| return self.fail(err);
 }
 
-pub fn resolveReference(handle: *anyopaque, current_path: []const u8, reference_path: []const u8) Error![]const u8 {
+pub fn resolveReference(handle: *const anyopaque, root: []const u8, current_path: []const u8, reference_path: []const u8) Error![]const u8 {
     const self = Context.get(handle);
     const parent = std.fs.path.dirname(current_path).?;
 
-    return referencedPath(self.allocator, self.root, parent, reference_path) catch |err| return self.fail(err);
+    return referencedPath(self.allocator, root, parent, reference_path) catch |err| return self.fail(err);
 }
 
-pub fn checkPending(handle: *anyopaque, path: []const u8) Error!void {
+pub fn checkPending(handle: *const anyopaque, canonical_root: []const u8, path: []const u8) Error!void {
     const self = Context.get(handle);
 
-    checkPhysical(self, path) catch |err| return self.fail(err);
+    checkPhysical(self, canonical_root, path) catch |err| return self.fail(err);
 }
 
-fn checkPhysical(self: *Context, path: []const u8) !void {
+fn checkPhysical(self: *Context, canonical_root: []const u8, path: []const u8) !void {
     if (self.inputs) |inputs| try inputs.add(self.io, path);
 
     const canonical = try std.Io.Dir.cwd().realPathFileAlloc(self.io, path, self.allocator);
 
-    _ = try withinRelativePath(self.allocator, self.canonical_root, canonical);
+    _ = try withinRelativePath(self.allocator, canonical_root, canonical);
 }
 
-pub fn readPending(handle: *anyopaque, path: []const u8) Error![]const u8 {
+pub fn readPending(handle: *const anyopaque, path: []const u8) Error![]const u8 {
     const self = Context.get(handle);
 
     return std.Io.Dir.cwd().readFileAllocOptions(self.io, path, self.allocator, .unlimited, .of(u8), 0) catch |err| self.fail(err);
 }
 
-pub fn observePending(handle: *anyopaque, path: []const u8, content: []const u8) Error!void {
+pub fn observePending(handle: *const anyopaque, path: []const u8, content: []const u8) Error!void {
     const self = Context.get(handle);
 
     if (self.inputs) |inputs| inputs.record(self.io, path, content) catch |err| return self.fail(err);

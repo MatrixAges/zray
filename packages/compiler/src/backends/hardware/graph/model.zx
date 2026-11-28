@@ -1,4 +1,4 @@
-import type { Node, Nodes } from "hardware_graph_host"
+import type { Node } from "hardware_graph_host"
 import type { ReadColumn, TextColumn } from "memory"
 
 export { Kind } from "hardware_graph_host"
@@ -27,7 +27,19 @@ export type Graph = {
 
 export type Scan = {
     graph: Graph,
-    nodes: Nodes
+    nodes: NodeColumns
+}
+
+export type NodeColumns = {
+    kind: ReadColumn,
+    width: ReadColumn,
+    boolean: ReadColumn,
+    first: ReadColumn,
+    second: ReadColumn,
+    third: ReadColumn,
+    operator: ReadColumn,
+    extra: ReadColumn,
+    signed: ReadColumn
 }
 
 export type Check = {

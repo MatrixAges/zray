@@ -1,0 +1,150 @@
+import { missing_module_name, missing_module_target } from "../../../schema/const"
+import field from "../../../schema/field"
+import { Field, Mapping } from "../../../schema/model"
+import { empty_text, mapping_size, unknown_module_field } from "../../const"
+import issue from "../../issue"
+import mapping from "../../mapping"
+import nodeAt from "../../node_at"
+import strings from "../../strings"
+import text from "../../text"
+import aliases from "../aliases"
+
+import type { NativeModule } from "../../model"
+import type { Diagnostic, Input as Value } from "../../value"
+
+export type Input = Value
+
+export type Record = NativeModule & {
+    index: u64,
+    problem?: Diagnostic
+}
+
+export type Output = [NativeModule?, Diagnostic?]
+
+export default function (in: Input): Output {
+    const { document, node } = in
+    const { pairs, problem } = mapping(in)
+
+    const initial: Record = {
+        index: 0,
+        problem,
+        name: empty_text,
+        path: null,
+        header: null,
+        dependencies: [],
+        bundle_files: [],
+        include_paths: null,
+        abi_aliases: null
+    }
+
+    const data = loop(initial, {
+        while: pair => pair.problem == null && pair.index < pairs.length,
+        next: pair => {
+            const key = nodeAt({
+                document,
+                id: pairs[pair.index]
+            })
+            const item = nodeAt({
+                document,
+                id: pairs[pair.index + 1]
+            })
+            const value = {
+                document,
+                node: item
+            }
+            const selected = field({
+                mapping: Mapping.NativeModule,
+                key: key.text
+            })
+
+            switch (selected) {
+                case Field.Name:
+                    const [parsed, field_issue] = text(value)
+
+                    pair.name = parsed
+                    pair.problem = field_issue
+                case Field.Path:
+                    const [parsed, field_issue] = text(value)
+
+                    pair.path = parsed
+                    pair.problem = field_issue
+                case Field.Header:
+                    const [parsed, field_issue] = text(value)
+
+                    pair.header = parsed
+                    pair.problem = field_issue
+                case Field.Dependencies:
+                    const [parsed, field_issue] = strings({
+                        ...value,
+                        workspace: false
+                    })
+
+                    pair.dependencies = parsed
+                    pair.problem = field_issue
+                case Field.BundleFiles:
+                    const [parsed, field_issue] = strings({
+                        ...value,
+                        workspace: false
+                    })
+
+                    pair.bundle_files = parsed
+                    pair.problem = field_issue
+                case Field.IncludePaths:
+                    const [parsed, field_issue] = strings({
+                        ...value,
+                        workspace: false
+                    })
+
+                    pair.include_paths = parsed
+                    pair.problem = field_issue
+                case Field.AbiAliases:
+                    const [parsed, field_issue] = aliases(value)
+
+                    pair.abi_aliases = parsed
+                    pair.problem = field_issue
+                default:
+                    pair.problem = issue([
+                        key,
+                        unknown_module_field
+                    ])
+            }
+
+            pair.index += mapping_size
+        }
+    })
+
+    if (data.problem != null) {
+        return [
+            null,
+            data.problem
+        ]
+    }
+
+    if (data.name == empty_text) {
+        return [
+            null,
+            issue([
+                node,
+                missing_module_name
+            ])
+        ]
+    }
+
+    if ((data.path == null) == (data.header == null)) {
+        return [
+            null,
+            issue([
+                node,
+                missing_module_target
+            ])
+        ]
+    }
+
+    return [
+        data.omit([
+            "index",
+            "problem"
+        ]),
+        null
+    ]
+}

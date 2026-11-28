@@ -1,0 +1,81 @@
+<Module>
+    <Type from="model" as="Receipt" />
+
+    <Args in={Receipt.Walk} out={Receipt.Walk} />
+
+    <Call fn="index.nextTreeEntry" in={$in.receipt} />
+
+    <If on={$ctx.nextTreeEntry == null}>
+        <Return
+            value={{
+                ...$in,
+                more: false
+            }}
+        />
+
+        <Else>
+            <Call
+                fn="admit"
+                in={{
+                    ...$in.pick([
+                        "paths",
+                        "visited",
+                        "bytes"
+                    ]),
+                    entry: $ctx.nextTreeEntry
+                }}
+            />
+
+            <If on={$ctx.admit.status != Receipt.Status.Valid}>
+                <Return
+                    value={{
+                        ...$in,
+                        status: $ctx.admit.status
+                    }}
+                />
+            </If>
+
+            <If on={$ctx.admit.row == null}>
+                <Return
+                    value={{
+                        ...$in,
+                        visited: $in.visited + 1
+                    }}
+                />
+
+                <Else>
+                    <Call
+                        module="file"
+                        in={{
+                            receipt: $in.receipt,
+                            path: $ctx.nextTreeEntry.path,
+                            remaining: $ctx.admit.remaining,
+                            expected: $in.hashes[$ctx.admit.row],
+                            executable: $in.executables[$ctx.admit.row]
+                        }}
+                    />
+
+                    <If on={$ctx.file == null}>
+                        <Return
+                            value={{
+                                ...$in,
+                                status: Receipt.Status.CorruptPackageStore
+                            }}
+                        />
+
+                        <Else>
+                            <Return
+                                value={{
+                                    ...$in,
+                                    visited: $in.visited + 1,
+                                    files: $in.files + 1,
+                                    bytes: $in.bytes + $ctx.file
+                                }}
+                            />
+                        </Else>
+                    </If>
+                </Else>
+            </If>
+        </Else>
+    </If>
+</Module>

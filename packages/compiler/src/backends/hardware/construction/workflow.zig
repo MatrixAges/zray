@@ -131,7 +131,7 @@ pub fn writeHardwareInput(handle: *anyopaque, row: u64, port: ?*const native.Inp
         .operator = 0,
         .extra = 0,
         .signed = false,
-    }, frame.terms.origin);
+    }, null);
 
     frame.inputs[index] = .{ .name = input.symbol, .path = input.path, .sort = sort, .signed = planned.signed, .node = id };
 }
@@ -140,21 +140,6 @@ pub fn bindHardwareInputs(handle: *anyopaque) Terms.Error!void {
     const frame = Frame.borrow(handle);
 
     try bindings.bindInputs(&frame.terms, frame.model.inputs);
-}
-
-pub fn retainHardwareOrigin(handle: *anyopaque, file: []const u8) std.mem.Allocator.Error![]const u8 {
-    return Frame.borrow(handle).terms.allocator.dupe(u8, file);
-}
-
-pub fn setHardwareOrigin(handle: *anyopaque, file: []const u8, row: u64) void {
-    const frame = Frame.borrow(handle);
-    const span = frame.model.definitions.items(.origin)[@intCast(row)].span;
-
-    frame.terms.origin = .{ .file_name = file, .span = span };
-}
-
-pub fn clearHardwareOrigin(handle: *anyopaque) void {
-    Frame.borrow(handle).terms.origin = null;
 }
 
 pub fn hardwareVariable(handle: *anyopaque, key: []const u8) Terms.Error!?u32 {
@@ -184,9 +169,14 @@ pub fn growHardwareCache(handle: *anyopaque) std.mem.Allocator.Error!void {
     try terms.cache.ensureTotalCapacity(terms.scratch, terms.cache.count + 1);
 }
 
-pub fn appendHardwareTerm(handle: *anyopaque, position: u64, key: []const u8, kind: native.Kind, width: u16, boolean: bool, first: u64, second: u32, third: u32, operator: u8, extra: u16, signed: bool) std.mem.Allocator.Error!u32 {
+pub fn appendHardwareTerm(handle: *anyopaque, position: u64, key: []const u8, kind: native.Kind, width: u16, boolean: bool, first: u64, second: u32, third: u32, operator: u8, extra: u16, signed: bool, origin: ?*const native.NodeOrigin) std.mem.Allocator.Error!u32 {
     const frame = Frame.borrow(handle);
     const terms = &frame.terms;
+
+    const location: ?ir.Origin = if (origin) |value| .{
+        .file_name = value.file,
+        .span = frame.model.definitions.items(.origin)[@intCast(value.row)].span,
+    } else null;
 
     const id = try frame.nodes.append(terms.allocator, &.{
         .kind = kind,
@@ -198,7 +188,7 @@ pub fn appendHardwareTerm(handle: *anyopaque, position: u64, key: []const u8, ki
         .operator = operator,
         .extra = extra,
         .signed = signed,
-    }, terms.origin);
+    }, location);
 
     terms.cache.fillVacant(@intCast(position), key, id);
 

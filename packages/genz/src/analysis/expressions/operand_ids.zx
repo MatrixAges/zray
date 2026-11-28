@@ -1,4 +1,4 @@
-import { storeAstIdPair } from "ast_rows"
+import { retainAstIds } from "ast_rows"
 
 import type { AstWriter } from "ast_rows"
 
@@ -21,5 +21,8 @@ export default function (in: Input): Output {
         return []
     }
 
-    return [storeAstIdPair(writer, arguments.first, arguments.second)]
+    return [retainAstIds(writer, [
+        arguments.first,
+        arguments.second
+    ])]
 }

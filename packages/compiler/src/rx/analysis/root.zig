@@ -34,8 +34,6 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("inference/solve/host.zig"),
     @import("inference/unify/host.zig"),
     @import("parallel_task.zig"),
-    @import("program/linking/host.zig"),
-    @import("program/linking/operands/host.zig"),
     @import("program/statements/traversal/call.zig"),
     @import("program/statements/traversal/host.zig"),
     @import("project/constraints/collection/host.zig"),

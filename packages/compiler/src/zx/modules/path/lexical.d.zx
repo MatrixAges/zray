@@ -1,5 +1,3 @@
-export type PathAllocator = opaque
-
 export declare function pathParent(value: string): string? concurrent
 
 export declare function pathBasename(value: string): string concurrent
@@ -14,11 +12,6 @@ export declare function resolvePathFrom(
     root: string,
     path: string
 ): string throws { OutOfMemory } concurrent
-
-export declare function resolveOwnedPathParts(
-    resource: PathAllocator,
-    parts: string[]
-): string throws { OutOfMemory }
 
 export declare function resolvePortablePath(
     allocator,

@@ -1,5 +1,6 @@
 import type { Expressions } from "core/expression_table/model"
-import type { ExpressionLink, OperandColumn, OperandRoute } from "rx_project_host"
+import type { ColumnLengths } from "memory"
+import type { OperandColumn, OperandRoute } from "rx_project_host"
 import type { Symbols } from "./model"
 
 export type Cell = {
@@ -20,11 +21,16 @@ export type Patch = {
     evaluation?: u32[]
 }
 
-export type Work = {
-    frame: ExpressionLink,
+export type Source = {
     data: Expressions,
+    metadata: Metadata,
     symbols: Symbols,
     mapping: u32[],
+    headers: OperandColumn[][],
+    lengths: ColumnLengths
+}
+
+export type Work = Source.Omit("lengths", "headers") & {
     index: u64,
     slots: OperandColumn[],
     row: u64,
@@ -34,8 +40,30 @@ export type Work = {
     route: OperandRoute
 }
 
+export type Metadata = {
+    kinds: u8[],
+    unary: u8[],
+    binary: u8[],
+    iteration: u8[],
+    collection: u8[],
+    transform: u8[],
+    scope: u8[]
+}
+
 export type Prepare = {
-    work: Work,
+    source: Source,
     index: u32,
     route: OperandRoute
+}
+
+export type Prepared = {
+    kind: u8,
+    count: u32,
+    work?: Work
+}
+
+export type Publication = {
+    kind: u8,
+    count: u32,
+    patch: Patch
 }

@@ -161,9 +161,8 @@ pub fn prepareLoopUpdate(handle: *anyopaque) Error!void {
         .Keep => initial_value,
         .Dereference => @backingInt(try @import("../../access/emit.zig").dereference(frame.lowering, frame.initial_value)),
         .Deep => try deepenLoopInitial(handle, initial_value),
-        .State => try representLoopInitial(handle, initial_value, false),
-        .StateValue => try representLoopInitial(handle, initial_value, true),
-        .Clip => try clipLoopInitial(handle, initial_value),
+        .State, .StateValue => @backingInt(try @import("../../state_value/conversion.zig").convert(frame.lowering, &frame.body, frame.type_id, frame.initial_value, if (frame.initial.storage == .StateValue) .value_layout else .value)),
+        .Clip => @backingInt(try @import("../../state_value/ownership.zig").clip(frame.lowering, &frame.body, frame.iteration.initial, frame.initial_value)),
     };
 
     frame.initial_state = @fromBackingInt(value);
@@ -184,18 +183,6 @@ pub fn deepenLoopInitial(handle: *anyopaque, value: u32) Error!u32 {
     const frame = Frame.borrow(handle);
 
     return @backingInt(try @import("../../iteration_value/conversion.zig").convert(&frame.context, frame.type_id, @fromBackingInt(value), false));
-}
-
-pub fn representLoopInitial(handle: *anyopaque, value: u32, by_value: bool) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try @import("../../state_value/conversion.zig").convert(frame.lowering, &frame.body, frame.type_id, @fromBackingInt(value), if (by_value) .value_layout else .value));
-}
-
-pub fn clipLoopInitial(handle: *anyopaque, value: u32) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try @import("../../state_value/ownership.zig").clip(frame.lowering, &frame.body, frame.iteration.initial, @fromBackingInt(value)));
 }
 
 pub fn releaseLoopPlanningScratch(handle: *anyopaque) void {

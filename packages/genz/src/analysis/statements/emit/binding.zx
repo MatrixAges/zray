@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import { prepareScopeBinding } from "ast_rows"
 import lookup from "core/integer/index/lookup"
 import host from "lowering_host"
 import memory from "memory"
@@ -27,7 +28,13 @@ export default function (in: Input): Output {
         )
     }
 
-    const borrowed = host.borrowStatementBinding(traversal, symbol, value)
+    const borrowed = prepareScopeBinding(
+        context.writer,
+        context.sequence,
+        symbol,
+        value,
+        context.output_type
+    )
 
     const by_value = lookup({
         keys: memory.u32Views(context.stack_keys),

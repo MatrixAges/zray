@@ -17,7 +17,6 @@ pub const Frame = struct {
     id: ir.ExprId,
     target: ir.TypeId,
     span: zx.Span,
-    aggregate_fields: []Value = &.{},
     call_safety: native.CallSafety = undefined,
     slots: [std.enums.values(Operand).len]Evaluation = undefined,
     outcomes: [std.enums.values(Operand).len]native.SymbolicOutcome = undefined,
@@ -66,6 +65,14 @@ pub fn execute(evaluator: *Expressions, id: ir.ExprId, target: ir.TypeId, span: 
         return .{ .value = source.value.fields[index], .safe = source.safe };
     }
 
+    if (outcome.fields) |rows| {
+        const fields = try evaluator.allocator.alloc(Value, rows.len);
+
+        for (rows) |field| fields[field.index] = Value.borrow(field.text, field.fields);
+
+        return .{ .value = .{ .fields = fields }, .safe = outcome.safe orelse "true" };
+    }
+
     if (outcome.scalar) |text| {
         frame.at(.Result).* = .{
             .value = .{ .scalar = text },
@@ -98,6 +105,7 @@ pub fn evaluateSymbolicOperand(handle: *anyopaque, slot: Operand, expression: u3
     outcome.* = .{
         .safe = value.safe,
         .text = value.value.scalar,
+        .fields = std.mem.sliceAsBytes(value.value.fields),
     };
 
     return outcome;
@@ -122,19 +130,4 @@ pub fn bindSymbolicExpressionSafety(handle: *anyopaque, safe: []const u8) zx.Err
     const frame = Frame.borrow(handle);
 
     return frame.evaluator.boolean(safe, frame.span);
-}
-
-pub fn reserveSymbolicAggregate(handle: *anyopaque, count: u32) std.mem.Allocator.Error!void {
-    const frame = Frame.borrow(handle);
-    const fields = try frame.evaluator.allocator.alloc(Value, count);
-
-    frame.aggregate_fields = fields;
-
-    frame.at(.Result).* = .{ .value = .{ .fields = fields } };
-}
-
-pub fn writeSymbolicAggregateField(handle: *anyopaque, index: u32) void {
-    const frame = Frame.borrow(handle);
-
-    frame.aggregate_fields[index] = frame.at(.First).value;
 }

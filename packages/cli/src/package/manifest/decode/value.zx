@@ -1,9 +1,12 @@
-import type { Document as Parser, Node } from "manifest_yaml_document"
+import type { Node } from "manifest_yaml_document"
 
-export type Document = {
-    parser: Parser,
-    nodes: Node[]
+export type Diagnostic = {
+    line: u64,
+    column: u64,
+    message: string
 }
+
+export type Document = Node[]
 
 export type Input = {
     document: Document,

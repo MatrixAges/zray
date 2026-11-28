@@ -19,6 +19,7 @@
                 fn="index.emitReduceRenewals"
                 in={[
                     $in.frame,
+                    $in.result_type,
                     $in.accumulator,
                     $ctx.check.first,
                     $ctx.check.end,

@@ -1,4 +1,4 @@
-import type { Input as Value } from "./value"
+import type { Diagnostic, Input as Value } from "./value"
 
 export type Export = {
     path: string,
@@ -71,4 +71,9 @@ export type Values = {
     include_paths: string[],
     library_paths: string[],
     compiled_exports: u64
+}
+
+export type Result = {
+    data?: Values,
+    diagnostic?: Diagnostic
 }

@@ -1,4 +1,5 @@
 const std = @import("std");
+const generation = @import("../partition.zig");
 const Scanning = @import("../partition/scanning.zig");
 const generated = @import("parser_options").generated_parser;
 const worker = if (generated) @import("generated_bootstrap_output_worker") else void;
@@ -25,8 +26,33 @@ pub const Arenas = struct {
 
 pub const HashOutput = struct { paths: [][]const u8, hashes: []u64 };
 
-pub fn each(arenas: Arenas, request: Request) !void {
-    var work: Work = .{ .request = request };
+pub const Rendering = struct {
+    owner: std.mem.Allocator,
+    workspace: std.mem.Allocator,
+    columns: generation.layout.FunctionFiles,
+    roots: @FieldType(generation.layout.Plan, "roots"),
+    jobs: []const generation.placement.Job,
+    files: []generation.placement.File,
+    fn publish(self: Rendering, job: generation.placement.Job, file: anytype) !void {
+        const source = switch (file.kind) {
+            .Stub => try generation.namedStub(self.owner, self.workspace, self.columns.names[job.index], job.variants, job.comptime_entry),
+            .Exports => blk: {
+                const selected = self.roots[job.index];
+
+                break :blk try generation.indexedExports(self.owner, self.workspace, self.columns.names, selected.entries, selected.variants);
+            },
+            .Modules => try generation.indexedRoot(self.owner, self.workspace, self.columns, self.roots[job.index].callees),
+        };
+
+        self.files[@intCast(file.destination)].source = source;
+    }
+};
+
+pub fn eachRender(arenas: Arenas, rendering: Rendering) !void {
+    var work: Work = .{
+        .request = .{ .count = rendering.jobs.len, .scan = null, .hash = null, .write = null },
+        .render = rendering,
+    };
 
     return spread(arenas, &work, Work.run);
 }
@@ -54,6 +80,7 @@ const Work = struct {
     hash_output: ?HashOutput = null,
     scan_output: ?Scanning.Columns = null,
     write: ?struct { io: std.Io, directory: std.Io.Dir } = null,
+    render: ?Rendering = null,
     next: std.atomic.Value(usize) = .init(0),
     failure: std.atomic.Value(u32) = .init(0),
     fn run(self: *Work, arena: *std.heap.ArenaAllocator) void {
@@ -64,9 +91,12 @@ const Work = struct {
 
             if (row >= self.request.count) return;
 
+            const job = if (self.render) |rendering| rendering.jobs[row] else null;
+
             const input: Input = .{
                 .jobs = &self.request,
                 .row = row,
+                .render = if (job) |item| &.{ .destination = item.destination, .root = item.root } else null,
             };
 
             const outcome = worker.executeIn(allocator, &input) catch |err| {
@@ -75,10 +105,14 @@ const Work = struct {
                 return;
             };
 
-            if (outcome.code != 0) {
-                self.fail(outcome.code);
+            if (outcome.partition) |files| {
+                const rendering = self.render.?;
 
-                return;
+                for (files) |file| rendering.publish(job.?, file) catch |err| {
+                    self.fail(@intFromError(err));
+
+                    return;
+                };
             }
 
             if (outcome.file) |file| {

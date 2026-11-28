@@ -10,6 +10,7 @@ export type Inventory = {
 export type Input = Inventory & {
     managed: string[],
     observed: TextColumn,
+    versioned: bool,
     separator: u8
 }
 

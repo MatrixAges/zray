@@ -30,10 +30,24 @@ export type Directory = {
     name: string
 }
 
+export type SurfaceExport = {
+    specifier: string,
+    source: string,
+    module?: string
+}
+
 export type Surface = {
-    exports: u64,
+    root: string,
+    path: string,
+    exports: SurfaceExport[],
     entry?: string,
     library?: string
+}
+
+export type PublishedSurface = {
+    root: string,
+    rows: SurfaceExport[],
+    artifact?: string
 }
 
 export declare function readRoot(collection: Collection): RootManifest throws { SourceLoadFailure }
@@ -86,20 +100,14 @@ export declare function publishProject(project: Project, owner: u64): void throw
     SourceLoadFailure
 }
 
-export declare function prepareSurface(binding: ScopeBinding, index: u64): Surface throws {
+export declare function readScopeSurface(binding: ScopeBinding, index: u64): Surface throws {
     SourceLoadFailure
 }
-export declare function writeScopeEntry(binding: ScopeBinding, entry: string): void throws {
-    SourceLoadFailure
-}
-export declare function prepareLibrarySurface(binding: ScopeBinding, library: string): void throws {
-    SourceLoadFailure
-}
-export declare function writeCompiledExport(binding: ScopeBinding, index: u64): void
-export declare function writeSourceExport(binding: ScopeBinding, index: u64): void throws {
-    SourceLoadFailure
-}
-export declare function borrowScopeColumns(binding: ScopeBinding): void
+export declare function publishScopeSurface(
+    binding: ScopeBinding,
+    index: u64,
+    surface: PublishedSurface
+): void throws { SourceLoadFailure }
 export declare function bindScope(binding: ScopeBinding, index: u64): bool throws {
     SourceLoadFailure
 }

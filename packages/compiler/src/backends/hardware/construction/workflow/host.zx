@@ -1,6 +1,5 @@
 export {
     bindHardwareInputs,
-    clearHardwareOrigin,
     publishHardwareDefinition,
     readHardwareSort,
     reserveHardwareGraph,

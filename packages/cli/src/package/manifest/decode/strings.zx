@@ -1,18 +1,17 @@
-import yaml from "manifest_yaml_document"
-
 import { Kind } from "../../workspace/paths/model"
 import relative from "../../workspace/paths/relative"
 import { bad_sequence, workspace_path, workspace_sequence } from "./const"
+import issue from "./issue"
 import nodeAt from "./node_at"
-import string from "./string"
+import text from "./text"
 
-import type { Input as Value } from "./value"
+import type { Diagnostic, Input as Value } from "./value"
 
 export type Input = Value & {
     workspace: bool
 }
 
-export type Output = string[]
+export type Output = [string[], Diagnostic?]
 
 export default function (in: Input): Output {
     const { document, node, workspace } = in
@@ -20,46 +19,53 @@ export default function (in: Input): Output {
     const items = node.items
 
     if (items == null) {
-        yaml.reject(
-            document.parser,
-            node,
-            workspace ? workspace_sequence : bad_sequence
-        )
-
-        return []
+        return [
+            [],
+            issue([
+                node,
+                workspace ? workspace_sequence : bad_sequence
+            ])
+        ]
     }
 
     const empty: string[] = []
+    const no_issue: Diagnostic? = null
 
     return loop({
         row: 0,
-        out: empty
+        out: empty,
+        problem: no_issue
     }, {
-        while: state => state.row < items.length,
+        while: state => state.problem == null && state.row < items.length,
         next: state => {
             const item = nodeAt({
                 document,
                 id: items[state.row]
             })
-            const value = string({
+            const [value, problem] = text({
                 document,
                 node: item
             })
 
-            if (workspace) {
-                const valid = relative({
-                    text: value,
-                    kind: Kind.Workspace
-                })
-
-                if (!valid) {
-                    yaml.reject(document.parser, item, workspace_path)
-                }
+            if (problem != null) {
+                state.problem = problem
+            } else if (workspace && !relative({
+                text: value,
+                kind: Kind.Workspace
+            })) {
+                state.problem = issue([
+                    item,
+                    workspace_path
+                ])
+            } else {
+                state.out = state.out.push(value)[0]
             }
 
-            state.out = state.out.push(value)[0]
             state.row += 1
         },
-        return: state => state.out
+        return: state => [
+            state.out,
+            state.problem
+        ]
     })
 }

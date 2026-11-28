@@ -1,0 +1,57 @@
+import { resolvePathParts } from "lexical_path"
+
+import { root_export } from "../const"
+
+import type {
+    PublishedSurface as Output,
+    Surface as Input
+} from "package_workspace_host"
+
+export default function (in: Input): Output {
+    const root = resolvePathParts([
+        in.root,
+        in.path
+    ])
+
+    const entry = in.entry
+
+    if (entry != null) {
+        return {
+            root,
+            rows: [{
+                specifier: root_export,
+                source: resolvePathParts([
+                    root,
+                    entry
+                ])
+            }]
+        }
+    }
+
+    const library = in.library
+
+    if (library != null) {
+        return {
+            root,
+            rows: in.exports,
+            artifact: resolvePathParts([
+                root,
+                library
+            ])
+        }
+    }
+
+    const rows = in.exports.map(item => ({
+        specifier: item.specifier,
+        source: resolvePathParts([
+            root,
+            item.source
+        ]),
+        module: item.module
+    }))[0]
+
+    return {
+        root,
+        rows
+    }
+}

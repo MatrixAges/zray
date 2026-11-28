@@ -1,6 +1,5 @@
 export {
     evaluateSymbolicOperand,
     loadSymbolicReference,
-    reserveSymbolicAggregate,
     runSymbolicExpressionCall
 } from "verification_host"

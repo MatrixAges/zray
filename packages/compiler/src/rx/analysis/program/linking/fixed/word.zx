@@ -1,0 +1,43 @@
+import { OperandColumn } from "rx_project_host"
+
+import type { Expressions } from "core/expression_table/model"
+
+export type Input = {
+    data: Expressions,
+    column: OperandColumn,
+    row: u64
+}
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    const { data, column, row } = in
+
+    return match column {
+        OperandColumn.binary_left => data.binary_left[row],
+        OperandColumn.binary_right => data.binary_right[row],
+        OperandColumn.captures => data.captures[row],
+        OperandColumn.conditional_conditions => data.conditional_conditions[row],
+        OperandColumn.conditional_no => data.conditional_no[row],
+        OperandColumn.conditional_yes => data.conditional_yes[row],
+        OperandColumn.index_targets => data.index_targets[row],
+        OperandColumn.index_values => data.index_values[row],
+        OperandColumn.iteration_bodies => data.iteration_bodies[row],
+        OperandColumn.iteration_condition_parameters =>
+            data.iteration_condition_parameters[row],
+        OperandColumn.iteration_conditions => data.iteration_conditions[row],
+        OperandColumn.iteration_initials => data.iteration_initials[row],
+        OperandColumn.iteration_parameters => data.iteration_parameters[row],
+        OperandColumn.lengths => data.lengths[row],
+        OperandColumn.optional_values => data.optional_values[row],
+        OperandColumn.projection_indices => data.projection_indices[row],
+        OperandColumn.projection_targets => data.projection_targets[row],
+        OperandColumn.references => data.references[row],
+        OperandColumn.some => data.some[row],
+        OperandColumn.unary_operands => data.unary_operands[row],
+        OperandColumn.update_indices => data.update_indices[row],
+        OperandColumn.update_targets => data.update_targets[row],
+        OperandColumn.update_values => data.update_values[row],
+        _ => null
+    }
+}

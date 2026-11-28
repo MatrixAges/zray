@@ -2,7 +2,7 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const Builder = @import("../../builder.zig");
 const abi = @import("../abi.zig");
-const Input = std.meta.Child(@FieldType(abi.Request, "literals"));
+const Input = std.meta.Child(@typeInfo(@FieldType(abi.Request, "literals")).optional.child);
 const Bases = std.meta.Child(@FieldType(abi.Payload, "literals"));
 const names = @typeInfo(Bases).@"struct".field_names;
 

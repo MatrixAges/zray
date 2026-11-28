@@ -1,3 +1,4 @@
+export { appendExtendedExpressions, astFieldCount, readAstOrigin } from "ast_rows"
 export {
     prepareFunctionBody,
     lowerFunctionStatements,
@@ -5,6 +6,8 @@ export {
     lowerFunctionPrelude,
     lowerFunctionPending,
     lowerFunctionReferences,
-    lowerFunctionCommit,
-    publishFunctionBody
+    lowerFunctionCommit
 } from "lowering_host"
+export { requireAllocation } from "memory"
+
+export { default as emptyForms } from "../../../../ast/expressions/forms/empty"

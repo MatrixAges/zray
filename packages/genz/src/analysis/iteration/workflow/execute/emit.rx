@@ -45,9 +45,11 @@
         <Else>
             <If on={$in.schedule.assignment == Step.Assignment.State}>
                 <Call
-                    fn="index.clipLoopAssignment"
+                    fn="index.clipCollectionTarget"
                     in={[
-                        $in.loop_frame,
+                        $in.writer,
+                        $in.loop_seq,
+                        $in.body,
                         $in.update.value
                     ]}
                 />
@@ -56,7 +58,7 @@
                     fn="index.commitLoopUpdate"
                     in={[
                         $in.loop_frame,
-                        $ctx.clipLoopAssignment,
+                        $ctx.clipCollectionTarget,
                         true
                     ]}
                 />
@@ -92,7 +94,9 @@
         fn="finish"
         in={$in.omit([
             "schedule",
-            "renewals"
+            "renewals",
+            "loop_seq",
+            "body"
         ])}
     />
 

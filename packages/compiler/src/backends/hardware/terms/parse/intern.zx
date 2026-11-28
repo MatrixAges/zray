@@ -69,6 +69,7 @@ export default function (in: Input): Output {
         in.third,
         in.operator ?? 0,
         integers.narrowShort(in.extra),
-        in.form == Form.SignExtend
+        in.form == Form.SignExtend,
+        in.origin
     )
 }

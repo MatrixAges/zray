@@ -1,4 +1,3 @@
-import host from "package_graph_host"
 import { WorkspaceStatus } from "package_graph_host"
 
 import {
@@ -12,38 +11,30 @@ import {
 } from "../const"
 import { Status } from "../model"
 
-import type { Result as Output, Workspace } from "../model"
+import type { AssemblyOutcome as Input } from "package_graph_host"
+import type { Result as Output } from "../model"
 
-export type Input = Workspace & {
-    status: WorkspaceStatus,
-    failed_owner: u64
-}
+export { WorkspaceStatus } from "package_graph_host"
 
 export default function (in: Input): Output {
-    const package_issue = match in.status {
+    const { workspace, status, failed_owner, owner_path, owner_name, edge_name } = in
+
+    const package_issue = match status {
         WorkspaceStatus.CyclicPackageDependencies => cyclic_dependencies,
         WorkspaceStatus.PackageDependencyDepthExceeded => dependency_depth,
         _ => ""
     }
 
     if (package_issue != "") {
-        host.reportWorkspace(in.host, package_issue, true)
-
-        return Status.InvalidPackageGraph
+        return {
+            status: Status.InvalidPackageGraph,
+            workspace,
+            diagnostic:
+                `${owner_path}/pkg.yaml: dependency ${owner_name}: ${package_issue}`
+        }
     }
 
-    const traversal = loop({
-        row: in.failed_owner
-    }, {
-        while: state => state.row < in.count,
-        next: state => {
-            host.discardEdges(in.host, state.row)
-
-            state.row += 1
-        }
-    })
-
-    const message = match in.status {
+    const message = match status {
         WorkspaceStatus.Duplicate => duplicate_dependency,
         WorkspaceStatus.InvalidSpecifier => invalid_specifier,
         WorkspaceStatus.Missing => missing_dependency,
@@ -52,13 +43,19 @@ export default function (in: Input): Output {
         _ => ""
     }
 
-    if (message != "") {
-        host.reportWorkspace(in.host, message, false)
+    const diagnostic: string? = match {
+        message == "" => null,
+        _ => `${owner_path}/pkg.yaml: dependency ${edge_name}: ${message}`
     }
 
-    return match in.status {
-        WorkspaceStatus.InvalidVersion => Status.InvalidVersion,
-        WorkspaceStatus.Overflow => Status.Overflow,
-        _ => Status.InvalidPackageGraph
+    return {
+        status: match status {
+            WorkspaceStatus.InvalidVersion => Status.InvalidVersion,
+            WorkspaceStatus.Overflow => Status.Overflow,
+            _ => Status.InvalidPackageGraph
+        },
+        workspace,
+        keep_rows: failed_owner,
+        diagnostic
     }
 }

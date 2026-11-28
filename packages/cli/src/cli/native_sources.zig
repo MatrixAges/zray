@@ -49,9 +49,6 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, pr
     var context: storage.Context = .{
         .io = io,
         .allocator = allocator,
-        .directory = directory,
-        .project_root = project_root,
-        .options = options,
         .inputs = inputs,
     };
 
@@ -64,10 +61,14 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, pr
     var store_0: Store0 = &store_0_value;
     var store_1: Store1 = &store_1_value;
     var host: StoreHost = .{ .store_0 = &store_0, .store_1 = &store_1 };
+    const effects = &context;
 
     const input: std.meta.Child(rule.Input) = .{
-        .collection = @ptrCast(&context),
+        .collection = @ptrCast(&effects),
         .directory = directory,
+        .project_root = project_root,
+        .name = options.name,
+        .entry_path = options.path,
         .bundle_files = options.bundle_files,
         .header = options.header != null,
         .header_absolute = if (options.header) |header| std.fs.path.isAbsolute(header) else false,
@@ -98,10 +99,24 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, pr
         };
     }
 
+    const layout = result.includes.?;
+    const include_paths = try allocator.alloc([]const u8, layout.paths.len);
+
+    for (layout.paths, include_paths) |path, *owned| owned.* = try allocator.dupe(u8, path);
+
+    const relocations = try allocator.alloc(Include, layout.relocations.len);
+
+    for (layout.relocations, relocations) |row, *owned| {
+        owned.* = .{
+            .source = try allocator.dupe(u8, row.source),
+            .destination = include_paths[@intCast(row.index)],
+        };
+    }
+
     return .{
-        .entry = if (context.entry) |entry| try std.fs.path.join(allocator, &.{ context.destination, std.fs.path.basename(entry) }) else null,
-        .include_paths = context.include_paths,
-        .include_relocations = context.relocations.items,
+        .entry = if (result.entry) |entry| try allocator.dupe(u8, entry) else null,
+        .include_paths = include_paths,
+        .include_relocations = relocations,
         .files = files,
         .dynamic_resources = result.dynamic_resources,
         .c_imports = result.c_imports,

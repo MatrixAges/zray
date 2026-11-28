@@ -1,10 +1,14 @@
 import type { Toolchain } from "toolchain_host"
+import type { Input as CacheConfig } from "../cache/model"
 
 export enum Status {
     Ready,
     IncompleteToolchainCache,
     ZxcZigLibraryNotFound,
-    CorruptBundledToolchain
+    CorruptBundledToolchain,
+    InvalidZxcCacheDirectory,
+    MissingUserCacheDirectory,
+    InvalidUserCacheDirectory
 }
 
 export type LibrarySuffixes = {
@@ -15,6 +19,7 @@ export type LibrarySuffixes = {
 
 export type Input = {
     toolchain: Toolchain,
+    cache_config: CacheConfig,
     override?: string,
     windows: bool,
     expected_marker: string,
@@ -27,6 +32,7 @@ export type Input = {
 
 export type Output = {
     status: Status,
+    root?: string,
     executable?: string,
     library?: string
 }
@@ -36,3 +42,17 @@ export type Probe = {
     executable: string,
     suffixes: LibrarySuffixes
 }
+
+export type CachePaths = {
+    parent: string,
+    root: string,
+    lock: string,
+    staging: string,
+    marker: string
+}
+
+export type CacheInput = Input & {
+    paths: CachePaths
+}
+
+export type CacheOutput = Output.Pick("status", "root")

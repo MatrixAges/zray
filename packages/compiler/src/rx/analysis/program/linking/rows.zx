@@ -67,10 +67,14 @@ export default function (in: Input): Output {
 
             state.index += 1
         },
-        return: state => ({
-            items: state.rows,
-            returned: state.valid ? state.rows[integers.widen(returned)] : null,
-            next_id: state.next_id
-        })
+        return: state => {
+            const result = state.valid ? state.rows[integers.widen(returned)] : max_u32
+
+            return {
+                items: state.rows,
+                returned: result == max_u32 ? null : result,
+                next_id: state.next_id
+            }
+        }
     })
 }

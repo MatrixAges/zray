@@ -12,8 +12,10 @@
                 "frame",
                 "writer",
                 "body",
-                "call",
-                "stores",
+                "target",
+                "operand",
+                "output_type",
+                "mapping",
                 "convert",
                 "finish",
                 "unwrap_empty"

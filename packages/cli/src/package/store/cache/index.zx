@@ -3,7 +3,6 @@ export {
     cached,
     readBlob,
     download,
-    verifyBlob,
     createStaging,
     unpack,
     writeReceipt,

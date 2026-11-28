@@ -30,7 +30,6 @@ pub fn run(allocator: std.mem.Allocator, arenas: parallel.Arenas, functions: []c
         try parallel.eachScan(arenas, .{
             .count = batches,
             .hash = null,
-            .render = null,
             .write = null,
             .scan = &.{ .sources = @ptrCast(&sources), .index = &index, .length = functions.len },
         }, .{

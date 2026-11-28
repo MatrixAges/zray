@@ -22,12 +22,13 @@ pub const State = struct {
     executables: []bool = &.{},
     package: ?std.Io.Dir = null,
     walker: ?std.Io.Dir.Walker = null,
-    entry: std.Io.Dir.Walker.Entry = undefined,
     file: ?std.Io.File = null,
     digest: [64]u8 = undefined,
     failure: ?anyerror = null,
-    fn get(handle: *anyopaque) *State {
-        return @ptrCast(@alignCast(handle));
+    fn get(handle: *const anyopaque) *State {
+        const reference: *const *State = @ptrCast(@alignCast(handle));
+
+        return reference.*;
     }
     fn fail(self: *State, err: anyerror) Error {
         self.failure = err;
@@ -57,14 +58,14 @@ pub const State = struct {
     }
 };
 
-pub fn receiptIsFile(handle: *anyopaque) Error!bool {
+pub fn receiptIsFile(handle: *const anyopaque) Error!bool {
     const self = State.get(handle);
     const stat = self.directory.statFile(self.io, constants.receipt_file, .{ .follow_symlinks = false }) catch |err| return self.fail(err);
 
     return stat.kind == .file;
 }
 
-pub fn loadReceipt(handle: *anyopaque) Error!*const LoadedReceipt {
+pub fn loadReceipt(handle: *const anyopaque) Error!*const LoadedReceipt {
     const self = State.get(handle);
     const io = self.io;
     const file = self.directory.openFile(io, constants.receipt_file, .{ .follow_symlinks = false }) catch |err| return self.fail(err);
@@ -100,33 +101,32 @@ pub fn loadReceipt(handle: *anyopaque) Error!*const LoadedReceipt {
     return &self.loaded_view;
 }
 
-pub fn openTree(handle: *anyopaque) Error!void {
-    const self = State.get(handle);
-    const package = self.directory.openDir(self.io, constants.package_directory, .{ .iterate = true, .follow_symlinks = false }) catch |err| return self.fail(err);
-    self.package = package;
-    self.walker = package.walk(self.allocator) catch |err| return self.fail(err);
-}
-
-pub fn nextTreeEntry(handle: *anyopaque) Error!?*const TreeEntry {
+pub fn nextTreeEntry(handle: *const anyopaque) Error!?*const TreeEntry {
     const self = State.get(handle);
 
-    self.entry = (self.walker.?.next(self.io) catch |err| return self.fail(err)) orelse return null;
+    if (self.walker == null) {
+        const package = self.directory.openDir(self.io, constants.package_directory, .{ .iterate = true, .follow_symlinks = false }) catch |err| return self.fail(err);
+        self.package = package;
+        self.walker = package.walk(self.allocator) catch |err| return self.fail(err);
+    }
+
+    const entry = (self.walker.?.next(self.io) catch |err| return self.fail(err)) orelse return null;
 
     self.tree_view = .{
-        .kind = switch (self.entry.kind) {
+        .kind = switch (entry.kind) {
             .directory => .Directory,
             .file => .File,
             else => .Other,
         },
-        .path = self.entry.path,
+        .path = entry.path,
     };
 
     return &self.tree_view;
 }
 
-pub fn openTreeFile(handle: *anyopaque) Error!?bool {
+pub fn openTreeFile(handle: *const anyopaque, path: []const u8) Error!?bool {
     const self = State.get(handle);
-    const file = self.package.?.openFile(self.io, self.entry.path, .{}) catch |err| return self.fail(err);
+    const file = self.package.?.openFile(self.io, path, .{}) catch |err| return self.fail(err);
 
     self.file = file;
 
@@ -137,7 +137,7 @@ pub fn openTreeFile(handle: *anyopaque) Error!?bool {
     return stat.permissions.toMode() & 0o100 != 0;
 }
 
-pub fn hashTreeFile(handle: *anyopaque, remaining: u64) Error!?*const HashedFile {
+pub fn hashTreeFile(handle: *const anyopaque, remaining: u64) Error!?*const HashedFile {
     const self = State.get(handle);
     var buffer: [65536]u8 = undefined;
     var reader_buffer: [65536]u8 = undefined;
@@ -166,6 +166,6 @@ pub fn hashTreeFile(handle: *anyopaque, remaining: u64) Error!?*const HashedFile
     return &self.hashed_view;
 }
 
-pub fn closeTreeFile(handle: *anyopaque) void {
+pub fn closeTreeFile(handle: *const anyopaque) void {
     State.get(handle).closeFile();
 }

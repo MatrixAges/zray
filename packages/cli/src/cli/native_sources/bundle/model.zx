@@ -1,8 +1,10 @@
-import type { Context } from "native_resource_host"
-import type { Discovery, Flags, Seen } from "../collect/model"
+import type { Discovery, Flags, Root, Seen } from "../collect/model"
+import type { Output as IncludeOutput } from "../include/model"
 
-export type Input = Discovery.Omit("entry_path") & {
+export type Input = Discovery.Omit("root") & {
     directory: string,
+    project_root: string,
+    name: string,
     header_absolute: bool,
     include_paths: string[],
     separator: u8,
@@ -19,7 +21,9 @@ export enum Status {
 
 export type Output = Flags & {
     status: Status,
-    files: File[]
+    files: File[],
+    entry?: string,
+    includes?: IncludeOutput
 }
 
 export type File = {
@@ -37,8 +41,7 @@ export type FileWalk = {
     files: File[]
 }
 
-export type OutputCheck = {
-    collection: Context,
+export type OutputCheck = Root & {
     bundle_files: string[],
     output: string,
     physical_output?: string,

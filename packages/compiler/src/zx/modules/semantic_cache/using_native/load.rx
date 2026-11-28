@@ -3,39 +3,35 @@
 
     <Args in={Native.Input} out={Native.Output} />
 
-    <Call module="restore" in={$in} />
-
-    <Call fn="../state/usage_slot" />
-
-    <Call
-        fn="index.advanceLengthSlot"
-        in={[
-            $in.usage,
-            $ctx.usage_slot,
-            1
-        ]}
-    />
-
-    <If on={!$ctx.restore}>
-        <Call fn="index.buildNativeCacheEntry" in={$in.frame} />
-
-        <Call module="../slot/install" in={$in.slot} />
-
-        <If on={$ctx.install.replacement == null}>
-            <Call
-                fn="index.stageNativeCacheEntry"
-                in={[
-                    $in.frame,
-                    $ctx.install.bucket
-                ]}
-            />
-        </If>
-
-        <Call fn="index.validateNativeCacheEntry" in={$in.frame} />
+    <If on={$in.lookup != null}>
+        <Call fn="../state/lookup" in={$in.lookup} />
 
         <Return
             value={{
-                admitted: false,
+                candidate: $ctx.lookup
+            }}
+        />
+    </If>
+
+    <If on={$in.restored != null}>
+        <Call fn="../state/usage_slot" in={$in.restored} />
+
+        <Call
+            fn="index.advanceLengthSlot"
+            in={[
+                $in.usage,
+                $ctx.usage_slot,
+                1
+            ]}
+        />
+    </If>
+
+    <If on={$in.slot != null}>
+        <Call module="../slot/install" in={$in.slot} />
+
+        <Return
+            value={{
+                candidate: false,
                 pending: $ctx.install
             }}
         />
@@ -43,7 +39,7 @@
 
     <Return
         value={{
-            admitted: true
+            candidate: false
         }}
     />
 </Module>

@@ -16,15 +16,31 @@
         />
     </If>
 
-    <Call fn="../index.prepareBundle" in={$in.collection} />
+    <Call
+        fn="locations"
+        in={$in.pick([
+            "project_root",
+            "entry_path",
+            "directory"
+        ])}
+    />
+
+    <Call
+        fn="../index.physicalOutput"
+        in={[
+            $in.collection,
+            $ctx.locations.output
+        ]}
+    />
 
     <Call
         module="check_output"
         in={{
             collection: $in.collection,
+            root: $ctx.locations.root,
             bundle_files: $in.bundle_files,
-            output: $ctx.prepareBundle.output,
-            physical_output: $ctx.prepareBundle.physical_output,
+            output: $ctx.locations.output,
+            physical_output: $ctx.physicalOutput,
             separator: $in.separator
         }}
     />
@@ -44,7 +60,8 @@
         module="../collect/discover"
         in={{
             collection: $in.collection,
-            entry_path: $ctx.prepareBundle.entry,
+            root: $ctx.locations.root,
+            entry_path: $ctx.locations.entry,
             bundle_files: $in.bundle_files,
             header: $in.header
         }}
@@ -61,12 +78,13 @@
         />
     </If>
 
-    <Call fn="../index.prepareIncludes" in={$in.collection} />
-
     <Call
         module="../include/relocate"
         in={{
             collection: $in.collection,
+            root: $ctx.locations.root,
+            name: $in.name,
+            project_root: $in.project_root,
             include_paths: $in.include_paths,
             seen: $store.collection.seen,
             separator: $in.separator,
@@ -74,7 +92,7 @@
         }}
     />
 
-    <If on={!$ctx.relocate}>
+    <If on={!$ctx.relocate.valid}>
         <Return
             value={{
                 status: Bundle.Status.IncompleteInclude,
@@ -90,7 +108,7 @@
             module="files"
             in={{
                 directory: $in.directory,
-                destination: $ctx.prepareIncludes,
+                destination: $ctx.relocate.destination,
                 seen: $store.collection.seen,
                 index: 0,
                 files: []
@@ -98,12 +116,22 @@
         />
     </Loop>
 
+    <Call
+        fn="entry"
+        in={{
+            path: $ctx.locations.entry,
+            destination: $ctx.relocate.destination
+        }}
+    />
+
     <Return
         value={{
             status: Bundle.Status.Published,
             dynamic_resources: $ctx.discover.dynamic_resources,
             c_imports: $ctx.discover.c_imports,
-            files: $ctx.files.files
+            files: $ctx.files.files,
+            entry: $ctx.entry,
+            includes: $ctx.relocate
         }}
     />
 </Module>

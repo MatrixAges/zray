@@ -1,0 +1,24 @@
+import path from "std:path"
+
+import { archive_directory } from "../const"
+
+import type { Archive as Input } from "../model"
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const parent = path.dirname(in.path)
+    const leaf = path.basename(in.path)
+    const directory = path.basename(parent)
+    const wrong_parent = parent == in.path
+    const wrong_leaf = leaf != archive_directory
+    const wrong_digest = directory != in.digest
+
+    const invalid_layout = (
+        - wrong_parent
+        - or wrong_leaf
+        - or wrong_digest
+    )
+
+    return invalid_layout ? null : parent
+}

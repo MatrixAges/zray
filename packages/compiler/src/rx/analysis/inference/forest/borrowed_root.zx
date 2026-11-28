@@ -1,5 +1,6 @@
-import integers from "std:integer"
 import memory from "memory"
+
+import root from "./root"
 
 import type { U32Buffer } from "memory"
 
@@ -11,15 +12,8 @@ export type Input = {
 export type Output = u32
 
 export default function (in: Input): Output {
-    return loop({
+    return root({
         value: in.value,
-        parent: memory.readU32(in.parents, integers.widen(in.value))
-    }, {
-        while: state => state.value != state.parent,
-        next: state => {
-            state.value = state.parent
-            state.parent = memory.readU32(in.parents, integers.widen(state.value))
-        },
-        return: state => state.value
+        parents: memory.u32Views(in.parents)
     })
 }

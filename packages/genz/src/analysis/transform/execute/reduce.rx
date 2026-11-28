@@ -15,35 +15,48 @@
     <Call
         fn="index.convertInitial"
         in={{
-            frame: $in.frame,
+            writer: $in.ast.writer,
+            sequence: $in.ast.body,
+            result_type: $in.result_type,
             value: $ctx.reduce_initial,
-            initial: true,
             active: $in.state_active
         }}
     />
 
     <Call
         module="renewal"
-        in={$in.pick([
-            "frame",
-            "id",
-            "accumulator",
-            "inline_lists",
-            "renewal_source"
-        ])}
+        in={{
+            ...$in.pick([
+                "id",
+                "result_type",
+                "accumulator",
+                "inline_lists",
+                "renewal_source"
+            ]),
+            frame: $in.ast.lower
+        }}
     />
 
     <Call
         fn="index.convertCallback"
         in={{
-            frame: $in.frame,
+            writer: $in.ast.writer,
+            sequence: $in.ast.loop,
+            result_type: $in.result_type,
             value: $in.callback,
-            initial: false,
             active: $in.state_active
         }}
     />
 
-    <Call fn="index.bindTransformElement" in={$in.frame} />
+    <Call
+        fn="index.bindTransformElement"
+        in={[
+            $in.ast.writer,
+            $in.ast.binding,
+            $in.source_type,
+            $in.element_symbol
+        ]}
+    />
 
     <Call
         fn="block_name"

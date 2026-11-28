@@ -28,12 +28,14 @@ pub fn select(graph: *Graph, program: *const zx.ir.Program, type_id: zx.ir.TypeI
     };
 
     const plan = zx.columns.invoke(entry.executeIn, allocator, &input) catch |err| return @import("../execution/context.zig").failure(err);
-    const targets = try allocator.alloc(*Value, plan.steps.len);
+    const targets = try allocator.alloc([]Value, plan.steps.len);
     var result: Value = undefined;
 
     for (plan.steps, targets) |step, *destination| {
         const place = step.destination;
-        const target = if (place.parent) |parent| &targets[@intCast(parent)].fields[@intCast(place.member)] else &result;
+        const target = if (place.parent) |parent| &targets[@intCast(parent)][@intCast(place.member)] else &result;
+
+        destination.* = &.{};
 
         target.* = switch (step.action) {
             .Text => text: {
@@ -42,10 +44,14 @@ pub fn select(graph: *Graph, program: *const zx.ir.Program, type_id: zx.ir.TypeI
                 break :text try graph.retain(program.*, @fromBackingInt(step.type_id), .{ .scalar = term }, span);
             },
             .Reuse => @as(*const Value, @ptrCast(@alignCast(step.source.?.ptr))).*,
-            .Allocate => .{ .fields = try graph.allocator.alloc(Value, @intCast(step.count)) },
-        };
+            .Allocate => fields: {
+                const items = try graph.allocator.alloc(Value, @intCast(step.count));
 
-        destination.* = target;
+                destination.* = items;
+
+                break :fields .{ .fields = items };
+            },
+        };
     }
 
     if (!plan.valid) return error.InvalidSource;

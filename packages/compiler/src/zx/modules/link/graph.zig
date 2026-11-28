@@ -18,14 +18,14 @@ pub const Plan = struct {
 };
 
 pub fn prepare(allocator: std.mem.Allocator, modules: []const Module, entry: []const u8) Error!Plan {
-    if (comptime !@import("parser_options").generated_parser) {
-        const order = try @import("graph/seed.zig").order(allocator, modules, entry);
+    const order = try @import("graph/seed.zig").order(allocator, modules, entry);
 
-        return .{ .registration = order, .entry = @intCast(order[order.len - 1]), .dependencies = order[0 .. order.len - 1] };
-    }
+    return .{ .registration = order, .entry = @intCast(order[order.len - 1]), .dependencies = order[0 .. order.len - 1] };
+}
 
+pub fn plan(allocator: std.mem.Allocator, modules: []const Module, entry: []const u8) Error!Plan {
     const source_paths = zx.memory.borrowTextColumn("path", modules);
-    const generated = @import("generated_artifact_graph");
+    const generated = @import("generated_artifact_link_execute");
     const Input = std.meta.Child(generated.Input);
     const kinds = zx.memory.borrowNestedListColumn(Target.Kind, "dependencies", &.{ "target", "kind" }, modules);
     const dependency_paths = zx.memory.borrowNestedListColumn([]const u8, "dependencies", &.{ "target", "path" }, modules);
@@ -41,12 +41,12 @@ pub fn prepare(allocator: std.mem.Allocator, modules: []const Module, entry: []c
         .entry = entry,
     };
 
-    const plan = zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+    const ordered = zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
 
-    switch (plan.status) {
+    switch (ordered.status) {
         .Invalid => return error.InvalidModule,
         .Missing => return error.MissingModule,
         .Cycle => return error.CyclicDependency,
@@ -54,12 +54,12 @@ pub fn prepare(allocator: std.mem.Allocator, modules: []const Module, entry: []c
     }
 
     return .{
-        .registration = plan.registration,
-        .entry = @intCast(plan.entry orelse return error.InvalidModule),
-        .dependencies = plan.dependencies,
-        .paths = plan.paths,
-        .buckets = plan.buckets,
-        .offsets = plan.offsets,
-        .targets = plan.targets,
+        .registration = ordered.registration,
+        .entry = @intCast(ordered.entry orelse return error.InvalidModule),
+        .dependencies = ordered.dependencies,
+        .paths = ordered.paths,
+        .buckets = ordered.buckets,
+        .offsets = ordered.offsets,
+        .targets = ordered.targets,
     };
 }

@@ -140,12 +140,6 @@ pub fn projectLoopAssignment(handle: *anyopaque, value: u32) Error!u32 {
     return @backingInt(try frame.fields.?.qualify(frame.lowering, &frame.loop, frame.iteration.body, @fromBackingInt(value)));
 }
 
-pub fn clipLoopAssignment(handle: *anyopaque, value: u32) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try @import("../../state_value/ownership.zig").clip(frame.lowering, &frame.loop, frame.iteration.body, @fromBackingInt(value)));
-}
-
 pub fn commitLoopUpdate(handle: *anyopaque, value: u32, state: bool) Error!void {
     const frame = Frame.borrow(handle);
 

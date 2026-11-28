@@ -1,4 +1,4 @@
-import type { Host } from "installation_host"
+import type { Catalog, InstallIO, LockData, Release } from "installation_host"
 
 export enum Status {
     Installed,
@@ -10,41 +10,61 @@ export enum Status {
 }
 
 export type Input = {
-    host: Host,
+    session: InstallIO,
     members: u64,
     maximum_edges: u64,
-    locked_rows: u64,
+    maximum_bytes: u64,
     root: string,
-    has_lock: bool,
+    previous?: LockData,
+    locked_workspace: string?[],
     reuse: bool,
     frozen: bool
 }
 
-export type Fresh = Input.Pick("host", "members", "maximum_edges")
+export type Fresh = Input.Pick("session", "members", "maximum_edges", "root")
 
-export type Archive = Fresh.Pick("host", "members")
+export type Archive = {
+    session: InstallIO,
+    catalog: Catalog,
+    members: u64,
+    root: string,
+    release: Release
+}
 
-export type ArchiveSource = {
-    host: Host,
+export type ArchiveSource = Archive.Pick("session", "catalog", "release") & {
     source: string
 }
 
-export type Replay = Input.Pick("host", "locked_rows", "root")
-
-export type ReplayPaths = {
-    host: Host,
-    workspace: string?[],
-    root: string
+export type ArchiveOutcome = {
+    target: u64,
+    path?: string
 }
 
-export type Publication = Input.Pick("host", "reuse")
+export type Replay = Input.Pick("session", "locked_workspace", "root") & {
+    lock: LockData
+}
 
-export type Result = Status
+export type Prepared = {
+    lock: LockData,
+    paths: string[]
+}
 
-export type MemberWalk = Fresh.Pick("host", "members") & {
+export type Publication = Input.Pick("session", "reuse", "maximum_bytes") & {
+    prepared: Prepared
+}
+
+export type Result = {
+    status: Status,
+    count?: u64
+}
+
+export type MemberWalk = Fresh.Pick("members") & {
+    catalog: Catalog,
+    paths: string[],
     index: u64
 }
 
-export type ReplayWalk = ReplayPaths & {
-    index: u64
+export type ReplayWalk = Replay & {
+    index: u64,
+    paths: string[]
 }

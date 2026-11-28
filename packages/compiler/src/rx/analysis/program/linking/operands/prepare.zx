@@ -1,25 +1,37 @@
 import integers from "std:integer"
 import { ExpressionKind } from "core/expression_table/kinds"
-import { bindExpressionOperands, OperandRoute } from "rx_project_host"
+import memory from "memory"
+import { OperandRoute } from "rx_project_host"
 
-import type { Prepare } from "./workflow"
+import type { Prepare, Prepared } from "./workflow"
 
 export type Input = Prepare
 
-export type Output = bool
+export type Output = Prepared?
 
 export default function (in: Input): Output {
-    const { work, route } = in
+    const { source, route } = in
+    const { data, metadata, lengths } = source
 
     const index = integers.widen(in.index)
 
-    const kind = work.data.kinds[index]
+    const kind = data.kinds[index]
 
     if (kind == ExpressionKind.None || kind == ExpressionKind.Unit) {
-        return false
+        return null
     }
 
-    const data = work.data
+    const code = metadata.kinds[index]
+    const kind_index = integers.widenByte(code)
+    const header = source.headers[kind_index]
+
+    if (header.length == 0) {
+        return {
+            kind: code,
+            count: 0
+        }
+    }
+
     const row = integers.widen(data.payloads[index])
 
     const count = match route {
@@ -32,12 +44,24 @@ export default function (in: Input): Output {
         _ => 0
     }
 
-    const evaluation = match route {
-        OperandRoute.Object => data.object_evaluation_count[row],
-        _ => 0
+    const slot = 1 + kind_index * 2
+
+    return {
+        kind: code,
+        count,
+        work: {
+            ...source.omit([
+                "lengths",
+                "headers"
+            ]),
+            mapping: memory.borrowU32Range(source.mapping, 0, index),
+            index,
+            row,
+            slots: header,
+            payload: integers.narrow(memory.readLengthSlot(lengths, slot)),
+            members_first: memory.readLengthSlot(lengths, slot + 1),
+            evaluation_first: memory.readLengthSlot(lengths, 0),
+            route
+        }
     }
-
-    bindExpressionOperands(work.frame, in.index, route, count, evaluation)
-
-    return true
 }

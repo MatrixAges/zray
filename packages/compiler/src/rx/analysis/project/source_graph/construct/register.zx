@@ -16,7 +16,7 @@ export type Output = Index & {
 }
 
 export default function (in: Input): Output {
-    const { ranges, paths, root, path_allocator } = in
+    const { ranges, paths, root } = in
 
     const initial: Output = {
         keys: [],
@@ -51,7 +51,7 @@ export default function (in: Input): Output {
             }
 
             if (index.issue == null) {
-                const absolute = lexical.resolveOwnedPathParts(path_allocator, [
+                const absolute = lexical.resolvePathParts([
                     root,
                     path
                 ])

@@ -7,7 +7,7 @@
         <Call
             module="register_row"
             in={{
-                dependencies: $in.dependencies,
+                registration: $in.registration,
                 roots: $in.roots,
                 batch: $in.batches[$in.index],
                 row: 0,

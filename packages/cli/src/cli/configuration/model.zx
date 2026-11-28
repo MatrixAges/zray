@@ -1,4 +1,4 @@
-import type { Configuration, Layout } from "../lint/index"
+import type { Layout } from "../lint/index"
 
 export type LayoutQuery = {
     explicit_kind: Layout,
@@ -6,10 +6,22 @@ export type LayoutQuery = {
 }
 
 export type Input = {
-    host: Configuration,
+    path: string,
     input_path: u8[],
     explicit_kind: Layout,
     linting: bool,
     check: bool,
     write: bool
+}
+
+export type Result = {
+    valid: bool,
+    output?: u8[],
+    diagnostic?: string,
+    error_name?: string
+}
+
+export type Finalize = Input.Pick("path", "linting", "check", "write") & {
+    source: u8[],
+    formatted: u8[]
 }

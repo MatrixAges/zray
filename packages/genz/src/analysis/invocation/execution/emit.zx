@@ -1,4 +1,4 @@
-import { finishAstSequence } from "ast_rows"
+import { convertStateValue, emitLoweredCall, finishAstSequence } from "ast_rows"
 import host from "lowering_host"
 
 import finishStored from "../../aggregate/execute/finish_stored"
@@ -7,17 +7,29 @@ import unpackSpan from "../../tasks/worker/execute/reference"
 import type { Emission as Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    const { frame, writer, body, call, unwrap_empty } = in
+    const { frame, writer, body, target, unwrap_empty } = in
 
     const state: u32? = match {
-        in.stores => host.lowerCallStore(call),
+        in.mapping != null => host.lowerCallStore(
+            frame,
+            target.function_id,
+            in.operand,
+            in.mapping
+        ),
         _ => null
     }
 
-    const value = host.emitLoweredCall(call, in.value, state)
+    const value = emitLoweredCall(writer, body, target, in.value, state)
 
     const converted = match {
-        in.convert => host.convertCallResult(call, value),
+        in.convert != null => convertStateValue(
+            writer,
+            body,
+            in.output_type,
+            value,
+            in.convert,
+            target.value == null
+        ),
         _ => value
     }
 

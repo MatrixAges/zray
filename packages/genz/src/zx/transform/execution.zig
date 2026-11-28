@@ -3,7 +3,7 @@ const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const Sequence = @import("../../node/blocks.zig").Sequence;
-const publication = @import("../construction/publication.zig");
+const borrow = @import("../expressions/evaluate.zig").borrow;
 const entry = @import("generated_execute_transform");
 const Input = std.meta.Child(entry.Input);
 const Ast = std.meta.Child(@FieldType(Input, "ast"));
@@ -11,36 +11,25 @@ const RenewalSource = std.meta.Child(std.meta.Child(@FieldType(Input, "renewal_s
 const RenewalWorkspace = @import("../growth/renew_workspace.zig");
 const Error = Lower.Error;
 
-pub const Frame = struct {
+const Context = struct {
     lowering: *Lower,
     id: ir.ExprId,
     transform: ir.Transform,
     body: Sequence,
     loop: Sequence,
     binding: Sequence,
-    members: ?@import("../members.zig").Checkpoint = null,
     renewal_workspace: *RenewalWorkspace = undefined,
-    pub fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-    pub fn typeId(self: *const Frame) ir.TypeId {
-        return @fromBackingInt(self.lowering.program.expressions.types[@backingInt(self.id)]);
-    }
-    pub fn sourceType(self: *const Frame) ir.TypeId {
-        return @fromBackingInt(self.lowering.program.expressions.types[@backingInt(self.transform.target)]);
-    }
-    fn deinit(self: *Frame) void {
+    fn deinit(self: *Context) void {
         self.binding.deinit();
         self.loop.deinit();
         self.body.deinit();
-        if (self.members) |before| self.lowering.state_symbols.restore(before);
     }
 };
 
 pub fn lower(self: *Lower, id: ir.ExprId, transform: ir.Transform) Error!node.ExpressionId {
     comptime @import("../../node/view.zig").compatible(@FieldType(ir.Transform, "kind"), @FieldType(Input, "kind"));
 
-    var frame: Frame = .{
+    var context: Context = .{
         .lowering = self,
         .id = id,
         .transform = transform,
@@ -49,10 +38,15 @@ pub fn lower(self: *Lower, id: ir.ExprId, transform: ir.Transform) Error!node.Ex
         .binding = self.builder.statementSequence(self.workspace),
     };
 
-    defer frame.deinit();
+    const members = if (transform.kind != .sort) self.state_symbols.checkpoint() else null;
+
+    defer if (members) |before| self.state_symbols.restore(before);
+    defer context.deinit();
 
     if (transform.kind == .reduce and self.plan.renewals.keys.len != 0) {
-        return RenewalWorkspace.run(&frame, RenewalSource, .{ .type_id = frame.typeId(), .roots = &.{} }, execute);
+        const type_id: ir.TypeId = @fromBackingInt(self.program.expressions.types[@backingInt(id)]);
+
+        return RenewalWorkspace.run(&context, RenewalSource, .{ .type_id = type_id, .roots = &.{} }, execute);
     }
 
     var arena = std.heap.ArenaAllocator.init(self.workspace);
@@ -61,33 +55,34 @@ pub fn lower(self: *Lower, id: ir.ExprId, transform: ir.Transform) Error!node.Ex
 
     defer arena.deinit();
 
-    return execute(&frame, scratch.allocator(), null);
+    return execute(&context, scratch.allocator(), null);
 }
 
-fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const RenewalSource) Error!node.ExpressionId {
-    const self = frame.lowering;
-    const transform = frame.transform;
+fn execute(context: *Context, temporary: std.mem.Allocator, renewal_source: ?*const RenewalSource) Error!node.ExpressionId {
+    const self = context.lowering;
+    const transform = context.transform;
+    const result_type = self.program.expressions.types[@backingInt(context.id)];
     const has_context = transform.kind != .reduce and transform.initial != null;
     const context_symbol = if (has_context) @backingInt(transform.parameters[1]) else 0;
     const context_used = has_context and self.used[context_symbol];
-    const element_symbol: u32 = if (transform.kind == .filter) @backingInt(transform.parameters[0]) else 0;
+    const element_symbol = if (transform.kind == .sort) 0 else @backingInt(transform.parameters[@intFromBool(transform.kind == .reduce)]);
 
     const ast: Ast = .{
         .writer = @ptrCast(self),
         .lower = @ptrCast(self),
-        .body = @ptrCast(&frame.body),
-        .loop = @ptrCast(&frame.loop),
-        .binding = @ptrCast(&frame.binding),
+        .body = @ptrCast(&context.body),
+        .loop = @ptrCast(&context.loop),
+        .binding = @ptrCast(&context.binding),
     };
 
     const input: Input = .{
-        .frame = @ptrCast(frame),
         .ast = &ast,
         .kind = @fromBackingInt(@backingInt(transform.kind)),
-        .id = @backingInt(frame.id),
+        .id = @backingInt(context.id),
         .target = @backingInt(transform.target),
-        .result_type = @backingInt(frame.typeId()),
-        .result_selected = @import("../state_value/list.zig").selected(self, frame.typeId()),
+        .source_type = self.program.expressions.types[@backingInt(transform.target)],
+        .result_type = result_type,
+        .result_selected = @import("../state_value/list.zig").selected(self, @fromBackingInt(result_type)),
         .body_expr = @backingInt(transform.body),
         .initial = if (transform.initial) |initial| @backingInt(initial) else null,
         .context_used = context_used,
@@ -96,7 +91,7 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
         .element_symbol = element_symbol,
         .element_name = if (transform.kind == .filter) self.names[element_symbol] else &.{},
         .state_active = self.state_active,
-        .inline_lists = if (self.iteration_value) |context| context.inline_lists else false,
+        .inline_lists = if (self.iteration_value) |iteration| iteration.inline_lists else false,
         .accumulator = if (transform.kind == .reduce) self.names[@backingInt(transform.parameters[0])] else &.{},
         .renewal_source = renewal_source,
     };
@@ -109,27 +104,29 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
     return @fromBackingInt(value.?);
 }
 
-pub fn lowerTransformSort(handle: *anyopaque) Error!u32 {
-    const frame = Frame.borrow(handle);
+pub fn lowerTransformSort(frame: *anyopaque, raw_id: u32) Error!u32 {
+    const self = borrow(frame);
+    const id: ir.ExprId = @fromBackingInt(raw_id);
 
-    return @backingInt(try @import("../sorting/root.zig").lower(frame.lowering, frame.id, frame.transform));
+    return @backingInt(try @import("../sorting/root.zig").lower(self, id, self.program.expression(id).value.transform));
 }
 
-pub fn enterTransformParameters(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-    frame.members = try @import("../state_value/locals.zig").parameters(frame.lowering, frame.transform);
+pub fn enterTransformParameters(frame: *anyopaque, id: u32) Error!void {
+    const self = borrow(frame);
+
+    _ = try @import("../state_value/locals.zig").parameters(self, self.program.expression(@fromBackingInt(id)).value.transform);
 }
 
-pub fn tryTransformSimd(handle: *anyopaque) Error!?u32 {
-    const frame = Frame.borrow(handle);
-    const value = try @import("../simd/root.zig").lower(frame.lowering, frame.id, frame.transform) orelse return null;
+pub fn tryTransformSimd(frame: *anyopaque, raw_id: u32) Error!?u32 {
+    const self = borrow(frame);
+    const id: ir.ExprId = @fromBackingInt(raw_id);
+    const value = try @import("../simd/root.zig").lower(self, id, self.program.expression(id).value.transform) orelse return null;
 
     return @backingInt(value);
 }
 
-pub fn bindTransformElement(handle: *anyopaque) Error![]const u8 {
-    const frame = Frame.borrow(handle);
-    const element = frame.transform.parameters[@intFromBool(frame.transform.kind == .reduce)];
+pub fn bindTransformElement(frame: *anyopaque, sequence: *anyopaque, source_type: u32, symbol: u32) Error![]const u8 {
+    const body: *Sequence = @ptrCast(@alignCast(sequence));
 
-    return @import("../state_value/elements.zig").captureName(frame.lowering, &frame.binding, frame.sourceType(), element);
+    return @import("../state_value/elements.zig").captureName(borrow(frame), body, @fromBackingInt(source_type), @fromBackingInt(symbol));
 }

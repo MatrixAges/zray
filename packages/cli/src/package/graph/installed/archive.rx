@@ -1,0 +1,74 @@
+<Module>
+    <Type from="../model" as="Project" />
+
+    <Args in={Project.Archive} out={Project.RowResult} />
+
+    <Call fn="archive_parent" in={$in} />
+
+    <If on={$ctx.archive_parent == null}>
+        <Return
+            value={{
+                status: Project.Status.InvalidPackageInstallation
+            }}
+        />
+
+        <Else>
+            <Call
+                fn="../effects.canonical"
+                in={[
+                    $in.graph,
+                    $in.path
+                ]}
+            />
+
+            <If on={$ctx.canonical != $in.path}>
+                <Return
+                    value={{
+                        status: Project.Status.InvalidPackageInstallation
+                    }}
+                />
+
+                <Else>
+                    <Call
+                        fn="../effects.verifyReceipt"
+                        in={[
+                            $in.graph,
+                            $ctx.archive_parent,
+                            $in.digest
+                        ]}
+                    />
+
+                    <Call
+                        fn="../effects.readInstalledArchive"
+                        in={[
+                            $in.graph,
+                            $in.lock,
+                            $in.index,
+                            $ctx.canonical
+                        ]}
+                    />
+
+                    <If on={$ctx.readInstalledArchive == null}>
+                        <Return
+                            value={{
+                                status: Project.Status.InstalledManifestDoesNotMatchLock
+                            }}
+                        />
+
+                        <Else>
+                            <Return
+                                value={{
+                                    status: Project.Status.Valid,
+                                    row: {
+                                        path: $ctx.canonical,
+                                        manifest: $ctx.readInstalledArchive
+                                    }
+                                }}
+                            />
+                        </Else>
+                    </If>
+                </Else>
+            </If>
+        </Else>
+    </If>
+</Module>

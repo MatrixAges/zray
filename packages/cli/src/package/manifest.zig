@@ -1,8 +1,7 @@
 const std = @import("std");
 const c = @import("manifest/yaml.zig").c;
-const model = @import("manifest/model.zig");
 const Decoder = @import("manifest/decode.zig");
-pub const Value = union(enum) { data: model.Manifest, diagnostic: model.Diagnostic };
+pub const Value = Decoder.Result;
 
 pub const Result = struct {
     arena: std.heap.ArenaAllocator,
@@ -42,17 +41,10 @@ pub fn parseInto(allocator: std.mem.Allocator, source: []const u8) !Value {
 
     if (root == null) return .{ .diagnostic = .{ .line = 1, .column = 1, .message = "pkg.yaml must contain one mapping document" } };
 
-    var reader: Decoder.Document = .{ .yaml = &document };
+    const reader: Decoder.Document = .{ .yaml = &document };
+    const decoded = try Decoder.read(allocator, &reader);
 
-    defer reader.scratch.deinit();
-
-    const data = Decoder.read(allocator, &reader) catch |err| {
-        if (err == error.OutOfMemory) return err;
-
-        const issue = reader.diagnostic.?;
-
-        return .{ .diagnostic = .{ .line = issue.line, .column = issue.column, .message = issue.message } };
-    };
+    if (decoded == .diagnostic) return decoded;
 
     var next: c.yaml_document_t = undefined;
 
@@ -64,7 +56,7 @@ pub fn parseInto(allocator: std.mem.Allocator, source: []const u8) !Value {
         return .{ .diagnostic = .{ .line = next.start_mark.line + 1, .column = next.start_mark.column + 1, .message = "pkg.yaml must contain exactly one document" } };
     }
 
-    return .{ .data = data };
+    return decoded;
 }
 
 fn failure(allocator: std.mem.Allocator, parser: c.yaml_parser_t) !Value {

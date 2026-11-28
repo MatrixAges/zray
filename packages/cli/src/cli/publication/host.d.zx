@@ -1,5 +1,11 @@
 export type Directory = opaque
-export type Verification = mutable_opaque
+export type Verification = opaque
+export type Snapshot = opaque
+
+export type Captured = {
+    snapshot: Snapshot,
+    count: u64
+}
 
 export type ResourceWalk = opaque
 export type Retirement = opaque
@@ -40,6 +46,9 @@ export enum PublicationFileKind {
     Other
 }
 
+export declare function joinNativeParts(allocator, parts: string[]): string
+    throws { OutOfMemory } concurrent
+
 export declare function relativePathFrom(allocator, base: string, target: string): string
     throws { OutOfMemory } concurrent
 
@@ -68,9 +77,9 @@ export declare function removeRetiredFile(directory: Directory, target: string):
 export declare function digestEntry(directory: Directory, path: string): InventoryEntry
     throws { PublicationFailure }
 
-export declare function capture(verification: Verification): u64 throws { PublicationFailure }
-export declare function verify(verification: Verification): bool throws { PublicationFailure }
-export declare function retain(verification: Verification): void
+export declare function capture(verification: Verification): Captured throws { PublicationFailure }
+export declare function verify(verification: Verification, snapshot: Snapshot, versioned: bool): bool throws { PublicationFailure }
+export declare function retain(verification: Verification, snapshot: Snapshot): void
 
 export declare function checkPublishedTarget(
     allocator,

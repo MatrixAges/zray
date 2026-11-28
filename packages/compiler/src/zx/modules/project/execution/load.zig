@@ -6,7 +6,9 @@ const indexed = @import("../../parse_cache.zig").indexed_enabled;
 const Phase = @import("../load/host.zig").Phase;
 const errorSet = @import("invoke.zig").errorSet;
 const Frame = @import("../../project.zig").LoadFrame;
-const FrameHeader = @import("project_execution_abi").layouts.@"zig:project_host".ProjectFrameHeader;
+const entry = @import("generated_project_execute_load");
+const Input = std.meta.Child(entry.Input);
+const Cursor = std.meta.Child(@typeInfo(@FieldType(Input, "walk")).optional.child);
 
 pub const Header = union(enum) {
     native: zx.syntax.header.Native,
@@ -18,10 +20,6 @@ pub const Walk = struct {
     phase: Phase,
     paths: std.heap.ArenaAllocator,
     header: Header = undefined,
-    frame_header: FrameHeader = undefined,
-    fn borrow(handle: *anyopaque) *Walk {
-        return @ptrCast(@alignCast(handle));
-    }
     pub fn active(self: *Walk) *Frame {
         const frames = self.project.load_frames.items;
 
@@ -30,15 +28,15 @@ pub const Walk = struct {
 };
 
 pub fn run(project: *Project, index: usize, phase: Phase) zx.Error!void {
-    const entry = @import("generated_project_execute_load");
-    const Input = std.meta.Child(entry.Input);
     var walk: Walk = .{ .project = project, .phase = phase, .paths = .init(project.arena.child_allocator) };
 
     defer walk.paths.deinit();
 
+    const base = project.load_frames.items.len;
+
     const input: Input = .{
-        .walk = @ptrCast(&walk),
-        .frame = &.{ .states = std.mem.sliceAsBytes(project.load_states), .row = index, .depth = project.load_frames.items.len },
+        .frame = &.{ .states = std.mem.sliceAsBytes(project.load_states), .row = index, .depth = base },
+        .walk = null,
     };
 
     var arena = std.heap.ArenaAllocator.init(project.arena.child_allocator);
@@ -47,27 +45,69 @@ pub fn run(project: *Project, index: usize, phase: Phase) zx.Error!void {
 
     var buffer: [512]u8 = undefined;
     var fallback = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
-    const admission = zx.columns.invoke(entry.executeIn, fallback.allocator(), &input) catch |err| return errorSet(err);
+    const admitted = zx.columns.invoke(entry.executeIn, fallback.allocator(), &input) catch |err| return errorSet(err);
 
-    return switch (admission) {
-        .Skip, .Push => {},
-        .Cycle => project.dependencyCycle(),
-        .Depth => project.dependencyDepth(),
-    };
+    switch (admitted.admission.?) {
+        .Skip => return,
+        .Cycle => return project.dependencyCycle(),
+        .Depth => return project.dependencyDepth(),
+        .Push => try open(&walk, index),
+    }
+
+    var completed: ?u64 = null;
+
+    while (project.load_frames.items.len > base) {
+        completed = try step(&walk, completed);
+    }
 }
 
-pub fn openProjectFrame(handle: *anyopaque, row: u64) zx.Error!void {
-    const walk = Walk.borrow(handle);
+fn step(walk: *Walk, completed: ?u64) zx.Error!?u64 {
+    var cursor = read(walk, completed);
+    const input: Input = .{ .frame = null, .walk = &cursor };
+    var buffer: [512]u8 = undefined;
+    var scratch = std.heap.FixedBufferAllocator.init(&buffer);
+    const delivery = @import("delivery/frame.zig");
 
-    walk.project.load_states[@intCast(row)] = .Visiting;
+    while (true) {
+        scratch.reset();
 
+        const result = zx.columns.invoke(entry.executeIn, scratch.allocator(), &input) catch |err| return errorSet(err);
+        const next = result.next.?;
+
+        cursor.first = next.first;
+
+        switch (next.action) {
+            .Resume => {
+                _ = try delivery.run(walk, @intCast(next.row.?), cursor.completed);
+                cursor.completed = null;
+            },
+            .Visit => cursor.child = try delivery.run(walk, @intCast(next.row.?), null),
+            .Push => {
+                try open(walk, @intCast(next.row.?));
+
+                return null;
+            },
+            .Close => {
+                const returning = next.row;
+
+                try finish(walk);
+
+                close(walk);
+
+                return returning;
+            },
+        }
+    }
+}
+
+fn open(walk: *Walk, row: usize) zx.Error!void {
+    walk.project.load_states[row] = .Visiting;
     _ = walk.paths.reset(.free_all);
 
-    try walk.project.pushFrame(@intCast(row));
+    try walk.project.pushFrame(row);
 }
 
-pub fn readProjectFrame(handle: *anyopaque) *const FrameHeader {
-    const walk = Walk.borrow(handle);
+fn read(walk: *Walk, completed: ?u64) Cursor {
     const frame = walk.active();
 
     walk.project.current_source = frame.index;
@@ -91,45 +131,36 @@ pub fn readProjectFrame(handle: *anyopaque) *const FrameHeader {
         } else unreachable,
     };
 
-    walk.frame_header = .{
+    return .{
+        .row = frame.index,
+        .depth = walk.project.load_frames.items.len,
         .count = count,
         .suspended = frame.suspended_import,
+        .first = 0,
+        .completed = completed,
+        .child = null,
     };
-
-    return &walk.frame_header;
 }
 
-pub fn resumeProjectImport(handle: *anyopaque, row: u64, child: u64) zx.Error!void {
-    const walk = Walk.borrow(handle);
-
-    _ = try @import("delivery/frame.zig").run(walk, @intCast(row), child);
-}
-
-pub fn visitProjectImport(handle: *anyopaque, row: u64) zx.Error!?u64 {
-    return @import("delivery/frame.zig").run(Walk.borrow(handle), @intCast(row), null);
-}
-
-pub fn finishProjectFrame(handle: *anyopaque) zx.Error!void {
-    const walk = Walk.borrow(handle);
+fn finish(walk: *Walk) zx.Error!void {
     const frame = walk.active();
 
     _ = walk.paths.reset(.free_all);
 
     return switch (frame.parsed.result.*) {
-        .native => |result| finish(walk, frame, Inputs.Native{ .value = result.value.parsed }),
-        .indexed => |*result| if (indexed) finish(walk, frame, Inputs.Indexed{ .value = result }) else unreachable,
+        .native => |result| finishInput(walk, frame, Inputs.Native{ .value = result.value.parsed }),
+        .indexed => |*result| if (indexed) finishInput(walk, frame, Inputs.Indexed{ .value = result }) else unreachable,
     };
 }
 
-fn finish(walk: *Walk, frame: *Frame, input: anytype) zx.Error!void {
+fn finishInput(walk: *Walk, frame: *Frame, input: anytype) zx.Error!void {
     return switch (walk.phase) {
         .signature => walk.project.finishSignature(frame, input),
         .body => walk.project.finishInput(frame, input),
     };
 }
 
-pub fn closeProjectFrame(handle: *anyopaque) u64 {
-    const walk = Walk.borrow(handle);
+fn close(walk: *Walk) void {
     const frames = &walk.project.load_frames;
     const frame = walk.active();
 
@@ -138,6 +169,4 @@ pub fn closeProjectFrame(handle: *anyopaque) u64 {
     frame.deinitScratch(walk.project.arena.child_allocator);
 
     _ = frames.pop();
-
-    return if (frames.items.len == 0) 0 else walk.active().index;
 }

@@ -16,15 +16,15 @@ export type Output = string?
 export default function (in: Input): Output {
     const { block, session, path, expression } = in
 
-    const safe = host.evaluateSymbolicStatement(block, expression).safe
+    const outcome = host.evaluateSymbolicStatement(block, expression)
 
     const completed = guard({
         session,
         path,
-        safe
+        safe: outcome.safe
     })
 
-    host.publishSymbolicStatementReturn(block, completed)
+    host.publishSymbolicStatementReturn(block, completed, outcome)
 
     return null
 }

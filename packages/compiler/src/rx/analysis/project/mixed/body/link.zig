@@ -28,10 +28,7 @@ pub fn publish(state: *State, body: *const Source.Input, prepared: Boundary, flo
         const rule = @import("generated_rx_mixed_body_link");
 
         const input: std.meta.Child(rule.Input) = .{
-            .body = @ptrCast(&link),
             .source = source,
-            .initializers = std.mem.sliceAsBytes(body.store_initializers),
-            .shared = std.mem.sliceAsBytes(link.shared_initializers),
             .boundary = &.{
                 .prepared = &.{ .functions = prepared.functions, .types = prepared.types },
                 .current = &.{ .functions = current.functions, .types = current.types },
@@ -46,15 +43,15 @@ pub fn publish(state: *State, body: *const Source.Input, prepared: Boundary, flo
             else => unreachable,
         };
 
-        if (result.verified) |count| {
-            state.verified = @intCast(count);
+        const prefix = if (result.type_prefix) |value| @as(usize, @intCast(value)) else null;
+        const initializers = if (result.shared_initializers) link.shared_initializers else body.store_initializers;
 
-            if (destination.present) |cell| cell.* = true;
+        state.verified = try link.link(result.replace_prefix, prefix, initializers) orelse
+            return state.fail(location, result.message);
 
-            return;
-        }
+        if (destination.present) |cell| cell.* = true;
 
-        return state.fail(location, result.message.?);
+        return;
     }
 
     const types = if (current.functions == prepared.functions and current.types == prepared.types) null else prepared.types;

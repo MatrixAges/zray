@@ -1,16 +1,16 @@
 import type { ColumnLengths } from "memory"
-import type { CacheInstall, NativeCacheLoad } from "project_host"
+import type { CacheInstall } from "project_host"
 import type { Output as Commit } from "../slot/commit"
 import type { Input as Lookup } from "../state/lookup"
 
 export type Input = {
-    frame: NativeCacheLoad,
-    slot: CacheInstall,
-    lookup: Lookup,
+    slot?: CacheInstall,
+    lookup?: Lookup,
+    restored?: bool,
     usage: ColumnLengths
 }
 
 export type Output = {
-    admitted: bool,
+    candidate: bool,
     pending?: Commit
 }

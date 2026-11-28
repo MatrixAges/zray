@@ -4,31 +4,14 @@
     <Args in={Link.Request} out={Link.Result} />
 
     <Call fn="types" in={$in.boundary} />
-
-    <Call
-        fn="host.appendSourceBody"
-        in={[
-            $in.body,
-            $in.boundary.prepared.functions == $in.boundary.body_functions,
-            $ctx.types,
-            $in.source ? $in.shared : $in.initializers
-        ]}
-    />
-
-    <If on={$ctx.appendSourceBody != null}>
-        <Return
-            value={{
-                verified: $ctx.appendSourceBody,
-                message: null
-            }}
-        />
-    </If>
-
     <Call fn="reject" in={$in.pick(["source"])} />
 
     <Return
         value={{
-            verified: null,
+            replace_prefix:
+                $in.boundary.prepared.functions == $in.boundary.body_functions,
+            type_prefix: $ctx.types,
+            shared_initializers: $in.source,
             message: $ctx.reject
         }}
     />

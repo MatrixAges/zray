@@ -1,0 +1,10 @@
+import type { Input, BatchWalk as Output } from "./model"
+
+export default function (in: Input): Output {
+    return {
+        ...in,
+        index: 0,
+        new_inputs: false,
+        paths: []
+    }
+}

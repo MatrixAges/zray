@@ -1,0 +1,28 @@
+import copyNames from "../../copy_names"
+import bindNames from "../../nominal_origins/bind_names"
+
+import type { Bindings } from "core/type_table/nominal"
+import type { OriginSnapshot } from "./model"
+
+export type Input = {
+    origins: Bindings,
+    labels: string[]
+}
+
+export type Output = OriginSnapshot
+
+export default function (in: Input): Output {
+    const { origins, labels } = in
+
+    return {
+        ids: origins.ids.slice(),
+        kinds: origins.kinds.slice(),
+        owners: copyNames(origins.owners),
+        members: copyNames(origins.members),
+        names: bindNames({
+            origin_ids: origins.ids,
+            base_labels: labels,
+            delta_labels: []
+        })
+    }
+}

@@ -1,0 +1,37 @@
+import path from "std:path"
+import { resolvePathParts } from "lexical_path"
+import { relativePathFrom } from "publication_host"
+
+import within from "../path/within"
+
+export type Input = {
+    project_root: string,
+    root: string,
+    configured: string,
+    separator: u8
+}
+
+export type Output = {
+    absolute: string,
+    relative: string,
+    within: bool
+}
+
+export default function (in: Input): Output {
+    const absolute = resolvePathParts([
+        in.project_root,
+        in.configured
+    ])
+
+    const relative = relativePathFrom(in.root, absolute)
+
+    return {
+        absolute,
+        relative,
+        within: within({
+            path: relative,
+            absolute: path.isAbsolute(relative),
+            separator: in.separator
+        })
+    }
+}

@@ -1,14 +1,13 @@
 const std = @import("std");
 const zx = @import("zx");
 const Builder = @import("../../builder.zig");
-const State = @import("../host.zig").State;
 const Request = @import("../abi.zig").Request;
-const Work = std.meta.Child(@FieldType(Request, "operands"));
-const Symbols = std.meta.Child(@FieldType(Work, "symbols"));
-const Column = std.meta.Elem(@FieldType(Work, "slots"));
-const Route = @FieldType(Work, "route");
+const Source = std.meta.Child(@typeInfo(@FieldType(Request, "operands")).optional.child);
+const Symbols = std.meta.Child(@FieldType(Source, "symbols"));
+const Metadata = std.meta.Child(@FieldType(Source, "metadata"));
 const rules = @import("generated_rx_operand_layout");
 const Kind = rules.Input;
+const Column = std.meta.Elem(std.meta.Elem(@FieldType(Source, "headers")));
 
 const Layout = struct {
     header: [7]Column = undefined,
@@ -36,38 +35,71 @@ const layouts = blk: {
     break :blk result;
 };
 
+const headers = blk: {
+    var rows: [layouts.len][]const Column = undefined;
+
+    for (&layouts, &rows) |*layout, *row| row.* = layout.header[0..layout.header_len];
+
+    break :blk rows;
+};
+
 pub const Frame = struct {
-    input: Work = undefined,
+    input: Source = undefined,
     symbols: Symbols = undefined,
-    layout: *const Layout = undefined,
-    member_count: usize = undefined,
-    evaluation_count: usize = undefined,
-    pub fn initialize(self: *Frame, state: *State) void {
+    metadata: Metadata = undefined,
+    empty: usize = 0,
+    slots: [1 + 2 * layouts.len]*usize = undefined,
+    lengths: zx.memory.ColumnLengths = undefined,
+    pub fn initialize(self: *Frame, storage: *zx.ir.ExpressionStorage, source: *const zx.ir.ExpressionTable) void {
+        comptime std.debug.assert(@sizeOf(std.meta.Elem(@TypeOf(source.kinds))) == @sizeOf(u8));
+
+        self.slots[0] = &storage.object_evaluation_values.items.len;
+
+        inline for (layouts, 0..) |layout, index| {
+            const first = 1 + index * 2;
+            self.slots[first] = if (comptime layout.header_len == 0) &self.empty else &@field(storage, @tagName(layout.header[0])).items.len;
+            self.slots[first + 1] = if (comptime layout.members_len == 0) &self.empty else &@field(storage, @tagName(layout.members[0])).items.len;
+        }
+
+        self.lengths = &self.slots;
+
+        self.metadata = .{
+            .kinds = std.mem.sliceAsBytes(source.kinds),
+            .unary = std.mem.sliceAsBytes(source.unary_operators),
+            .binary = std.mem.sliceAsBytes(source.binary_operators),
+            .iteration = std.mem.sliceAsBytes(source.iteration_postconditions),
+            .collection = std.mem.sliceAsBytes(source.collection_kinds),
+            .transform = std.mem.sliceAsBytes(source.transform_kinds),
+            .scope = std.mem.sliceAsBytes(source.scope_borrows),
+        };
+
         self.input = .{
-            .frame = @ptrCast(state),
-            .data = zx.columns.pointer(@FieldType(Work, "data"), &state.program.expressions),
+            .data = zx.columns.pointer(@FieldType(Source, "data"), source),
+            .metadata = &self.metadata,
             .symbols = &self.symbols,
             .mapping = &.{},
-            .index = undefined,
-            .row = undefined,
-            .payload = undefined,
-            .members_first = undefined,
-            .evaluation_first = undefined,
-            .slots = &.{},
-            .route = undefined,
+            .headers = &headers,
+            .lengths = @ptrCast(&self.lengths),
         };
     }
-    pub fn commit(self: *const Frame, builder: *Builder, patch: anytype) Builder.Error!void {
+
+    pub fn bind(self: *Frame, mapping: *const @import("../../mapping.zig")) void {
+        self.symbols = @import("../operands.zig").symbolView(Symbols, mapping);
+        self.input.mapping = mapping.expressions;
+    }
+
+    pub fn commit(builder: *Builder, publication: anytype) Builder.Error!void {
         const storage = &builder.expressions;
-        const layout = self.layout;
+        const layout = &layouts[publication.kind];
+        const patch = publication.patch;
         const header = layout.header[0..layout.header_len];
         const members = layout.members[0..layout.members_len];
 
         for (header) |key| try reserveColumn(storage, builder.allocator, key, 1);
-        for (members) |key| try reserveColumn(storage, builder.allocator, key, self.member_count);
+        for (members) |key| try reserveColumn(storage, builder.allocator, key, publication.count);
 
-        if (patch.evaluation != null) {
-            try reserveColumn(storage, builder.allocator, .object_evaluation_values, self.evaluation_count);
+        if (patch.evaluation) |values| {
+            try reserveColumn(storage, builder.allocator, .object_evaluation_values, values.len);
         }
 
         for (header, patch.header) |key, cell| {
@@ -114,62 +146,8 @@ pub const Frame = struct {
     }
 };
 
-pub fn bindExpressionOperands(handle: *anyopaque, index: u32, route: Route, count: u32, evaluation_count: u32) error{InvalidModule}!void {
-    const state = State.borrow(handle);
-    const frame = &state.operands;
-    const builder = state.builder;
-    const storage = &builder.expressions;
-    const layout = &layouts[@backingInt(state.program.expressions.kinds[index])];
-    const header = layout.header[0..layout.header_len];
-    const members = layout.members[0..layout.members_len];
-
-    if (header.len == 0) return error.InvalidModule;
-
-    frame.layout = layout;
-    frame.member_count = count;
-    frame.evaluation_count = evaluation_count;
-    frame.symbols = @import("../operands.zig").symbolView(Symbols, &state.mapping);
-    frame.input.slots = header;
-    frame.input.route = route;
-    frame.input.index = index;
-    frame.input.row = state.program.expressions.payloads[index];
-    frame.input.mapping = state.mapping.expressions[0..index];
-    frame.input.payload = @intCast(columnLength(storage, header[0]));
-    frame.input.members_first = if (members.len == 0) 0 else columnLength(storage, members[0]);
-    frame.input.evaluation_first = storage.object_evaluation_values.items.len;
-}
-
-fn columnLength(storage: *const zx.ir.ExpressionStorage, key: Column) usize {
-    return switch (key) {
-        inline else => |column| @field(storage, @tagName(column)).items.len,
-    };
-}
-
 fn reserveColumn(storage: *zx.ir.ExpressionStorage, allocator: std.mem.Allocator, key: Column, count: usize) std.mem.Allocator.Error!void {
     return switch (key) {
         inline else => |column| storage.reserveColumns(allocator, &.{@tagName(column)}, count),
     };
-}
-
-pub fn expressionOperandWords(handle: *anyopaque, key: Column) []const u32 {
-    const data = &State.borrow(handle).program.expressions;
-
-    return switch (key) {
-        inline else => |column| if (@TypeOf(@field(data, @tagName(column))) == []const u32)
-            @field(data, @tagName(column))
-        else
-            unreachable,
-    };
-}
-
-pub fn expressionOperandBytes(handle: *anyopaque, key: Column) []const u8 {
-    const data = &State.borrow(handle).program.expressions;
-
-    return switch (key) {
-        inline else => |column| std.mem.sliceAsBytes(@field(data, @tagName(column))),
-    };
-}
-
-pub fn requireExpressionOperand(valid: bool) error{InvalidModule}!void {
-    if (!valid) return error.InvalidModule;
 }

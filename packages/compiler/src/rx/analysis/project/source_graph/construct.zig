@@ -126,11 +126,10 @@ const Build = struct {
         @memset(self.modules.items(.dependencies), &.{});
         @memset(self.modules.items(.compiled_dependency), false);
 
-        const input: std.meta.Child(rule.Input) = .{
+        var input: std.meta.Child(rule.Input) = .{
             .root = opts.project.root_dir,
             .capacity = self.paths.buckets.len,
             .paths = &.{ .zx = @ptrCast(&zx_paths), .rx = @ptrCast(&rx_paths), .stores = @ptrCast(&stores) },
-            .path_allocator = @ptrCast(&self.allocator),
             .ranges = &.{
                 .zx_count = self.sources.zx_count,
                 .rx_end = self.sources.rx_end,
@@ -139,27 +138,31 @@ const Build = struct {
             .explicit = @ptrCast(&roots),
             .explicit_count = entries.len,
             .entry = opts.entry,
-            .temporary = @ptrCast(&self.scratch),
             .include_rx = opts.include_rx_modules,
             .visit = @ptrCast(self.scanner),
+            .setup = null,
             .retain_parses = opts.prefetched != null,
             .retain_dependencies = opts.retain_source_dependencies,
         };
 
-        const output = rule.executeIn(self.scratch, &input) catch |err| {
-            return switch (@as(anyerror, err)) {
-                error.InvalidGraph => error.InvalidGraph,
-                error.OutOfMemory, error.Overflow => error.OutOfMemory,
-                else => unreachable,
-            };
-        };
+        const registered = rule.executeIn(self.allocator, &input) catch |err| return ruleError(err);
 
-        if (output.path_issue) |issue| return self.rejectRegistration(@intCast(issue.row), issue.normalized, issue.message);
-        if (output.root_issue) |issue| return self.reject(issue.path, root_location, issue.message);
+        if (registered.path_issue) |issue| return self.rejectRegistration(@intCast(issue.row), issue.normalized, issue.message);
+        if (registered.root_issue) |issue| return self.reject(issue.path, root_location, issue.message);
+
+        const setup = registered.setup.?;
+
+        try self.scanner.open(setup.keys, setup.buckets);
+
+        input.setup = setup;
+
+        const output = rule.executeIn(self.scratch, &input) catch |err| return ruleError(err);
+
         if (output.cycle) |cycle| return self.rejectCycle(@intCast(cycle.owner), @intCast(cycle.edge));
 
         const result = output.graph.?;
 
+        self.scanner.finish(result.retain_parses);
         std.debug.assert(result.count == result.order.len);
 
         const schedule: model.Schedule = .{
@@ -329,3 +332,11 @@ const Build = struct {
         return self.finish(entry, try self.indices(self.roots[1..][0..additional_count], false), schedule, dependencies, self.opts.prefetched != null);
     }
 };
+
+fn ruleError(err: anyerror) Error {
+    return switch (err) {
+        error.InvalidGraph => error.InvalidGraph,
+        error.OutOfMemory, error.Overflow => error.OutOfMemory,
+        else => unreachable,
+    };
+}

@@ -1,23 +1,18 @@
-export declare function lowerTransformSort(frame: TransformFrame): u32 throws { OutOfMemory }
-
-export declare function enterTransformParameters(frame: TransformFrame): void
+export declare function lowerTransformSort(frame: Lowering, id: u32): u32
     throws { OutOfMemory }
 
-export declare function tryTransformSimd(frame: TransformFrame): u32? throws { OutOfMemory }
+export declare function enterTransformParameters(frame: Lowering, id: u32): void
+    throws { OutOfMemory }
 
-export declare function bindTransformElement(frame: TransformFrame): u8[] throws { OutOfMemory }
-
-export declare function storeMapTransformValue(frame: TransformFrame, callback: u32): u32
+export declare function tryTransformSimd(frame: Lowering, id: u32): u32?
     throws { OutOfMemory }
 
 export declare function emitReduceRenewals(
-    frame: TransformFrame,
+    frame: Lowering,
+    result_type: u32,
     accumulator: u8[],
     first: u64,
     end: u64,
     skipped: u64[],
     filtered_inline: bool
 ): u64 throws { OutOfMemory }
-
-export declare function convertReduceValue(frame: TransformFrame, value: u32, initial: bool): u32
-    throws { OutOfMemory }

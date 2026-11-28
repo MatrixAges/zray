@@ -13,7 +13,7 @@ pub fn root(parents_arg: []u32, id: Id) Id {
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    const result = @import("generated_rx_forest_root").executeValue(empty.allocator(), .{
+    const result = @import("generated_rx_forest_root").executeValue(empty.allocator(), &.{
         .parents = @ptrCast(&parents),
         .value = index,
     }) catch unreachable;

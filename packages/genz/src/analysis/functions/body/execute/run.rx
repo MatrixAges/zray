@@ -1,64 +1,77 @@
 <Module>
     <Type from="model" as="Function" />
 
-    <Args in={Function.Input} out={void} />
+    <Args in={Function.Input} out={Function.Output} />
 
-    <Call fn="index.prepareFunctionBody" in={$in.body} />
-    <Call fn="index.lowerFunctionStatements" in={$in.body} />
-    <Call fn="index.lowerFunctionContracts" in={$in.body} />
-    <Call fn="index.lowerFunctionPrelude" in={$in.body} />
-    <Call fn="index.lowerFunctionReferences" in={$in.body} />
+    <Call fn="index.prepareFunctionBody" in={$in.frame} />
 
-    <If on={$in.stores}>
-        <Call fn="index.lowerFunctionPending" in={$in.body} />
-        <Call fn="index.lowerFunctionCommit" in={$in.body} />
+    <Call module="sections" in={$in} />
 
-        <Call
-            fn="join"
-            in={{
-                writer: $in.writer,
-                spans: [
-                    $ctx.lowerFunctionPrelude,
-                    $ctx.lowerFunctionPending,
-                    $ctx.lowerFunctionReferences,
-                    $ctx.lowerFunctionContracts,
-                    $ctx.lowerFunctionStatements,
-                    $ctx.lowerFunctionCommit
-                ]
-            }}
-        />
+    <Call
+        fn="resolve_types"
+        in={$in.pick([
+            "frame",
+            "input_id",
+            "output_id",
+            "value",
+            "public_value"
+        ])}
+    />
 
-        <Call
-            fn="index.publishFunctionBody"
-            in={[
-                $in.body,
-                $ctx.join.start,
-                $ctx.join.count
-            ]}
-        />
+    <Call fn="index.readAstOrigin" in={$in.writer} />
+    <Call fn="index.astFieldCount" in={$in.writer} />
 
-        <Else>
-            <Call
-                fn="join"
-                in={{
-                    writer: $in.writer,
-                    spans: [
-                        $ctx.lowerFunctionPrelude,
-                        $ctx.lowerFunctionReferences,
-                        $ctx.lowerFunctionContracts,
-                        $ctx.lowerFunctionStatements
-                    ]
-                }}
-            />
+    <Call
+        module="../../signature/build"
+        in={{
+            ...$in.pick([
+                "name",
+                "store_count",
+                "io",
+                "process",
+                "exported",
+                "inlined"
+            ]),
+            ...$ctx.resolve_types,
+            errors: $ctx.prepareFunctionBody,
+            bases: {
+                ...$ctx.readAstOrigin,
+                field_base: $ctx.astFieldCount,
+                capture: null
+            }
+        }}
+    />
 
-            <Call
-                fn="index.publishFunctionBody"
-                in={[
-                    $in.body,
-                    $ctx.join.start,
-                    $ctx.join.count
-                ]}
-            />
-        </Else>
-    </If>
+    <Call fn="index.requireAllocation" in={$ctx.build.valid} />
+    <Call fn="index.emptyForms" in={{}} />
+    <Call fn="../../../../ast/expressions/empty_extensions" in={{}} />
+
+    <Call
+        fn="index.appendExtendedExpressions"
+        in={[
+            $in.writer,
+            $ctx.build.expressions,
+            {
+                ...$ctx.emptyForms,
+                ...$ctx.build.forms
+            },
+            {
+                ...$ctx.empty_extensions,
+                ...$ctx.build.extra
+            }
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$ctx.sections,
+            ...$ctx.build.pick([
+                "name",
+                "parameters",
+                "return_type",
+                "exported",
+                "inlined"
+            ])
+        }}
+    />
 </Module>

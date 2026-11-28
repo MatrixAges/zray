@@ -1,32 +1,32 @@
-import yaml from "manifest_yaml_document"
-
 import field from "../../schema/field"
 import { Field, Mapping } from "../../schema/model"
 import boolean from "../boolean"
 import { empty_text, mapping_size, unknown_implementation_field } from "../const"
+import issue from "../issue"
 import mapping from "../mapping"
 import nodeAt from "../node_at"
-import string from "../string"
 import strings from "../strings"
+import text from "../text"
 
 import type { ExternalImplementation } from "../model"
-import type { Input as Value } from "../value"
+import type { Diagnostic, Input as Value } from "../value"
 
 export type Input = Value
 
 export type State = ExternalImplementation & {
-    index: u64
+    index: u64,
+    problem?: Diagnostic
 }
 
-export type Output = ExternalImplementation?
+export type Output = [ExternalImplementation?, Diagnostic?]
 
 export default function (in: Input): Output {
     const { document } = in
-
-    const pairs = mapping(in)
+    const { pairs, problem } = mapping(in)
 
     const initial: State = {
         index: 0,
+        problem,
         module: empty_text,
         member: empty_text,
         allocator_argument: false,
@@ -39,7 +39,7 @@ export default function (in: Input): Output {
     }
 
     const data = loop(initial, {
-        while: state => state.index < pairs.length,
+        while: state => state.problem == null && state.index < pairs.length,
         next: state => {
             const key = nodeAt({
                 document,
@@ -60,41 +60,83 @@ export default function (in: Input): Output {
 
             switch (selected) {
                 case Field.Module:
-                    state.module = string(value)
+                    const [parsed, field_issue] = text(value)
+
+                    state.module = parsed
+                    state.problem = field_issue
                 case Field.Member:
-                    state.member = string(value)
+                    const [parsed, field_issue] = text(value)
+
+                    state.member = parsed
+                    state.problem = field_issue
                 case Field.AllocatorArgument:
-                    state.allocator_argument = boolean(value)
+                    const [parsed, field_issue] = boolean(value)
+
+                    state.allocator_argument = parsed
+                    state.problem = field_issue
                 case Field.IoArgument:
-                    state.io_argument = boolean(value)
+                    const [parsed, field_issue] = boolean(value)
+
+                    state.io_argument = parsed
+                    state.problem = field_issue
                 case Field.ProcessArgument:
-                    state.process_argument = boolean(value)
+                    const [parsed, field_issue] = boolean(value)
+
+                    state.process_argument = parsed
+                    state.problem = field_issue
                 case Field.ExpandTuple:
-                    state.expand_tuple = boolean(value)
+                    const [parsed, field_issue] = boolean(value)
+
+                    state.expand_tuple = parsed
+                    state.problem = field_issue
                 case Field.Fallible:
-                    state.fallible = boolean(value)
+                    const [parsed, field_issue] = boolean(value)
+
+                    state.fallible = parsed
+                    state.problem = field_issue
                 case Field.Concurrent:
-                    state.concurrent = boolean(value)
+                    const [parsed, field_issue] = boolean(value)
+
+                    state.concurrent = parsed
+                    state.problem = field_issue
                 case Field.Errors:
-                    state.errors = strings({
+                    const [parsed, field_issue] = strings({
                         ...value,
                         workspace: false
                     })
+
+                    state.errors = parsed
+                    state.problem = field_issue
                 default:
-                    yaml.reject(
-                        document.parser,
+                    state.problem = issue([
                         key,
                         unknown_implementation_field
-                    )
+                    ])
             }
 
             state.index += mapping_size
         }
     })
 
-    if (data.module == empty_text || data.member == empty_text) {
-        return null
+    if (data.problem != null) {
+        return [
+            null,
+            data.problem
+        ]
     }
 
-    return data.omit(["index"])
+    if (data.module == empty_text || data.member == empty_text) {
+        return [
+            null,
+            null
+        ]
+    }
+
+    return [
+        data.omit([
+            "index",
+            "problem"
+        ]),
+        null
+    ]
 }

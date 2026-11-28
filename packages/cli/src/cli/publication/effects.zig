@@ -12,10 +12,6 @@ pub const Failure = struct {
     }
 };
 
-pub fn borrow(comptime T: type, handle: *anyopaque) *T {
-    return @ptrCast(@alignCast(handle));
-}
-
 pub fn state(comptime T: type, handle: *const anyopaque) *T {
     // The ABI borrows the pointer itself. The state behind it stays writable.
     const reference: *const *T = @ptrCast(@alignCast(handle));

@@ -1,0 +1,23 @@
+import type { ArchiveOutcome } from "../model"
+import type { Dependency as Output } from "./model"
+
+export type Input = {
+    dependency: Output,
+    archive: ArchiveOutcome
+}
+
+export default function (in: Input): Output {
+    const { dependency, archive } = in
+
+    const path = archive.path
+
+    if (path == null) {
+        return dependency
+    }
+
+    return {
+        ...dependency,
+        count: archive.target + 1,
+        paths: dependency.paths.push(path)[0]
+    }
+}

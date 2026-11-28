@@ -35,10 +35,8 @@
         <Return value={$ctx.paths} />
     </If>
 
-    <Call fn="index.openTree" in={$in.receipt} />
-
     <Call
-        fn="scan"
+        module="scan"
         in={{
             receipt: $in.receipt,
             paths: $ctx.loadReceipt.paths,

@@ -13,7 +13,8 @@ export enum SymbolicOperand {
 
 export type SymbolicOutcome = {
     safe: string,
-    text?: string
+    text?: string,
+    fields: u8[]
 }
 
 export type CallSafety = {
@@ -53,22 +54,22 @@ export declare function selectSymbolicReturn(session: SymbolicSession, row: u64)
 export declare function evaluateSymbolicStatement(block: SymbolicBlock, expression: u32?): SymbolicOutcome
     throws { OutOfMemory, InvalidSource }
 
-export declare function bindSymbolicStatement(block: SymbolicBlock, symbol: u32): void
+export declare function bindSymbolicStatement(
+    block: SymbolicBlock,
+    symbol: u32,
+    value: SymbolicOutcome,
+    field: u64?
+): void
 
-export declare function bindSymbolicStatementField(block: SymbolicBlock, symbol: u32, field: u64): void
-
-export declare function publishSymbolicStatementReturn(block: SymbolicBlock, path: string): void
+export declare function publishSymbolicStatementReturn(
+    block: SymbolicBlock,
+    path: string,
+    value: SymbolicOutcome
+): void
     throws { OutOfMemory, InvalidSource }
 
 export declare function runSymbolicChild(block: SymbolicBlock, body: u32, path: string): string
     throws { OutOfMemory, InvalidSource }
-
-export declare function reserveSymbolicParallel(block: SymbolicBlock, count: u64): void
-    throws { OutOfMemory }
-
-export declare function saveSymbolicParallel(block: SymbolicBlock, index: u64): void
-
-export declare function bindSymbolicParallel(block: SymbolicBlock, index: u64, symbol: u32): void
 
 export declare function loadSymbolicReference(frame: SymbolicExpression, symbol: u32): void
     throws { InvalidSource }
@@ -91,11 +92,6 @@ export declare function retainSymbolicExpression(frame: SymbolicExpression, safe
 
 export declare function bindSymbolicExpressionSafety(frame: SymbolicExpression, safe: string): string
     throws { OutOfMemory, InvalidSource }
-
-export declare function reserveSymbolicAggregate(frame: SymbolicExpression, count: u32): void
-    throws { OutOfMemory }
-
-export declare function writeSymbolicAggregateField(frame: SymbolicExpression, index: u32): void
 
 export declare function runSymbolicExpressionCall(
     frame: SymbolicExpression,

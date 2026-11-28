@@ -1,29 +1,45 @@
 import type { Symbols } from "core/symbol_table/model"
 import type { ColumnLengths, ReadColumn } from "memory"
 import type { FunctionBodyRow } from "memory/columns"
-import type { ProjectBody, ProjectEntry, ProjectWalk } from "project_host"
+import type { CacheInstall, ProjectBody } from "project_host"
 import type { FunctionColumns } from "../../entry_body/model"
-import type { Frame } from "../load/model"
+import type { Output as CacheSlot } from "../../semantic_cache/slot/commit"
+import type { Admission, Frame } from "../load/model"
 import type { Input as BodyExports } from "./body_exports/model"
 import type { Installation } from "./body_install/model"
 import type { Request as BodyCache } from "./cache/model"
 
 export type Load = {
-    walk: ProjectWalk,
-    frame: Frame
+    frame?: Frame,
+    walk?: Walk
 }
 
 export type Walk = {
-    walk: ProjectWalk,
     row: u64,
     depth: u64,
-    base_depth: u64,
-    completed?: u64
+    count: u64,
+    suspended: u64,
+    first: u64,
+    completed?: u64,
+    child?: u64
 }
 
-export type Imports = {
-    walk: ProjectWalk,
-    completed?: u64
+export enum WalkAction {
+    Resume,
+    Visit,
+    Push,
+    Close
+}
+
+export type Next = {
+    action: WalkAction,
+    row?: u64,
+    first: u64
+}
+
+export type LoadResult = {
+    admission?: Admission,
+    next?: Next
 }
 
 export type Body = {
@@ -41,26 +57,31 @@ export type BodyResult = {
 }
 
 export type Entry = {
-    entry: ProjectEntry,
-    publication: EntryPublication,
+    publication?: EntryPublication,
     verified: ColumnLengths,
-    cache: EntryCache
+    cache?: EntryCache
+}
+
+export type EntryResult = {
+    cache?: CacheStep
 }
 
 export type EntryCache = {
-    entry: ProjectEntry,
     records: ReadColumn,
     record_count: u64,
     uncacheable: ColumnLengths,
+    position: u64,
+    missing_origin: bool,
+    slot?: CacheInstall,
     root?: u64,
     root_digest: u8[],
     dependency_digest: u8[]
 }
 
-export type CacheTraversal = {
-    request: EntryCache,
-    position: u64,
-    valid: bool
+export type CacheStep = {
+    row?: u64,
+    digest?: u8[],
+    placement?: CacheSlot
 }
 
 export type EntryPublication = {

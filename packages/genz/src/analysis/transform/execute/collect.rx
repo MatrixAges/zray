@@ -75,9 +75,9 @@
         fn="store_collection"
         in={{
             ...$in.pick([
-                "frame",
                 "ast",
                 "callback",
+                "result_type",
                 "element_symbol",
                 "element_name"
             ]),
@@ -86,7 +86,15 @@
         }}
     />
 
-    <Call fn="index.bindTransformElement" in={$in.frame} />
+    <Call
+        fn="index.bindTransformElement"
+        in={[
+            $in.ast.writer,
+            $in.ast.binding,
+            $in.source_type,
+            $in.element_symbol
+        ]}
+    />
 
     <Call
         fn="index.extendStatementSequence"

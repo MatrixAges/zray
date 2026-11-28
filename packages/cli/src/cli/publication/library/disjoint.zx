@@ -4,6 +4,7 @@ import { relativePathFrom } from "publication_host"
 
 import within from "../../native_sources/path/within"
 
+import type { TextColumn } from "memory"
 import type { Input as Request } from "./model"
 
 export type Input = Request.Pick("destination", "observed", "separator") & {

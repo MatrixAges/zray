@@ -4,7 +4,7 @@ const source = @import("../manifest/input.zig");
 const Manifest = @import("../manifest/model.zig").Manifest;
 const Inputs = @import("watch_inputs").Inputs;
 
-pub const Prepared = struct { lock: Lock, paths: [][]const u8, source: ?[]const u8 = null };
+pub const Prepared = struct { lock: Lock, paths: []const []const u8, source: ?[]const u8 = null };
 
 pub fn read(io: std.Io, allocator: std.mem.Allocator, root: []const u8, inputs: ?*Inputs, manifests: std.mem.Allocator) !Manifest {
     const path = try std.fs.path.join(allocator, &.{ root, "pkg.yaml" });

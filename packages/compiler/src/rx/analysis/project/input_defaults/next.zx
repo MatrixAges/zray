@@ -1,6 +1,7 @@
 import integers from "std:integer"
+import memory from "memory"
 
-import representative from "../../inference/forest/borrowed_root"
+import representative from "../../inference/forest/root"
 import referenced from "./referenced"
 
 import type { Cursor } from "./model"
@@ -13,8 +14,10 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { columns, parents, marked, protected } = in
+    const { columns, marked, protected } = in
     const { edges, fixed, inputs } = columns
+
+    const parents = memory.u32Views(in.parents)
 
     const initial: Output = {
         next: in.next,

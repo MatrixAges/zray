@@ -20,13 +20,10 @@ export type Explicit = {
 export default function (in: Input): Output {
     const { ranges } = in
 
-    const lookup = {
-        ...in.pick([
-            "index",
-            "root"
-        ]),
-        allocator: in.temporary
-    }
+    const lookup = in.pick([
+        "index",
+        "root"
+    ])
 
     const entry = locate({
         ...lookup,

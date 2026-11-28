@@ -14,11 +14,12 @@
 
     <If on={$ctx.bind != null}>
         <Call
-            fn="index.bindSymbolicParallel"
+            fn="index.bindSymbolicStatement"
             in={[
                 $in.block,
-                $in.index,
-                $ctx.bind
+                $ctx.bind,
+                $in.values[$in.index],
+                null
             ]}
         />
 

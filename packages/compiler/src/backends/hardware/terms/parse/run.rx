@@ -10,6 +10,7 @@
         in={{
             build: $in.build,
             expression: $in.expression,
+            origin: $in.origin,
             source: $ctx.begin,
             offset: 0,
             depth: 0

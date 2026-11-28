@@ -1,0 +1,21 @@
+import crypto from "std:crypto"
+import encoding from "std:encoding"
+
+import { maximum_archive } from "../const"
+import { Status } from "./model"
+
+import type { Stage } from "./model"
+
+export type Input = Stage.Pick("bytes", "hex")
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    if (in.bytes.length > maximum_archive) {
+        return Status.PackageArchiveTooLarge
+    }
+
+    const actual = encoding.encodeHex(crypto.sha256(in.bytes))
+
+    return actual == in.hex ? Status.Ready : Status.PackageArchiveChecksumMismatch
+}

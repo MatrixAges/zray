@@ -1,12 +1,6 @@
-import type { Dependencies } from "backend_input_host"
+import type { Roots } from "backend_input_host"
 import type { ReadColumn, TextColumn } from "memory"
-
-export type Roots = {
-    cwd: string,
-    library: string,
-    local: string,
-    global: string
-}
+import type { Registration } from "snapshot_host"
 
 export type Batch = {
     paths: TextColumn,
@@ -16,7 +10,7 @@ export type Batch = {
 }
 
 export type Input = {
-    dependencies: Dependencies,
+    registration: Registration,
     roots: Roots,
     batches: Batch[]
 }

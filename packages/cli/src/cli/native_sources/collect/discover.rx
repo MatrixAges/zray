@@ -5,7 +5,14 @@
 
     <Store from="state" as="collection" />
 
-    <Call fn="../index.openCollection" in={$in.collection} />
+    <Call
+        fn="../index.openCollection"
+        in={[
+            $in.collection,
+            $in.root,
+            $in.entry_path
+        ]}
+    />
 
     <If on={$in.entry_path != null}>
         <Call
@@ -27,6 +34,8 @@
                 module="seed_bundle"
                 in={{
                     collection: $in.collection,
+                    root: $in.root,
+                    canonical_root: $ctx.openCollection,
                     bundle_files: $in.bundle_files,
                     index: 0,
                     running: true
@@ -40,6 +49,8 @@
             module="walk"
             in={{
                 collection: $in.collection,
+                root: $in.root,
+                canonical_root: $ctx.openCollection,
                 has_bundle: $in.bundle_files.length != 0,
                 index: 0,
                 running: true,

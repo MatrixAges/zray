@@ -1,4 +1,4 @@
-import host from "hardware_graph_host"
+import strings from "std:string"
 import memory from "memory"
 
 import type { DefinitionWalk as Input } from "./model"
@@ -11,15 +11,9 @@ export default function (in: Input): Output {
 
     if (previous != null) {
         if (previous == file) {
-            host.setHardwareOrigin(in.build, previous, in.row)
-
             return previous
         }
     }
 
-    const retained = host.retainHardwareOrigin(in.build, file)
-
-    host.setHardwareOrigin(in.build, retained, in.row)
-
-    return retained
+    return strings.copy(file)
 }

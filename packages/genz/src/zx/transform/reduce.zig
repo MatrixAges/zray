@@ -4,7 +4,8 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const elements = @import("../state_value/elements.zig");
 const ownership = @import("../state_value/ownership.zig");
-const Frame = @import("execution.zig").Frame;
+const Sequence = @import("../../node/blocks.zig").Sequence;
+const borrow = @import("../expressions/evaluate.zig").borrow;
 const Statements = std.ArrayList(node.Statement);
 
 pub const Request = struct {
@@ -46,11 +47,9 @@ pub fn lower(self: *Lower, body: *Statements, args: Request) Lower.Error!node.Ex
     return @import("../aggregate.zig").finish(self, body, result);
 }
 
-pub fn emitReduceRenewals(handle: *anyopaque, accumulator: []const u8, first: u64, end: u64, skipped: []const u64, filtered_inline: bool) Lower.Error!u64 {
-    const frame = Frame.borrow(handle);
-
-    return @import("../construction/publication.zig").packSpan(try @import("../growth/delivery.zig").entry(frame.lowering, .{
-        .type_id = frame.typeId(),
+pub fn emitReduceRenewals(frame: *anyopaque, result_type: u32, accumulator: []const u8, first: u64, end: u64, skipped: []const u64, filtered_inline: bool) Lower.Error!u64 {
+    return @import("../construction/publication.zig").packSpan(try @import("../growth/delivery.zig").entry(borrow(frame), .{
+        .type_id = @fromBackingInt(result_type),
         .target = .{ .name = accumulator },
         .first = @intCast(first),
         .end = @intCast(end),
@@ -59,9 +58,8 @@ pub fn emitReduceRenewals(handle: *anyopaque, accumulator: []const u8, first: u6
     }));
 }
 
-pub fn convertReduceValue(handle: *anyopaque, value: u32, initial: bool) Lower.Error!u32 {
-    const frame = Frame.borrow(handle);
-    const target = if (initial) &frame.body else &frame.loop;
+pub fn convertReduceValue(frame: *anyopaque, sequence: *anyopaque, result_type: u32, value: u32) Lower.Error!u32 {
+    const target: *Sequence = @ptrCast(@alignCast(sequence));
 
-    return @backingInt(try ownership.erase(frame.lowering, target, frame.typeId(), @fromBackingInt(value)));
+    return @backingInt(try ownership.erase(borrow(frame), target, @fromBackingInt(result_type), @fromBackingInt(value)));
 }

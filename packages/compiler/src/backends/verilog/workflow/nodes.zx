@@ -1,6 +1,6 @@
 import strings from "std:string"
-import host from "hardware_graph_host"
 
+import readNode from "../../hardware/graph/read_node"
 import write from "../node/write"
 
 import type { Scan as Input } from "../../hardware/graph/model"
@@ -18,7 +18,10 @@ export default function (in: Input): Output {
     }, {
         while: state => state.index < graph.count,
         next: state => {
-            const node = host.readHardwareGraphNode(nodes, state.index)
+            const node = readNode({
+                nodes,
+                index: state.index
+            })
 
             const line = write({
                 index: state.index,

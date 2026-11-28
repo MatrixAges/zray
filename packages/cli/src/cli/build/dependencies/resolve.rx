@@ -4,16 +4,11 @@
     <Args in={Backend.Input} out={Backend.Output} />
 
     <Call fn="scan" in={$in} />
+    <Call fn="start" in={$in} />
 
     <Loop on={$in.index < $in.batches.length}>
         <Call
             module="register_batch"
-            in={{
-                ...$in,
-                index: 0,
-                new_inputs: false,
-                paths: []
-            }}
         />
     </Loop>
 

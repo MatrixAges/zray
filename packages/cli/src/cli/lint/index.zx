@@ -31,16 +31,10 @@ export {
     releaseLintWorkspaceMember,
     checkReachableLintSource,
     checkReachableLintStore,
-    reportConfigurationKind,
+    checkConfigurationJson,
     readConfiguration,
     formatConfigurationManifest,
-    validateConfigurationIndex,
     formatConfigurationIndex,
-    validateConfigurationLock,
-    reportManagedLock,
-    checkConfigurationFormatting,
-    writeConfiguration,
-    printConfiguration,
     Layout
 } from "lint_workflow_host"
 
@@ -50,6 +44,5 @@ export type {
     SemanticProject,
     SpecialLint,
     WorkspaceLint,
-    ReachableLint,
-    Configuration
+    ReachableLint
 } from "lint_workflow_host"

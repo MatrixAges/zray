@@ -1,6 +1,6 @@
 const toolchain = @import("cli_host").toolchain;
 pub const resolveExecutable = toolchain.workflow.resolveExecutable;
-pub const prepareCache = toolchain.workflow.prepareCache;
+pub const lockCache = toolchain.workflow.lockCache;
 pub const openCache = toolchain.workflow.openCache;
 pub const marker = toolchain.workflow.marker;
 pub const regularFile = toolchain.workflow.regularFile;
@@ -11,7 +11,6 @@ pub const extractZip = toolchain.workflow.extractZip;
 pub const extractTar = toolchain.workflow.extractTar;
 pub const renameZig = toolchain.workflow.renameZig;
 pub const extractStandard = toolchain.workflow.extractStandard;
-pub const writeMarker = toolchain.workflow.writeMarker;
 pub const publish = toolchain.workflow.publish;
 pub const unlock = toolchain.workflow.unlock;
 pub const probeLibrary = toolchain.workflow.probeLibrary;

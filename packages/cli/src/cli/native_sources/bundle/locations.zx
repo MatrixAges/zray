@@ -1,0 +1,33 @@
+import { pathParent, resolvePathParts } from "lexical_path"
+
+import type { Input as Bundle } from "./model"
+
+export type Input = Bundle.Pick("project_root", "entry_path", "directory")
+
+export type Output = {
+    root: string,
+    output: string,
+    entry?: string
+}
+
+export default function (in: Input): Output {
+    const entry_path = in.entry_path
+
+    if (entry_path != null) {
+        const entry = resolvePathParts([
+            in.project_root,
+            entry_path
+        ])
+
+        return {
+            entry,
+            root: pathParent(entry) ?? entry,
+            output: resolvePathParts([in.directory])
+        }
+    }
+
+    return {
+        root: resolvePathParts([in.project_root]),
+        output: resolvePathParts([in.directory])
+    }
+}

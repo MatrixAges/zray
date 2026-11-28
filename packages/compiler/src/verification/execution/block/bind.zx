@@ -17,16 +17,16 @@ export type Output = string
 export default function (in: Input): Output {
     const { block, session, path, expression, symbol } = in
 
-    const safe = host.evaluateSymbolicStatement(block, expression).safe
+    const outcome = host.evaluateSymbolicStatement(block, expression)
 
     const next = guard({
         session,
         path,
-        safe
+        safe: outcome.safe
     })
 
     if (symbol != null) {
-        host.bindSymbolicStatement(block, symbol)
+        host.bindSymbolicStatement(block, symbol, outcome, null)
     }
 
     return next

@@ -1,0 +1,116 @@
+import { missing_interface } from "../../../schema/const"
+import field from "../../../schema/field"
+import { Field, Mapping } from "../../../schema/model"
+import { empty_text, mapping_size, unknown_interface_field } from "../../const"
+import issue from "../../issue"
+import mapping from "../../mapping"
+import nodeAt from "../../node_at"
+import strings from "../../strings"
+import text from "../../text"
+
+import type { NativeInterface } from "../../model"
+import type { Diagnostic, Input as Value } from "../../value"
+
+export type Input = Value
+
+export type Output = [NativeInterface?, Diagnostic?]
+
+export default function (in: Input): Output {
+    const { document, node } = in
+    const { pairs, problem } = mapping(in)
+
+    const namespace: string[] = []
+
+    const data = loop({
+        index: 0,
+        problem,
+        specifier: empty_text,
+        path: empty_text,
+        module: empty_text,
+        namespace
+    }, {
+        while: pair => pair.problem == null && pair.index < pairs.length,
+        next: pair => {
+            const key = nodeAt({
+                document,
+                id: pairs[pair.index]
+            })
+            const item = nodeAt({
+                document,
+                id: pairs[pair.index + 1]
+            })
+            const value = {
+                document,
+                node: item
+            }
+            const selected = field({
+                mapping: Mapping.NativeInterface,
+                key: key.text
+            })
+
+            switch (selected) {
+                case Field.Specifier:
+                    const [parsed, field_issue] = text(value)
+
+                    pair.specifier = parsed
+                    pair.problem = field_issue
+                case Field.Path:
+                    const [parsed, field_issue] = text(value)
+
+                    pair.path = parsed
+                    pair.problem = field_issue
+                case Field.Module:
+                    const [parsed, field_issue] = text(value)
+
+                    pair.module = parsed
+                    pair.problem = field_issue
+                case Field.Namespace:
+                    const [parsed, field_issue] = strings({
+                        ...value,
+                        workspace: false
+                    })
+
+                    pair.namespace = parsed
+                    pair.problem = field_issue
+                default:
+                    pair.problem = issue([
+                        key,
+                        unknown_interface_field
+                    ])
+            }
+
+            pair.index += mapping_size
+        }
+    })
+
+    if (data.problem != null) {
+        return [
+            null,
+            data.problem
+        ]
+    }
+
+    const missing = (
+        - data.specifier == empty_text
+        - or data.path == empty_text
+        - or data.module == empty_text
+    )
+
+    if (missing) {
+        return [
+            null,
+            issue([
+                node,
+                missing_interface
+            ])
+        ]
+    }
+
+    return [
+        data.omit([
+            "index",
+            "problem"
+        ]),
+        null
+    ]
+}

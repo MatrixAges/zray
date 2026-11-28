@@ -16,9 +16,6 @@ const Entry = struct {
     scratch: zx.Arena,
     result: Analysis.Result = undefined,
     pending: ?cache_entries.Pending = null,
-    fn borrow(handle: *anyopaque) *Entry {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
 pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Result {
@@ -40,26 +37,15 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
         program.functions = project.functions.view();
 
         const Input = std.meta.Child(entry.Input);
-        const Publication = std.meta.Child(@FieldType(Input, "publication"));
+        const Publication = std.meta.Child(@typeInfo(@FieldType(Input, "publication")).optional.child);
         const Original = std.meta.Child(@FieldType(Publication, "original"));
         const functions = zx.columns.view(std.meta.Child(@FieldType(Publication, "functions")), &program.functions);
         const symbols = zx.columns.pointer(@FieldType(Original, "symbols"), @as(*const zx.ir.SymbolTable, &program.symbols));
         const length_slots = zx.memory.borrowSliceLengths(&program.functions);
         const lengths: zx.memory.ColumnLengths = &length_slots;
-        const records = project.cache_records.items;
-
-        const record_column: zx.memory.ReadColumn = .{
-            .bytes = std.mem.sliceAsBytes(records),
-            .count = records.len,
-            .stride = @sizeOf(usize),
-            .offset = 0,
-        };
-
         const verified: zx.memory.ColumnLengths = &.{&project.verified.functions};
-        const uncacheable: zx.memory.ColumnLengths = if (project.semantic_cache) |cache| &.{&cache.uncacheable} else &.{};
 
-        const input: Input = .{
-            .entry = @ptrCast(&state),
+        var input: Input = .{
             .publication = &.{
                 .functions = &functions,
                 .lengths = @ptrCast(&lengths),
@@ -75,15 +61,7 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
                 },
             },
             .verified = @ptrCast(&verified),
-            .cache = &.{
-                .entry = @ptrCast(&state),
-                .records = @ptrCast(&record_column),
-                .record_count = records.len,
-                .uncacheable = @ptrCast(&uncacheable),
-                .root = if (project.cache_root) |cache_row| cache_row else null,
-                .root_digest = &project.cache_context.root,
-                .dependency_digest = &project.cache_context.dependency,
-            },
+            .cache = null,
         };
 
         const StoreState = std.meta.Child(@FieldType(entry.zx_pending, "store_0"));
@@ -106,16 +84,91 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
         var store_value: std.meta.Child(StoreState) = .{ .selected = null, .forwarded = null, .recursive = null };
         var store_ptr: StoreState = &store_value;
         var host: StoreHost = .{ .allocator = project.allocator, .result = &state.result, .store_0 = &store_ptr };
+        _ = try execute(entry, project.allocator, &input, &host);
 
-        _ = entry.executeIn(project.allocator, &input, &host) catch |err| return switch (err) {
-            error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
-            else => unreachable,
-        };
+        if (try validate(&state) and project.cache_records.items.len != 0) {
+            input.publication = null;
+
+            try publishCache(entry, &state, &input, &host);
+        }
     } else {
         try seed(&state);
     }
 
     return state.result;
+}
+
+fn publishCache(comptime rule: type, state: *Entry, input: *std.meta.Child(rule.Input), host: anytype) std.mem.Allocator.Error!void {
+    const project = state.project;
+    const records = project.cache_records.items;
+    const cache = project.semantic_cache.?;
+    const uncacheable: zx.memory.ColumnLengths = &.{&cache.uncacheable};
+
+    const record_column: zx.memory.ReadColumn = .{
+        .bytes = std.mem.sliceAsBytes(records),
+        .count = records.len,
+        .stride = @sizeOf(usize),
+        .offset = 0,
+    };
+
+    const Cache = std.meta.Child(@typeInfo(@FieldType(std.meta.Child(rule.Input), "cache")).optional.child);
+    const Slot = std.meta.Child(@typeInfo(@FieldType(Cache, "slot")).optional.child);
+
+    var request: Cache = .{
+        .records = @ptrCast(&record_column),
+        .record_count = records.len,
+        .position = 0,
+        .missing_origin = false,
+        .slot = null,
+        .uncacheable = @ptrCast(&uncacheable),
+        .root = if (project.cache_root) |row| row else null,
+        .root_digest = &project.cache_context.root,
+        .dependency_digest = &project.cache_context.dependency,
+    };
+
+    input.cache = &request;
+
+    var buffer: [512]u8 = undefined;
+    var temporary = std.heap.FixedBufferAllocator.init(&buffer);
+
+    while (true) {
+        temporary.reset();
+
+        const next = (try execute(rule, temporary.allocator(), input, host)).cache.?;
+        const row = next.row orelse return;
+
+        request.position += 1;
+        request.missing_origin = false;
+
+        switch (try extract(state, @intCast(row))) {
+            .MissingOrigin => request.missing_origin = true,
+            .Invalid => return rejectArtifact(state),
+            .Ready => {
+                const pending = &state.pending.?;
+                const digest = next.digest.?;
+                pending.value.?.context_digest = digest[0..pending.value.?.context_digest.len].*;
+                const slot = pending.installView(Slot, pending.value.?.result.value.path);
+                request.slot = &slot;
+
+                temporary.reset();
+
+                const placement = (try execute(rule, temporary.allocator(), input, host)).cache.?.placement.?;
+
+                request.slot = null;
+
+                if (placement.replacement == null) try pending.stage(placement.bucket);
+
+                pending.commit(placement.replacement);
+            },
+        }
+    }
+}
+
+fn execute(comptime rule: type, allocator: std.mem.Allocator, input: *const std.meta.Child(rule.Input), host: anytype) std.mem.Allocator.Error!@typeInfo(@TypeOf(rule.executeIn(undefined, undefined, host))).error_union.payload {
+    return rule.executeIn(allocator, input, host) catch |err| return switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
+        else => unreachable,
+    };
 }
 
 fn seed(state: *Entry) std.mem.Allocator.Error!void {
@@ -126,7 +179,7 @@ fn seed(state: *Entry) std.mem.Allocator.Error!void {
     state.result.entry_function = published.recursive;
     project.verified.functions = @min(published.visible_count, project.verified.functions);
 
-    if (!try validateProjectEntry(state)) return;
+    if (!try validate(state)) return;
 
     for (project.cache_records.items) |index| {
         const cache = project.semantic_cache.?;
@@ -136,7 +189,7 @@ fn seed(state: *Entry) std.mem.Allocator.Error!void {
             .Stored => {},
             .MissingOrigin => cache.uncacheable += 1,
             .Invalid => {
-                rejectProjectCacheArtifact(state);
+                rejectArtifact(state);
 
                 return;
             },
@@ -162,8 +215,7 @@ fn prepare(entry: *Entry) void {
     };
 }
 
-pub fn validateProjectEntry(handle: *anyopaque) std.mem.Allocator.Error!bool {
-    const entry = Entry.borrow(handle);
+fn validate(entry: *Entry) std.mem.Allocator.Error!bool {
     const project = entry.project;
 
     entry.result.arena = project.arena.*;
@@ -177,10 +229,8 @@ pub fn validateProjectEntry(handle: *anyopaque) std.mem.Allocator.Error!bool {
     return true;
 }
 
-pub fn extractProjectCacheArtifact(handle: *anyopaque, row: u64) std.mem.Allocator.Error!ABI.CacheWrite {
-    const entry = Entry.borrow(handle);
+fn extract(entry: *Entry, index: usize) std.mem.Allocator.Error!ABI.CacheWrite {
     const cache = entry.project.semantic_cache.?;
-    const index: usize = @intCast(row);
 
     defer entry.scratch.reset(std.math.maxInt(usize));
 
@@ -199,26 +249,6 @@ pub fn extractProjectCacheArtifact(handle: *anyopaque, row: u64) std.mem.Allocat
     return .Ready;
 }
 
-pub fn projectCacheSlot(handle: *anyopaque, digest: []const u8) *const ABI.CacheInstall {
-    const entry = Entry.borrow(handle);
-    const slot = &entry.pending.?;
-    slot.value.?.context_digest = digest[0..slot.value.?.context_digest.len].*;
-    slot.install = slot.installView(ABI.CacheInstall, slot.value.?.result.value.path);
-
-    return &slot.install;
-}
-
-pub fn publishProjectCacheEntry(handle: *anyopaque, replacement: ?u64, bucket: u64) std.mem.Allocator.Error!void {
-    const entry = Entry.borrow(handle);
-    const slot = &entry.pending.?;
-
-    if (replacement == null) try slot.stage(bucket);
-
-    slot.commit(replacement);
-}
-
-pub fn rejectProjectCacheArtifact(handle: *anyopaque) void {
-    const entry = Entry.borrow(handle);
-
+fn rejectArtifact(entry: *Entry) void {
     entry.result = .{ .arena = entry.project.arena.*, .value = .{ .diagnostic = cache_publication.invalid } };
 }

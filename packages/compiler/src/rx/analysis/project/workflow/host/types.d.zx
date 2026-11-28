@@ -109,8 +109,6 @@ export type BodyImport = {
     needs_initializers: bool
 }
 
-export type ExpressionLink = mutable_opaque
-
 export enum OperandColumn {
     binary_left,
     binary_operators,

@@ -22,7 +22,6 @@ pub const Result = struct {
 };
 
 const Binding = if (generated) @import("link/artifact/binding/host.zig").Window else void;
-const BindingInfo = if (generated) @import("project_execution_abi").layouts.@"zig:project_host".ArtifactBinding else void;
 
 const Frame = struct {
     owned: std.heap.ArenaAllocator,
@@ -34,10 +33,6 @@ const Frame = struct {
     types: Types = undefined,
     builder: Builder = undefined,
     binding: Binding = undefined,
-    binding_info: BindingInfo = undefined,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
 pub fn link(allocator: std.mem.Allocator, modules: []const model.Module, entry: []const u8) Error!Result {
@@ -54,10 +49,11 @@ pub fn link(allocator: std.mem.Allocator, modules: []const model.Module, entry: 
     defer frame.workspace.deinit();
 
     const program = if (comptime generated) program: {
-        const rule = @import("generated_artifact_link_execute");
-        const request: rule.Input = @ptrCast(&frame);
+        frame.plan = try graph.plan(frame.temporary.allocator(), frame.modules, frame.entry);
 
-        try rule.executeIn(frame.temporary.allocator(), request);
+        try registerTypes(&frame);
+        try frame.binding.init(&frame.builder, frame.temporary.allocator(), &frame.workspace, &frame.owned);
+        try frame.binding.bind(&frame.builder, frame.plan.registration);
 
         break :program try publish(&frame);
     } else try seed(&frame);
@@ -65,13 +61,7 @@ pub fn link(allocator: std.mem.Allocator, modules: []const model.Module, entry: 
     return .{ .arena = frame.owned, .program = program, .nominal_types = frame.types.origins.items.view() };
 }
 
-pub fn orderArtifactLink(handle: *anyopaque) graph.Error!void {
-    const frame = Frame.borrow(handle);
-    frame.plan = try graph.prepare(frame.temporary.allocator(), frame.modules, frame.entry);
-}
-
-pub fn registerArtifactTypes(handle: *anyopaque) Types.Error!void {
-    const frame = Frame.borrow(handle);
+fn registerTypes(frame: *Frame) Types.Error!void {
     const owned = frame.owned.allocator();
     const workspace = frame.workspace.allocator();
     const scratch = frame.temporary.allocator();
@@ -104,25 +94,6 @@ pub fn registerArtifactTypes(handle: *anyopaque) Types.Error!void {
     };
 }
 
-pub fn openArtifactBinding(handle: *anyopaque) std.mem.Allocator.Error!*const BindingInfo {
-    const frame = Frame.borrow(handle);
-
-    try frame.binding.init(&frame.builder, frame.temporary.allocator(), &frame.workspace, &frame.owned);
-
-    frame.binding_info = .{
-        .length = frame.plan.registration.len,
-        .capacity = frame.binding.capacity(),
-    };
-
-    return &frame.binding_info;
-}
-
-pub fn bindArtifactWindow(handle: *anyopaque, first: u64, count: u64) Builder.Error!void {
-    const frame = Frame.borrow(handle);
-
-    try frame.binding.bind(&frame.builder, @intCast(first), @intCast(count));
-}
-
 fn publish(frame: *Frame) model.Error!ir.Program {
     const builder = &frame.builder;
     _ = frame.workspace.reset(.free_all);
@@ -140,8 +111,9 @@ fn publish(frame: *Frame) model.Error!ir.Program {
 }
 
 fn seed(frame: *Frame) Error!ir.Program {
-    try orderArtifactLink(frame);
-    try registerArtifactTypes(frame);
+    frame.plan = try graph.prepare(frame.temporary.allocator(), frame.modules, frame.entry);
+
+    try registerTypes(frame);
 
     const builder = &frame.builder;
 

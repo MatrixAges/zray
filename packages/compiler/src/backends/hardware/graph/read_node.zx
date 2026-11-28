@@ -1,0 +1,39 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import { Kind } from "./model"
+
+import type { Node as Output, NodeColumns } from "./model"
+
+export type Input = {
+    nodes: NodeColumns,
+    index: u64
+}
+
+export default function (in: Input): Output {
+    const kinds: Kind[] = [
+        Kind.Input,
+        Kind.Constant,
+        Kind.Invert,
+        Kind.Negate,
+        Kind.Binary,
+        Kind.Select,
+        Kind.Extend
+    ]
+
+    const { nodes, index } = in
+
+    const kind = integers.widenByte(memory.readColumnU8(nodes.kind, index))
+
+    return {
+        kind: kinds[kind],
+        width: memory.readColumnU16(nodes.width, index),
+        boolean: memory.readColumnBool(nodes.boolean, index),
+        first: memory.readColumnU64(nodes.first, index),
+        second: memory.readColumnU32(nodes.second, index),
+        third: memory.readColumnU32(nodes.third, index),
+        operator: memory.readColumnU8(nodes.operator, index),
+        extra: memory.readColumnU16(nodes.extra, index),
+        signed: memory.readColumnBool(nodes.signed, index)
+    }
+}

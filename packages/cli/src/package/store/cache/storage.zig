@@ -11,10 +11,6 @@ pub const State = struct {
     io: std.Io,
     allocator: std.mem.Allocator,
     temporary: std.mem.Allocator,
-    root: []const u8,
-    destination: []const u8,
-    digest: [32]u8,
-    hex: []const u8,
     bytes: ?[]const u8 = null,
     downloaded: ?transfer.Downloaded = null,
     staging: ?[]const u8 = null,
@@ -40,8 +36,10 @@ pub const State = struct {
         self.directory = null;
     }
 
-    fn get(handle: *anyopaque) *State {
-        return @ptrCast(@alignCast(handle));
+    fn get(handle: *const anyopaque) *State {
+        const reference: *const *State = @ptrCast(@alignCast(handle));
+
+        return reference.*;
     }
     fn fail(self: *State, err: anyerror) Error {
         self.failure = err;
@@ -50,22 +48,22 @@ pub const State = struct {
     }
 };
 
-pub fn cached(handle: *anyopaque) Error!bool {
+pub fn cached(handle: *const anyopaque, destination: []const u8, hex: []const u8) Error!bool {
     const self = State.get(handle);
     const io = self.io;
 
-    var directory = std.Io.Dir.cwd().openDir(io, self.destination, .{ .follow_symlinks = false }) catch |err| switch (err) {
+    var directory = std.Io.Dir.cwd().openDir(io, destination, .{ .follow_symlinks = false }) catch |err| switch (err) {
         error.FileNotFound => return false,
         else => return self.fail(err),
     };
 
     defer directory.close(io);
-    receipt.verify(io, self.temporary, directory, self.hex) catch |err| return self.fail(err);
+    receipt.verify(io, self.temporary, directory, hex) catch |err| return self.fail(err);
 
     return true;
 }
 
-pub fn readBlob(handle: *anyopaque, path: []const u8) Error!?[]const u8 {
+pub fn readBlob(handle: *const anyopaque, path: []const u8) Error!?[]const u8 {
     const self = State.get(handle);
 
     self.bytes = std.Io.Dir.cwd().readFileAlloc(self.io, path, self.allocator, .limited(archive.maximum_archive + 1)) catch |err| switch (err) {
@@ -76,7 +74,7 @@ pub fn readBlob(handle: *anyopaque, path: []const u8) Error!?[]const u8 {
     return self.bytes;
 }
 
-pub fn download(handle: *anyopaque, source: []const u8, base: []const u8) Error![]const u8 {
+pub fn download(handle: *const anyopaque, source: []const u8, base: []const u8) Error![]const u8 {
     const self = State.get(handle);
 
     self.downloaded = transfer.read(self.io, self.allocator, source, base) catch |err| return self.fail(err);
@@ -84,13 +82,7 @@ pub fn download(handle: *anyopaque, source: []const u8, base: []const u8) Error!
     return self.downloaded.?.bytes;
 }
 
-pub fn verifyBlob(handle: *anyopaque, bytes: []const u8) Error!void {
-    const self = State.get(handle);
-
-    _ = archive.verify(bytes, self.digest) catch |err| return self.fail(err);
-}
-
-pub fn createStaging(handle: *anyopaque) Error!void {
+pub fn createStaging(handle: *const anyopaque, root: []const u8) Error!void {
     const self = State.get(handle);
     const io = self.io;
     const temporary = self.temporary;
@@ -98,8 +90,8 @@ pub fn createStaging(handle: *anyopaque) Error!void {
 
     std.Io.random(io, &random);
 
-    const staging = std.fmt.allocPrint(temporary, "{s}/{s}/.prepare-{s}", .{ self.root, constants.content_directory, std.fmt.bytesToHex(random, .lower) }) catch |err| return self.fail(err);
-    const content = std.fs.path.join(temporary, &.{ self.root, constants.content_directory }) catch |err| return self.fail(err);
+    const staging = std.fmt.allocPrint(temporary, "{s}/{s}/.prepare-{s}", .{ root, constants.content_directory, std.fmt.bytesToHex(random, .lower) }) catch |err| return self.fail(err);
+    const content = std.fs.path.join(temporary, &.{ root, constants.content_directory }) catch |err| return self.fail(err);
 
     std.Io.Dir.cwd().createDirPath(io, content) catch |err| return self.fail(err);
     std.Io.Dir.cwd().createDir(io, staging, .default_dir) catch |err| return self.fail(err);
@@ -107,7 +99,7 @@ pub fn createStaging(handle: *anyopaque) Error!void {
     self.staging = staging;
 }
 
-pub fn unpack(handle: *anyopaque, bytes: []const u8) Error!void {
+pub fn unpack(handle: *const anyopaque, bytes: []const u8) Error!void {
     const self = State.get(handle);
     const io = self.io;
     const directory = std.Io.Dir.cwd().openDir(io, self.staging.?, .{}) catch |err| return self.fail(err);
@@ -123,35 +115,35 @@ pub fn unpack(handle: *anyopaque, bytes: []const u8) Error!void {
     self.extracted = archive.unpack(io, self.allocator, .{ .source = bytes }, package) catch |err| return self.fail(err);
 }
 
-pub fn writeReceipt(handle: *anyopaque) Error!void {
+pub fn writeReceipt(handle: *const anyopaque, hex: []const u8) Error!void {
     const self = State.get(handle);
     const temporary = self.temporary;
-    const text = std.json.Stringify.valueAlloc(temporary, receipt.Receipt{ .archive_sha256 = self.hex, .files = self.extracted.?.files }, .{}) catch |err| return self.fail(err);
+    const text = std.json.Stringify.valueAlloc(temporary, receipt.Receipt{ .archive_sha256 = hex, .files = self.extracted.?.files }, .{}) catch |err| return self.fail(err);
     const path = std.fs.path.join(temporary, &.{ self.staging.?, constants.receipt_file }) catch |err| return self.fail(err);
 
     write(self.io, path, text) catch |err| return self.fail(err);
 }
 
-pub fn checkStaging(handle: *anyopaque) Error!void {
+pub fn checkStaging(handle: *const anyopaque, hex: []const u8) Error!void {
     const self = State.get(handle);
 
-    receipt.verify(self.io, self.allocator, self.directory.?, self.hex) catch |err| return self.fail(err);
+    receipt.verify(self.io, self.allocator, self.directory.?, hex) catch |err| return self.fail(err);
 }
 
-pub fn closeStaging(handle: *anyopaque) void {
+pub fn closeStaging(handle: *const anyopaque) void {
     State.get(handle).close();
 }
 
-pub fn publishStaging(handle: *anyopaque) Error!bool {
+pub fn publishStaging(handle: *const anyopaque, destination: []const u8) Error!bool {
     const self = State.get(handle);
     const io = self.io;
     const staging = self.staging.?;
 
     const moved: std.Io.Dir.RenamePreserveError!void = if (builtin.os.tag == .windows or builtin.os.tag == .linux)
-        std.Io.Dir.cwd().renamePreserve(staging, .cwd(), self.destination, io)
+        std.Io.Dir.cwd().renamePreserve(staging, .cwd(), destination, io)
 
     else
-        std.Io.Dir.cwd().rename(staging, .cwd(), self.destination, io);
+        std.Io.Dir.cwd().rename(staging, .cwd(), destination, io);
 
     moved catch |err| switch (err) {
         error.PathAlreadyExists, error.DirNotEmpty => return false,

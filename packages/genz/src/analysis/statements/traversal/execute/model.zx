@@ -52,6 +52,7 @@ export type Context = {
     control: Control,
     expressions: SelectionExpressions,
     types: TypeTable,
+    output_type: u32,
     store_mode: StoreMode,
     store_count: u64,
     names: u8[][],

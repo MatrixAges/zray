@@ -1,11 +1,10 @@
-import yaml from "manifest_yaml_document"
-
 import check from "../schema/boolean"
 import { empty_text } from "./const"
+import issue from "./issue"
 
-import type { Input } from "./value"
+import type { Diagnostic, Input } from "./value"
 
-export type Output = bool
+export type Output = [bool, Diagnostic?]
 
 export default function (in: Input): Output {
     const plain = in.node.plain
@@ -16,9 +15,20 @@ export default function (in: Input): Output {
         text: plain ? in.node.text : empty_text
     })
 
-    if (result.diagnostic != null) {
-        yaml.reject(in.document.parser, in.node, result.diagnostic)
+    const problem = result.diagnostic
+
+    if (problem != null) {
+        return [
+            result.value,
+            issue([
+                in.node,
+                problem
+            ])
+        ]
     }
 
-    return result.value
+    return [
+        result.value,
+        null
+    ]
 }

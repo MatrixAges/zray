@@ -4,12 +4,24 @@
     <Args in={Transform.Input} out={Transform.Output} />
 
     <If on={$in.kind == Transform.TransformKind.Sort}>
-        <Call fn="index.lowerTransformSort" in={$in.frame} />
+        <Call
+            fn="index.lowerTransformSort"
+            in={[
+                $in.ast.lower,
+                $in.id
+            ]}
+        />
 
         <Return value={$ctx.lowerTransformSort} />
     </If>
 
-    <Call fn="index.enterTransformParameters" in={$in.frame} />
+    <Call
+        fn="index.enterTransformParameters"
+        in={[
+            $in.ast.lower,
+            $in.id
+        ]}
+    />
 
     <If
         on={$in.kind == Transform.TransformKind.Every ||
@@ -18,10 +30,11 @@
         <Call
             module="predicate"
             in={$in.pick([
-                "frame",
                 "ast",
                 "kind",
                 "target",
+                "source_type",
+                "element_symbol",
                 "body_expr",
                 "initial",
                 "context_used",
@@ -33,7 +46,13 @@
         <Return value={$ctx.predicate} />
     </If>
 
-    <Call fn="index.tryTransformSimd" in={$in.frame} />
+    <Call
+        fn="index.tryTransformSimd"
+        in={[
+            $in.ast.lower,
+            $in.id
+        ]}
+    />
 
     <If on={$ctx.tryTransformSimd != null}>
         <Return value={$ctx.tryTransformSimd} />
@@ -71,9 +90,11 @@
             module="reduce"
             in={{
                 ...$in.pick([
-                    "frame",
                     "ast",
                     "id",
+                    "source_type",
+                    "result_type",
+                    "element_symbol",
                     "renewal_source",
                     "initial",
                     "state_active",
@@ -93,9 +114,9 @@
         module="collect"
         in={{
             ...$in.pick([
-                "frame",
                 "ast",
                 "kind",
+                "source_type",
                 "result_type",
                 "result_selected",
                 "initial",

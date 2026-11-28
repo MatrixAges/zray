@@ -1,84 +1,57 @@
 <Module>
     <Type from="../model" as="Execution" />
-    <Type from="index" as="Cache" />
 
-    <Args in={Execution.CacheTraversal} out={Execution.CacheTraversal} />
+    <Args in={Execution.EntryCache} out={Execution.CacheStep} />
 
-    <Call
-        fn="index.readColumnIndex"
-        in={[
-            $in.request.records,
-            $in.position
-        ]}
-    />
+    <If on={$in.slot != null}>
+        <Call module="../../../semantic_cache/slot/install" in={$in.slot} />
 
-    <Call
-        fn="index.extractProjectCacheArtifact"
-        in={[
-            $in.request.entry,
-            $ctx.readColumnIndex
-        ]}
-    />
+        <Return
+            value={{
+                placement: $ctx.install
+            }}
+        />
+    </If>
 
-    <Switch on={$ctx.extractProjectCacheArtifact}>
-        <Case value={Cache.CacheWrite.Ready}>
-            <Call
-                fn="digest"
-                in={{
-                    row: $ctx.readColumnIndex,
-                    cache: $in.request
-                }}
-            />
+    <If on={$in.missing_origin}>
+        <Call
+            fn="index.advanceLengthSlot"
+            in={[
+                $in.uncacheable,
+                0,
+                1
+            ]}
+        />
+    </If>
 
-            <Call
-                fn="index.projectCacheSlot"
-                in={[
-                    $in.request.entry,
-                    $ctx.digest
-                ]}
-            />
+    <If on={$in.position < $in.record_count}>
+        <Call
+            fn="index.readColumnIndex"
+            in={[
+                $in.records,
+                $in.position
+            ]}
+        />
 
-            <Call
-                module="../../../semantic_cache/slot/install"
-            />
+        <Call
+            fn="digest"
+            in={{
+                row: $ctx.readColumnIndex,
+                cache: $in
+            }}
+        />
 
-            <Call
-                fn="index.publishProjectCacheEntry"
-                in={[
-                    $in.request.entry,
-                    $ctx.install.replacement,
-                    $ctx.install.bucket
-                ]}
-            />
-        </Case>
-
-        <Case value={Cache.CacheWrite.MissingOrigin}>
-            <Call
-                fn="index.advanceLengthSlot"
-                in={[
-                    $in.request.uncacheable,
-                    0,
-                    1
-                ]}
-            />
-        </Case>
-
-        <Default>
-            <Call fn="index.rejectProjectCacheArtifact" in={$in.request.entry} />
-
-            <Return
-                value={{
-                    ...$in,
-                    valid: false
-                }}
-            />
-        </Default>
-    </Switch>
+        <Return
+            value={{
+                row: $ctx.readColumnIndex,
+                digest: $ctx.digest
+            }}
+        />
+    </If>
 
     <Return
         value={{
-            ...$in,
-            position: $in.position + 1
+            row: null
         }}
     />
 </Module>

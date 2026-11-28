@@ -14,8 +14,6 @@
         />
     </Loop>
 
-    <Call fn="index.borrowScopeColumns" in={$in.binding} />
-
     <Loop on={$in.valid && $in.index < $in.count}>
         <Call
             module="publish"

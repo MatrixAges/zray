@@ -1,19 +1,25 @@
-import yaml from "manifest_yaml_document"
-
 import { bad_sequence } from "./const"
+import issue from "./issue"
 
-import type { Input } from "./value"
+import type { Diagnostic, Input } from "./value"
 
-export type Output = u32[]
+export type Output = [u32[], Diagnostic?]
 
 export default function (in: Input): Output {
     const items = in.node.items
 
     if (items == null) {
-        yaml.reject(in.document.parser, in.node, bad_sequence)
-
-        return []
+        return [
+            [],
+            issue([
+                in.node,
+                bad_sequence
+            ])
+        ]
     }
 
-    return items
+    return [
+        items,
+        null
+    ]
 }

@@ -1,4 +1,4 @@
-export type Context = mutable_opaque
+export type Context = opaque
 
 export type Builtin = {
     name: string,
@@ -6,49 +6,28 @@ export type Builtin = {
     literal?: string
 }
 
-export type IncludeTarget = {
-    absolute: string,
-    relative: string,
-    within: bool
-}
+export declare function physicalOutput(allocator, collection: Context, output: string): string?
+    throws { NativeResourceFailure }
 
-export type PreparedBundle = {
-    entry?: string,
-    output: string,
-    physical_output?: string
-}
-
-export declare function prepareBundle(allocator, collection: Context): PreparedBundle
-    throws { NativeResourceFailure, OutOfMemory }
-export declare function bundlePath(collection: Context, path: string): string throws { NativeResourceFailure }
+export declare function bundlePath(collection: Context, root: string, path: string): string throws { NativeResourceFailure }
 export declare function observePhysicalResource(allocator, collection: Context, resource: string): string
     throws { NativeResourceFailure }
 
-export declare function openCollection(collection: Context): void throws { NativeResourceFailure }
-export declare function readBundle(collection: Context, path: string): string[] throws { NativeResourceFailure }
-export declare function relativePath(collection: Context, path: string): string throws { NativeResourceFailure }
+export declare function openCollection(collection: Context, root: string, entry: string?): string throws { NativeResourceFailure }
+export declare function readBundle(collection: Context, root: string, canonical_root: string, path: string): string[] throws { NativeResourceFailure }
+export declare function relativePath(collection: Context, root: string, path: string): string throws { NativeResourceFailure }
 export declare function resolveReference(
     collection: Context,
+    root: string,
     current_path: string,
     reference_path: string
 ): string throws { NativeResourceFailure }
-export declare function checkPending(collection: Context, path: string): void throws { NativeResourceFailure }
+export declare function checkPending(collection: Context, canonical_root: string, path: string): void throws { NativeResourceFailure }
 export declare function readPending(collection: Context, path: string): string throws { NativeResourceFailure }
 export declare function observePending(collection: Context, path: string, content: string): void throws { NativeResourceFailure }
-export declare function prepareIncludes(collection: Context): string throws { NativeResourceFailure }
-export declare function selectInclude(collection: Context, path: string): IncludeTarget throws {
+export declare function includeFiles(collection: Context, root: string, absolute: string): string[] throws {
     NativeResourceFailure
 }
-export declare function includeFiles(collection: Context, absolute: string): string[] throws {
-    NativeResourceFailure
-}
-export declare function writeInclude(
-    collection: Context,
-    index: u64,
-    bundled: bool,
-    absolute: string,
-    relative: string
-): void throws { NativeResourceFailure }
 
 export declare function scanBuiltins(collection: Context, content: string): Builtin[] throws { NativeResourceFailure }
 export declare function decodeLiteral(collection: Context, raw: string): string throws { NativeResourceFailure }

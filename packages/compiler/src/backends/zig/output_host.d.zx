@@ -35,8 +35,6 @@ export type SourceReuse = {
 
 export type BootstrapMirror = mutable_opaque
 
-export type BootstrapPartitionJobs = opaque
-
 export enum PartitionFile {
     Stub,
     Exports,
@@ -147,12 +145,6 @@ export declare function deleteBootstrapFiles(target: BootstrapMirror, paths: str
 
 export declare function commitBootstrapManifest(target: BootstrapMirror): void
     throws { BootstrapOutput }
-
-export declare function renderPartitionFile(
-    target: BootstrapPartitionJobs,
-    row: u64,
-    file: PartitionFile
-): u32
 
 export declare function scanPartitionBodies(target: BootstrapPartition): void
     throws { BootstrapOutput }

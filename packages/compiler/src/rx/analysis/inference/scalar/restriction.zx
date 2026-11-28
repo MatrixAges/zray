@@ -1,9 +1,8 @@
-import type { U32Buffer } from "memory"
 import type { Kind } from "../unification/model"
 import type { Issue, Shape } from "./model"
 
 export type Graph = {
-    parents: U32Buffer,
+    parents: u32[],
     kinds: Kind[],
     arguments: u32[],
     allowed: u16?[],

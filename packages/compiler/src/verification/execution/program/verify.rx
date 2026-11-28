@@ -56,13 +56,11 @@
         ]}
     />
 
-    <Call fn="index.symbolicQueryPrefix" in={$in.program} />
-
     <Call
         fn="index.runSymbolicProgramBody"
         in={[
             $in.program,
-            $ctx.symbolicProgramPreconditions
+            $ctx.symbolicProgramPreconditions.path
         ]}
     />
 
@@ -79,8 +77,8 @@
     <Return
         value={{
             query: {
-                path: $ctx.symbolicProgramPreconditions,
-                prefix: $ctx.symbolicQueryPrefix
+                path: $ctx.symbolicProgramPreconditions.path,
+                prefix: $ctx.symbolicProgramPreconditions.prefix
             }
         }}
     />

@@ -1,0 +1,17 @@
+import { resolvePathParts } from "lexical_path"
+
+import type { Read } from "../model"
+
+export type Input = Read & {
+    relative: string,
+    ordinal: u64
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return resolvePathParts([
+        in.root,
+        in.relative
+    ])
+}

@@ -4,19 +4,21 @@
     <Args in={Relocate.Step} out={Relocate.Step} />
 
     <Call
-        fn="../index.selectInclude"
-        in={[
-            $in.collection,
-            $in.include_paths[$in.index]
-        ]}
+        fn="target"
+        in={{
+            project_root: $in.project_root,
+            root: $in.root,
+            configured: $in.include_paths[$in.index],
+            separator: $in.separator
+        }}
     />
 
-    <If on={$ctx.selectInclude.within}>
+    <If on={$ctx.target.within}>
         <Call
             fn="find"
             in={{
                 seen: $in.seen,
-                directory: $ctx.selectInclude.relative,
+                directory: $ctx.target.relative,
                 separator: $in.separator,
                 windows: $in.windows
             }}
@@ -27,7 +29,8 @@
                 fn="../index.includeFiles"
                 in={[
                     $in.collection,
-                    $ctx.selectInclude.absolute
+                    $in.root,
+                    $ctx.target.absolute
                 ]}
             />
 
@@ -43,52 +46,31 @@
                 <Return
                     value={{
                         ...$in,
-                        index: $in.index + 1,
-                        valid: false,
-                        running: false
+                        valid: false
                     }}
                 />
             </If>
 
             <Call
-                fn="../index.writeInclude"
-                in={[
-                    $in.collection,
-                    $in.index,
-                    true,
-                    $ctx.selectInclude.absolute,
-                    $ctx.selectInclude.relative
-                ]}
-            />
-
-            <Return
-                value={{
-                    ...$in,
-                    index: $in.index + 1,
-                    valid: true,
-                    running: $in.index + 1 < $in.include_paths.length
+                fn="append"
+                in={{
+                    step: $in,
+                    absolute: $ctx.target.absolute,
+                    relative: $ctx.target.relative
                 }}
             />
+
+            <Return value={$ctx.append} />
         </If>
     </If>
 
     <Call
-        fn="../index.writeInclude"
-        in={[
-            $in.collection,
-            $in.index,
-            false,
-            $ctx.selectInclude.absolute,
-            $ctx.selectInclude.relative
-        ]}
-    />
-
-    <Return
-        value={{
-            ...$in,
-            index: $in.index + 1,
-            valid: true,
-            running: $in.index + 1 < $in.include_paths.length
+        fn="append"
+        in={{
+            step: $in,
+            absolute: $ctx.target.absolute
         }}
     />
+
+    <Return value={$ctx.append} />
 </Module>

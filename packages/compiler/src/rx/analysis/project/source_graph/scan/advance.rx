@@ -41,8 +41,7 @@
         fn="host.publishSourceGraphDependencies"
         in={[
             $in.request.target,
-            $ctx.source.owner,
-            $in.edge_end
+            $ctx.source.owner
         ]}
     />
 
@@ -52,8 +51,8 @@
             starts: $in.starts,
             ends: $in.ends,
             owner: $ctx.source.owner,
-            edge_start: $in.edge_end,
-            edge_end: $in.edge_end + $ctx.publishSourceGraphDependencies.length
+            edge_start: $in.targets.length,
+            edge_end: $ctx.publishSourceGraphDependencies.length
         }}
     />
 
@@ -63,7 +62,8 @@
             seen: $in.seen,
             queue: $in.queue,
             end: $in.end,
-            targets: $ctx.publishSourceGraphDependencies
+            targets: $ctx.publishSourceGraphDependencies,
+            first: $in.targets.length
         }}
     />
 
@@ -83,7 +83,7 @@
             ends: $ctx.publish.ends,
             ...$ctx.enqueue,
             ...$ctx.select,
-            edge_end: $in.edge_end + $ctx.publishSourceGraphDependencies.length
+            targets: $ctx.publishSourceGraphDependencies
         }}
     />
 </Module>

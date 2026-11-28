@@ -1,1 +1,1 @@
-export { bindSymbolicParallel } from "verification_host"
+export { bindSymbolicStatement } from "verification_host"

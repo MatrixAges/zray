@@ -1,43 +1,109 @@
 <Module>
     <Type from="model" as="Toolchain" />
+    <Type from="../cache/model" as="CacheRoot" />
 
-    <Args in={Toolchain.Input} out={Toolchain.Status} />
+    <Args in={Toolchain.Input} out={Toolchain.CacheOutput} />
 
-    <Call
-        fn="index.prepareCache"
-        in={[
-            $in.toolchain,
-            $in.override != null
-        ]}
-    />
+    <Call fn="../cache/root" in={$in.cache_config} />
 
-    <Call
-        fn="index.openCache"
-        in={[
-            $in.toolchain,
-            false
-        ]}
-    />
-
-    <If on={$ctx.openCache}>
-        <Call fn="ready" in={$in} />
-
-        <If on={!$ctx.ready}>
-            <Return value={Toolchain.Status.IncompleteToolchainCache} />
-        </If>
-
-        <Call fn="index.closeDirectory" in={$in.toolchain} />
-
-        <Else>
-            <Call module="extract" in={$in} />
-
-            <If on={$ctx.extract != Toolchain.Status.Ready}>
-                <Return value={$ctx.extract} />
-            </If>
-        </Else>
+    <If on={$ctx.root.status == CacheRoot.Status.InvalidZxcCacheDirectory}>
+        <Return
+            value={{
+                status: Toolchain.Status.InvalidZxcCacheDirectory
+            }}
+        />
     </If>
 
-    <Call fn="index.unlock" in={$in.toolchain} />
+    <If on={$ctx.root.status == CacheRoot.Status.MissingUserCacheDirectory}>
+        <Return
+            value={{
+                status: Toolchain.Status.MissingUserCacheDirectory
+            }}
+        />
+    </If>
 
-    <Return value={Toolchain.Status.Ready} />
+    <If on={$ctx.root.status == CacheRoot.Status.InvalidUserCacheDirectory}>
+        <Return
+            value={{
+                status: Toolchain.Status.InvalidUserCacheDirectory
+            }}
+        />
+    </If>
+
+    <If on={$ctx.root.path != null}>
+        <Call
+            fn="locations"
+            in={{
+                base: $ctx.root.path,
+                digest: $in.expected_marker,
+                resources_only: $in.override != null
+            }}
+        />
+
+        <Call
+            fn="index.lockCache"
+            in={[
+                $in.toolchain,
+                $ctx.locations.parent,
+                $ctx.locations.lock
+            ]}
+        />
+
+        <Call
+            fn="index.openCache"
+            in={[
+                $in.toolchain,
+                $ctx.locations.root
+            ]}
+        />
+
+        <If on={$ctx.openCache}>
+            <Call fn="ready" in={$in} />
+
+            <If on={!$ctx.ready}>
+                <Return
+                    value={{
+                        status: Toolchain.Status.IncompleteToolchainCache
+                    }}
+                />
+            </If>
+
+            <Call fn="index.closeDirectory" in={$in.toolchain} />
+
+            <Else>
+                <Call
+                    module="extract"
+                    in={{
+                        ...$in,
+                        paths: $ctx.locations
+                    }}
+                />
+
+                <If on={$ctx.extract != Toolchain.Status.Ready}>
+                    <Return
+                        value={{
+                            status: $ctx.extract
+                        }}
+                    />
+                </If>
+            </Else>
+        </If>
+
+        <Call fn="index.unlock" in={$in.toolchain} />
+
+        <Return
+            value={{
+                status: Toolchain.Status.Ready,
+                root: $ctx.locations.root
+            }}
+        />
+
+        <Else>
+            <Return
+                value={{
+                    status: Toolchain.Status.MissingUserCacheDirectory
+                }}
+            />
+        </Else>
+    </If>
 </Module>

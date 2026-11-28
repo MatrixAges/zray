@@ -1,13 +1,12 @@
-import representative from "../forest/borrowed_root"
+import representative from "../forest/root"
 import { Action } from "./existing"
 
-import type { U32Buffer } from "memory"
 import type { Output as Field } from "./existing"
 
 export type Input = {
     target: Field,
     source?: u32,
-    parents: U32Buffer
+    parents: u32[]
 }
 
 export type Output = bool

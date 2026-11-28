@@ -1,29 +1,27 @@
-export declare function prepareFunctionBody(body: FunctionBody): void
+export declare function prepareFunctionBody(frame: Lowering): u8[][]?
     throws { OutOfMemory }
 
-export declare function lowerFunctionStatements(body: FunctionBody): u64
+export declare function lowerFunctionStatements(frame: Lowering): u64
     throws { OutOfMemory }
 
-export declare function lowerFunctionContracts(body: FunctionBody): u64
+export declare function lowerFunctionContracts(frame: Lowering): u64
     throws { OutOfMemory }
 
-export declare function lowerFunctionPrelude(body: FunctionBody): u64
+export declare function lowerFunctionPrelude(
+    frame: Lowering,
+    exported: bool,
+    io: bool,
+    process: bool
+): u64 throws { OutOfMemory }
+
+export declare function lowerFunctionPending(frame: Lowering): u64
     throws { OutOfMemory }
 
-export declare function lowerFunctionPending(body: FunctionBody): u64
+export declare function lowerFunctionReferences(frame: Lowering): u64
     throws { OutOfMemory }
 
-export declare function lowerFunctionReferences(body: FunctionBody): u64
+export declare function lowerFunctionCommit(frame: Lowering): u64
     throws { OutOfMemory }
-
-export declare function lowerFunctionCommit(body: FunctionBody): u64
-    throws { OutOfMemory }
-
-export declare function publishFunctionBody(
-    body: FunctionBody,
-    start: u32,
-    count: u32
-): void throws { OutOfMemory }
 
 export declare function enterFunctionRepresentation(body: ValueFunction): void
     throws { OutOfMemory }
@@ -65,8 +63,4 @@ export declare function buildBasisSlots(work: BasisWork): void throws { OutOfMem
 
 export declare function hashBasis(work: BasisWork): void throws { OutOfMemory }
 
-export declare function buildBasisFlow(work: BasisWork): void throws { OutOfMemory }
-
-export declare function buildBasisReturns(work: BasisWork): void throws { OutOfMemory }
-
-export declare function buildBasisEffects(work: BasisWork): void throws { OutOfMemory }
+export declare function buildBasisFlow(work: BasisWork): BasisFlowRows throws { OutOfMemory }

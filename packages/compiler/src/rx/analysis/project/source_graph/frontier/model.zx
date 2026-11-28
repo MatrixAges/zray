@@ -10,7 +10,8 @@ export type Edges = {
 }
 
 export type Queue = Frontier & {
-    targets: u64[]
+    targets: u64[],
+    first: u64
 }
 
 export type Position = {

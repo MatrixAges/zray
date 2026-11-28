@@ -1,3 +1,4 @@
+import { clipCollectionTarget, convertStateValue, lowerBorrowedOperand } from "ast_rows"
 import host from "lowering_host"
 import { CallArgument, Representation } from "lowering_host"
 
@@ -9,7 +10,7 @@ import type { Input } from "./model"
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, call, operand } = in
+    const { frame, writer, body, operand } = in
 
     const value = match in.argument {
         CallArgument.Tuple =>
@@ -27,7 +28,7 @@ export default function (in: Input): Output {
                     )
                 })
             }),
-        CallArgument.Borrow => host.lowerCallBorrow(call),
+        CallArgument.Borrow => lowerBorrowedOperand(writer, body, operand),
         CallArgument.Stack =>
             bindAddress({
                 frame,
@@ -39,12 +40,19 @@ export default function (in: Input): Output {
     }
 
     const adapted = match {
-        in.adapt => host.adaptCallArgument(call, value),
+        in.adapt != null => convertStateValue(
+            writer,
+            body,
+            in.input_type,
+            value,
+            in.adapt,
+            true
+        ),
         _ => value
     }
 
     return match {
-        in.clip => host.clipCallArgument(call, adapted),
+        in.clip => clipCollectionTarget(writer, body, operand, adapted),
         _ => adapted
     }
 }

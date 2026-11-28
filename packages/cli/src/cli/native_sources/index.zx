@@ -1,5 +1,5 @@
 export {
-    prepareBundle,
+    physicalOutput,
     bundlePath,
     observePhysicalResource,
     openCollection,
@@ -9,11 +9,8 @@ export {
     checkPending,
     readPending,
     observePending,
-    selectInclude,
     includeFiles,
-    writeInclude,
     scanBuiltins,
     decodeLiteral,
-    invalidBuiltin,
-    prepareIncludes
+    invalidBuiltin
 } from "native_resource_host"

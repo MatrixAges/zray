@@ -7,53 +7,64 @@
         fn="workspace_path"
         in={{
             root: $in.root,
-            relative: $in.workspace[$in.index]
+            relative: $in.locked_workspace[$in.index]
         }}
     />
 
     <If on={$ctx.workspace_path != null}>
         <Call
-            fn="../effects.recordLockedPath"
+            fn="../effects.canonicalPath"
             in={[
-                $in.host,
-                $in.index,
+                $in.session,
                 $ctx.workspace_path
             ]}
         />
 
-        <Else>
-            <Call
-                fn="../effects.fetchLocked"
-                in={[
-                    $in.host,
-                    $in.index
-                ]}
-            />
+        <Call
+            fn="append"
+            in={{
+                walk: $in,
+                path: $ctx.canonicalPath
+            }}
+        />
 
-            <Call
-                fn="../effects.recordLockedPath"
-                in={[
-                    $in.host,
-                    $in.index,
-                    $ctx.fetchLocked
-                ]}
-            />
-
-            <Call
-                fn="../effects.verifyLockedManifest"
-                in={[
-                    $in.host,
-                    $in.index,
-                    $ctx.recordLockedPath
-                ]}
-            />
-        </Else>
+        <Return value={$ctx.append} />
     </If>
 
-    <Return
-        value={{
-            ...$in,
-            index: $in.index + 1
+    <Call
+        fn="../effects.fetchLocked"
+        in={[
+            $in.session,
+            $in.lock,
+            $in.index
+        ]}
+    />
+
+    <Call
+        fn="../effects.canonicalPath"
+        in={[
+            $in.session,
+            $ctx.fetchLocked
+        ]}
+    />
+
+    <Call
+        fn="../effects.verifyLockedManifest"
+        in={[
+            $in.session,
+            $in.lock,
+            $in.index,
+            $ctx.canonicalPath
+        ]}
+    />
+
+    <Call
+        fn="append"
+        in={{
+            walk: $in,
+            path: $ctx.canonicalPath
         }}
     />
+
+    <Return value={$ctx.append} />
 </Module>

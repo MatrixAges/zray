@@ -32,7 +32,6 @@ pub const Window = struct {
     scratch: *std.heap.ArenaAllocator,
     owned: *std.heap.ArenaAllocator,
     view: View,
-    window_capacity: usize,
     entry: ?abi.Retained,
     pub fn init(self: *Window, builder: *Builder, setup: std.mem.Allocator, scratch: *std.heap.ArenaAllocator, owned: *std.heap.ArenaAllocator) std.mem.Allocator.Error!void {
         _ = setup;
@@ -42,15 +41,11 @@ pub const Window = struct {
 
         self.scratch = scratch;
         self.owned = owned;
-        self.window_capacity = @max(1, builder.plan.registration.len);
         self.entry = null;
     }
 
-    pub fn capacity(self: *const Window) usize {
-        return self.window_capacity;
-    }
-    pub fn bind(self: *Window, builder: *Builder, first: usize, count: usize) Builder.Error!void {
-        for (builder.plan.registration[first..][0..count]) |index| {
+    pub fn bind(self: *Window, builder: *Builder, registration: []const u64) Builder.Error!void {
+        for (registration) |index| {
             self.view.borrow(builder, @intCast(index), &self.providers, &self.target.input);
 
             const bound = abi.bind.executeIn(self.scratch.allocator(), &self.view.input, &self.view.native_view) catch |err| switch (@as(anyerror, err)) {

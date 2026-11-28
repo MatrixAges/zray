@@ -2,7 +2,7 @@
     <Type from="../lint/index" as="IO" />
     <Type from="model" as="Config" />
 
-    <Args in={Config.Input} out={bool} />
+    <Args in={Config.Input} out={Config.Result} />
 
     <Call
         fn="resolve_layout"
@@ -13,9 +13,13 @@
     />
 
     <If on={$ctx.resolve_layout == IO.Layout.Unknown}>
-        <Call fn="../lint/index.reportConfigurationKind" in={$in.host} />
-
-        <Return value={false} />
+        <Return
+            value={{
+                valid: false,
+                diagnostic:
+                    "configuration kind is unknown; use --kind manifest, index or lock\n"
+            }}
+        />
     </If>
 
     <Call fn="maximum_bytes" in={$ctx.resolve_layout} />
@@ -23,47 +27,124 @@
     <Call
         fn="../lint/index.readConfiguration"
         in={[
-            $in.host,
+            $in.path,
             $ctx.maximum_bytes
         ]}
     />
 
-    <If on={$ctx.resolve_layout == IO.Layout.Lock}>
-        <Call fn="../lint/index.validateConfigurationLock" in={$in.host} />
-
-        <If on={!$in.linting}>
-            <Call fn="../lint/index.reportManagedLock" in={$in.host} />
-        </If>
-
-        <Return value={$in.linting} />
-    </If>
-
-    <If on={$ctx.resolve_layout == IO.Layout.Manifest}>
-        <Call fn="../lint/index.formatConfigurationManifest" in={$in.host} />
-
-        <If on={!$ctx.formatConfigurationManifest}>
-            <Return value={false} />
-        </If>
+    <If on={$ctx.readConfiguration.bytes == null}>
+        <Return
+            value={{
+                valid: false,
+                error_name: $ctx.readConfiguration.error_name
+            }}
+        />
 
         <Else>
-            <Call fn="../lint/index.validateConfigurationIndex" in={$in.host} />
-            <Call fn="../lint/index.formatConfigurationIndex" in={$in.host} />
+            <If on={$ctx.resolve_layout == IO.Layout.Manifest}>
+                <Call
+                    fn="../lint/index.formatConfigurationManifest"
+                    in={[
+                        $ctx.readConfiguration.bytes,
+                        $in.path
+                    ]}
+                />
+
+                <If on={$ctx.formatConfigurationManifest.bytes == null}>
+                    <Return
+                        value={{
+                            valid: false,
+                            diagnostic: $ctx.formatConfigurationManifest.diagnostic,
+                            error_name: $ctx.formatConfigurationManifest.error_name
+                        }}
+                    />
+
+                    <Else>
+                        <Call
+                            module="finalize"
+                            in={{
+                                ...$in.pick([
+                                    "path",
+                                    "linting",
+                                    "check",
+                                    "write"
+                                ]),
+                                source: $ctx.readConfiguration.bytes,
+                                formatted: $ctx.formatConfigurationManifest.bytes
+                            }}
+                        />
+
+                        <Return value={$ctx.finalize} />
+                    </Else>
+                </If>
+            </If>
+
+            <Call
+                fn="../lint/index.checkConfigurationJson"
+                in={[
+                    $ctx.readConfiguration.bytes,
+                    $ctx.resolve_layout == IO.Layout.Lock
+                ]}
+            />
+
+            <If on={$ctx.checkConfigurationJson != null}>
+                <Return
+                    value={{
+                        valid: false,
+                        error_name: $ctx.checkConfigurationJson
+                    }}
+                />
+            </If>
+
+            <If on={$ctx.resolve_layout == IO.Layout.Lock}>
+                <If on={!$in.linting}>
+                    <Return
+                        value={{
+                            valid: false,
+                            diagnostic:
+                                "pkg.lock.json is managed by zxc pkg install; use zxc lint for read-only validation\n"
+                        }}
+                    />
+                </If>
+
+                <Return
+                    value={{
+                        valid: true
+                    }}
+                />
+            </If>
+
+            <Call
+                fn="../lint/index.formatConfigurationIndex"
+                in={$ctx.readConfiguration.bytes}
+            />
+
+            <If on={$ctx.formatConfigurationIndex.bytes == null}>
+                <Return
+                    value={{
+                        valid: false,
+                        error_name: $ctx.formatConfigurationIndex.error_name
+                    }}
+                />
+
+                <Else>
+                    <Call
+                        module="finalize"
+                        in={{
+                            ...$in.pick([
+                                "path",
+                                "linting",
+                                "check",
+                                "write"
+                            ]),
+                            source: $ctx.readConfiguration.bytes,
+                            formatted: $ctx.formatConfigurationIndex.bytes
+                        }}
+                    />
+
+                    <Return value={$ctx.finalize} />
+                </Else>
+            </If>
         </Else>
     </If>
-
-    <If on={$in.linting || $in.check}>
-        <Call fn="../lint/index.checkConfigurationFormatting" in={$in.host} />
-
-        <Return value={$ctx.checkConfigurationFormatting} />
-    </If>
-
-    <If on={$in.write}>
-        <Call fn="../lint/index.writeConfiguration" in={$in.host} />
-
-        <Else>
-            <Call fn="../lint/index.printConfiguration" in={$in.host} />
-        </Else>
-    </If>
-
-    <Return value={true} />
 </Module>

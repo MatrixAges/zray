@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Receipt" />
+
+    <Args in={Receipt.ScanInput} out={Receipt.Output} />
+
+    <Loop on={$in.more && $in.status == Receipt.Status.Valid}>
+        <Call
+            module="step"
+            in={{
+                ...$in,
+                files: 0,
+                bytes: 0,
+                visited: 0,
+                more: true,
+                status: Receipt.Status.Valid
+            }}
+        />
+    </Loop>
+
+    <If on={$ctx.step.status != Receipt.Status.Valid}>
+        <Return value={$ctx.step.status} />
+    </If>
+
+    <If on={$ctx.step.files != $in.hashes.length}>
+        <Return value={Receipt.Status.CorruptPackageStore} />
+    </If>
+
+    <Return value={Receipt.Status.Valid} />
+</Module>

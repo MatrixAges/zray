@@ -3,7 +3,13 @@
 
     <Args in={Snapshot.AddInput} out={Snapshot.Admission} />
 
-    <Call fn="index.openRegistration" in={$in.registration} />
+    <Call
+        fn="index.openRegistration"
+        in={[
+            $in.registration,
+            $in.path
+        ]}
+    />
 
     <Call
         fn="admit"
@@ -14,6 +20,20 @@
     />
 
     <If on={$ctx.admit == Snapshot.Admission.Unchanged}>
+        <If on={$in.backend_input && $ctx.openRegistration.backend_preloaded}>
+            <Call
+                fn="index.publishObservation"
+                in={[
+                    $in.registration,
+                    $ctx.openRegistration.directory_entries,
+                    $ctx.openRegistration.consumed,
+                    true,
+                    false,
+                    false
+                ]}
+            />
+        </If>
+
         <Return value={$ctx.admit} />
     </If>
 
@@ -26,6 +46,8 @@
                 in={[
                     $in.registration,
                     false,
+                    false,
+                    true,
                     false,
                     true
                 ]}
@@ -52,7 +74,9 @@
                 $in.registration,
                 $in.directory_entries,
                 $ctx.openRegistration.consumed,
-                $ctx.comparePrevious
+                $ctx.comparePrevious,
+                $ctx.openRegistration.backend_preloaded && !$in.backend_input,
+                true
             ]}
         />
 
@@ -65,7 +89,9 @@
             $in.registration,
             $in.directory_entries,
             false,
-            $ctx.readCurrent || !$ctx.openRegistration.existing
+            $ctx.readCurrent || !$ctx.openRegistration.existing,
+            $ctx.openRegistration.backend_preloaded && !$in.backend_input,
+            true
         ]}
     />
 

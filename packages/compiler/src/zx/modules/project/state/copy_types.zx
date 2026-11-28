@@ -1,0 +1,33 @@
+import copyNames from "../../copy_names"
+
+import type { Table } from "core/type_table/model"
+
+export type Input = Table
+
+export type Output = Table
+
+export default function (in: Input): Output {
+    if (in.kinds.length == 0) {
+        return {
+            kinds: [],
+            first: [],
+            second: [],
+            labels: [],
+            children: [],
+            field_types: [],
+            field_names: [],
+            names: []
+        }
+    }
+
+    return {
+        kinds: in.kinds.slice(),
+        first: in.first.slice(),
+        second: in.second.slice(),
+        labels: copyNames(in.labels),
+        children: in.children.slice(),
+        field_types: in.field_types.slice(),
+        field_names: copyNames(in.field_names),
+        names: copyNames(in.names)
+    }
+}

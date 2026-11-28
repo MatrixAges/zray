@@ -6,60 +6,57 @@ const host = @import("../host.zig");
 const AssemblyOutcome = abi.layouts.@"zig:package_graph_host".AssemblyOutcome;
 const WorkspaceStatus = abi.native.@"zig:package_graph_host".WorkspaceStatus;
 
-pub fn prepareWorkspace(handle: *anyopaque) host.Error![]const u64 {
-    const self = host.State.get(handle);
-    const edge_counts = self.allocator.alloc(u64, self.members.len) catch |err| return self.fail(err);
-    self.result.packages = self.allocator.alloc(graph.Package, self.members.len) catch |err| return self.fail(err);
-    self.edges = self.allocator.alloc(graph.Dependency, @intCast(self.location.total)) catch |err| return self.fail(err);
+pub fn assembleWorkspace(
+    allocator: std.mem.Allocator,
+    handle: *const anyopaque,
+    root: []const u8,
+    counts: []const u64,
+    firsts: []const u64,
+    total: u64,
+) host.Error!*const AssemblyOutcome {
+    const self = host.Context.get(handle);
+    const packages = allocator.alloc(graph.Package, self.members.len) catch |err| return self.fail(err);
+    const edges = allocator.alloc(graph.Dependency, @intCast(total)) catch |err| return self.fail(err);
 
-    for (self.members, 0..) |member, index| {
-        const data = &member.manifest;
-
-        edge_counts[index] = data.dependencies.len + data.dev_dependencies.len;
+    for (self.members, packages, counts, firsts) |member, *package, count, first| {
+        package.* = .{
+            .path = allocator.dupe(u8, member.path) catch |err| return self.fail(err),
+            .manifest = member.manifest,
+            .dependencies = edges[@intCast(first)..][0..@intCast(count)],
+        };
     }
 
-    return edge_counts;
-}
+    const assembly = pkgs.graph.assemble(self.backing, root, packages, edges, 0) catch |err| return self.fail(err);
+    const slice = allocator.create([]graph.Package) catch |err| return self.fail(err);
+    const view = allocator.create(AssemblyOutcome) catch |err| return self.fail(err);
+    slice.* = packages;
 
-pub fn seedLocal(handle: *anyopaque, index: u64, first: u64, length: u64) host.Error!void {
-    const self = host.State.get(handle);
-    const member = &self.members[@intCast(index)];
-
-    self.result.packages[@intCast(index)] = .{
-        .path = self.allocator.dupe(u8, member.path) catch |err| return self.fail(err),
-        .manifest = member.manifest,
-        .dependencies = self.edges[@intCast(first)..][0..@intCast(length)],
-    };
-}
-
-pub fn assembleWorkspace(handle: *anyopaque) host.Error!*const AssemblyOutcome {
-    const self = host.State.get(handle);
-    const output = self.result;
-    const assembly = pkgs.graph.assemble(output.arena.child_allocator, output.root, output.packages, self.edges, self.location.capacity) catch |err| return self.fail(err);
-
-    self.failed_owner = @intCast(assembly.owner);
-    self.failed_edge = @intCast(assembly.edge);
-
-    self.assembly_view = .{
+    view.* = .{
+        .workspace = @ptrCast(slice),
         .status = switch (assembly.status) {
             inline else => |status| @field(WorkspaceStatus, @tagName(status)),
         },
-        .failed_owner = self.failed_owner,
+        .failed_owner = assembly.owner,
+        .owner_path = "",
+        .owner_name = "",
+        .edge_name = "",
     };
 
-    return &self.assembly_view;
-}
+    switch (assembly.status) {
+        .Valid, .InvalidVersion, .Overflow => {},
+        else => {
+            const owner = &packages[@intCast(assembly.owner)];
+            const data = &owner.manifest;
+            const edge: usize = @intCast(assembly.edge);
+            view.owner_path = owner.path;
+            view.owner_name = data.name;
 
-pub fn discardEdges(handle: *anyopaque, index: u64) void {
-    host.State.get(handle).result.packages[@intCast(index)].dependencies = &.{};
-}
+            view.edge_name = switch (assembly.status) {
+                .Duplicate, .InvalidSpecifier, .Missing, .InvalidRange, .LockVersionMismatch => if (edge < data.dependencies.len) data.dependencies[edge].name else data.dev_dependencies[edge - data.dependencies.len].name,
+                else => "",
+            };
+        },
+    }
 
-pub fn reportWorkspace(handle: *anyopaque, message: []const u8, use_package_name: bool) host.Error!void {
-    const self = host.State.get(handle);
-    const owner = &self.result.packages[self.failed_owner];
-    const data = &owner.manifest;
-    const edge = self.failed_edge;
-    const name = if (use_package_name) data.name else if (edge < data.dependencies.len) data.dependencies[edge].name else data.dev_dependencies[edge - data.dependencies.len].name;
-
-    try self.report(owner.path, name, message);
+    return view;
 }

@@ -1,22 +1,30 @@
-import yaml from "manifest_yaml_document"
-
 import check from "../schema/scalar"
 import { empty_text } from "./const"
+import issue from "./issue"
 
-import type { Input } from "./value"
+import type { Diagnostic, Input } from "./value"
 
-export type Output = string
+export type Output = [string, Diagnostic?]
 
 export default function (in: Input): Output {
     const text = in.node.scalar
 
-    const diagnostic = check({
+    const problem = check({
         text
     })
 
-    if (diagnostic != null) {
-        yaml.reject(in.document.parser, in.node, diagnostic)
+    if (problem != null) {
+        return [
+            empty_text,
+            issue([
+                in.node,
+                problem
+            ])
+        ]
     }
 
-    return text ?? empty_text
+    return [
+        text ?? empty_text,
+        null
+    ]
 }

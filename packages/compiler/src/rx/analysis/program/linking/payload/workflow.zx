@@ -1,27 +1,27 @@
-import type { Patch, Work } from "../operands/workflow"
+import type { Publication as Operands, Source } from "../operands/workflow"
 import type { Columns, Input as Scan, Patch as Payload } from "./model"
 import type { Kind } from "./route"
 
 export type Cursor = Scan & {
-    operands: Work
+    operands: Source
 }
 
 export type Step = {
     next?: u64,
     writes: Payload[],
     operand?: Payload,
-    patch?: Patch
+    patch?: Operands
 }
 
 export type Effect = {
     row: u32,
     route: Kind,
-    operands: Work
+    operands: Source
 }
 
 export type Operand = {
     value: u32,
-    patch?: Patch
+    patch?: Operands
 }
 
 export type Publication = {

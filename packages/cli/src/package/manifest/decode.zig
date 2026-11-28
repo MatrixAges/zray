@@ -3,9 +3,9 @@ const model = @import("model.zig");
 const compiler = @import("compiler");
 const rule = @import("cli_source").manifest_decode;
 pub const Document = @import("manifest_yaml_document");
-pub const Error = error{ OutOfMemory, InvalidManifest };
+pub const Result = union(enum) { data: model.Manifest, diagnostic: model.Diagnostic };
 
-pub fn read(allocator: std.mem.Allocator, document: *Document) Error!model.Manifest {
+pub fn read(allocator: std.mem.Allocator, document: *const Document) std.mem.Allocator.Error!Result {
     var scratch = std.heap.ArenaAllocator.init(allocator);
 
     defer scratch.deinit();
@@ -14,14 +14,18 @@ pub fn read(allocator: std.mem.Allocator, document: *Document) Error!model.Manif
     const Node = std.meta.Child(@FieldType(Entry, "node"));
     const nodes = try document.borrowNodes(scratch.allocator(), Node);
 
-    const data = rule.executeIn(scratch.allocator(), &.{
-        .document = &.{ .parser = @ptrCast(document), .nodes = nodes },
-        .node = nodes[0],
-    }) catch |err| switch (err) {
-        error.OutOfMemory, error.InvalidManifest => |failure| return failure,
+    const decoded = rule.executeIn(scratch.allocator(), &.{ .document = nodes, .node = nodes[0] }) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
 
+    if (decoded.diagnostic) |issue| return .{ .diagnostic = .{
+        .line = @intCast(issue.line),
+        .column = @intCast(issue.column),
+        .message = try dupeText(allocator, issue.message),
+    } };
+
+    const data = decoded.data.?;
     const exports = try allocator.alloc(model.Export, data.exports.len);
 
     for (data.exports, 0..) |item, i| {
@@ -93,7 +97,7 @@ pub fn read(allocator: std.mem.Allocator, document: *Document) Error!model.Manif
         };
     }
 
-    return .{
+    return .{ .data = .{
         .name = try dupeText(allocator, data.name),
         .version = try dupeText(allocator, data.version),
         .entry = if (data.entry) |entry| try dupeText(allocator, entry) else null,
@@ -109,7 +113,7 @@ pub fn read(allocator: std.mem.Allocator, document: *Document) Error!model.Manif
         .libraries = try dupeTexts(allocator, data.libraries),
         .include_paths = try dupeTexts(allocator, data.include_paths),
         .library_paths = try dupeTexts(allocator, data.library_paths),
-    };
+    } };
 }
 
 fn dupeText(allocator: std.mem.Allocator, value: []const u8) std.mem.Allocator.Error![]const u8 {

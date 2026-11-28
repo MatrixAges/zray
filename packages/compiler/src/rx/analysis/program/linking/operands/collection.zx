@@ -1,6 +1,5 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
-import { expressionOperandBytes, OperandColumn } from "rx_project_host"
 
 import writeRange from "./destination_window"
 import expressions from "./expressions"
@@ -42,8 +41,7 @@ export default function (in: Input): Output {
     return {
         header: [
             {
-                byte:
-                    expressionOperandBytes(in.frame, OperandColumn.collection_kinds)[row]
+                byte: in.metadata.collection[row]
             },
             {
                 word: target

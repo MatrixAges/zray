@@ -1,0 +1,90 @@
+import { missing_alias } from "../../../schema/const"
+import field from "../../../schema/field"
+import { Field, Mapping } from "../../../schema/model"
+import { empty_text, mapping_size, unknown_alias_field } from "../../const"
+import issue from "../../issue"
+import mapping from "../../mapping"
+import nodeAt from "../../node_at"
+import text from "../../text"
+
+import type { AbiAlias } from "../../model"
+import type { Diagnostic, Input as Value } from "../../value"
+
+export type Input = Value
+
+export type Output = [AbiAlias?, Diagnostic?]
+
+export default function (in: Input): Output {
+    const { document, node } = in
+    const { pairs, problem } = mapping(in)
+
+    const data = loop({
+        index: 0,
+        problem,
+        name: empty_text,
+        specifier: empty_text
+    }, {
+        while: pair => pair.problem == null && pair.index < pairs.length,
+        next: pair => {
+            const key = nodeAt({
+                document,
+                id: pairs[pair.index]
+            })
+            const parsed = text({
+                document,
+                node: nodeAt({
+                    document,
+                    id: pairs[pair.index + 1]
+                })
+            })
+
+            pair.problem = parsed[1]
+
+            if (pair.problem == null) {
+                const selected = field({
+                    mapping: Mapping.AbiAlias,
+                    key: key.text
+                })
+
+                switch (selected) {
+                    case Field.Name:
+                        pair.name = parsed[0]
+                    case Field.Specifier:
+                        pair.specifier = parsed[0]
+                    default:
+                        pair.problem = issue([
+                            key,
+                            unknown_alias_field
+                        ])
+                }
+            }
+
+            pair.index += mapping_size
+        }
+    })
+
+    if (data.problem != null) {
+        return [
+            null,
+            data.problem
+        ]
+    }
+
+    if (data.name == empty_text || data.specifier == empty_text) {
+        return [
+            null,
+            issue([
+                node,
+                missing_alias
+            ])
+        ]
+    }
+
+    return [
+        data.pick([
+            "name",
+            "specifier"
+        ]),
+        null
+    ]
+}

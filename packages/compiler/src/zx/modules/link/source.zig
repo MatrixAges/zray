@@ -61,19 +61,6 @@ pub const Body = struct {
     }
 };
 
-pub fn appendSourceBody(handle: *const anyopaque, replace_prefix: bool, type_prefix: ?u64, initializer_rows: []const u8) std.mem.Allocator.Error!?u64 {
-    const body: *const Body = @ptrCast(@alignCast(handle));
-
-    const values: []const Initializer = if (initializer_rows.len == 0) &.{} else std.mem.bytesAsSlice(
-        Initializer,
-        @as([]align(@alignOf(Initializer)) const u8, @alignCast(initializer_rows)),
-    );
-
-    const count = try body.link(replace_prefix, if (type_prefix) |value| @intCast(value) else null, values);
-
-    return if (count) |value| value else null;
-}
-
 fn appendBody(body: *const Body, replace_prefix: bool, type_prefix: ?usize, values: []const Initializer) program_link.Error!void {
     const input = body.input;
     const destination = body.destination;

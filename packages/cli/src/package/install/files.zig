@@ -3,8 +3,7 @@ const Lock = @import("pkgs").Lock;
 const Inputs = @import("watch_inputs").Inputs;
 pub const Loaded = struct { lock: Lock, source: []const u8 };
 pub const Installation = struct { format_version: u32, lock_sha256: []const u8, paths: []const []const u8 };
-
-const maximum_bytes = 32 * 1024 * 1024;
+pub const maximum_bytes = 32 * 1024 * 1024;
 
 pub fn load(io: std.Io, allocator: std.mem.Allocator, root: []const u8, inputs: ?*Inputs) !?Loaded {
     const path = try std.fs.path.join(allocator, &.{ root, "pkg.lock.json" });
@@ -39,9 +38,6 @@ pub const Publication = struct {
     lock: []const u8,
     mapping: []const u8,
     digest: [64]u8,
-    pub fn fits(self: Publication) bool {
-        return self.lock.len <= maximum_bytes and self.mapping.len <= maximum_bytes;
-    }
 };
 
 pub fn render(allocator: std.mem.Allocator, prepared: @import("model.zig").Prepared) !Publication {
@@ -52,8 +48,8 @@ pub fn render(allocator: std.mem.Allocator, prepared: @import("model.zig").Prepa
     return .{ .lock = source, .mapping = mapping, .digest = digest };
 }
 
-pub fn writeMapping(io: std.Io, allocator: std.mem.Allocator, root: []const u8, data: *const Publication) !void {
-    try write(io, try mapPath(allocator, root, &data.digest), data.mapping);
+pub fn writeMapping(io: std.Io, allocator: std.mem.Allocator, root: []const u8, digest: []const u8, mapping: []const u8) !void {
+    try write(io, try mapPath(allocator, root, digest), mapping);
 }
 
 pub fn lockUnchanged(io: std.Io, allocator: std.mem.Allocator, root: []const u8, source: []const u8) !bool {

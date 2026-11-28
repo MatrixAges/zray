@@ -82,31 +82,70 @@ fn resolve(io: std.Io, result: *Result, original: workspace.Request, captured: ?
     result.root = try allocator.dupe(u8, discovered.root);
 
     const host = @import("graph/host.zig");
+    const location = pkgs.workspace.manifest.inspect(discovered.packages);
+    const counts: []u64 = if (location.found) &.{} else try allocator.alloc(u64, discovered.packages.len);
 
-    var state: host.State = .{
+    for (discovered.packages[0..counts.len], counts) |member, *count| {
+        count.* = member.manifest.dependencies.len + member.manifest.dev_dependencies.len;
+    }
+
+    const missing = if (location.found) &discovered.packages[@intCast(location.row)] else null;
+
+    const missing_name = if (missing) |member| label: {
+        const declarations = if (location.development) member.manifest.dev_dependencies else member.manifest.dependencies;
+
+        break :label declarations[@intCast(location.edge)].name;
+    } else "";
+
+    var failure: ?anyerror = null;
+
+    const context: host.Context = .{
         .io = io,
-        .allocator = allocator,
-        .result = result,
         .members = discovered.packages,
         .inputs = original.inputs,
         .manifests = manifests,
-        .location = pkgs.workspace.manifest.inspect(discovered.packages),
+        .backing = result.arena.child_allocator,
+        .failure = &failure,
     };
 
-    const status = @import("cli_source").graph_load.executeIn(allocator, &.{
-        .host = @ptrCast(&state),
-        .external = state.location.found,
-        .count = state.members.len,
+    const outcome = @import("cli_source").graph_load.executeIn(allocator, &.{
+        .graph = @ptrCast(&context),
+        .root = result.root,
+        .external = location.found,
+        .missing_path = if (missing) |member| member.path else "",
+        .missing_name = missing_name,
+        .counts = counts,
     }) catch |err| switch (err) {
-        error.PackageGraphHostFailure => return state.failure.?,
-        else => |failure| return failure,
+        error.PackageGraphHostFailure => return failure.?,
+        else => return err,
     };
 
-    switch (status) {
-        .Valid => if (state.location.found) {
-            result.packages = state.installed_packages;
-            result.locked = state.locked.lock.packages;
-        },
+    result.diagnostic = outcome.diagnostic;
+
+    if (outcome.workspace) |native| {
+        const packages: *const []Package = @ptrCast(@alignCast(native));
+        result.packages = packages.*;
+
+        if (outcome.keep_rows) |count| {
+            for (result.packages[@intCast(count)..]) |*package| package.dependencies = &.{};
+        }
+    }
+
+    if (outcome.installed) |installed| {
+        const lock: *const @import("install/files.zig").Loaded = @ptrCast(@alignCast(installed.lock));
+        const packages = try allocator.alloc(Package, installed.rows.len);
+
+        for (installed.rows, packages) |row, *package| {
+            const manifest: *const Manifest = @ptrCast(@alignCast(row.manifest));
+            package.* = .{ .path = row.path, .manifest = manifest.* };
+        }
+
+        result.packages = packages;
+        result.locked = lock.lock.packages;
+    }
+
+    switch (outcome.status) {
+        .Valid => {},
         .PackagesNotInstalled => return error.PackagesNotInstalled,
         .LockFileOutdated => return error.LockFileOutdated,
         .InvalidPackageInstallation => return error.InvalidPackageInstallation,

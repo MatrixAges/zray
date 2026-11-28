@@ -9,7 +9,11 @@
         module="../../terms/parse/run"
         in={{
             build: $in.build,
-            expression: $in.rows.expressions[$in.row]
+            expression: $in.rows.expressions[$in.row],
+            origin: {
+                file: $ctx.definition_origin,
+                row: $in.row
+            }
         }}
     />
 

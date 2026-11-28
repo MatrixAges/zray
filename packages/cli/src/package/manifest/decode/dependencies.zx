@@ -2,50 +2,60 @@ import { mapping_size } from "./const"
 import mapping from "./mapping"
 import name from "./name"
 import nodeAt from "./node_at"
-import string from "./string"
+import text from "./text"
 
 import type { Dependency } from "./model"
-import type { Input as Value } from "./value"
+import type { Diagnostic, Input } from "./value"
 
-export type Input = Value
-
-export type Output = Dependency[]
+export type Output = [Dependency[], Diagnostic?]
 
 export default function (in: Input): Output {
     const { document } = in
+    const { pairs, problem } = mapping(in)
 
-    const pairs = mapping(in)
-    const count = pairs.length / mapping_size
     const empty: Dependency[] = []
 
     return loop({
-        row: 0,
-        items: empty
+        offset: 0,
+        out: empty,
+        problem
     }, {
-        while: state => state.row < count,
+        while: state => state.problem == null && state.offset < pairs.length,
         next: state => {
-            const offset = state.row * mapping_size
-            const dependency = name({
+            const [dependency, name_issue] = name({
                 document,
                 node: nodeAt({
                     document,
-                    id: pairs[offset]
-                })
-            })
-            const requirement = string({
-                document,
-                node: nodeAt({
-                    document,
-                    id: pairs[offset + 1]
+                    id: pairs[state.offset]
                 })
             })
 
-            state.items = state.items.push({
-                name: dependency,
-                requirement
-            })[0]
-            state.row += 1
+            if (name_issue != null) {
+                state.problem = name_issue
+            } else {
+                const [requirement, text_issue] = text({
+                    document,
+                    node: nodeAt({
+                        document,
+                        id: pairs[state.offset + 1]
+                    })
+                })
+
+                if (text_issue != null) {
+                    state.problem = text_issue
+                } else {
+                    state.out = state.out.push({
+                        name: dependency,
+                        requirement
+                    })[0]
+                }
+            }
+
+            state.offset += mapping_size
         },
-        return: state => state.items
+        return: state => [
+            state.out,
+            state.problem
+        ]
     })
 }

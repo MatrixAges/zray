@@ -9,5 +9,5 @@ export type Input = {
 }
 
 export default function (in: Input): Output {
-    return in.document.nodes[integer.widen(in.id) - 1]
+    return in.document[integer.widen(in.id) - 1]
 }

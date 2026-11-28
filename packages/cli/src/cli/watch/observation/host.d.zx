@@ -12,7 +12,8 @@ export type DirectoryEntry = {
 export type Slot = {
     existing: bool,
     consumed: bool,
-    directory_entries: bool
+    directory_entries: bool,
+    backend_preloaded: bool
 }
 
 export enum PathKind {
@@ -45,7 +46,7 @@ export declare function nextDirectoryEntry(directory: Directory): DirectoryEntry
     ObservationFailure
 }
 
-export declare function openRegistration(registration: Registration): Slot throws {
+export declare function openRegistration(registration: Registration, path: string): Slot throws {
     ObservationFailure
 }
 export declare function reusePrior(registration: Registration): Reuse
@@ -59,5 +60,7 @@ export declare function publishObservation(
     registration: Registration,
     directory_entries: bool,
     consumed: bool,
-    consistent: bool
+    consistent: bool,
+    backend_preloaded: bool,
+    update_state: bool
 ): void throws { ObservationFailure }

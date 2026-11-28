@@ -1,6 +1,6 @@
 export {
     resolveExecutable,
-    prepareCache,
+    lockCache,
     openCache,
     closeDirectory,
     createStaging,
@@ -9,7 +9,6 @@ export {
     extractTar,
     renameZig,
     extractStandard,
-    writeMarker,
     publish,
     probeLibrary,
     unlock

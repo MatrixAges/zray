@@ -3,21 +3,13 @@ pub const grammar = @import("frontend/combinators.zig");
 
 pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @This(),
-    @import("modules/artifact/prepared/root.zig"),
     @import("modules/compiled/imports.zig"),
-    @import("modules/link.zig"),
-    @import("modules/link/source.zig"),
     @import("modules/project/execution/body.zig"),
     @import("modules/project/execution/delivery/bind.zig"),
     @import("modules/project/execution/delivery/route.zig"),
     @import("modules/project/execution/delivery/source.zig"),
-    @import("modules/project/execution/entry.zig"),
     @import("modules/project/execution/legacy.zig"),
-    @import("modules/project/execution/load.zig"),
     @import("modules/project/execution/native.zig"),
-    @import("modules/project/execution/signatures/host.zig"),
-    @import("modules/project/state/host.zig"),
-    @import("modules/semantic_cache/native.zig"),
 }).resolve;
 
 pub const Parser = @import("frontend/parser.zig");

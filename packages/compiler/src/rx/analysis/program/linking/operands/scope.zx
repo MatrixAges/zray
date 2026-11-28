@@ -1,7 +1,6 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
 import memory from "memory"
-import { expressionOperandBytes, OperandColumn } from "rx_project_host"
 
 import writeRange from "./destination_window"
 import expressions from "./expressions"
@@ -53,10 +52,7 @@ export default function (in: Input): Output {
     const borrows = match {
         length == 0 => [],
         _ => memory.borrowU8Range(
-            expressionOperandBytes(
-                in.frame,
-                OperandColumn.scope_borrows
-            ),
+            in.metadata.scope,
             start,
             length
         )

@@ -8,16 +8,12 @@ export enum Representation {
     Iteration
 }
 
-export type CallFrame = mutable_opaque
-
 export enum CallArgument {
     Value,
     Tuple,
     Borrow,
     Stack
 }
-
-export type FunctionBody = mutable_opaque
 
 export type ValueFunction = mutable_opaque
 
@@ -56,3 +52,8 @@ export enum StoredType {
 export type AnalysisWork = mutable_opaque
 
 export type BasisWork = mutable_opaque
+
+export type BasisFlowRows = {
+    held: bool[][],
+    written: bool[][]
+}

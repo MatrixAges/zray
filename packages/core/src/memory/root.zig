@@ -139,14 +139,6 @@ pub inline fn u32Views(source: *const anyopaque) []const u32 {
     return view.*;
 }
 
-pub inline fn u64Views(source: *const anyopaque) []const u64 {
-    const view: *const []const u64 = @ptrCast(@alignCast(source));
-
-    return view.*;
-}
-
-pub const u64ViewSlice = u64Views;
-
 pub inline fn optionalU32Views(source: *const anyopaque) []const ?u32 {
     const view: *const []const ?u32 = @ptrCast(@alignCast(source));
 

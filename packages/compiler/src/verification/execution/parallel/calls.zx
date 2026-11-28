@@ -4,6 +4,7 @@ import host from "verification_host"
 import require from "../../contracts/require"
 import conjunction from "../../scalar/conjunction"
 
+import type { SymbolicOutcome } from "verification_host"
 import type { Calls as Input, Completed as Output } from "./model"
 
 export default function (in: Input): Output {
@@ -13,20 +14,27 @@ export default function (in: Input): Output {
     const first = integers.widen(control.parallel_first[payload])
     const count = integers.widen(control.parallel_count[payload])
 
-    host.reserveSymbolicParallel(block, count)
+    const values: SymbolicOutcome[] = []
 
-    const path = loop({
+    const completed = loop({
         index: 0,
-        path: launch
+        path: launch,
+        values
     }, {
         while: state => state.index < count,
         next: state => {
-            const safe = host.evaluateSymbolicStatement(
+            const outcome = host.evaluateSymbolicStatement(
                 block,
                 control.parallel_values[first + state.index]
-            ).safe
+            )
 
-            host.saveSymbolicParallel(block, state.index)
+            const { safe } = outcome
+
+            state.values = state.values.push({
+                safe,
+                text: outcome.text,
+                fields: outcome.fields
+            })[0]
             const violation = require({
                 left: launch,
                 right: safe
@@ -44,12 +52,12 @@ export default function (in: Input): Output {
             state.path = host.bindSymbolicBoolean(session, joined)
             state.index += 1
         },
-        return: state => state.path
+        return: state => state
     })
 
     return {
-        path,
+        path: completed.path,
         first,
-        count
+        values: completed.values
     }
 }

@@ -1,12 +1,5 @@
-export type AstOperandRows = {
-    tags: ExpressionsKind[],
-    offsets: u32[],
-    tuple: u32[][],
-    builtin_name: ExpressionsBuiltinName[],
-    builtin_arguments: u32[][],
-    identifier: u8[][],
-    address_of: u32[],
-    object_type_expr: u32?[],
-    object_fields_start: u32[],
-    object_fields_len: u32[]
-}
+export declare function retainAstIds(writer: AstWriter, ids: u32[]): u32[]
+    throws { OutOfMemory }
+
+export declare function appendAstOperandRows(writer: AstWriter, rows: AstOperandRows): void
+    throws { OutOfMemory }

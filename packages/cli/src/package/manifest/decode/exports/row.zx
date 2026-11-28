@@ -1,0 +1,83 @@
+import exported from "../../../workspace/paths/exported"
+import { Kind } from "../../../workspace/paths/model"
+import relative from "../../../workspace/paths/relative"
+import compiled from "../compiled_export"
+import { bad_export_key, bad_export_source, empty_text } from "../const"
+import issue from "../issue"
+import text from "../text"
+
+import type { Node } from "manifest_yaml_document"
+import type { Export } from "../model"
+import type { Diagnostic, Document } from "../value"
+
+export type Input = {
+    document: Document,
+    key: Node,
+    node: Node
+}
+
+export type Output = [Export?, Diagnostic?]
+
+export default function (in: Input): Output {
+    const { document, key, node } = in
+
+    const path = key.text
+
+    if (!exported(path)) {
+        return [
+            null,
+            issue([
+                key,
+                bad_export_key
+            ])
+        ]
+    }
+
+    const input = {
+        document,
+        node
+    }
+
+    if (node.pairs != null) {
+        const [module, problem] = compiled(input)
+
+        return [
+            {
+                path,
+                source: empty_text,
+                module
+            },
+            problem
+        ]
+    }
+
+    const [source, problem] = text(input)
+
+    if (problem != null) {
+        return [
+            null,
+            problem
+        ]
+    }
+
+    if (!relative({
+        text: source,
+        kind: Kind.Relative
+    })) {
+        return [
+            null,
+            issue([
+                node,
+                bad_export_source
+            ])
+        ]
+    }
+
+    return [
+        {
+            path,
+            source
+        },
+        null
+    ]
+}

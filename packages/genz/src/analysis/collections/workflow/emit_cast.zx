@@ -1,4 +1,4 @@
-import { appendAstAccessRows, astExpressionCount, storeAstIdPair } from "ast_rows"
+import { appendAstAccessRows, astExpressionCount, retainAstIds } from "ast_rows"
 
 import {
     ExpressionsBuiltinName,
@@ -17,7 +17,11 @@ export type Output = u32
 
 export default function (in: Input): Output {
     const base = astExpressionCount(in.writer)
-    const pair = storeAstIdPair(in.writer, in.layout, in.value)
+
+    const pair = retainAstIds(in.writer, [
+        in.layout,
+        in.value
+    ])
 
     appendAstAccessRows(
         in.writer,

@@ -1,5 +1,6 @@
 const std = @import("std");
 const rules = @import("cli_source");
+pub const joinNativeParts = std.fs.path.join;
 
 pub fn relativePathFrom(allocator: std.mem.Allocator, base: []const u8, target: []const u8) std.mem.Allocator.Error![]const u8 {
     return std.fs.path.relativeAlloc(allocator, base, null, base, target);

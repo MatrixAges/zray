@@ -1,5 +1,3 @@
-export type Document = mutable_opaque
-
 export type Node = {
     pairs?: u32[],
     items?: u32[],
@@ -9,14 +7,6 @@ export type Node = {
     boolean_tag: bool,
     line: u64,
     column: u64
-}
-
-export declare function prepareKeys(document: Document, count: u64): void throws { OutOfMemory }
-
-export declare function claimKey(document: Document, row: u64, key: string): bool
-
-export declare function reject(document: Document, node: Node, message: string): void throws {
-    InvalidManifest
 }
 
 export declare function packageName(value: string): bool

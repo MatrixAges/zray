@@ -1,19 +1,17 @@
-import type { ExpressionLink } from "rx_project_host"
 import type { Output as Headers } from "./headers"
 import type { Input as Literals } from "./literals/model"
 import type { Input as Plan } from "./model"
-import type { Work as Operands } from "./operands/workflow"
+import type { Source as Operands } from "./operands/workflow"
 import type { Columns } from "./payload/model"
 import type { Step } from "./payload/workflow"
 import type { Input as Symbols, Output as SymbolRows } from "./symbols/model"
 
 export type Request = {
-    frame: ExpressionLink,
-    plan: Plan,
-    symbols: Symbols,
-    literals: Literals,
-    payload: Columns,
-    operands: Operands,
+    plan?: Plan,
+    symbols?: Symbols,
+    literals?: Literals,
+    payload?: Columns,
+    operands?: Operands,
     first?: u64
 }
 
@@ -22,11 +20,17 @@ export type Initial = {
     first?: u64,
     ranges: Headers,
     count: u64,
+    rows: u32[],
+    bindings: u32[]
+}
+
+export type Publication = {
     symbols?: SymbolRows,
     literals?: Literals
 }
 
 export type Output = {
     initial?: Initial,
+    publication?: Publication,
     step?: Step
 }

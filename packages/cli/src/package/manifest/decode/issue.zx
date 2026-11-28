@@ -1,0 +1,14 @@
+import type { Node } from "manifest_yaml_document"
+import type { Diagnostic as Output } from "./value"
+
+export type Input = [Node, string]
+
+export default function (in: Input): Output {
+    const [node, message] = in
+
+    return {
+        line: node.line,
+        column: node.column,
+        message
+    }
+}

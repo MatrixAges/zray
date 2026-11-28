@@ -1,0 +1,18 @@
+import strings from "std:string"
+import { resolvePathParts } from "lexical_path"
+import { relativePathFrom } from "publication_host"
+
+import type { Archive as Input } from "../model"
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const absolute = resolvePathParts([
+        in.catalog.index_base,
+        in.release.archive
+    ])
+
+    const relative = relativePathFrom(in.root, absolute)
+
+    return strings.replaceAll(relative, "\\", "/")
+}

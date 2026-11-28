@@ -1,111 +1,44 @@
-import yaml from "manifest_yaml_document"
-
-import { missing_interface } from "../../schema/const"
-import field from "../../schema/field"
-import { Field, Mapping } from "../../schema/model"
-import { empty_text, mapping_size, unknown_interface_field } from "../const"
-import mapping from "../mapping"
 import nodeAt from "../node_at"
 import sequence from "../sequence"
-import string from "../string"
-import strings from "../strings"
+import readRow from "./interfaces/row"
 
 import type { NativeInterface } from "../model"
-import type { Input as Value } from "../value"
+import type { Diagnostic, Input } from "../value"
 
-export type Input = Value
-
-export type Output = NativeInterface[]
+export type Output = [NativeInterface[], Diagnostic?]
 
 export default function (in: Input): Output {
     const { document } = in
+    const [items, problem] = sequence(in)
 
-    const items = sequence(in)
     const empty: NativeInterface[] = []
 
     return loop({
         row: 0,
-        out: empty
+        out: empty,
+        problem
     }, {
-        while: state => state.row < items.length,
+        while: state => state.problem == null && state.row < items.length,
         next: state => {
-            const node = nodeAt({
+            const [item, row_issue] = readRow({
                 document,
-                id: items[state.row]
-            })
-            const pairs = mapping({
-                document,
-                node
-            })
-            const namespace: string[] = []
-            const data = loop({
-                index: 0,
-                specifier: empty_text,
-                path: empty_text,
-                module: empty_text,
-                namespace
-            }, {
-                while: pair => pair.index < pairs.length,
-                next: pair => {
-                    const key = nodeAt({
-                        document,
-                        id: pairs[pair.index]
-                    })
-                    const item = nodeAt({
-                        document,
-                        id: pairs[pair.index + 1]
-                    })
-                    const value = {
-                        document,
-                        node: item
-                    }
-                    const selected = field({
-                        mapping: Mapping.NativeInterface,
-                        key: key.text
-                    })
-
-                    switch (selected) {
-                        case Field.Specifier:
-                            pair.specifier = string(value)
-                        case Field.Path:
-                            pair.path = string(value)
-                        case Field.Module:
-                            pair.module = string(value)
-                        case Field.Namespace:
-                            pair.namespace = strings({
-                                ...value,
-                                workspace: false
-                            })
-                        default:
-                            yaml.reject(
-                                document.parser,
-                                key,
-                                unknown_interface_field
-                            )
-                    }
-
-                    pair.index += mapping_size
-                }
+                node: nodeAt({
+                    document,
+                    id: items[state.row]
+                })
             })
 
-            const missing = (
-                - data.specifier == empty_text
-                - or data.path == empty_text
-                - or data.module == empty_text
-            )
+            state.problem = row_issue
 
-            if (missing) {
-                yaml.reject(document.parser, node, missing_interface)
+            if (item != null) {
+                state.out = state.out.push(item)[0]
             }
 
-            state.out = state.out.push({
-                specifier: data.specifier,
-                path: data.path,
-                module: data.module,
-                namespace: data.namespace
-            })[0]
             state.row += 1
         },
-        return: state => state.out
+        return: state => [
+            state.out,
+            state.problem
+        ]
     })
 }

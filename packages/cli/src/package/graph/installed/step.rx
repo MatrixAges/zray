@@ -1,0 +1,72 @@
+<Module>
+    <Type from="../model" as="Project" />
+
+    <Args in={Project.InstalledWalk} out={Project.InstalledWalk} />
+
+    <If on={$in.mapping.is_archive[$in.index]}>
+        <Call
+            module="archive"
+            in={{
+                graph: $in.graph,
+                lock: $in.lock,
+                index: $in.index,
+                path: $in.mapping.paths[$in.index],
+                digest: $in.mapping.sources[$in.index]
+            }}
+        />
+
+        <If on={$ctx.archive.row == null}>
+            <Return
+                value={{
+                    ...$in,
+                    status: $ctx.archive.status
+                }}
+            />
+
+            <Else>
+                <Call
+                    fn="append"
+                    in={{
+                        walk: $in,
+                        row: $ctx.archive.row,
+                        workspace: false
+                    }}
+                />
+
+                <Return value={$ctx.append} />
+            </Else>
+        </If>
+    </If>
+
+    <Call
+        module="member"
+        in={{
+            graph: $in.graph,
+            root: $in.mapping.root,
+            relative: $in.mapping.sources[$in.index],
+            ordinal: $in.ordinal
+        }}
+    />
+
+    <If on={$ctx.member.row == null}>
+        <Return
+            value={{
+                ...$in,
+                status: $ctx.member.status
+            }}
+        />
+
+        <Else>
+            <Call
+                fn="append"
+                in={{
+                    walk: $in,
+                    row: $ctx.member.row,
+                    workspace: true
+                }}
+            />
+
+            <Return value={$ctx.append} />
+        </Else>
+    </If>
+</Module>

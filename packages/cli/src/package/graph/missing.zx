@@ -1,12 +1,11 @@
 import { not_installed } from "./const"
 
-import type { InstalledHost as Input } from "./model"
+import type { Input as Graph } from "./model"
 
-export type Output = [Input, string]
+export type Input = Graph.Pick("missing_path", "missing_name")
+
+export type Output = string
 
 export default function (in: Input): Output {
-    return [
-        in,
-        not_installed
-    ]
+    return `${in.missing_path}/pkg.yaml: dependency ${in.missing_name}: ${not_installed}`
 }

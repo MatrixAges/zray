@@ -41,7 +41,15 @@
         ])}
     />
 
-    <Call fn="index.bindTransformElement" in={$in.frame} />
+    <Call
+        fn="index.bindTransformElement"
+        in={[
+            $in.ast.writer,
+            $in.ast.binding,
+            $in.source_type,
+            $in.element_symbol
+        ]}
+    />
 
     <Call
         fn="index.outerBlock"

@@ -1,4 +1,6 @@
-export type Dependencies = mutable_opaque
-
-export declare function registerPath(dependencies: Dependencies, path: string): bool
-    throws { BackendInputFailure }
+export type Roots = {
+    cwd: string,
+    library: string,
+    local: string,
+    global: string
+}

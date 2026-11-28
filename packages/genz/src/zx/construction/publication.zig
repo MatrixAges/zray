@@ -221,14 +221,6 @@ pub fn retainAstIds(writer: *anyopaque, ids: []const u32) Lower.Error![]const u3
     return borrow(writer).allocator.dupe(u32, ids);
 }
 
-pub fn storeAstIdPair(writer: *anyopaque, first: u32, second: u32) Lower.Error![]const u32 {
-    const ids = try borrow(writer).allocator.create([2]u32);
-
-    ids.* = .{ first, second };
-
-    return ids;
-}
-
 pub fn appendAstLiteralRows(writer: *anyopaque, source: *const Ast.AstLiteralRows, arguments: []const []const u32) Lower.Error!void {
     return appendValueRows(writer, source, .{ .builtin_arguments = arguments });
 }

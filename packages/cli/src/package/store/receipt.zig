@@ -14,8 +14,14 @@ pub fn verify(io: std.Io, allocator: std.mem.Allocator, directory: std.Io.Dir, e
 
     defer state.deinit();
 
-    const status = @import("cli_source").receipt.executeIn(allocator, &.{
-        .receipt = @ptrCast(&state),
+    var scratch = std.heap.ArenaAllocator.init(allocator);
+
+    defer scratch.deinit();
+
+    const cursor = &state;
+
+    const status = @import("cli_source").receipt.executeIn(scratch.allocator(), &.{
+        .receipt = @ptrCast(&cursor),
         .expected = expected,
     }) catch |err| switch (err) {
         error.ReceiptHostFailure => return state.failure.?,

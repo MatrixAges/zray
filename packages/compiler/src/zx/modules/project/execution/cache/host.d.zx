@@ -1,11 +1,5 @@
-export declare function restoreCachedNative(frame: NativeCacheLoad): bool
+export declare function hashProjectCacheContext(body: ProjectBody, root: bool): void
     throws { OutOfMemory }
 
-export declare function buildNativeCacheEntry(frame: NativeCacheLoad): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function validateNativeCacheEntry(frame: NativeCacheLoad): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function stageNativeCacheEntry(frame: NativeCacheLoad, bucket: u64): void
+export declare function restoreCachedProjectBody(body: ProjectBody): bool
     throws { OutOfMemory }

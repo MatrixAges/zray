@@ -43,6 +43,9 @@
             ...$in.pick([
                 "loop_frame",
                 "writer",
+                "body_seq",
+                "type_id",
+                "initial",
                 "initial_plan"
             ]),
             initial_value: $ctx.initial.initial_value
@@ -102,6 +105,8 @@
                 "frame",
                 "writer",
                 "body_seq",
+                "loop_seq",
+                "body",
                 "loop_frame",
                 "guard_info",
                 "initial_plan"

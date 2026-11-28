@@ -1,42 +1,97 @@
-export type Host = mutable_opaque
+export type InstallIO = opaque
+export type LockData = opaque
+export type FreshBuild = opaque
+export type ArchiveManifest = opaque
+
+export type Catalog = {
+    build: FreshBuild,
+    index_base: string
+}
+
+export type Release = {
+    name: string,
+    version: string,
+    archive: string,
+    sha256: string
+}
 
 export type ArchiveLookup = {
     existing?: u64,
-    local: bool,
-    archive: string
+    local: bool
 }
 
-export declare function prepareIndex(host: Host): void throws { InstallHostFailure }
-export declare function seedMember(host: Host, row: u64): void throws { InstallHostFailure }
-
-export declare function beginDependencies(host: Host, row: u64, local: bool): void
-export declare function advanceDependency(host: Host, remaining: u64): bool throws {
-    InstallHostFailure
-}
-export declare function acceptArchive(host: Host, target: u64): void
-export declare function finishDependencies(host: Host, row: u64): u64
-
-export declare function findArchive(host: Host, first: u64): ArchiveLookup throws { InstallHostFailure }
-export declare function relativeArchive(host: Host): string throws { InstallHostFailure }
-export declare function fetchArchive(host: Host, source: string): string throws { InstallHostFailure }
-export declare function readArchive(host: Host, path: string): void throws { InstallHostFailure }
-export declare function verifyArchive(host: Host): void throws { InstallHostFailure }
-export declare function recordArchive(host: Host, source: string, path: string): u64 throws {
-    InstallHostFailure
+export type Rendered = {
+    lock: string,
+    mapping: string,
+    digest: string
 }
 
-export declare function finishFresh(host: Host): void throws { InstallHostFailure }
-export declare function beginReplay(host: Host, count: u64): string?[] throws { InstallHostFailure }
-export declare function fetchLocked(host: Host, row: u64): string throws { InstallHostFailure }
-export declare function recordLockedPath(host: Host, row: u64, path: string): string throws {
-    InstallHostFailure
-}
-export declare function verifyLockedManifest(host: Host, row: u64, path: string): void throws {
-    InstallHostFailure
-}
+export declare function prepareIndex(session: InstallIO): Catalog throws { InstallHostFailure }
+export declare function seedMember(build: FreshBuild, row: u64): string throws { InstallHostFailure }
 
-export declare function currentWorkspaceMatches(host: Host): bool throws { InstallHostFailure }
-export declare function renderInstallation(host: Host): bool throws { InstallHostFailure }
-export declare function publishMapping(host: Host): void throws { InstallHostFailure }
-export declare function lockUnchanged(host: Host): bool throws { InstallHostFailure }
-export declare function publishLock(host: Host): void throws { InstallHostFailure }
+export declare function beginDependencies(build: FreshBuild, row: u64, local: bool): void
+export declare function advanceDependency(build: FreshBuild, remaining: u64): Release?
+    throws { InstallHostFailure }
+export declare function acceptArchive(build: FreshBuild, target: u64): void
+export declare function finishDependencies(build: FreshBuild, row: u64): u64
+
+export declare function findArchive(
+    build: FreshBuild,
+    first: u64,
+    release: Release
+): ArchiveLookup throws { InstallHostFailure }
+
+export declare function fetchArchive(
+    session: InstallIO,
+    source: string,
+    release: Release
+): string throws { InstallHostFailure }
+
+export declare function readArchive(session: InstallIO, path: string): ArchiveManifest
+    throws { InstallHostFailure }
+
+export declare function verifyArchive(
+    session: InstallIO,
+    manifest: ArchiveManifest,
+    release: Release
+): void throws { InstallHostFailure }
+
+export declare function recordArchive(
+    build: FreshBuild,
+    source: string,
+    release: Release,
+    manifest: ArchiveManifest
+): u64 throws { InstallHostFailure }
+
+export declare function finishFresh(build: FreshBuild): LockData throws { InstallHostFailure }
+
+export declare function fetchLocked(session: InstallIO, lock: LockData, row: u64): string
+    throws { InstallHostFailure }
+
+export declare function canonicalPath(session: InstallIO, path: string): string
+    throws { InstallHostFailure }
+
+export declare function verifyLockedManifest(
+    session: InstallIO,
+    lock: LockData,
+    row: u64,
+    path: string
+): void throws { InstallHostFailure }
+
+export declare function currentWorkspaceMatches(session: InstallIO, lock: LockData): bool
+    throws { InstallHostFailure }
+
+export declare function renderInstallation(
+    session: InstallIO,
+    lock: LockData,
+    paths: string[]
+): Rendered throws { InstallHostFailure }
+
+export declare function publishMapping(session: InstallIO, digest: string, mapping: string): void
+    throws { InstallHostFailure }
+
+export declare function lockUnchanged(session: InstallIO, lock: string): bool
+    throws { InstallHostFailure }
+
+export declare function publishLock(session: InstallIO, lock: string): void
+    throws { InstallHostFailure }

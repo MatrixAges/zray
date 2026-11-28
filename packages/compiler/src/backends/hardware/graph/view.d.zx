@@ -1,5 +1,3 @@
-export type Nodes = mutable_opaque
-
 export enum Kind {
     Input,
     Constant,
@@ -27,6 +25,11 @@ export type HardwareBuild = mutable_opaque
 export type NodeSort = {
     width: u16,
     boolean: bool
+}
+
+export type NodeOrigin = {
+    file: string,
+    row: u64
 }
 
 export type CacheView = {
@@ -75,8 +78,6 @@ export enum Form {
     ZeroExtend
 }
 
-export declare function readHardwareGraphNode(nodes: Nodes, index: u64): Node
-
 export declare function reserveHardwareGraph(build: HardwareBuild, capacity: GraphCapacity): void
     throws { OutOfMemory }
 
@@ -85,13 +86,6 @@ export declare function writeHardwareInput(build: HardwareBuild, row: u64, port:
 
 export declare function bindHardwareInputs(build: HardwareBuild): void
     throws { OutOfMemory, InvalidHardwareTerm }
-
-export declare function retainHardwareOrigin(build: HardwareBuild, file: string): string
-    throws { OutOfMemory }
-
-export declare function setHardwareOrigin(build: HardwareBuild, file: string, row: u64): void
-
-export declare function clearHardwareOrigin(build: HardwareBuild): void
 
 export declare function hardwareVariable(build: HardwareBuild, name: string): u32?
     throws { OutOfMemory, InvalidHardwareTerm }
@@ -113,7 +107,8 @@ export declare function appendHardwareTerm(
     third: u32,
     operator: u8,
     extra: u16,
-    signed: bool
+    signed: bool,
+    origin: NodeOrigin?
 ): u32 throws { OutOfMemory }
 
 export declare function publishHardwareDefinition(

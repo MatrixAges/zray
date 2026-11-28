@@ -6,15 +6,18 @@
     <Call
         fn="../effects.seedMember"
         in={[
-            $in.host,
+            $in.catalog.build,
             $in.index
         ]}
     />
 
-    <Return
-        value={{
-            ...$in,
-            index: $in.index + 1
+    <Call
+        fn="seed_next"
+        in={{
+            walk: $in,
+            path: $ctx.seedMember
         }}
     />
+
+    <Return value={$ctx.seed_next} />
 </Module>

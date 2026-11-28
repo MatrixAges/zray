@@ -1,3 +1,4 @@
+export { clipCollectionTarget } from "ast_rows"
 export {
     LoopParameterLayout,
     enterLoopRepresentation,
@@ -12,8 +13,4 @@ export {
     frameLoweredLoop,
     restoreLoopFields
 } from "lowering_host"
-export {
-    clipLoopAssignment,
-    commitLoopUpdate,
-    projectLoopAssignment
-} from "lowering_host"
+export { commitLoopUpdate, projectLoopAssignment } from "lowering_host"

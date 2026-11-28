@@ -3,7 +3,14 @@
 
     <Args in={Hardware.Safety} out={u32} />
 
-    <Call module="../../terms/parse/run" in={$in} />
+    <Call
+        module="../../terms/parse/run"
+        in={{
+            build: $in.build,
+            expression: $in.expression,
+            origin: null
+        }}
+    />
 
     <Call
         fn="safety_check"

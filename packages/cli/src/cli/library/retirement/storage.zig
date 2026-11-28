@@ -41,8 +41,8 @@ const Plan = struct {
     hex: [Sha256.digest_length * 2]u8 = undefined,
 };
 
-pub fn prepareRetirement(allocator: std.mem.Allocator, handle: *anyopaque, destination: []const u8, managed: []const []const u8) Error![]const []const u8 {
-    const self = effects.borrow(Verification, handle);
+pub fn prepareRetirement(allocator: std.mem.Allocator, handle: *const anyopaque, destination: []const u8, managed: []const []const u8) Error![]const []const u8 {
+    const self = effects.state(Verification, handle);
 
     return retired(self.io, allocator, self.allocator, destination, managed, self.inputs) catch |err| self.failure.save(err);
 }

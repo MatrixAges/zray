@@ -5,7 +5,7 @@ const Error = storage.Error;
 const BuiltinLayout = @import("native_resource_abi").layouts.@"zig:native_resource_host".Builtin;
 const Builtin = @import("native_resource_abi").native.@"zig:native_resource_host".Builtin;
 
-pub fn scanBuiltins(handle: *anyopaque, content: []const u8) Error![]const Builtin {
+pub fn scanBuiltins(handle: *const anyopaque, content: []const u8) Error![]const Builtin {
     const self = Context.get(handle);
     // readPending owns a zero-terminated buffer and the Store retains its slice.
     const source = content.ptr[0..content.len :0];
@@ -49,13 +49,13 @@ pub fn scanBuiltins(handle: *anyopaque, content: []const u8) Error![]const Built
     return ptrs;
 }
 
-pub fn decodeLiteral(handle: *anyopaque, raw: []const u8) Error![]const u8 {
+pub fn decodeLiteral(handle: *const anyopaque, raw: []const u8) Error![]const u8 {
     const self = Context.get(handle);
 
     return std.zig.string_literal.parseAlloc(self.allocator, raw) catch |err| return self.fail(err);
 }
 
-pub fn invalidBuiltin(handle: *anyopaque, invalid_import: bool) Error!void {
+pub fn invalidBuiltin(handle: *const anyopaque, invalid_import: bool) Error!void {
     const self = Context.get(handle);
 
     return self.fail(if (invalid_import) error.InvalidNativeImport else error.InvalidNativeSource);

@@ -1,118 +1,44 @@
-import yaml from "manifest_yaml_document"
-
-import { missing_external } from "../../schema/const"
-import field from "../../schema/field"
-import { Field, Mapping } from "../../schema/model"
-import { empty_text, mapping_size, unknown_external_field } from "../const"
-import mapping from "../mapping"
 import nodeAt from "../node_at"
 import sequence from "../sequence"
-import string from "../string"
-import implementation from "./implementation"
+import readRow from "./externals/row"
 
-import type { External, ExternalImplementation } from "../model"
-import type { Input as Value } from "../value"
+import type { External } from "../model"
+import type { Diagnostic, Input } from "../value"
 
-export type Input = Value
-
-export type Record = {
-    index: u64,
-    specifier: string,
-    signature: string,
-    export_name?: string,
-    implementation?: ExternalImplementation
-}
-
-export type Output = External[]
+export type Output = [External[], Diagnostic?]
 
 export default function (in: Input): Output {
     const { document } = in
+    const [items, problem] = sequence(in)
 
-    const items = sequence(in)
     const empty: External[] = []
 
     return loop({
         row: 0,
-        out: empty
+        out: empty,
+        problem
     }, {
-        while: state => state.row < items.length,
+        while: state => state.problem == null && state.row < items.length,
         next: state => {
-            const node = nodeAt({
+            const [item, row_issue] = readRow({
                 document,
-                id: items[state.row]
-            })
-            const pairs = mapping({
-                document,
-                node
-            })
-            const initial: Record = {
-                index: 0,
-                specifier: empty_text,
-                signature: empty_text,
-                export_name: null,
-                implementation: null
-            }
-            const data = loop(initial, {
-                while: pair => pair.index < pairs.length,
-                next: pair => {
-                    const key = nodeAt({
-                        document,
-                        id: pairs[pair.index]
-                    })
-                    const item = nodeAt({
-                        document,
-                        id: pairs[pair.index + 1]
-                    })
-                    const value = {
-                        document,
-                        node: item
-                    }
-                    const selected = field({
-                        mapping: Mapping.External,
-                        key: key.text
-                    })
-
-                    switch (selected) {
-                        case Field.Specifier:
-                            pair.specifier = string(value)
-                        case Field.Signature:
-                            pair.signature = string(value)
-                        case Field.ExportName:
-                            pair.export_name = string(value)
-                        case Field.Implementation:
-                            pair.implementation = implementation(value)
-                        default:
-                            yaml.reject(
-                                document.parser,
-                                key,
-                                unknown_external_field
-                            )
-                    }
-
-                    pair.index += mapping_size
-                }
+                node: nodeAt({
+                    document,
+                    id: items[state.row]
+                })
             })
 
-            const parsed = data.implementation
-            const missing = (
-                - data.specifier == empty_text
-                - or data.signature == empty_text
-                - or parsed == null
-            )
+            state.problem = row_issue
 
-            if (missing || parsed == null) {
-                yaml.reject(document.parser, node, missing_external)
-            } else {
-                state.out = state.out.push({
-                    specifier: data.specifier,
-                    signature: data.signature,
-                    export_name: data.export_name,
-                    implementation: parsed
-                })[0]
+            if (item != null) {
+                state.out = state.out.push(item)[0]
             }
 
             state.row += 1
         },
-        return: state => state.out
+        return: state => [
+            state.out,
+            state.problem
+        ]
     })
 }

@@ -1,44 +1,49 @@
 import bytes from "std:bytes"
 import probe from "core/bytes/index/slot"
-import host from "project_host"
+import memory from "memory"
 
-import type { Batch as Input } from "./model"
+import type { Batch as Input, Rows } from "./model"
 
-export type Output = bool
+export type Output = Rows
 
 export default function (in: Input): Output {
-    return loop({
-        request: in,
-        slot: 0,
-        valid: true
-    }, {
-        while: state => state.valid && state.slot < state.request.entries,
-        next: state => {
-            const { batch, rows, paths, units, index } = state.request
-            const slot = state.slot
+    const { rows, paths, units, index } = in
 
+    if (rows != null) {
+        const end = loop(0, {
+            while: row => row < in.entries && rows[row] < units,
+            next: row => {
+                row += 1
+            }
+        })
+
+        return {
+            items: memory.borrowU64Range(rows, 0, end),
+            complete: end == in.entries
+        }
+    }
+
+    const items: u64[] = []
+
+    return loop({
+        items,
+        complete: true
+    }, {
+        while: state => state.complete && state.items.length < in.entries,
+        next: state => {
             const entry = match {
-                rows != null || index.capacity == 0 => 0,
+                index.capacity == 0 => 0,
                 _ => probe({
                     ...index,
-                    key: bytes.fromText(paths[slot])
+                    key: bytes.fromText(paths[state.items.length])
                 }).entry
             }
 
-            const row: u64? = match {
-                rows != null => rows[slot],
-                entry != 0 => entry - 1,
-                _ => null
-            }
-
-            if (row == null || row >= units) {
-                state.valid = false
+            if (entry == 0 || entry - 1 >= units) {
+                state.complete = false
             } else {
-                host.loadProjectSignature(batch, row)
-                host.writeProjectSignature(batch, slot, row)
-                state.slot += 1
+                state.items = state.items.push(entry - 1)[0]
             }
-        },
-        return: state => state.valid
+        }
     })
 }

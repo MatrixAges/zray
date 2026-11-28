@@ -1,22 +1,21 @@
 import type { ColumnAllocator, RowBuffer } from "memory/columns"
-import type { CompiledImport } from "project_host"
 import type { Input as Search } from "./find"
-
-export type Member = Search.Omit("count", "capacity")
 
 export type Initializers = {
     rows: RowBuffer,
     owner: ColumnAllocator,
-    first: u64
+    first: u64,
+    count: u64
 }
 
 export type Input = {
-    frame: CompiledImport,
-    initializers: Initializers,
-    member: Member
+    initializers?: Initializers,
+    added?: Search,
+    inherited?: Search
 }
 
 export type Result = {
     row?: u64,
-    published: u64
+    published?: u64,
+    inherited: bool
 }

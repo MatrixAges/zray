@@ -1,0 +1,37 @@
+<Module>
+    <Type from="model" as="Receipt" />
+
+    <Args in={Receipt.FileInput} out={u64?} />
+
+    <Call
+        fn="index.openTreeFile"
+        in={[
+            $in.receipt,
+            $in.path
+        ]}
+    />
+
+    <If on={$ctx.openTreeFile != null && $ctx.openTreeFile != $in.executable}>
+        <Call fn="index.closeTreeFile" in={$in.receipt} />
+
+        <Return value={null} />
+    </If>
+
+    <Call
+        fn="index.hashTreeFile"
+        in={[
+            $in.receipt,
+            $in.remaining
+        ]}
+    />
+
+    <Call fn="index.closeTreeFile" in={$in.receipt} />
+
+    <If on={$ctx.hashTreeFile != null}>
+        <If on={$ctx.hashTreeFile.digest == $in.expected}>
+            <Return value={$ctx.hashTreeFile.length} />
+        </If>
+    </If>
+
+    <Return value={null} />
+</Module>

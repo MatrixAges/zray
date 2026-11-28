@@ -1,26 +1,30 @@
-import yaml from "manifest_yaml_document"
-
 import extension from "../../workspace/paths/extension"
 import { Kind } from "../../workspace/paths/model"
 import relative from "../../workspace/paths/relative"
 import { bad_entry, bad_library } from "./const"
-import string from "./string"
+import issue from "./issue"
+import text from "./text"
 
+import type { Output } from "./text"
 import type { Input as Value } from "./value"
 
 export type Input = Value & {
     entry: bool
 }
 
-export type Output = string
-
 export default function (in: Input): Output {
-    const { document, node, entry } = in
+    const { node, entry } = in
 
-    const value = string({
-        document: in.document,
-        node: in.node
-    })
+    const parsed = text(in.pick([
+        "document",
+        "node"
+    ]))
+
+    const [value, problem] = parsed
+
+    if (problem != null) {
+        return parsed
+    }
 
     const valid = (!entry || extension(value)) && relative({
         text: value,
@@ -28,8 +32,14 @@ export default function (in: Input): Output {
     })
 
     if (!valid) {
-        yaml.reject(document.parser, node, entry ? bad_entry : bad_library)
+        return [
+            value,
+            issue([
+                node,
+                entry ? bad_entry : bad_library
+            ])
+        ]
     }
 
-    return value
+    return parsed
 }

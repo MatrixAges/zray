@@ -1,17 +1,27 @@
 <Module>
     <Type from="model" as="Cache" />
 
-    <Args in={Cache.Stage} out={void} />
+    <Args in={Cache.Stage} out={Cache.Status} />
 
     <Call
-        fn="index.verifyBlob"
-        in={[
-            $in.cache,
-            $in.bytes
-        ]}
+        fn="verify"
+        in={{
+            bytes: $in.bytes,
+            hex: $in.hex
+        }}
     />
 
-    <Call fn="index.createStaging" in={$in.cache} />
+    <If on={$ctx.verify != Cache.Status.Ready}>
+        <Return value={$ctx.verify} />
+    </If>
+
+    <Call
+        fn="index.createStaging"
+        in={[
+            $in.cache,
+            $in.root
+        ]}
+    />
 
     <Call
         fn="index.unpack"
@@ -21,7 +31,23 @@
         ]}
     />
 
-    <Call fn="index.writeReceipt" in={$in.cache} />
-    <Call fn="index.checkStaging" in={$in.cache} />
+    <Call
+        fn="index.writeReceipt"
+        in={[
+            $in.cache,
+            $in.hex
+        ]}
+    />
+
+    <Call
+        fn="index.checkStaging"
+        in={[
+            $in.cache,
+            $in.hex
+        ]}
+    />
+
     <Call fn="index.closeStaging" in={$in.cache} />
+
+    <Return value={Cache.Status.Ready} />
 </Module>

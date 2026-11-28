@@ -1,36 +1,37 @@
 <Module>
     <Type from="model" as="Execution" />
 
-    <Args in={Execution.Walk} out={Execution.Walk} />
+    <Args in={Execution.Walk} out={Execution.Next} />
 
-    <Call
-        fn="imports"
-        in={$in.pick([
-            "walk",
-            "completed"
-        ])}
-    />
-
-    <If on={$ctx.imports != null}>
-        <Call
-            fn="index.openProjectFrame"
-            in={[
-                $in.walk,
-                $ctx.imports
-            ]}
-        />
-
+    <If on={$in.child != null}>
         <Return
             value={{
-                ...$in,
-                row: $ctx.imports,
-                depth: $in.depth + 1,
-                completed: null
+                action: Execution.WalkAction.Push,
+                row: $in.child,
+                first: $in.first
             }}
         />
     </If>
 
-    <Call fn="index.finishProjectFrame" in={$in.walk} />
+    <If on={$in.completed != null}>
+        <Return
+            value={{
+                action: Execution.WalkAction.Resume,
+                row: $in.suspended,
+                first: $in.suspended + 1
+            }}
+        />
+    </If>
+
+    <If on={$in.first < $in.count}>
+        <Return
+            value={{
+                action: Execution.WalkAction.Visit,
+                row: $in.first,
+                first: $in.first + 1
+            }}
+        />
+    </If>
 
     <Call
         fn="../load/complete"
@@ -40,14 +41,11 @@
         ])}
     />
 
-    <Call fn="index.closeProjectFrame" in={$in.walk} />
-
     <Return
         value={{
-            ...$in,
-            row: $ctx.closeProjectFrame,
-            depth: $in.depth - 1,
-            completed: $ctx.complete
+            action: Execution.WalkAction.Close,
+            row: $ctx.complete,
+            first: $in.first
         }}
     />
 </Module>

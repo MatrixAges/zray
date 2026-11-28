@@ -15,7 +15,7 @@ pub fn publish(graph: *Graph, parent: Graph.Id, child: Graph.Id, first: Constrai
     rows.items(.argument)[p] = shape.argument;
     rows.items(.members)[p] = shape.members;
 
-    var parents = graph.parents();
+    const parents = graph.parents();
 
     if (p != c) parents[c] = p;
 
@@ -23,7 +23,7 @@ pub fn publish(graph: *Graph, parent: Graph.Id, child: Graph.Id, first: Constrai
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
     const outcome = zx.columns.invoke(generated.executeValue, empty.allocator(), &.{
-        .graph = &Restriction.borrow(graph, &parents),
+        .graph = &Restriction.borrow(graph, parents),
         .parent = p,
         .left = &.{
             .allowed = if (first.allowed) |mask| @as(u64, mask) else null,

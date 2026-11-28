@@ -1,13 +1,13 @@
 const Lower = @import("../lower.zig");
 const elements = @import("../state_value/elements.zig");
-const Frame = @import("execution.zig").Frame;
+const Sequence = @import("../../node/blocks.zig").Sequence;
+const borrow = @import("../expressions/evaluate.zig").borrow;
 
-pub fn storeMapTransformValue(handle: *anyopaque, value: u32) Lower.Error!u32 {
-    const frame = Frame.borrow(handle);
+pub fn storeFilterTransformValue(frame: *anyopaque, sequence: *anyopaque, result_type: u32, symbol: u32, value: u32) Lower.Error!u32 {
+    const self = borrow(frame);
+    const body: *Sequence = @ptrCast(@alignCast(sequence));
 
-    if (frame.transform.kind == .filter) {
-        frame.lowering.used[@backingInt(frame.transform.parameters[0])] = true;
-    }
+    self.used[symbol] = true;
 
-    return @backingInt(try elements.write(frame.lowering, &frame.loop, frame.typeId(), @fromBackingInt(value)));
+    return @backingInt(try elements.write(self, body, @fromBackingInt(result_type), @fromBackingInt(value)));
 }

@@ -9,6 +9,11 @@ export type Parameter = {
     domain?: string
 }
 
+export type Preconditions = {
+    path: string,
+    prefix: u64
+}
+
 export declare function ensureSymbolicGraph(program: SymbolicProgram): void
     throws { OutOfMemory }
 
@@ -17,9 +22,7 @@ export declare function beginSymbolicCall(program: SymbolicProgram): void
 export declare function symbolicProgramPreconditions(
     program: SymbolicProgram,
     called: bool
-): string throws { OutOfMemory, InvalidSource }
-
-export declare function symbolicQueryPrefix(program: SymbolicProgram): u64
+): Preconditions throws { OutOfMemory, InvalidSource }
 
 export declare function runSymbolicProgramBody(program: SymbolicProgram, path: string): string
     throws { OutOfMemory, InvalidSource }

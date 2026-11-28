@@ -1,0 +1,18 @@
+import type { InstalledRow, InstalledWalk as Output } from "../model"
+
+export type Input = {
+    walk: Output,
+    row: InstalledRow,
+    workspace: bool
+}
+
+export default function (in: Input): Output {
+    const { walk, row } = in
+
+    return {
+        ...walk,
+        rows: walk.rows.push(row)[0],
+        index: walk.index + 1,
+        ordinal: walk.ordinal + (in.workspace ? 1 : 0)
+    }
+}

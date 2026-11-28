@@ -1,3 +1,8 @@
-export { receiptIsFile, loadReceipt, openTree } from "package_receipt_host"
-
-export type { Receipt } from "package_receipt_host"
+export {
+    receiptIsFile,
+    loadReceipt,
+    nextTreeEntry,
+    openTreeFile,
+    hashTreeFile,
+    closeTreeFile
+} from "package_receipt_host"

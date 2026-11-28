@@ -1,27 +1,20 @@
 <Module>
     <Type from="model" as="Relocate" />
 
-    <Args in={Relocate.Input} out={bool} />
+    <Args in={Relocate.Input} out={Relocate.Output} />
 
-    <If on={$in.include_paths.length == 0}>
-        <Return value={true} />
-    </If>
+    <Call fn="begin" in={$in} />
 
-    <Loop on={$in.running}>
-        <Call
-            module="relocate_step"
-            in={{
-                collection: $in.collection,
-                include_paths: $in.include_paths,
-                seen: $in.seen,
-                separator: $in.separator,
-                windows: $in.windows,
-                index: 0,
-                valid: true,
-                running: true
-            }}
-        />
+    <Loop on={$in.valid && $in.index < $in.include_paths.length}>
+        <Call module="relocate_step" />
     </Loop>
 
-    <Return value={$ctx.relocate_step.valid} />
+    <Return
+        value={$ctx.relocate_step.pick([
+            "destination",
+            "paths",
+            "relocations",
+            "valid"
+        ])}
+    />
 </Module>

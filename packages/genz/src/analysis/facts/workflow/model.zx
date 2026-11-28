@@ -1,4 +1,6 @@
+import type { Table as Functions } from "core/function_table/model"
 import type { AnalysisWork, BasisWork } from "lowering_host"
+import type { Effects } from "../../uniqueness/sites/model"
 
 export type Work = AnalysisWork
 
@@ -10,5 +12,8 @@ export type Analysis = {
 
 export type Basis = {
     work: BasisWork,
-    persistent: bool
+    persistent: bool,
+    functions: Functions
 }
+
+export type BasisEffects = Effects

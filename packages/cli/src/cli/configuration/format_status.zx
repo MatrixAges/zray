@@ -1,0 +1,21 @@
+import bytes from "std:bytes"
+
+import type { Finalize, Result as Output } from "./model"
+
+export type Input = Finalize.Pick("path", "source", "formatted")
+
+export default function (in: Input): Output {
+    if (bytes.equals(in.source, in.formatted)) {
+        return {
+            valid: true
+        }
+    }
+
+    const message =
+        "configuration formatting required; run zxc fmt with the same --kind selection\n"
+
+    return {
+        valid: false,
+        diagnostic: `${in.path}: ${message}`
+    }
+}

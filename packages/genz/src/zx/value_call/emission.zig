@@ -2,7 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
-const policy = @import("policy.zig");
+const ValueCallEmission = @import("execution_abi").layouts.@"zig:ast_rows".ValueCallEmission;
 const reference = @import("../functions/reference.zig");
 const Variant = @import("../functions/requests.zig").Variant;
 const Sequence = @import("../../node/blocks.zig").Sequence;
@@ -10,12 +10,13 @@ const context = @import("../construction/context.zig");
 const entry = @import("generated_value_call_emit");
 const Input = std.meta.Child(entry.Input);
 const Plan = std.meta.Child(@typeInfo(@FieldType(Input, "plan")).optional.child);
+const ResultTag = @typeInfo(@FieldType(Plan, "result")).@"enum".tag_type;
 const Target = std.meta.Child(@typeInfo(@FieldType(Input, "target")).optional.child);
 
 pub const Arguments = struct {
     value: node.ExpressionId,
     function: ?zx.ir.FunctionId = null,
-    plan: ?policy.Plan = null,
+    plan: ?*const ValueCallEmission = null,
 };
 
 pub fn emit(self: *Lower, body: ?*Sequence, arguments: Arguments) Lower.Error!node.ExpressionId {
@@ -26,13 +27,14 @@ pub fn emit(self: *Lower, body: ?*Sequence, arguments: Arguments) Lower.Error!no
     defer scratch.deinit();
 
     const allocator = buffered.allocator();
-    const plan: Plan = if (arguments.plan) |selected| zx.columns.view(Plan, selected) else undefined;
 
-    const variant: Variant = if (arguments.plan) |selected| switch (selected.variant) {
-        .Regular => .regular,
-        .Value => .value,
+    const plan: Plan = if (arguments.plan) |selected| .{
+        .legacy = selected.legacy,
+        .legacy_deref = selected.legacy_deref,
+        .result = @fromBackingInt(@as(ResultTag, @intCast(selected.result))),
     } else undefined;
 
+    const variant: Variant = if (arguments.plan) |selected| if (selected.regular) .regular else .value else undefined;
     const target: Target = if (arguments.function) |id| zx.columns.view(Target, reference.prepare(self, id, variant)) else undefined;
 
     const input: Input = .{

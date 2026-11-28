@@ -1,33 +1,41 @@
 <Module>
     <Type from="workflow" as="Payload" />
 
-    <Args in={Payload.Effect} out={Payload.Operand} />
+    <Args in={Payload.Effect} out={Payload.Operand?} />
 
     <Call
         fn="../operands/prepare"
         in={{
-            work: $in.operands,
+            source: $in.operands,
             index: $in.row,
             route: $in.route
         }}
     />
 
-    <If on={!$ctx.prepare}>
-        <Return
-            value={{
-                value: 0
-            }}
-        />
+    <If on={$ctx.prepare != null}>
+        <If on={$ctx.prepare.work != null}>
+            <Call module="../operands/write" in={$ctx.prepare.work} />
+
+            <If on={$ctx.write != null}>
+                <Return
+                    value={{
+                        value: $ctx.prepare.work.payload,
+                        patch: {
+                            kind: $ctx.prepare.kind,
+                            count: $ctx.prepare.count,
+                            patch: $ctx.write
+                        }
+                    }}
+                />
+            </If>
+        </If>
+
+        <Return value={null} />
     </If>
-
-    <Call module="../operands/write" in={$in.operands} />
-
-    <Call fn="../host.requireExpressionOperand" in={$ctx.write != null} />
 
     <Return
         value={{
-            value: $in.operands.payload,
-            patch: $ctx.write
+            value: 0
         }}
     />
 </Module>

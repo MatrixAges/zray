@@ -1,0 +1,40 @@
+import { joinNativeParts } from "publication_host"
+
+import type { Step } from "./model"
+
+export type Input = {
+    step: Step,
+    absolute: string,
+    relative?: string
+}
+
+export type Output = Step
+
+export default function (in: Input): Output {
+    const { step, absolute, relative } = in
+
+    const index = step.index + 1
+
+    if (relative == null) {
+        return {
+            ...step,
+            index,
+            paths: step.paths.push(absolute)[0]
+        }
+    }
+
+    const destination = joinNativeParts([
+        step.destination,
+        relative
+    ])
+
+    return {
+        ...step,
+        index,
+        paths: step.paths.push(destination)[0],
+        relocations: step.relocations.push({
+            source: relative,
+            index: step.index
+        })[0]
+    }
+}

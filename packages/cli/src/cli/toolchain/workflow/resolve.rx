@@ -14,10 +14,10 @@
 
         <Call module="cache" in={$in} />
 
-        <If on={$ctx.cache != Toolchain.Status.Ready}>
+        <If on={$ctx.cache.status != Toolchain.Status.Ready}>
             <Return
                 value={{
-                    status: $ctx.cache
+                    status: $ctx.cache.status
                 }}
             />
         </If>
@@ -42,6 +42,7 @@
         <Return
             value={{
                 status: Toolchain.Status.Ready,
+                root: $ctx.cache.root,
                 executable: $ctx.resolveExecutable,
                 library: $ctx.library
             }}
@@ -52,7 +53,8 @@
 
     <Return
         value={{
-            status: $ctx.cache
+            status: $ctx.cache.status,
+            root: $ctx.cache.root
         }}
     />
 </Module>

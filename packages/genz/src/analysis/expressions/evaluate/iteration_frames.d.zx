@@ -43,8 +43,6 @@ export type LoopConsumption = {
     tail: u64
 }
 
-export type TransformFrame = mutable_opaque
-
 export type IterationProjectionStamp = {
     serial: u64,
     history_count: u64

@@ -1,11 +1,10 @@
-import yaml from "manifest_yaml_document"
-
 import field from "../schema/field"
 import { Field, Mapping } from "../schema/model"
 import boolean from "./boolean"
 import { empty_text, mapping_size, unknown_manifest_field } from "./const"
 import dependencies from "./dependencies"
 import exports from "./exports"
+import issue from "./issue"
 import name from "./name"
 import externals from "./native/externals"
 import interfaces from "./native/interfaces"
@@ -17,7 +16,7 @@ import version from "./version"
 import workspace from "./workspace"
 
 import type { Values } from "./model"
-import type { Document } from "./value"
+import type { Diagnostic, Document } from "./value"
 
 export type Input = {
     document: Document,
@@ -26,10 +25,11 @@ export type Input = {
 
 export type State = {
     index: u64,
+    problem?: Diagnostic,
     values: Values
 }
 
-export type Output = Values
+export type Output = State.Omit("index")
 
 export default function (in: Input): Output {
     const { document, pairs } = in
@@ -57,7 +57,7 @@ export default function (in: Input): Output {
     }
 
     return loop(initial, {
-        while: state => state.index < pairs.length,
+        while: state => state.problem == null && state.index < pairs.length,
         next: state => {
             const key = nodeAt({
                 document,
@@ -78,59 +78,105 @@ export default function (in: Input): Output {
 
             switch (selected) {
                 case Field.Name:
-                    state.values.name = name(value)
+                    const [parsed, problem] = name(value)
+
+                    state.values.name = parsed
+                    state.problem = problem
                 case Field.Version:
-                    state.values.version = version(value)
+                    const [parsed, problem] = version(value)
+
+                    state.values.version = parsed
+                    state.problem = problem
                 case Field.Entry:
-                    state.values.entry = path({
+                    const [parsed, problem] = path({
                         ...value,
                         entry: true
                     })
+
+                    state.values.entry = parsed
+                    state.problem = problem
                 case Field.Library:
-                    state.values.library = path({
+                    const [parsed, problem] = path({
                         ...value,
                         entry: false
                     })
+
+                    state.values.library = parsed
+                    state.problem = problem
                 case Field.Exports:
                     const surface = exports(value)
 
                     state.values.exports = surface.rows
                     state.values.compiled_exports = surface.compiled_exports
+                    state.problem = surface.problem
                 case Field.Private:
-                    state.values.private = boolean(value)
+                    const [parsed, problem] = boolean(value)
+
+                    state.values.private = parsed
+                    state.problem = problem
                 case Field.Dependencies:
-                    state.values.dependencies = dependencies(value)
+                    const [parsed, problem] = dependencies(value)
+
+                    state.values.dependencies = parsed
+                    state.problem = problem
                 case Field.DevDependencies:
-                    state.values.dev_dependencies = dependencies(value)
+                    const [parsed, problem] = dependencies(value)
+
+                    state.values.dev_dependencies = parsed
+                    state.problem = problem
                 case Field.Workspace:
-                    state.values.workspace = workspace(value)
+                    const [parsed, problem] = workspace(value)
+
+                    state.values.workspace = parsed
+                    state.problem = problem
                 case Field.NativeInterfaces:
-                    state.values.native_interfaces = interfaces(value)
+                    const [parsed, problem] = interfaces(value)
+
+                    state.values.native_interfaces = parsed
+                    state.problem = problem
                 case Field.NativeModules:
-                    state.values.native_modules = modules(value)
+                    const [parsed, problem] = modules(value)
+
+                    state.values.native_modules = parsed
+                    state.problem = problem
                 case Field.Externals:
-                    state.values.externals = externals(value)
+                    const [parsed, problem] = externals(value)
+
+                    state.values.externals = parsed
+                    state.problem = problem
                 case Field.Libraries:
-                    state.values.libraries = strings({
+                    const [parsed, problem] = strings({
                         ...value,
                         workspace: false
                     })
+
+                    state.values.libraries = parsed
+                    state.problem = problem
                 case Field.IncludePaths:
-                    state.values.include_paths = strings({
+                    const [parsed, problem] = strings({
                         ...value,
                         workspace: false
                     })
+
+                    state.values.include_paths = parsed
+                    state.problem = problem
                 case Field.LibraryPaths:
-                    state.values.library_paths = strings({
+                    const [parsed, problem] = strings({
                         ...value,
                         workspace: false
                     })
+
+                    state.values.library_paths = parsed
+                    state.problem = problem
                 default:
-                    yaml.reject(document.parser, key, unknown_manifest_field)
+                    state.problem = issue([
+                        key,
+                        unknown_manifest_field
+                    ])
             }
 
             state.index += mapping_size
         },
-        return: state => state.values
+        return: state => state.omit(["index"])
     })
 }

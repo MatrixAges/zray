@@ -1,0 +1,13 @@
+import { Status } from "../model"
+
+import type { InstalledLoaded as Input, InstalledWalk as Output } from "../model"
+
+export default function (in: Input): Output {
+    return {
+        ...in,
+        index: 0,
+        ordinal: 0,
+        rows: [],
+        status: Status.Valid
+    }
+}

@@ -3,7 +3,7 @@ const ir = @import("zx").ir;
 const Builder = @import("../builder.zig");
 const literal = @import("literals/host.zig");
 const Request = @import("abi.zig").Request;
-const Input = std.meta.Child(@FieldType(Request, "symbols"));
+const Input = std.meta.Child(@typeInfo(@FieldType(Request, "symbols")).optional.child);
 const fields = @typeInfo(ir.SymbolStorage).@"struct".field_names;
 const metadata = .{ "types", "span_start", "span_end" };
 

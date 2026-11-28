@@ -152,7 +152,6 @@ const Frame = struct {
         try parallel.eachWrite(self.arenas.?, .{
             .count = changed.len,
             .hash = null,
-            .render = null,
             .scan = null,
             .write = &.{ .sections = &view, .changed = changed },
         }, self.directory);
@@ -302,7 +301,6 @@ const Hashing = struct {
 
         try parallel.eachHash(arenas, .{
             .count = count,
-            .render = null,
             .scan = null,
             .write = null,
             .hash = &.{

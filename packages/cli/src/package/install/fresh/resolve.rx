@@ -1,19 +1,20 @@
 <Module>
     <Type from="../model" as="Installation" />
 
-    <Args in={Installation.Fresh} out={void} />
+    <Args in={Installation.Fresh} out={Installation.Prepared} />
 
-    <Call fn="../effects.prepareIndex" in={$in.host} />
+    <Call fn="../effects.prepareIndex" in={$in.session} />
+
+    <Call
+        fn="begin_seed"
+        in={{
+            members: $in.members,
+            catalog: $ctx.prepareIndex
+        }}
+    />
 
     <Loop on={$in.index < $in.members}>
-        <Call
-            module="seed"
-            in={{
-                host: $in.host,
-                members: $in.members,
-                index: 0
-            }}
-        />
+        <Call module="seed" />
     </Loop>
 
     <Loop on={$in.running}>
@@ -21,13 +22,22 @@
             module="closure"
             in={{
                 ...$in,
+                catalog: $ctx.prepareIndex,
                 owner: 0,
                 consumed: 0,
                 count: $in.members,
+                paths: $ctx.seed.paths,
                 running: true
             }}
         />
     </Loop>
 
-    <Call fn="../effects.finishFresh" in={$in.host} />
+    <Call fn="../effects.finishFresh" in={$ctx.prepareIndex.build} />
+
+    <Return
+        value={{
+            lock: $ctx.finishFresh,
+            paths: $ctx.closure.paths
+        }}
+    />
 </Module>

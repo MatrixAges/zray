@@ -1,10 +1,19 @@
-import type { AstWriter } from "ast_rows"
-import type { FunctionBody } from "lowering_host"
+import type { AstWriter, FieldRows } from "ast_rows"
+import type { Lowering } from "lowering_host"
 
 export type Input = {
-    body: FunctionBody,
+    frame: Lowering,
     writer: AstWriter,
-    stores: bool
+    name: u8[],
+    input_id: u32,
+    output_id: u32,
+    store_count: u64,
+    exported: bool,
+    inlined: bool,
+    io: bool,
+    process: bool,
+    value: bool,
+    public_value: bool
 }
 
 export type Sections = {
@@ -15,4 +24,12 @@ export type Sections = {
 export type Block = {
     start: u32,
     count: u32
+}
+
+export type Output = Block & {
+    name: u8[],
+    parameters: FieldRows,
+    return_type: u32,
+    exported: bool,
+    inlined: bool
 }

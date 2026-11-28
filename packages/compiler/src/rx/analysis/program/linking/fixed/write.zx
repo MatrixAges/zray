@@ -1,9 +1,9 @@
 import integers from "std:integer"
 import { max_u32 } from "core/const"
 import { ExpressionKind } from "core/expression_table/kinds"
-import { expressionOperandBytes, expressionOperandWords } from "rx_project_host"
 
 import symbol from "../operands/symbol"
+import readWord from "./word"
 
 import type { Cell, Patch, Work } from "../operands/workflow"
 
@@ -12,21 +12,21 @@ export type Input = Work
 export type Output = Patch?
 
 export default function (in: Input): Output {
-    const { data, row, slots, frame } = in
+    const { data, row, slots, metadata } = in
 
     const kind = data.kinds[in.index]
     const width = slots.length
 
-    const has_metadata = match kind {
-        ExpressionKind.Unary => true,
-        ExpressionKind.Binary => true,
-        ExpressionKind.Iteration => true,
-        _ => false
+    const bytes: u8[]? = match kind {
+        ExpressionKind.Unary => metadata.unary,
+        ExpressionKind.Binary => metadata.binary,
+        ExpressionKind.Iteration => metadata.iteration,
+        _ => null
     }
 
     const words = match kind {
         ExpressionKind.Iteration => width - 2,
-        _ => has_metadata ? width - 1 : width
+        _ => bytes == null ? width : width - 1
     }
 
     const expressions = match kind {
@@ -53,9 +53,14 @@ export default function (in: Input): Output {
         while: state => state.valid && state.position < words,
         next: state => {
             const position = state.position
-            const column = expressionOperandWords(frame, slots[position])
-            const source = column[row]
+            const source = readWord({
+                data,
+                column: slots[position],
+                row
+            })
+
             const value = match {
+                source == null => max_u32,
                 position < expressions => in.mapping[integers.widen(source)],
                 position < mapped => symbol({
                     symbols: in.symbols,
@@ -64,7 +69,7 @@ export default function (in: Input): Output {
                 _ => source
             }
 
-            state.valid = position >= mapped || value != max_u32
+            state.valid = source != null && (position >= mapped || value != max_u32)
 
             if (state.valid) {
                 state.cells = state.cells.push({
@@ -105,8 +110,8 @@ export default function (in: Input): Output {
     }
 
     const completed = match {
-        has_metadata => header.push({
-            byte: expressionOperandBytes(frame, slots[width - 1])[row]
+        bytes != null => header.push({
+            byte: bytes[row]
         })[0],
         _ => header
     }

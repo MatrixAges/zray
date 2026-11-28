@@ -81,7 +81,8 @@ export default function (in: Input): Output {
             second: right ?? 0,
             third: third ?? 0,
             operator: token,
-            extra
+            extra,
+            origin: in.origin
         }),
         offset: end
     }

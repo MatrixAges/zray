@@ -3,8 +3,8 @@ const Compile = @import("../compile.zig");
 const Options = @import("../options.zig");
 const pkgs = @import("pkgs");
 const yaml = @import("yaml.zig");
-const effects = @import("../sources/effects.zig");
-const Error = effects.Error;
+const Error = error{ OutOfMemory, Canceled };
+const Content = @import("cli_abi").layouts.@"zig:lint_workflow_host".ConfigurationContent;
 const Layout = @import("cli_abi").native.@"zig:lint_workflow_host".Layout;
 
 pub fn toLayout(kind: ?Options.ConfigKind) Layout {
@@ -14,23 +14,6 @@ pub fn toLayout(kind: ?Options.ConfigKind) Layout {
         .lock => .Lock,
     };
 }
-
-const State = struct {
-    context: *const Compile.Context,
-    source: ?[]u8 = null,
-    formatted: ?yaml.Formatted = null,
-    failure: effects.Failure = .{},
-    fn get(handle: *const anyopaque) *State {
-        return effects.state(State, handle);
-    }
-    fn deinit(self: *State) void {
-        if (self.formatted) |result| {
-            if (result.allocated) self.context.allocator.free(result.bytes);
-        }
-
-        if (self.source) |source| self.context.allocator.free(source);
-    }
-};
 
 pub fn run(context: Compile.Context) !Compile.Status {
     return execute(context) catch |err| {
@@ -42,91 +25,90 @@ pub fn run(context: Compile.Context) !Compile.Status {
 }
 
 fn execute(context: Compile.Context) !Compile.Status {
-    var state: State = .{ .context = &context };
-    const reference = &state;
+    var arena = std.heap.ArenaAllocator.init(context.allocator);
 
-    defer state.deinit();
+    defer arena.deinit();
 
-    const valid = @import("cli_source").configuration_workflow.executeIn(context.allocator, &.{
-        .host = @ptrCast(&reference),
+    const result = try @import("cli_source").configuration_workflow.executeIn(arena.allocator(), &.{
+        .path = context.options.input,
         .input_path = context.options.input,
         .explicit_kind = toLayout(context.options.config_kind),
         .linting = context.options.linting,
         .check = context.options.check,
         .write = context.options.write,
-    }) catch |err| return state.failure.unwrap(err);
+    }, context.io);
 
-    return if (valid) .success else .failed;
+    if (result.error_name) |name| {
+        try context.stderr.print("{s}: configuration: {s}\n", .{ context.options.input, name });
+
+        return .failed;
+    }
+
+    if (result.diagnostic) |diagnostic| try context.stderr.writeAll(diagnostic);
+    if (result.output) |output| try context.stdout.writeAll(output);
+
+    return if (result.valid) .success else .failed;
 }
 
-pub fn reportConfigurationKind(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    self.context.stderr.writeAll("configuration kind is unknown; use --kind manifest, index or lock\n") catch |err| return self.failure.save(err);
+fn errorName(err: anyerror) Error![]const u8 {
+    return switch (err) {
+        error.OutOfMemory => error.OutOfMemory,
+        error.Canceled => error.Canceled,
+        else => @errorName(err),
+    };
 }
 
-pub fn readConfiguration(handle: *const anyopaque, maximum_bytes: u64) Error!void {
-    const self = State.get(handle);
-    const context = self.context;
+fn view(allocator: std.mem.Allocator, content: struct {
+    bytes: @FieldType(Content, "bytes") = null,
+    diagnostic: @FieldType(Content, "diagnostic") = null,
+    error_name: @FieldType(Content, "error_name") = null,
+}) Error!*const Content {
+    const result = try allocator.create(Content);
 
-    self.source = std.Io.Dir.cwd().readFileAlloc(context.io, context.options.input, context.allocator, .limited(@intCast(maximum_bytes))) catch |err| return self.failure.save(err);
+    result.* = .{
+        .bytes = content.bytes,
+        .diagnostic = content.diagnostic,
+        .error_name = content.error_name,
+    };
+
+    return result;
 }
 
-pub fn formatConfigurationManifest(handle: *const anyopaque) Error!bool {
-    const self = State.get(handle);
-    const context = self.context;
+pub fn readConfiguration(allocator: std.mem.Allocator, io: std.Io, path: []const u8, limit: u64) Error!*const Content {
+    const input = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(@intCast(limit))) catch |err| return view(allocator, .{ .error_name = try errorName(err) });
 
-    self.formatted = yaml.format(context.allocator, self.source.?, context.options.input, context.stderr) catch |err| return self.failure.save(err);
-
-    return self.formatted != null;
+    return view(allocator, .{ .bytes = input });
 }
 
-pub fn validateConfigurationIndex(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-    const checked = pkgs.Index.parse(self.context.allocator, self.source.?) catch |err| return self.failure.save(err);
+pub fn formatConfigurationManifest(allocator: std.mem.Allocator, input: []const u8, path: []const u8) Error!*const Content {
+    var diagnostics: std.Io.Writer.Allocating = .init(allocator);
 
-    checked.deinit();
+    defer diagnostics.deinit();
+
+    const formatted = yaml.format(allocator, input, path, &diagnostics.writer) catch |err| return view(allocator, .{ .error_name = try errorName(err) });
+
+    return if (formatted) |result|
+        view(allocator, .{ .bytes = result.bytes })
+    else
+        view(allocator, .{ .diagnostic = try diagnostics.toOwnedSlice() });
 }
 
-pub fn formatConfigurationIndex(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-    const result = @import("lint").configuration.json.format(self.context.allocator, self.source.?) catch |err| return self.failure.save(err);
+pub fn checkConfigurationJson(allocator: std.mem.Allocator, input: []const u8, lock: bool) Error!?[]const u8 {
+    if (lock) {
+        const checked = pkgs.Lock.parse(allocator, input) catch |err| return try errorName(err);
 
-    self.formatted = .{ .bytes = result };
+        checked.deinit();
+    } else {
+        const checked = pkgs.Index.parse(allocator, input) catch |err| return try errorName(err);
+
+        checked.deinit();
+    }
+
+    return null;
 }
 
-pub fn validateConfigurationLock(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-    const checked = pkgs.Lock.parse(self.context.allocator, self.source.?) catch |err| return self.failure.save(err);
+pub fn formatConfigurationIndex(allocator: std.mem.Allocator, input: []const u8) Error!*const Content {
+    const result = @import("lint").configuration.json.format(allocator, input) catch |err| return view(allocator, .{ .error_name = try errorName(err) });
 
-    checked.deinit();
-}
-
-pub fn reportManagedLock(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    self.context.stderr.writeAll("pkg.lock.json is managed by zxc pkg install; use zxc lint for read-only validation\n") catch |err| return self.failure.save(err);
-}
-
-pub fn checkConfigurationFormatting(handle: *const anyopaque) Error!bool {
-    const self = State.get(handle);
-
-    if (std.mem.eql(u8, self.source.?, self.formatted.?.bytes)) return true;
-
-    self.context.stderr.print("{s}: configuration formatting required; run zxc fmt with the same --kind selection\n", .{self.context.options.input}) catch |err| return self.failure.save(err);
-
-    return false;
-}
-
-pub fn writeConfiguration(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-    const context = self.context;
-
-    @import("../artifacts.zig").write(context.io, context.options.input, self.formatted.?.bytes) catch |err| return self.failure.save(err);
-}
-
-pub fn printConfiguration(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    self.context.stdout.writeAll(self.formatted.?.bytes) catch |err| return self.failure.save(err);
+    return view(allocator, .{ .bytes = result });
 }

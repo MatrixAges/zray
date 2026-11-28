@@ -3,7 +3,14 @@
 
     <Args in={Cache.Input} out={Cache.Output} />
 
-    <Call fn="index.cached" in={$in.cache} />
+    <Call
+        fn="index.cached"
+        in={[
+            $in.cache,
+            $in.destination,
+            $in.hex
+        ]}
+    />
 
     <If on={$ctx.cached}>
         <Return value={Cache.Status.Ready} />
@@ -34,10 +41,18 @@
         <Call
             module="stage"
             in={{
-                cache: $in.cache,
+                ...$in.pick([
+                    "cache",
+                    "root",
+                    "hex"
+                ]),
                 bytes: $ctx.acquire.bytes
             }}
         />
+
+        <If on={$ctx.stage != Cache.Status.Ready}>
+            <Return value={$ctx.stage} />
+        </If>
 
         <If on={$ctx.acquire.downloaded}>
             <Call
@@ -49,10 +64,23 @@
             />
         </If>
 
-        <Call fn="index.publishStaging" in={$in.cache} />
+        <Call
+            fn="index.publishStaging"
+            in={[
+                $in.cache,
+                $in.destination
+            ]}
+        />
 
         <If on={!$ctx.publishStaging}>
-            <Call fn="index.winnerAvailable" in={$in.cache} />
+            <Call
+                fn="index.winnerAvailable"
+                in={[
+                    $in.cache,
+                    $in.destination,
+                    $in.hex
+                ]}
+            />
 
             <If on={!$ctx.winnerAvailable}>
                 <Return value={Cache.Status.CorruptPackageStore} />

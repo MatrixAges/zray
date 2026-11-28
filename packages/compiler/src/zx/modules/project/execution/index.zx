@@ -4,12 +4,6 @@ export {
     advanceLengthSlot
 } from "memory"
 export {
-    openProjectFrame,
-    finishProjectFrame,
-    closeProjectFrame,
-    validateProjectEntry
-} from "project_host"
-export {
     analyzeProjectBody,
     materializeProjectFunction,
     bindProjectBodyExports,

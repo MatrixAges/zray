@@ -1,0 +1,46 @@
+import bytes from "std:bytes"
+
+import nodeAt from "../node_at"
+
+import type { Document } from "../value"
+
+export type Input = {
+    document: Document,
+    pairs: u32[],
+    slots: u64[],
+    key: string
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { document, pairs, slots, key } = in
+
+    const start = bytes.hash(bytes.fromText(key)) % slots.length
+
+    return loop({
+        slot: start,
+        found: false
+    }, {
+        while: current => !current.found,
+        next: current => {
+            const entry = slots[current.slot]
+
+            if (entry == 0) {
+                current.found = true
+            } else {
+                const candidate = nodeAt({
+                    document,
+                    id: pairs[entry - 1]
+                })
+
+                if (candidate.text == key) {
+                    current.found = true
+                } else {
+                    current.slot = (current.slot + 1) % slots.length
+                }
+            }
+        },
+        return: current => current.slot
+    })
+}

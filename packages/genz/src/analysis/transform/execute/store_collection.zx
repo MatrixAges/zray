@@ -1,5 +1,9 @@
-import { appendAstIdentifierRows, astExpressionCount } from "ast_rows"
-import host from "lowering_host"
+import {
+    appendAstIdentifierRows,
+    astExpressionCount,
+    storeFilterTransformValue,
+    writeCollectionElement
+} from "ast_rows"
 
 import { ExpressionsKind } from "../../../printer/model/expressions"
 import bindOperand from "../../aggregate/execute/bind_operand"
@@ -11,9 +15,9 @@ import type { Collection } from "./model"
 
 export type Input =
     Collection.Pick(
-        "frame",
         "ast",
         "callback",
+        "result_type",
         "element_symbol",
         "element_name"
     ) & {
@@ -24,7 +28,7 @@ export type Input =
 export type Output = Publish.Pick("result", "value", "index")
 
 export default function (in: Input): Output {
-    const { frame, ast, callback } = in
+    const { ast, callback, result_type } = in
 
     if (in.map) {
         const result = bindOperand({
@@ -47,7 +51,7 @@ export default function (in: Input): Output {
             value: callback
         })
 
-        const value = host.storeMapTransformValue(frame, bound)
+        const value = writeCollectionElement(ast.writer, ast.loop, result_type, bound)
 
         return {
             result,
@@ -64,7 +68,13 @@ export default function (in: Input): Output {
         identifier: [in.element_name]
     })
 
-    const value = host.storeMapTransformValue(frame, identifier)
+    const value = storeFilterTransformValue(
+        ast.writer,
+        ast.loop,
+        result_type,
+        in.element_symbol,
+        identifier
+    )
 
     return {
         result: in.result,

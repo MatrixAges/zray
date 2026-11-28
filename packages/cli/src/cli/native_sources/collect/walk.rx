@@ -26,6 +26,8 @@
         module="item"
         in={{
             collection: $in.collection,
+            root: $in.root,
+            canonical_root: $in.canonical_root,
             has_bundle: $in.has_bundle,
             path: $ctx.next_queued.path,
             source: $ctx.next_queued.source,

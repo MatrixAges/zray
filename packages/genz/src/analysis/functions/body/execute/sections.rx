@@ -1,0 +1,59 @@
+<Module>
+    <Type from="model" as="Function" />
+
+    <Args in={Function.Input} out={Function.Block} />
+
+    <Call fn="index.lowerFunctionStatements" in={$in.frame} />
+    <Call fn="index.lowerFunctionContracts" in={$in.frame} />
+
+    <Call
+        fn="index.lowerFunctionPrelude"
+        in={[
+            $in.frame,
+            $in.exported,
+            $in.io,
+            $in.process
+        ]}
+    />
+
+    <Call fn="index.lowerFunctionReferences" in={$in.frame} />
+
+    <If on={$in.store_count != 0}>
+        <Call fn="index.lowerFunctionPending" in={$in.frame} />
+        <Call fn="index.lowerFunctionCommit" in={$in.frame} />
+
+        <Call
+            fn="join"
+            in={{
+                writer: $in.writer,
+                spans: [
+                    $ctx.lowerFunctionPrelude,
+                    $ctx.lowerFunctionPending,
+                    $ctx.lowerFunctionReferences,
+                    $ctx.lowerFunctionContracts,
+                    $ctx.lowerFunctionStatements,
+                    $ctx.lowerFunctionCommit
+                ]
+            }}
+        />
+
+        <Return value={$ctx.join} />
+
+        <Else>
+            <Call
+                fn="join"
+                in={{
+                    writer: $in.writer,
+                    spans: [
+                        $ctx.lowerFunctionPrelude,
+                        $ctx.lowerFunctionReferences,
+                        $ctx.lowerFunctionContracts,
+                        $ctx.lowerFunctionStatements
+                    ]
+                }}
+            />
+
+            <Return value={$ctx.join} />
+        </Else>
+    </If>
+</Module>

@@ -1,17 +1,37 @@
 <Module>
     <Type from="model" as="State" />
 
-    <Args in={State.Open} out={State.Admission} />
+    <Args in={State.Shared} out={State.Open} />
 
-    <Call module="check" in={$in.omit(["state"])} />
+    <Call module="check" in={$in} />
 
     <If on={$ctx.check != State.Admission.Ready}>
-        <Return value={$ctx.check} />
+        <Return
+            value={{
+                admission: $ctx.check
+            }}
+        />
     </If>
 
-    <Call fn="index.copyProjectTypes" in={$in.state} />
-    <Call fn="index.copyProjectNatives" in={$in.state} />
-    <Call fn="index.copyProjectOrigins" in={$in.state} />
+    <Call fn="copy_types" in={$in.table} />
+    <Call fn="../../native_context/copy" in={$in.modules} />
 
-    <Return value={State.Admission.Ready} />
+    <Call
+        fn="copy_origins"
+        in={{
+            origins: $in.origins,
+            labels: $ctx.copy_types.labels
+        }}
+    />
+
+    <Return
+        value={{
+            admission: State.Admission.Ready,
+            snapshot: {
+                types: $ctx.copy_types,
+                modules: $ctx.copy,
+                origins: $ctx.copy_origins
+            }
+        }}
+    />
 </Module>

@@ -13,6 +13,7 @@ const Frame = struct {
     conditions: *Conditions,
     result_allocator: std.mem.Allocator = undefined,
     checkpoint: ?zx.Arena.Checkpoint = null,
+    precondition: native.Preconditions = undefined,
     result: terms.Evaluation = undefined,
     fn borrow(handle: *anyopaque) *@This() {
         return @ptrCast(@alignCast(handle));
@@ -116,14 +117,14 @@ pub fn beginSymbolicCall(handle: *anyopaque) void {
     frame.checkpoint = frame.conditions.scratch.checkpoint();
 }
 
-pub fn symbolicProgramPreconditions(handle: *anyopaque, is_called: bool) zx.Error![]const u8 {
-    const conditions = Frame.borrow(handle).conditions;
+pub fn symbolicProgramPreconditions(handle: *anyopaque, is_called: bool) zx.Error!*const native.Preconditions {
+    const frame = Frame.borrow(handle);
+    const conditions = frame.conditions;
+    const path = try execution.apply(conditions, if (is_called) .Called else .Entry, "true", null);
 
-    return execution.apply(conditions, if (is_called) .Called else .Entry, "true", null);
-}
+    frame.precondition = .{ .path = path, .prefix = conditions.graph.?.definitions.len };
 
-pub fn symbolicQueryPrefix(handle: *anyopaque) u64 {
-    return Frame.borrow(handle).conditions.graph.?.definitions.len;
+    return &frame.precondition;
 }
 
 pub fn runSymbolicProgramBody(handle: *anyopaque, path: []const u8) zx.Error![]const u8 {

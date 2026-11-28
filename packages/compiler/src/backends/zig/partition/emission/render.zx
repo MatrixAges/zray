@@ -1,28 +1,35 @@
-import host from "output_host"
 import { PartitionFile } from "output_host"
 
-import type { BootstrapPartitionJobs } from "output_host"
-
 export type Input = {
-    target: BootstrapPartitionJobs,
-    row: u64,
+    destination: u64,
     root: bool
 }
 
-export type Output = u32
+export type File = {
+    destination: u64,
+    kind: PartitionFile
+}
+
+export type Output = File[]
 
 export default function (in: Input): Output {
-    const { target, row } = in
+    const { destination, root } = in
 
-    if (!in.root) {
-        return host.renderPartitionFile(target, row, PartitionFile.Stub)
+    if (!root) {
+        return [{
+            destination,
+            kind: PartitionFile.Stub
+        }]
     }
 
-    const error_code = host.renderPartitionFile(target, row, PartitionFile.Exports)
-
-    if (error_code != 0) {
-        return error_code
-    }
-
-    return host.renderPartitionFile(target, row, PartitionFile.Modules)
+    return [
+        {
+            destination,
+            kind: PartitionFile.Exports
+        },
+        {
+            destination: destination + 1,
+            kind: PartitionFile.Modules
+        }
+    ]
 }

@@ -123,12 +123,10 @@
         </Case>
 
         <Case value={Expression.ExpressionKind.Unit}>
-            <Call
-                fn="index.reserveSymbolicAggregate"
-                in={[
-                    $in.frame,
-                    0
-                ]}
+            <Return
+                value={{
+                    fields: []
+                }}
             />
         </Case>
 

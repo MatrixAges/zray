@@ -13,14 +13,14 @@
         }}
     />
 
-    <Loop on={$in.index < $in.count}>
+    <Loop on={$in.index < $in.values.length}>
         <Call
             module="next_binding"
             in={{
                 block: $in.block,
                 symbols: $in.scope.control.parallel_symbols,
                 first: $ctx.calls.first,
-                count: $ctx.calls.count,
+                values: $ctx.calls.values,
                 index: 0
             }}
         />

@@ -1,34 +1,56 @@
 <Module>
     <Type from="../model" as="Installation" />
 
-    <Args in={Installation.ArchiveSource} out={u64} />
+    <Args in={Installation.ArchiveSource} out={Installation.ArchiveOutcome} />
 
     <Call
         fn="../effects.fetchArchive"
         in={[
-            $in.host,
-            $in.source
+            $in.session,
+            $in.source,
+            $in.release
         ]}
     />
 
     <Call
         fn="../effects.readArchive"
         in={[
-            $in.host,
+            $in.session,
             $ctx.fetchArchive
         ]}
     />
 
-    <Call fn="../effects.verifyArchive" in={$in.host} />
+    <Call
+        fn="../effects.verifyArchive"
+        in={[
+            $in.session,
+            $ctx.readArchive,
+            $in.release
+        ]}
+    />
 
     <Call
         fn="../effects.recordArchive"
         in={[
-            $in.host,
+            $in.catalog.build,
             $in.source,
+            $in.release,
+            $ctx.readArchive
+        ]}
+    />
+
+    <Call
+        fn="../effects.canonicalPath"
+        in={[
+            $in.session,
             $ctx.fetchArchive
         ]}
     />
 
-    <Return value={$ctx.recordArchive} />
+    <Return
+        value={{
+            target: $ctx.recordArchive,
+            path: $ctx.canonicalPath
+        }}
+    />
 </Module>

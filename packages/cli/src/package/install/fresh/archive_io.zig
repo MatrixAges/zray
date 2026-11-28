@@ -1,76 +1,66 @@
 const std = @import("std");
 const host = @import("../host.zig");
 const model = @import("../model.zig");
+const fresh = @import("storage.zig");
 const pkgs = @import("pkgs");
-const ArchiveLookup = @import("cli_abi").layouts.@"zig:installation_host".ArchiveLookup;
+const Manifest = @import("../../manifest/model.zig").Manifest;
+const abi = @import("cli_abi").layouts.@"zig:installation_host";
 
-pub fn findArchive(handle: *anyopaque, first: u64) host.Error!*const ArchiveLookup {
-    const self = host.State.get(handle);
-    const fresh = &self.fresh;
-    const release = fresh.pending.release;
-    const key = std.ascii.lowerString(&fresh.spelling, release.sha256);
-    const plan = fresh.archives.?.plan(fresh.packages.items, @intCast(first), key, fresh.pending.name, release) catch |err| return self.fail(err);
+fn releaseOf(value: *const abi.Release, source: []const u8) pkgs.Index.Release {
+    return .{ .version = value.version, .archive = source, .sha256 = value.sha256 };
+}
 
-    fresh.lookup_view = switch (plan) {
-        .existing => |row| .{ .existing = row, .local = false, .archive = "" },
-        .remote, .local => .{ .existing = null, .local = plan == .local, .archive = release.archive },
+pub fn findArchive(handle: *const anyopaque, first: u64, release: *const abi.Release) host.Error!*const abi.ArchiveLookup {
+    const build = fresh.State.get(handle);
+    const session = build.session;
+    const plan = build.archives.plan(build.packages.items, @intCast(first), release.sha256, release.name, releaseOf(release, release.archive)) catch |err| return session.fail(err);
+    const view = session.allocator.create(abi.ArchiveLookup) catch |err| return session.fail(err);
+
+    view.* = switch (plan) {
+        .existing => |row| .{ .existing = row, .local = false },
+        .remote, .local => .{ .existing = null, .local = plan == .local },
     };
 
-    return &fresh.lookup_view;
+    return view;
 }
 
-pub fn relativeArchive(handle: *anyopaque) host.Error![]const u8 {
-    const self = host.State.get(handle);
-    const allocator = self.allocator;
-    const absolute = std.fs.path.resolve(allocator, &.{ self.fresh.index_base, self.fresh.pending.release.archive }) catch |err| return self.fail(err);
-    const relative = std.fs.path.relative(allocator, self.root, null, self.root, absolute) catch |err| return self.fail(err);
+pub fn fetchArchive(handle: *const anyopaque, source: []const u8, release: *const abi.Release) host.Error![]const u8 {
+    const session = host.Context.get(handle);
 
-    std.mem.replaceScalar(u8, relative, '\\', '/');
-
-    return relative;
+    return session.fetch(releaseOf(release, source), session.root) catch |err| session.fail(err);
 }
 
-pub fn fetchArchive(handle: *anyopaque, source: []const u8) host.Error![]const u8 {
-    const self = host.State.get(handle);
-    const fresh = &self.fresh;
-    const release = fresh.pending.release;
-    const key = fresh.spelling[0..release.sha256.len];
-    const digest = if (std.mem.eql(u8, key, release.sha256)) release.sha256 else self.allocator.dupe(u8, key) catch |err| return self.fail(err);
+pub fn readArchive(handle: *const anyopaque, path: []const u8) host.Error!*const abi.ArchiveManifest {
+    const session = host.Context.get(handle);
+    const allocator = session.allocator;
+    const manifest = allocator.create(Manifest) catch |err| return session.fail(err);
+    manifest.* = model.read(session.io, allocator, path, null, allocator) catch |err| return session.fail(err);
 
-    fresh.pending.release.sha256 = digest;
-
-    return self.fetch(.{ .version = release.version, .archive = source, .sha256 = digest }, self.root) catch |err| self.fail(err);
+    return @ptrCast(manifest);
 }
 
-pub fn readArchive(handle: *anyopaque, path: []const u8) host.Error!void {
-    const self = host.State.get(handle);
-    const allocator = self.allocator;
-    self.fresh.archive_manifest = model.read(self.io, allocator, path, null, allocator) catch |err| return self.fail(err);
+pub fn verifyArchive(handle: *const anyopaque, manifest: *const anyopaque, release: *const abi.Release) host.Error!void {
+    const session = host.Context.get(handle);
+    const data: *const Manifest = @ptrCast(@alignCast(manifest));
+
+    pkgs.install.verify(release.name, release.version, data) catch |err| return session.fail(err);
 }
 
-pub fn verifyArchive(handle: *anyopaque) host.Error!void {
-    const self = host.State.get(handle);
-    const fresh = &self.fresh;
+pub fn recordArchive(handle: *const anyopaque, source: []const u8, release: *const abi.Release, manifest: *const anyopaque) host.Error!u64 {
+    const build = fresh.State.get(handle);
+    const session = build.session;
+    const allocator = session.allocator;
+    const data: *const Manifest = @ptrCast(@alignCast(manifest));
+    const row = build.packages.items.len;
 
-    pkgs.install.verify(fresh.pending.name, fresh.pending.release.version, &fresh.archive_manifest) catch |err| return self.fail(err);
-}
-
-pub fn recordArchive(handle: *anyopaque, source: []const u8, path: []const u8) host.Error!u64 {
-    const self = host.State.get(handle);
-    const fresh = &self.fresh;
-    const allocator = self.allocator;
-    const data = &fresh.archive_manifest;
-    const row = fresh.packages.items.len;
-
-    fresh.packages.append(allocator, .{
+    build.packages.append(allocator, .{
         .name = data.name,
         .version = data.version,
-        .source = .{ .archive = .{ .archive = source, .sha256 = fresh.pending.release.sha256 } },
+        .source = .{ .archive = .{ .archive = source, .sha256 = release.sha256 } },
         .dependencies = &.{},
-    }) catch |err| return self.fail(err);
+    }) catch |err| return session.fail(err);
 
-    fresh.paths.append(allocator, self.physicalPath(path) catch |err| return self.fail(err)) catch |err| return self.fail(err);
-    fresh.archive_declarations.append(allocator, .{ .dependencies = data.dependencies, .dev_dependencies = data.dev_dependencies }) catch |err| return self.fail(err);
+    build.archive_declarations.append(allocator, .{ .dependencies = data.dependencies, .dev_dependencies = data.dev_dependencies }) catch |err| return session.fail(err);
 
     return row;
 }

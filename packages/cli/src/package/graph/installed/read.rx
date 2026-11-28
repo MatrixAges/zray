@@ -1,31 +1,59 @@
 <Module>
     <Type from="../model" as="Project" />
 
-    <Args in={Project.InstalledHost} out={Project.Result} />
+    <Args in={Project.Read} out={Project.Result} />
 
-    <Call fn="../effects.openLock" in={$in} />
+    <Call
+        fn="../effects.openLock"
+        in={[
+            $in.graph,
+            $in.root
+        ]}
+    />
 
     <If on={$ctx.openLock == null}>
-        <Return value={Project.Status.PackagesNotInstalled} />
-    </If>
-
-    <If on={$ctx.openLock == false}>
-        <Return value={Project.Status.LockFileOutdated} />
-    </If>
-
-    <Call fn="../effects.openMapping" in={$in} />
-
-    <If on={$ctx.openMapping != null}>
-        <Call
-            module="loaded"
-            in={{
-                host: $in,
-                mapping: $ctx.openMapping
+        <Return
+            value={{
+                status: Project.Status.PackagesNotInstalled
             }}
         />
 
-        <Return value={$ctx.loaded} />
-    </If>
+        <Else>
+            <If on={!$ctx.openLock.matches}>
+                <Return
+                    value={{
+                        status: Project.Status.LockFileOutdated
+                    }}
+                />
+            </If>
 
-    <Return value={Project.Status.PackagesNotInstalled} />
+            <Call
+                fn="../effects.openMapping"
+                in={[
+                    $in.graph,
+                    $in.root,
+                    $ctx.openLock.lock
+                ]}
+            />
+
+            <If on={$ctx.openMapping != null}>
+                <Call
+                    module="loaded"
+                    in={{
+                        graph: $in.graph,
+                        lock: $ctx.openLock.lock,
+                        mapping: $ctx.openMapping
+                    }}
+                />
+
+                <Return value={$ctx.loaded} />
+            </If>
+
+            <Return
+                value={{
+                    status: Project.Status.PackagesNotInstalled
+                }}
+            />
+        </Else>
+    </If>
 </Module>

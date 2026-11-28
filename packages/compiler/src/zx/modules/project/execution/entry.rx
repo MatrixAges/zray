@@ -1,36 +1,44 @@
 <Module>
     <Type from="model" as="Execution" />
 
-    <Args in={Execution.Entry} out={bool} />
+    <Args in={Execution.Entry} out={Execution.EntryResult} />
 
-    <Call module="entry_publish" in={$in.publication} />
+    <If on={$in.publication != null}>
+        <Call module="entry_publish" in={$in.publication} />
 
-    <Call
-        fn="index.readLengthSlot"
-        in={[
-            $in.verified,
-            0
-        ]}
-    />
-
-    <If on={$ctx.entry_publish < $ctx.readLengthSlot}>
         <Call
-            fn="index.shrinkLengthSlot"
+            fn="index.readLengthSlot"
             in={[
                 $in.verified,
-                0,
-                $ctx.entry_publish
+                0
             ]}
+        />
+
+        <If on={$ctx.entry_publish < $ctx.readLengthSlot}>
+            <Call
+                fn="index.shrinkLengthSlot"
+                in={[
+                    $in.verified,
+                    0,
+                    $ctx.entry_publish
+                ]}
+            />
+        </If>
+    </If>
+
+    <If on={$in.cache != null}>
+        <Call module="entry_cache/publish" in={$in.cache} />
+
+        <Return
+            value={{
+                cache: $ctx.publish
+            }}
         />
     </If>
 
-    <Call fn="index.validateProjectEntry" in={$in.entry} />
-
-    <If on={!$ctx.validateProjectEntry}>
-        <Return value={false} />
-    </If>
-
-    <Call module="entry_cache/run" in={$in.cache} />
-
-    <Return value={$ctx.run} />
+    <Return
+        value={{
+            cache: null
+        }}
+    />
 </Module>

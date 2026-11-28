@@ -68,7 +68,15 @@
     </If>
 
     <Call fn="../index.capture" in={$in.verification} />
-    <Call fn="../index.verify" in={$in.verification} />
+
+    <Call
+        fn="../index.verify"
+        in={[
+            $in.verification,
+            $ctx.capture.snapshot,
+            $in.versioned
+        ]}
+    />
 
     <If on={!$ctx.verify}>
         <Return value={Observed.Output.Skipped} />
@@ -113,7 +121,15 @@
             ]}
         />
 
-        <Call fn="../index.retain" in={$in.verification} />
+        <If on={$in.versioned}>
+            <Call
+                fn="../index.retain"
+                in={[
+                    $in.verification,
+                    $ctx.capture.snapshot
+                ]}
+            />
+        </If>
 
         <Return value={Observed.Output.Published} />
     </If>

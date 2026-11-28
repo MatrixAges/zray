@@ -1,11 +1,10 @@
-import representative from "../../inference/forest/borrowed_root"
+import representative from "../../inference/forest/root"
 
-import type { U32Buffer } from "memory"
 import type { Edges } from "../../inference/assignment/model"
 
 export type Input = {
     edges: Edges,
-    parents: U32Buffer,
+    parents: u32[],
     root: u32,
     index: u64,
     found: bool

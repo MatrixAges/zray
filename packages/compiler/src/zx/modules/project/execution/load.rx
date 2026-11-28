@@ -1,32 +1,31 @@
 <Module>
     <Type from="model" as="Execution" />
-    <Type from="../load/model" as="Load" />
 
-    <Args in={Execution.Load} out={Load.Admission} />
+    <Args in={Execution.Load} out={Execution.LoadResult} />
 
-    <Call fn="../load/admit" in={$in.frame} />
+    <If on={$in.frame != null}>
+        <Call fn="../load/admit" in={$in.frame} />
 
-    <If on={$ctx.admit == Load.Admission.Push}>
-        <Call
-            fn="index.openProjectFrame"
-            in={[
-                $in.walk,
-                $in.frame.row
-            ]}
+        <Return
+            value={{
+                admission: $ctx.admit
+            }}
         />
-
-        <Loop on={$in.depth > $in.base_depth}>
-            <Call
-                module="walk"
-                in={{
-                    walk: $in.walk,
-                    row: $in.frame.row,
-                    depth: $in.frame.depth + 1,
-                    base_depth: $in.frame.depth
-                }}
-            />
-        </Loop>
     </If>
 
-    <Return value={$ctx.admit} />
+    <If on={$in.walk != null}>
+        <Call module="walk" in={$in.walk} />
+
+        <Return
+            value={{
+                next: $ctx.walk
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            next: null
+        }}
+    />
 </Module>

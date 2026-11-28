@@ -1,8 +1,9 @@
 export {
-    seedLocal,
+    assembleWorkspace,
+    borrowMember,
+    canonical,
     openLock,
     openMapping,
-    prepareInstalled,
-    reportMissing,
-    prepareWorkspace
+    readInstalledArchive,
+    verifyReceipt
 } from "package_graph_host"

@@ -9,6 +9,8 @@
         fn="../index.readBundle"
         in={[
             $in.collection,
+            $in.root,
+            $in.canonical_root,
             $in.bundle_files[$in.index]
         ]}
     />

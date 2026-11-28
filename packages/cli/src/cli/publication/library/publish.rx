@@ -11,7 +11,7 @@
             destination: $in.destination,
             observed: $in.observed,
             separator: $in.separator,
-            count: $ctx.capture
+            count: $ctx.capture.count
         }}
     />
 
@@ -19,7 +19,14 @@
         <Return value={Library.Output.Overlap} />
     </If>
 
-    <Call fn="../index.verify" in={$in.verification} />
+    <Call
+        fn="../index.verify"
+        in={[
+            $in.verification,
+            $ctx.capture.snapshot,
+            $in.versioned
+        ]}
+    />
 
     <If on={!$ctx.verify}>
         <Return value={Library.Output.Changed} />
@@ -81,7 +88,15 @@
         ]}
     />
 
-    <Call fn="../index.retain" in={$in.verification} />
+    <If on={$in.versioned}>
+        <Call
+            fn="../index.retain"
+            in={[
+                $in.verification,
+                $ctx.capture.snapshot
+            ]}
+        />
+    </If>
 
     <Return value={Library.Output.Published} />
 </Module>

@@ -1,21 +1,30 @@
 <Module>
     <Type from="model" as="Snapshot" />
 
-    <Args in={Snapshot.Registration} out={void} />
+    <Args in={Snapshot.RecordInput} out={void} />
 
-    <Call fn="index.openRegistration" in={$in} />
-    <Call fn="index.recordFile" in={$in} />
+    <Call
+        fn="index.openRegistration"
+        in={[
+            $in.registration,
+            $in.path
+        ]}
+    />
+
+    <Call fn="index.recordFile" in={$in.registration} />
 
     <If on={$ctx.recordFile && $ctx.openRegistration.consumed}>
-        <Call fn="index.compareRecorded" in={$in} />
+        <Call fn="index.compareRecorded" in={$in.registration} />
 
         <Call
             fn="index.publishObservation"
             in={[
-                $in,
+                $in.registration,
                 false,
                 true,
-                $ctx.compareRecorded
+                $ctx.compareRecorded,
+                $ctx.openRegistration.backend_preloaded,
+                true
             ]}
         />
 
@@ -23,10 +32,12 @@
             <Call
                 fn="index.publishObservation"
                 in={[
-                    $in,
+                    $in.registration,
                     false,
                     $ctx.recordFile,
-                    $ctx.recordFile
+                    $ctx.recordFile,
+                    $ctx.openRegistration.backend_preloaded,
+                    true
                 ]}
             />
         </Else>

@@ -1,0 +1,39 @@
+import { TreeKind } from "package_receipt_host"
+
+import { maximum_entries, maximum_unpacked } from "../const"
+import lookup from "./lookup"
+import { Status } from "./model"
+
+import type { Admission as Output, Candidate as Input } from "./model"
+
+export default function (in: Input): Output {
+    const remaining = maximum_unpacked - in.bytes
+
+    if (in.visited == maximum_entries) {
+        return {
+            status: Status.TooManyPackageEntries,
+            remaining
+        }
+    }
+
+    if (in.entry.kind == TreeKind.Directory) {
+        return {
+            status: Status.Valid,
+            remaining
+        }
+    }
+
+    const row = match in.entry.kind {
+        TreeKind.File => lookup({
+            paths: in.paths,
+            path: in.entry.path
+        }),
+        _ => null
+    }
+
+    return {
+        status: row == null ? Status.CorruptPackageStore : Status.Valid,
+        row,
+        remaining
+    }
+}

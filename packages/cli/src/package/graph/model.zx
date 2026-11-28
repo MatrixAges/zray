@@ -1,4 +1,10 @@
-import type { Host, Mapping } from "package_graph_host"
+import type {
+    GraphIO,
+    LockFile,
+    Mapping,
+    PackageManifest,
+    WorkspaceGraph
+} from "package_graph_host"
 
 export enum Status {
     Valid,
@@ -11,36 +17,62 @@ export enum Status {
     Overflow
 }
 
-export type Input = {
-    host: Host,
-    external: bool,
-    count: u64
+export type Read = {
+    graph: GraphIO,
+    root: string
 }
 
-export type Workspace = Input.Pick("host", "count")
+export type Input = Read & {
+    external: bool,
+    missing_path: string,
+    missing_name: string,
+    counts: u64[]
+}
 
-export type SeedInput = {
-    host: Host,
-    edge_counts: u64[]
+export type Workspace = Read & {
+    counts: u64[]
+}
+
+export type InstalledRow = {
+    path: string,
+    manifest: PackageManifest
+}
+
+export type Installed = {
+    lock: LockFile,
+    rows: InstalledRow[]
+}
+
+export type Result = {
+    status: Status,
+    diagnostic?: string,
+    workspace?: WorkspaceGraph,
+    keep_rows?: u64,
+    installed?: Installed
 }
 
 export type InstalledLoaded = {
-    host: Host,
+    graph: GraphIO,
+    lock: LockFile,
     mapping: Mapping
 }
 
-export type InstalledHost = Host
+export type InstalledWalk = InstalledLoaded & {
+    index: u64,
+    ordinal: u64,
+    rows: InstalledRow[],
+    status: Status
+}
 
-export type Row = {
-    host: Host,
-    row: u64,
+export type Archive = {
+    graph: GraphIO,
+    lock: LockFile,
+    index: u64,
     path: string,
     digest: string
 }
 
-export type Result = Status
-
-export type SeedWalk = SeedInput & {
-    index: u64,
-    first: u64
+export type RowResult = {
+    status: Status,
+    row?: InstalledRow
 }

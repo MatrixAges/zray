@@ -1,14 +1,11 @@
 import bytes from "std:bytes"
-import memory from "memory"
 
 import resolve from "../../../../../zx/modules/project/target/package/path"
 import probe from "./probe"
 
-import type { Allocator } from "memory"
 import type { RootIssue, RootPaths } from "./model"
 
 export type Input = RootPaths.Pick("index", "root") & {
-    allocator: Allocator,
     path: string,
     missing: string
 }
@@ -42,8 +39,6 @@ export default function (in: Input): Output {
             }
         }
     }
-
-    memory.freeOwnedText(in.allocator, path)
 
     return {
         row: row - 1

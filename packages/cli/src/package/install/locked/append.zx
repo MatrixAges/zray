@@ -1,0 +1,14 @@
+import type { ReplayWalk as Output } from "../model"
+
+export type Input = {
+    walk: Output,
+    path: string
+}
+
+export default function (in: Input): Output {
+    return {
+        ...in.walk,
+        index: in.walk.index + 1,
+        paths: in.walk.paths.push(in.path)[0]
+    }
+}

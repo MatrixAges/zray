@@ -4,44 +4,21 @@
     <Args in={Scopes.Row} out={void} />
 
     <Call
-        fn="index.prepareSurface"
+        fn="index.readScopeSurface"
         in={[
             $in.binding,
             $in.index
         ]}
     />
 
-    <If on={$ctx.prepareSurface.entry != null}>
-        <Call
-            fn="index.writeScopeEntry"
-            in={[
-                $in.binding,
-                $ctx.prepareSurface.entry
-            ]}
-        />
+    <Call fn="resolve_surface" />
 
-        <Else>
-            <If on={$ctx.prepareSurface.library != null}>
-                <Call
-                    fn="index.prepareLibrarySurface"
-                    in={[
-                        $in.binding,
-                        $ctx.prepareSurface.library
-                    ]}
-                />
-            </If>
-
-            <Loop on={$in.index < $in.count}>
-                <Call
-                    module="exports"
-                    in={{
-                        binding: $in.binding,
-                        count: $ctx.prepareSurface.exports,
-                        compiled: $ctx.prepareSurface.library != null,
-                        index: 0
-                    }}
-                />
-            </Loop>
-        </Else>
-    </If>
+    <Call
+        fn="index.publishScopeSurface"
+        in={[
+            $in.binding,
+            $in.index,
+            $ctx.resolve_surface
+        ]}
+    />
 </Module>

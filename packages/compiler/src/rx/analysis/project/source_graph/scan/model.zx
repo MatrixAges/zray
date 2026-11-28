@@ -14,9 +14,9 @@ export type Request = Ranges & {
 
 export type State = Frontier & Edges & Selection & {
     request: Request,
-    edge_end: u64
+    targets: u64[]
 }
 
 export type Output = Edges & {
-    end: u64
+    targets: u64[]
 }

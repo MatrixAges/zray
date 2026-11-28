@@ -2,7 +2,7 @@ import integers from "std:integer"
 import { scalar_void } from "core/type_table/const"
 import memory from "memory"
 
-import representative from "../../inference/forest/borrowed_root"
+import representative from "../../inference/forest/root"
 import find from "../../inference/known/find"
 import mark from "./mark"
 
@@ -16,9 +16,10 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { columns, parents, unused } = in
+    const { columns, unused } = in
 
-    const count = memory.u32Views(parents).length
+    const parents = memory.u32Views(in.parents)
+    const count = parents.length
     const empty: bool[] = []
 
     if (unused <= 1 || columns.edges.left.length <= count / (unused - 1)) {

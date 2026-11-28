@@ -6,27 +6,33 @@ import scanBatch from "../../partition/scanning/batch"
 import { batch_size } from "../../partition/scanning/const"
 import mark from "../assembly/mark"
 
+import type {
+    File as PartitionFile,
+    Input as Render
+} from "../../partition/emission/render"
 import type { File, Marked, Scanned, Work } from "./model"
 
 export type Input = {
     jobs: Work,
-    row: u64
+    row: u64,
+    render?: Render
 }
 
 export type Output = {
-    code: u32,
     marked?: Marked,
     scanned?: Scanned,
-    file?: File
+    file?: File,
+    partition?: PartitionFile[]
 }
 
 export default function (in: Input): Output {
     const { jobs, row } = in
-    const { scan, render: rendering, hash, write } = jobs
+    const { scan, hash, write } = jobs
+
+    const rendering = in.render
 
     if (hash != null) {
         return {
-            code: 0,
             marked: mark({
                 plan: hash,
                 block: row
@@ -36,12 +42,7 @@ export default function (in: Input): Output {
 
     if (rendering != null) {
         return {
-            code: render({
-                target: rendering.target,
-                row,
-                root: memory.readColumnBool(rendering.roots, row)
-            }),
-            marked: null
+            partition: render(rendering)
         }
     }
 
@@ -59,7 +60,6 @@ export default function (in: Input): Output {
         })
 
         return {
-            code: 0,
             scanned: {
                 ...batch,
                 offset: first
@@ -69,7 +69,6 @@ export default function (in: Input): Output {
 
     if (write == null) {
         return {
-            code: 0,
             marked: null
         }
     }
@@ -84,7 +83,6 @@ export default function (in: Input): Output {
     const body = memory.readTextColumn(source.bodies, index)
 
     return {
-        code: 0,
         file: {
             path,
             body

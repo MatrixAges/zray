@@ -11,7 +11,8 @@
             seen: $ctx.init.seen,
             queue: $ctx.init.queue,
             end: 0,
-            targets: $in.roots
+            targets: $in.roots,
+            first: 0
         }}
     />
 
@@ -23,6 +24,8 @@
             end: $ctx.enqueue.end
         }}
     />
+
+    <Call fn="../zeroes" in={0} />
 
     <Loop on={$in.owner != null}>
         <Call
@@ -37,16 +40,16 @@
                 ends: $ctx.init.ends,
                 ...$ctx.enqueue,
                 ...$ctx.select,
-                edge_end: 0
+                targets: $ctx.zeroes
             }}
         />
     </Loop>
 
     <Return
         value={{
-            end: $ctx.advance.end,
             starts: $ctx.advance.starts,
-            ends: $ctx.advance.ends
+            ends: $ctx.advance.ends,
+            targets: $ctx.advance.targets
         }}
     />
 </Module>

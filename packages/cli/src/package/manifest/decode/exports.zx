@@ -1,107 +1,64 @@
-import yaml from "manifest_yaml_document"
-
-import exported from "../../workspace/paths/exported"
-import { Kind } from "../../workspace/paths/model"
-import relative from "../../workspace/paths/relative"
-import compiled from "./compiled_export"
-import {
-    bad_export_key,
-    bad_export_source,
-    empty_exports,
-    empty_text,
-    mapping_size
-} from "./const"
+import { empty_exports, mapping_size } from "./const"
+import readRow from "./exports/row"
+import issue from "./issue"
 import mapping from "./mapping"
 import nodeAt from "./node_at"
-import string from "./string"
 
 import type { Export } from "./model"
-import type { Input as Value } from "./value"
-
-export type Input = Value
+import type { Diagnostic, Input } from "./value"
 
 export type Output = {
     rows: Export[],
-    compiled_exports: u64
+    compiled_exports: u64,
+    problem?: Diagnostic
 }
 
 export default function (in: Input): Output {
     const { document, node } = in
+    const { pairs, problem } = mapping(in)
 
-    const pairs = mapping(in)
-    const count = pairs.length / mapping_size
-
-    if (count == 0) {
-        yaml.reject(document.parser, node, empty_exports)
+    if (pairs.length == 0 && problem == null) {
+        return {
+            rows: [],
+            compiled_exports: 0,
+            problem: issue([
+                node,
+                empty_exports
+            ])
+        }
     }
 
     const empty: Export[] = []
 
     return loop({
-        row: 0,
+        offset: 0,
         rows: empty,
-        compiled_exports: 0
+        compiled_exports: 0,
+        problem
     }, {
-        while: state => state.row < count,
+        while: state => state.problem == null && state.offset < pairs.length,
         next: state => {
-            const row = state.row
-            const offset = row * mapping_size
-            const key = nodeAt({
+            const [item, row_issue] = readRow({
                 document,
-                id: pairs[offset]
-            })
-            const path = key.text
-
-            if (!exported(path)) {
-                yaml.reject(document.parser, key, bad_export_key)
-            }
-
-            const item = nodeAt({
-                document,
-                id: pairs[offset + 1]
+                key: nodeAt({
+                    document,
+                    id: pairs[state.offset]
+                }),
+                node: nodeAt({
+                    document,
+                    id: pairs[state.offset + 1]
+                })
             })
 
-            if (item.pairs != null) {
-                const module_node = compiled({
-                    document,
-                    node: item
-                })
-                const module = string({
-                    document,
-                    node: module_node
-                })
+            state.problem = row_issue
 
-                state.rows = state.rows.push({
-                    path,
-                    source: empty_text,
-                    module
-                })[0]
-                state.compiled_exports += 1
-            } else {
-                const source = string({
-                    document,
-                    node: item
-                })
-
-                if (!relative({
-                    text: source,
-                    kind: Kind.Relative
-                })) {
-                    yaml.reject(document.parser, item, bad_export_source)
-                }
-
-                state.rows = state.rows.push({
-                    path,
-                    source,
-                    module: null
-                })[0]
+            if (item != null && row_issue == null) {
+                state.rows = state.rows.push(item)[0]
+                state.compiled_exports += item.module == null ? 0 : 1
             }
 
-            state.row += 1
+            state.offset += mapping_size
         },
-        return: state => state.pick([
-            "rows",
-            "compiled_exports"
-        ])
+        return: state => state.omit(["offset"])
     })
 }

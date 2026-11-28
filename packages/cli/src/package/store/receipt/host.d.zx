@@ -1,4 +1,4 @@
-export type Receipt = mutable_opaque
+export type Receipt = opaque
 
 export enum TreeKind {
     Directory,
@@ -26,9 +26,8 @@ export type HashedFile = {
 
 export declare function receiptIsFile(receipt: Receipt): bool throws { ReceiptHostFailure }
 export declare function loadReceipt(receipt: Receipt): LoadedReceipt throws { ReceiptHostFailure }
-export declare function openTree(receipt: Receipt): void throws { ReceiptHostFailure }
 export declare function nextTreeEntry(receipt: Receipt): TreeEntry? throws { ReceiptHostFailure }
-export declare function openTreeFile(receipt: Receipt): bool? throws { ReceiptHostFailure }
+export declare function openTreeFile(receipt: Receipt, path: string): bool? throws { ReceiptHostFailure }
 export declare function hashTreeFile(receipt: Receipt, remaining: u64): HashedFile? throws {
     ReceiptHostFailure
 }

@@ -1,21 +1,26 @@
 import yaml from "manifest_yaml_document"
 
 import { bad_name } from "./const"
-import string from "./string"
+import issue from "./issue"
+import text from "./text"
 
+import type { Output } from "./text"
 import type { Input } from "./value"
 
-export type Output = string
-
 export default function (in: Input): Output {
-    const name = string({
-        document: in.document,
-        node: in.node
-    })
+    const parsed = text(in)
 
-    if (!yaml.packageName(name)) {
-        yaml.reject(in.document.parser, in.node, bad_name)
+    const [value, problem] = parsed
+
+    if (problem == null && !yaml.packageName(value)) {
+        return [
+            value,
+            issue([
+                in.node,
+                bad_name
+            ])
+        ]
     }
 
-    return name
+    return parsed
 }

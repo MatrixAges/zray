@@ -1,25 +1,18 @@
 <Module>
     <Type from="../model" as="Installation" />
 
-    <Args in={Installation.Replay} out={void} />
+    <Args in={Installation.Replay} out={Installation.Prepared} />
 
-    <Call
-        fn="../effects.beginReplay"
-        in={[
-            $in.host,
-            $in.locked_rows
-        ]}
-    />
+    <Call fn="begin" in={$in} />
 
-    <Loop on={$in.index < $in.workspace.length}>
-        <Call
-            module="paths"
-            in={{
-                host: $in.host,
-                workspace: $ctx.beginReplay,
-                root: $in.root,
-                index: 0
-            }}
-        />
+    <Loop on={$in.index < $in.locked_workspace.length}>
+        <Call module="paths" />
     </Loop>
+
+    <Return
+        value={{
+            lock: $in.lock,
+            paths: $ctx.paths.paths
+        }}
+    />
 </Module>

@@ -37,18 +37,17 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, release: pkgs.Index.Rel
         .io = io,
         .allocator = allocator,
         .temporary = temporary,
-        .root = root,
-        .destination = destination,
-        .digest = digest,
-        .hex = &hex,
     };
 
     defer state.deinit();
 
+    const resources = &state;
+
     const status = @import("cli_source").prepare.executeIn(temporary, &.{
-        .cache = @ptrCast(&state),
+        .cache = @ptrCast(&resources),
         .offline = offline,
         .root = root,
+        .destination = destination,
         .hex = &hex,
         .source = release.archive,
         .base = source_base,

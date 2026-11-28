@@ -1,25 +1,7 @@
 const std = @import("std");
-const zx = @import("zx");
-const ir = zx.ir;
+const ir = @import("zx").ir;
 
 pub fn create(allocator: std.mem.Allocator, program: ir.Program) std.mem.Allocator.Error![]const bool {
-    if (!@import("genz_options").generated_analysis) return seed(allocator, program);
-
-    const generated = @import("generated_uniqueness_return_only");
-    const Input = std.meta.Child(generated.Input);
-    var input: Input = undefined;
-
-    inline for (@typeInfo(Input).@"struct".field_names) |name| {
-        @field(input, name) = zx.columns.slice(@FieldType(Input, name), @field(program.functions, name));
-    }
-
-    return generated.executeIn(allocator, &input) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
-    };
-}
-
-fn seed(allocator: std.mem.Allocator, program: ir.Program) std.mem.Allocator.Error![]const bool {
     const result = try allocator.alloc(bool, program.functions.count());
     const calls = @import("../entry_flags/seed.zig");
 

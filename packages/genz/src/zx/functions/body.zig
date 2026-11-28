@@ -2,82 +2,78 @@ const std = @import("std");
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const stores = @import("../store/transaction.zig");
-const signature = @import("../signature/build.zig");
 const prelude = @import("prelude/build.zig");
-const evaluation = @import("../expressions/evaluate.zig");
-const packSpan = @import("../construction/publication.zig").packSpan;
+const borrow = @import("../expressions/evaluate.zig").borrow;
+const publication = @import("../construction/publication.zig");
 const Error = Lower.Error;
-
-const Frame = struct {
-    lowering: *Lower,
-    signature_request: signature.Request,
-    flags: prelude.Flags = undefined,
-    declaration: node.Function = undefined,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-};
 
 pub fn lower(self: *Lower, name: []const u8, exported: bool) Error!node.Declaration {
     const entry = @import("generated_lower_function_body");
 
-    var frame: Frame = .{
-        .lowering = self,
-        .signature_request = .{ .name = name, .exported = exported, .errors = undefined },
-    };
-
     const input: std.meta.Child(entry.Input) = .{
-        .body = @ptrCast(&frame),
+        .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .stores = self.program.stores.count() != 0,
+        .name = name,
+        .input_id = @backingInt(self.program.input_type),
+        .output_id = @backingInt(self.program.output_type),
+        .store_count = self.program.stores.count(),
+        .exported = exported,
+        .inlined = self.entry_flags.inlined,
+        .io = self.entry_flags.io,
+        .process = self.entry_flags.process,
+        .value = self.value_output,
+        .public_value = self.public_value_output,
     };
 
-    try evaluation.executeWith(self, entry, &input);
+    var scratch = std.heap.ArenaAllocator.init(self.workspace);
+    var buffer: [512]u8 = undefined;
+    var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
 
-    return .{ .function = frame.declaration };
+    defer scratch.deinit();
+
+    const body = entry.executeIn(memory.allocator(), &input) catch |err| return publication.failure(err);
+
+    return .{ .function = .{
+        .name = body.name,
+        .parameters = @import("../../node/import_fields.zig").materializeBorrowingText(self.allocator, body.parameters) catch |err| return publication.failure(err),
+        .return_type = @fromBackingInt(body.return_type),
+        .body = .{ .start = body.start, .len = body.count },
+        .exported = body.exported,
+        .inlined = body.inlined,
+    } };
 }
 
-pub fn prepareFunctionBody(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-    frame.signature_request.errors = try @import("../error_effects.zig").program(self);
-    frame.flags = .{ .exported = frame.signature_request.exported, .io = self.entry_flags.io, .process = self.entry_flags.process };
+pub fn prepareFunctionBody(frame: *anyopaque) Error!?[]const []const u8 {
+    const self = borrow(frame);
+    const errors = try @import("../error_effects.zig").program(self);
 
-    try @import("context.zig").prepare(self, frame.signature_request.errors);
+    try @import("context.zig").prepare(self, errors);
+
+    return errors;
 }
 
-pub fn lowerFunctionStatements(handle: *anyopaque) Error!u64 {
-    const self = Frame.borrow(handle).lowering;
+pub fn lowerFunctionStatements(frame: *anyopaque) Error!u64 {
+    const self = borrow(frame);
 
-    return packSpan(try self.statements(self.program.body.block()));
+    return publication.packSpan(try self.statements(self.program.body.block()));
 }
 
-pub fn lowerFunctionContracts(handle: *anyopaque) Error!u64 {
-    return packSpan(try @import("../contracts.zig").preconditions(Frame.borrow(handle).lowering));
+pub fn lowerFunctionContracts(frame: *anyopaque) Error!u64 {
+    return publication.packSpan(try @import("../contracts.zig").preconditions(borrow(frame)));
 }
 
-pub fn lowerFunctionPrelude(handle: *anyopaque) Error!u64 {
-    const frame = Frame.borrow(handle);
-
-    return packSpan(try prelude.lower(frame.lowering, frame.flags));
+pub fn lowerFunctionPrelude(frame: *anyopaque, exported: bool, io: bool, process: bool) Error!u64 {
+    return publication.packSpan(try prelude.lower(borrow(frame), .{ .exported = exported, .io = io, .process = process }));
 }
 
-pub fn lowerFunctionPending(handle: *anyopaque) Error!u64 {
-    return packSpan(try stores.initialize(Frame.borrow(handle).lowering));
+pub fn lowerFunctionPending(frame: *anyopaque) Error!u64 {
+    return publication.packSpan(try stores.initialize(borrow(frame)));
 }
 
-pub fn lowerFunctionReferences(handle: *anyopaque) Error!u64 {
-    return packSpan(try Frame.borrow(handle).lowering.referenceBlock());
+pub fn lowerFunctionReferences(frame: *anyopaque) Error!u64 {
+    return publication.packSpan(try borrow(frame).referenceBlock());
 }
 
-pub fn lowerFunctionCommit(handle: *anyopaque) Error!u64 {
-    return packSpan(try stores.finish(Frame.borrow(handle).lowering));
-}
-
-pub fn publishFunctionBody(handle: *anyopaque, start: u32, count: u32) Error!void {
-    const frame = Frame.borrow(handle);
-    var declaration = try signature.build(frame.lowering, &frame.signature_request);
-
-    declaration.body = .{ .start = start, .len = count };
-    frame.declaration = declaration;
+pub fn lowerFunctionCommit(frame: *anyopaque) Error!u64 {
+    return publication.packSpan(try stores.finish(borrow(frame)));
 }

@@ -86,13 +86,14 @@ pub fn resolveBatches(io: std.Io, response: *Response, translations: []const Res
         batch.* = value;
     }
 
-    var context: host.Context = .{ .io = io, .inputs = inputs };
+    var context: host.Registration = .{ .io = io, .inputs = inputs };
+    const registration = &context;
 
     const observation = Entry.executeIn(path_allocator, &.{
-        .dependencies = @ptrCast(&context),
+        .registration = @ptrCast(&registration),
         .roots = &.{ .cwd = cache.cwd, .local = cache.local, .global = cache.global, .library = library },
         .batches = batches,
-    }) catch |err| return if (err == error.BackendInputFailure) context.failure.? else err;
+    }) catch |err| return if (err == error.ObservationFailure) context.failure.? else err;
 
     var binary: ?[]const u8 = null;
     var assembly: ?[]const u8 = null;
@@ -135,6 +136,7 @@ pub fn publish(self: *const Self, io: std.Io, allocator: std.mem.Allocator, inpu
 
     defer verification.deinit();
 
+    const observation = &verification;
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();
@@ -154,7 +156,8 @@ pub fn publish(self: *const Self, io: std.Io, allocator: std.mem.Allocator, inpu
         .binary_target = options.output.?,
         .assembly_source = self.assembly,
         .assembly_target = options.assembly,
-        .verification = @ptrCast(&verification),
+        .verification = @ptrCast(&observation),
+        .versioned = inputs.retain_versions,
         .succeeded = self.response.succeeded,
         .complete = self.response.inputs_complete,
         .new_inputs = self.new_inputs,

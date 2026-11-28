@@ -1,4 +1,4 @@
-import type { LoadedReceipt, Receipt } from "package_receipt_host"
+import type { LoadedReceipt, Receipt, TreeEntry } from "package_receipt_host"
 
 export enum Status {
     Valid,
@@ -32,6 +32,7 @@ export type LookupInput = {
 
 export type FileInput = {
     receipt: Receipt,
+    path: string,
     remaining: u64,
     expected: string,
     executable: bool
@@ -44,10 +45,20 @@ export type ScanInput = {
     executables: bool[]
 }
 
-export type Entries = {
+export type Walk = ScanInput & {
     files: u64,
     bytes: u64,
     visited: u64,
     more: bool,
     status: Status
+}
+
+export type Admission = {
+    status: Status,
+    row?: u64,
+    remaining: u64
+}
+
+export type Candidate = Walk.Pick("paths", "visited", "bytes") & {
+    entry: TreeEntry
 }

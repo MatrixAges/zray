@@ -4,22 +4,7 @@
 
     <Args in={Extraction.Input} out={Extraction.Result} />
 
-    <Call module="../planning/prepare" in={$in.preparation} />
-
-    <If on={$ctx.prepare.prepared != null}>
-        <Call
-            fn="index.bindArtifactMaterialization"
-            in={[
-                $in.frame,
-                $ctx.prepare.prepared.body.function_id,
-                $ctx.prepare.prepared.body.use_entry,
-                $ctx.prepare.prepared.body.copy_entry_stores,
-                $ctx.prepare.prepared.plan.state.mapping,
-                $ctx.prepare.prepared.plan.functions.mapping,
-                $ctx.prepare.prepared.plan.natives.mapping
-            ]}
-        />
-
+    <If on={$in.materialization != null && $in.prepared != null}>
         <Call
             module="../materializing/materialize"
             in={{
@@ -27,7 +12,7 @@
                 table: $in.preparation.source.table,
                 origins: $in.preparation.origins,
                 modules: $in.preparation.source.modules,
-                plan: $ctx.prepare.prepared.plan
+                plan: $in.prepared.plan
             }}
         />
 
@@ -48,10 +33,12 @@
         />
     </If>
 
+    <Call module="../planning/prepare" in={$in.preparation} />
+
     <Return
         value={{
             status: $ctx.prepare.status,
-            artifact: null
+            prepared: $ctx.prepare.prepared
         }}
     />
 </Module>

@@ -1,0 +1,45 @@
+import host from "lowering_host"
+import { StoredType } from "lowering_host"
+
+import plan from "../../signature/mode"
+import { Representation } from "../../signature/mode"
+
+import type { Input as Function } from "./model"
+
+export type Input = Function.Pick(
+    "frame",
+    "input_id",
+    "output_id",
+    "value",
+    "public_value"
+)
+
+export type Output = {
+    input_type: u32,
+    output_type: u32
+}
+
+export default function (in: Input): Output {
+    const mode = plan({
+        value: in.value,
+        public_value: in.public_value
+    })
+
+    const input_type = match mode.input {
+        Representation.View =>
+            host.materializeType(in.frame, in.input_id, StoredType.ViewType),
+        _ => host.lowerType(in.frame, in.input_id, false)
+    }
+
+    const output_type = match mode.output {
+        Representation.View =>
+            host.materializeType(in.frame, in.output_id, StoredType.ViewType),
+        Representation.Layout => host.lowerLayout(in.frame, in.output_id),
+        _ => host.lowerType(in.frame, in.output_id, false)
+    }
+
+    return {
+        input_type,
+        output_type
+    }
+}

@@ -1,15 +1,12 @@
 const std = @import("std");
 const bundle = @import("bundle");
-const toolchain = @import("../../toolchain.zig");
+const constants = @import("../../toolchain.zig").constants;
 const extract = @import("../extract.zig");
-const constants = toolchain.constants;
 const Error = error{ToolchainHostFailure};
 
 pub const State = struct {
     io: std.Io,
     allocator: std.mem.Allocator,
-    environment: *const std.process.Environ.Map,
-    root: []const u8 = undefined,
     staging: ?[]const u8 = null,
     lock: ?std.Io.File = null,
     directory: ?std.Io.Dir = null,
@@ -39,8 +36,10 @@ pub const State = struct {
         self.lock = null;
     }
 
-    fn get(handle: *anyopaque) *State {
-        return @ptrCast(@alignCast(handle));
+    fn get(handle: *const anyopaque) *State {
+        const reference: *const *State = @ptrCast(@alignCast(handle));
+
+        return reference.*;
     }
     fn fail(self: *State, err: anyerror) Error {
         self.failure = err;
@@ -49,30 +48,18 @@ pub const State = struct {
     }
 };
 
-pub fn resolveExecutable(handle: *anyopaque, path: []const u8) Error![]const u8 {
+pub fn resolveExecutable(handle: *const anyopaque, path: []const u8) Error![]const u8 {
     const self = State.get(handle);
 
     return std.Io.Dir.cwd().realPathFileAlloc(self.io, path, self.allocator) catch return self.fail(error.ZxcZigNotFound);
 }
 
-pub fn prepareCache(handle: *anyopaque, resources_only: bool) Error!void {
+pub fn lockCache(handle: *const anyopaque, parent: []const u8, path: []const u8) Error!void {
     const self = State.get(handle);
-    const allocator = self.allocator;
     const cwd: std.Io.Dir = .cwd();
-    const cache = toolchain.cache.root(allocator, self.environment) catch |err| return self.fail(err);
-    const parent = std.fs.path.join(allocator, &.{ cache, constants.toolchains }) catch |err| return self.fail(err);
-
-    const name = if (resources_only)
-        std.mem.concat(allocator, u8, &.{ constants.resources_prefix, bundle.resources_digest }) catch |err| return self.fail(err)
-
-    else
-        bundle.digest;
-
-    self.root = std.fs.path.join(allocator, &.{ parent, name }) catch |err| return self.fail(err);
 
     cwd.createDirPath(self.io, parent) catch |err| return self.fail(err);
 
-    const path = std.mem.concat(allocator, u8, &.{ self.root, constants.lock_suffix }) catch |err| return self.fail(err);
     const lock = cwd.createFile(self.io, path, .{ .truncate = false }) catch |err| return self.fail(err);
 
     self.lock = lock;
@@ -80,9 +67,8 @@ pub fn prepareCache(handle: *anyopaque, resources_only: bool) Error!void {
     lock.lock(self.io, .exclusive) catch |err| return self.fail(err);
 }
 
-pub fn openCache(handle: *anyopaque, staged: bool) Error!bool {
+pub fn openCache(handle: *const anyopaque, path: []const u8) Error!bool {
     const self = State.get(handle);
-    const path = if (staged) self.staging.? else self.root;
 
     self.directory = std.Io.Dir.cwd().openDir(self.io, path, .{}) catch |err| switch (err) {
         error.FileNotFound => return false,
@@ -92,7 +78,7 @@ pub fn openCache(handle: *anyopaque, staged: bool) Error!bool {
     return true;
 }
 
-pub fn marker(handle: *anyopaque) Error![]const u8 {
+pub fn marker(handle: *const anyopaque) Error![]const u8 {
     const self = State.get(handle);
     const text = self.directory.?.readFile(self.io, constants.ready_file, &self.marker_buffer) catch return self.fail(error.IncompleteToolchainCache);
 
@@ -101,7 +87,7 @@ pub fn marker(handle: *anyopaque) Error![]const u8 {
     return text;
 }
 
-pub fn regularFile(handle: *anyopaque, path: []const u8) Error!bool {
+pub fn regularFile(handle: *const anyopaque, path: []const u8) Error!bool {
     const self = State.get(handle);
     const file = self.directory.?.openFile(self.io, path, .{}) catch return self.fail(error.IncompleteToolchainCache);
 
@@ -112,14 +98,13 @@ pub fn regularFile(handle: *anyopaque, path: []const u8) Error!bool {
     return info.kind == .file and info.size != 0;
 }
 
-pub fn closeDirectory(handle: *anyopaque) void {
+pub fn closeDirectory(handle: *const anyopaque) void {
     State.get(handle).close();
 }
 
-pub fn createStaging(handle: *anyopaque) Error!void {
+pub fn createStaging(handle: *const anyopaque, path: []const u8) Error!void {
     const self = State.get(handle);
     const cwd: std.Io.Dir = .cwd();
-    const path = std.mem.concat(self.allocator, u8, &.{ self.root, constants.staging_suffix }) catch |err| return self.fail(err);
 
     cwd.deleteTree(self.io, path) catch |err| return self.fail(err);
     cwd.createDirPath(self.io, path) catch |err| return self.fail(err);
@@ -128,7 +113,7 @@ pub fn createStaging(handle: *anyopaque) Error!void {
     self.directory = cwd.openDir(self.io, path, .{}) catch |err| return self.fail(err);
 }
 
-pub fn loadZig(handle: *anyopaque) Error![]const u8 {
+pub fn loadZig(handle: *const anyopaque) Error![]const u8 {
     const self = State.get(handle);
     const archive = extract.zigArchive(self.io, self.allocator) catch |err| return self.fail(err);
 
@@ -137,19 +122,19 @@ pub fn loadZig(handle: *anyopaque) Error![]const u8 {
     return archive;
 }
 
-pub fn extractZip(handle: *anyopaque) Error!void {
+pub fn extractZip(handle: *const anyopaque, archive: []const u8) Error!void {
     const self = State.get(handle);
 
-    extract.zip(self.io, self.directory.?, self.archive.?) catch |err| return self.fail(err);
+    extract.zip(self.io, self.directory.?, archive) catch |err| return self.fail(err);
 }
 
-pub fn extractTar(handle: *anyopaque) Error!void {
+pub fn extractTar(handle: *const anyopaque, archive: []const u8) Error!void {
     const self = State.get(handle);
 
-    extract.tar(self.io, self.allocator, self.directory.?, self.archive.?) catch |err| return self.fail(err);
+    extract.tar(self.io, self.allocator, self.directory.?, archive) catch |err| return self.fail(err);
 }
 
-pub fn renameZig(handle: *anyopaque) Error!void {
+pub fn renameZig(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
     const directory = self.directory.?;
 
@@ -160,33 +145,26 @@ pub fn renameZig(handle: *anyopaque) Error!void {
     self.archive = null;
 }
 
-pub fn extractStandard(handle: *anyopaque) Error!void {
+pub fn extractStandard(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
 
     extract.resources(self.io, self.allocator, self.directory.?) catch |err| return self.fail(err);
 }
 
-pub fn writeMarker(handle: *anyopaque, digest: []const u8) Error!void {
-    const self = State.get(handle);
-    const path = std.fs.path.join(self.allocator, &.{ self.staging.?, constants.ready_file }) catch |err| return self.fail(err);
-
-    @import("../../artifacts.zig").write(self.io, path, digest) catch |err| return self.fail(err);
-}
-
-pub fn publish(handle: *anyopaque) Error!void {
+pub fn publish(handle: *const anyopaque, path: []const u8) Error!void {
     const self = State.get(handle);
     const cwd: std.Io.Dir = .cwd();
 
-    cwd.rename(self.staging.?, cwd, self.root, self.io) catch |err| return self.fail(err);
+    cwd.rename(self.staging.?, cwd, path, self.io) catch |err| return self.fail(err);
 
     self.staging = null;
 }
 
-pub fn unlock(handle: *anyopaque) void {
+pub fn unlock(handle: *const anyopaque) void {
     State.get(handle).releaseLock();
 }
 
-pub fn probeLibrary(handle: *anyopaque, executable: []const u8, suffix: []const u8) Error!?[]const u8 {
+pub fn probeLibrary(handle: *const anyopaque, executable: []const u8, suffix: []const u8) Error!?[]const u8 {
     const self = State.get(handle);
     const parent = std.fs.path.dirname(executable) orelse return null;
     const candidate = std.fs.path.resolve(self.allocator, &.{ parent, suffix }) catch |err| return self.fail(err);

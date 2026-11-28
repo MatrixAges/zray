@@ -1,7 +1,6 @@
-import host from "hardware_graph_host"
-
 import check from "./check"
 import { Kind } from "./model"
+import readNode from "./read_node"
 
 import type { Scan as Input } from "./model"
 
@@ -21,7 +20,10 @@ export default function (in: Input): Output {
         while: state => state.count != null && state.index < state.graph.count,
         next: state => {
             const { graph, nodes, index } = state
-            const node = host.readHardwareGraphNode(nodes, index)
+            const node = readNode({
+                nodes,
+                index
+            })
 
             const valid = check({
                 graph,

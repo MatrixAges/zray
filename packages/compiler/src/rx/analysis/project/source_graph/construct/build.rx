@@ -3,14 +3,61 @@
 
     <Args in={Graph.Input} out={Graph.Output} />
 
+    <If on={$in.setup != null}>
+        <Call
+            module="../scan/visit"
+            in={{
+                ...$in.ranges,
+                target: $in.visit,
+                roots: $in.setup.roots
+            }}
+        />
+
+        <Call
+            module="../schedule"
+            in={{
+                offsets: $ctx.visit.starts,
+                ends: $ctx.visit.ends,
+                targets: $ctx.visit.targets,
+                roots: $in.setup.roots
+            }}
+        />
+
+        <If on={$ctx.schedule.cycle != null}>
+            <Return
+                value={{
+                    cycle: {
+                        owner: $ctx.schedule.cycle.owner,
+                        edge: $ctx.schedule.cycle.edge -
+                            $ctx.visit.starts[$ctx.schedule.cycle.owner]
+                    }
+                }}
+            />
+        </If>
+
+        <Return
+            value={{
+                graph: {
+                    entry: $in.setup.roots[0],
+                    roots: $in.setup.roots,
+                    additional: $in.setup.additional,
+                    order: $ctx.schedule.order,
+                    count: $ctx.schedule.count,
+                    batch_ends: $ctx.schedule.batch_ends,
+                    retain_parses: $in.retain_parses,
+                    dependencies: $in.retain_dependencies ? $ctx.visit : null
+                }
+            }}
+        />
+    </If>
+
     <Call
         fn="register"
         in={$in.pick([
             "ranges",
             "root",
             "capacity",
-            "paths",
-            "path_allocator"
+            "paths"
         ])}
     />
 
@@ -31,7 +78,6 @@
                 "explicit",
                 "explicit_count",
                 "entry",
-                "temporary",
                 "include_rx"
             ]),
             index: $ctx.register.pick([
@@ -49,74 +95,13 @@
         />
     </If>
 
-    <Call
-        fn="host.openSourceGraphScanner"
-        in={[
-            $in.visit,
-            $ctx.register.keys,
-            $ctx.register.buckets
-        ]}
-    />
-
-    <Call
-        module="../scan/visit"
-        in={{
-            ...$in.ranges,
-            target: $in.visit,
-            roots: $ctx.roots.roots
-        }}
-    />
-
-    <Call
-        fn="host.finishSourceGraphScan"
-        in={[
-            $in.visit,
-            $in.retain_parses
-        ]}
-    />
-
-    <Call
-        fn="adjacency"
-        in={{
-            starts: $ctx.visit.starts,
-            ends: $ctx.visit.ends,
-            targets: $ctx.finishSourceGraphScan
-        }}
-    />
-
-    <Call
-        module="../schedule"
-        in={{
-            offsets: $ctx.adjacency.starts,
-            ends: $ctx.adjacency.ends,
-            targets: $ctx.adjacency.targets,
-            roots: $ctx.roots.roots
-        }}
-    />
-
-    <If on={$ctx.schedule.cycle != null}>
-        <Return
-            value={{
-                cycle: {
-                    owner: $ctx.schedule.cycle.owner,
-                    edge: $ctx.schedule.cycle.edge -
-                        $ctx.adjacency.starts[$ctx.schedule.cycle.owner]
-                }
-            }}
-        />
-    </If>
-
     <Return
         value={{
-            graph: {
-                entry: $ctx.roots.roots[0],
+            setup: {
+                keys: $ctx.register.keys,
+                buckets: $ctx.register.buckets,
                 roots: $ctx.roots.roots,
-                additional: $ctx.roots.additional,
-                order: $ctx.schedule.order,
-                count: $ctx.schedule.count,
-                batch_ends: $ctx.schedule.batch_ends,
-                retain_parses: $in.retain_parses,
-                dependencies: $in.retain_dependencies ? $ctx.adjacency : null
+                additional: $ctx.roots.additional
             }
         }}
     />

@@ -9,6 +9,7 @@
         fn="../index.resolveReference"
         in={[
             $in.collection,
+            $in.root,
             $in.current_path,
             $in.ref_paths[$in.index]
         ]}

@@ -1,42 +1,65 @@
 <Module>
     <Type from="model" as="Manifest" />
 
-    <Args in={Manifest.Input} out={Manifest.Values} />
+    <Args in={Manifest.Input} out={Manifest.Result} />
 
     <Call fn="mapping" in={$in} />
+
+    <If on={$ctx.mapping.problem != null}>
+        <Return
+            value={{
+                diagnostic: $ctx.mapping.problem
+            }}
+        />
+    </If>
 
     <Call
         fn="fields"
         in={{
             document: $in.document,
-            pairs: $ctx.mapping
+            pairs: $ctx.mapping.pairs
         }}
     />
+
+    <If on={$ctx.fields.problem != null}>
+        <Return
+            value={{
+                diagnostic: $ctx.fields.problem
+            }}
+        />
+    </If>
 
     <Call
         module="../schema/root/check"
         in={{
-            entry: $ctx.fields.entry != null,
-            library: $ctx.fields.library != null,
-            exports: $ctx.fields.exports.length,
-            compiled_exports: $ctx.fields.compiled_exports,
-            name: $ctx.fields.name != "",
-            version: $ctx.fields.version != ""
+            entry: $ctx.fields.values.entry != null,
+            library: $ctx.fields.values.library != null,
+            exports: $ctx.fields.values.exports.length,
+            compiled_exports: $ctx.fields.values.compiled_exports,
+            name: $ctx.fields.values.name != "",
+            version: $ctx.fields.values.version != ""
         }}
     />
 
     <If on={$ctx.check != null}>
         <Call
-            fn="index.reject"
+            fn="issue"
             in={[
-                $in.document.parser,
                 $in.node,
                 $ctx.check
             ]}
         />
 
-        <Return value={$ctx.fields} />
+        <Return
+            value={{
+                diagnostic: $ctx.issue
+            }}
+        />
     </If>
 
-    <Return value={$ctx.fields} />
+    <Return
+        value={{
+            data: $ctx.fields.values
+        }}
+    />
 </Module>

@@ -9,6 +9,7 @@
         fn="../index.relativePath"
         in={[
             $in.collection,
+            $in.root,
             $in.path
         ]}
     />
@@ -38,6 +39,7 @@
         fn="../index.checkPending"
         in={[
             $in.collection,
+            $in.canonical_root,
             $in.path
         ]}
     />
@@ -125,6 +127,7 @@
                 module="enqueue_refs"
                 in={{
                     collection: $in.collection,
+                    root: $in.root,
                     current_path: $in.path,
                     relative: $ctx.relativePath,
                     ref_paths: $ctx.read.paths,

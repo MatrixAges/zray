@@ -1,5 +1,6 @@
 <Module>
     <Type from="model" as="Backend" />
+    <Type from="../observation/model" as="Snapshot" />
 
     <Args in={Backend.RowWalk} out={Backend.RowWalk} />
 
@@ -14,18 +15,20 @@
     />
 
     <Call
-        fn="index.registerPath"
-        in={[
-            $in.dependencies,
-            $ctx.rows.path
-        ]}
+        module="../observation/add"
+        in={{
+            registration: $in.registration,
+            path: $ctx.rows.path,
+            directory_entries: false,
+            backend_input: true
+        }}
     />
 
     <Return
         value={{
             ...$in,
             row: $in.row + 1,
-            new_inputs: $in.new_inputs || $ctx.registerPath,
+            new_inputs: $in.new_inputs || $ctx.add == Snapshot.Admission.New,
             paths: $ctx.rows.paths
         }}
     />

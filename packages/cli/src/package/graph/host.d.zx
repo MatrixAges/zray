@@ -1,4 +1,12 @@
-export type Host = mutable_opaque
+export type GraphIO = opaque
+export type LockFile = opaque
+export type PackageManifest = opaque
+export type WorkspaceGraph = opaque
+
+export type LoadedLock = {
+    lock: LockFile,
+    matches: bool
+}
 
 export enum WorkspaceStatus {
     Valid,
@@ -24,38 +32,36 @@ export type Mapping = {
 }
 
 export type AssemblyOutcome = {
+    workspace: WorkspaceGraph,
     status: WorkspaceStatus,
-    failed_owner: u64
+    failed_owner: u64,
+    owner_path: string,
+    owner_name: string,
+    edge_name: string
 }
 
-export declare function openLock(host: Host): bool? throws { PackageGraphHostFailure }
-export declare function openMapping(host: Host): Mapping? throws { PackageGraphHostFailure }
+export declare function openLock(allocator, graph: GraphIO, root: string): LoadedLock?
+    throws { PackageGraphHostFailure }
 
-export declare function prepareInstalled(host: Host): void throws { PackageGraphHostFailure }
-export declare function canonical(host: Host, path: string): string throws { PackageGraphHostFailure }
-export declare function verifyReceipt(host: Host, directory: string, digest: string): void throws {
-    PackageGraphHostFailure
-}
-export declare function readInstalledArchive(
-    host: Host,
-    row: u64,
-    path: string
-): bool throws { PackageGraphHostFailure }
-export declare function recordInstalledArchive(host: Host, row: u64, path: string): void
+export declare function openMapping(allocator, graph: GraphIO, root: string, lock: LockFile): Mapping?
+    throws { PackageGraphHostFailure }
 
-export declare function recordMember(host: Host, row: u64, ordinal: u64, path: string): bool
+export declare function canonical(allocator, graph: GraphIO, path: string): string
+    throws { PackageGraphHostFailure }
 
-export declare function reportMissing(host: Host, message: string): void throws {
-    PackageGraphHostFailure
-}
-export declare function prepareWorkspace(host: Host): u64[] throws { PackageGraphHostFailure }
-export declare function seedLocal(host: Host, row: u64, first: u64, length: u64): void throws {
-    PackageGraphHostFailure
-}
-export declare function assembleWorkspace(host: Host): AssemblyOutcome throws {
-    PackageGraphHostFailure
-}
-export declare function discardEdges(host: Host, row: u64): void
-export declare function reportWorkspace(host: Host, message: string, use_package_name: bool): void throws {
-    PackageGraphHostFailure
-}
+export declare function verifyReceipt(allocator, graph: GraphIO, directory: string, digest: string): void
+    throws { PackageGraphHostFailure }
+
+export declare function readInstalledArchive(allocator, graph: GraphIO, lock: LockFile, row: u64, path: string): PackageManifest?
+    throws { PackageGraphHostFailure }
+
+export declare function borrowMember(graph: GraphIO, ordinal: u64, relative: string): PackageManifest?
+
+export declare function assembleWorkspace(
+    allocator,
+    graph: GraphIO,
+    root: string,
+    counts: u64[],
+    firsts: u64[],
+    total: u64
+): AssemblyOutcome throws { PackageGraphHostFailure }

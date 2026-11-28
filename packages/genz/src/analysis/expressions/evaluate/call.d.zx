@@ -1,18 +1,9 @@
-export declare function lowerCallBorrow(call: CallFrame): u32 throws { OutOfMemory }
-
-export declare function adaptCallArgument(call: CallFrame, value: u32): u32
-    throws { OutOfMemory }
-
-export declare function clipCallArgument(call: CallFrame, value: u32): u32
-    throws { OutOfMemory }
-
-export declare function lowerCallStore(call: CallFrame): u32 throws { OutOfMemory }
-
-export declare function emitLoweredCall(call: CallFrame, value: u32, store: u32?): u32
-    throws { OutOfMemory }
-
-export declare function convertCallResult(call: CallFrame, value: u32): u32
-    throws { OutOfMemory }
+export declare function lowerCallStore(
+    frame: Lowering,
+    function_id: u32,
+    operand: u32,
+    mapping: u32[]
+): u32 throws { OutOfMemory }
 
 export declare function openIterationCall(
     context: IterationResourceFrame,

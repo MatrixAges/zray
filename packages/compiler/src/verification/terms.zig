@@ -4,7 +4,15 @@ const ir = zx.ir;
 
 pub const Value = struct {
     scalar: ?[]const u8 = null,
-    fields: []Value = &.{},
+    fields: []const Value = &.{},
+    pub fn borrow(scalar: ?[]const u8, fields: []const u8) Value {
+        if (fields.len == 0) return .{ .scalar = scalar };
+
+        const bytes: []align(@alignOf(Value)) const u8 = @alignCast(fields);
+
+        return .{ .scalar = scalar, .fields = std.mem.bytesAsSlice(Value, bytes) };
+    }
+
     pub fn layout(comptime Layout: type) Layout {
         return .{
             .width = @sizeOf(Value),

@@ -8,6 +8,29 @@ const Statements = if (generated) @import("../../node/blocks.zig").Sequence else
 
 pub const Mode = enum { value, value_layout, row_value, pointer, layout, row_layout, borrow, view_value, view_layout };
 
+pub fn convertStateValue(frame: *anyopaque, body: *anyopaque, type_id: u32, value_id: u32, mode: @import("execution_abi").layouts.@"zig:ast_rows".StateValueMode, bind: bool) Lower.Error!u32 {
+    const self = @import("../expressions/evaluate.zig").borrow(frame);
+    const sequence: *Statements = @ptrCast(@alignCast(body));
+    const expression: node.ExpressionId = @fromBackingInt(value_id);
+    const target: ir.TypeId = @fromBackingInt(type_id);
+
+    if (mode == .Construct) return @backingInt(try self.construct(target, expression));
+
+    const source = if (bind) try aggregate.bind(self, sequence, expression) else expression;
+
+    const conversion_mode: Mode = switch (mode) {
+        .Borrow => .borrow,
+        .Value => .value,
+        .ValueLayout => .value_layout,
+        .Layout => .layout,
+        .Pointer => .pointer,
+        .Construct => unreachable,
+        .ViewLayout => .view_layout,
+    };
+
+    return @backingInt(try convert(self, sequence, target, source, conversion_mode));
+}
+
 pub fn convert(self: *Lower, body: anytype, id: ir.TypeId, value: node.ExpressionId, mode: Mode) Lower.Error!node.ExpressionId {
     if (!generated) return @import("conversion_seed.zig").convert(self, body, id, value, mode);
     if (!self.state_plan.represented(self.program, id)) return value;

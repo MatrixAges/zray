@@ -3,7 +3,7 @@
 
     <Args in={Linking.Request} out={Linking.Output} />
 
-    <If on={$in.first != null}>
+    <If on={$in.first != null && $in.payload != null && $in.operands != null}>
         <Call
             module="payload/step"
             in={{
@@ -20,35 +20,41 @@
         />
     </If>
 
-    <Call module="plan" in={$in.plan} />
+    <If on={$in.plan != null}>
+        <Call module="plan" in={$in.plan} />
 
-    <Call
-        fn="host.reserveExpressionLink"
-        in={[
-            $in.frame,
-            $ctx.plan.returned,
-            $ctx.plan.rows,
-            $ctx.plan.bindings,
-            $ctx.plan.count
-        ]}
-    />
+        <If on={$ctx.plan.returned != null}>
+            <Call fn="headers" in={$ctx.plan.rows} />
 
-    <Call fn="host.prepareLinkSymbols" in={$in.frame} />
-    <Call fn="host.prepareLinkLiterals" in={$in.frame} />
-    <Call fn="headers" in={$ctx.plan.rows} />
+            <Return
+                value={{
+                    initial: {
+                        returned: $ctx.plan.returned,
+                        first: $ctx.plan.rows.length > 0 ? 0 : null,
+                        ranges: $ctx.headers,
+                        count: $ctx.plan.count,
+                        rows: $ctx.plan.rows,
+                        bindings: $ctx.plan.bindings
+                    }
+                }}
+            />
+        </If>
 
-    <If on={$ctx.prepareLinkSymbols}>
+        <Return
+            value={{
+                initial: null
+            }}
+        />
+    </If>
+
+    <If on={$in.symbols != null}>
         <Call module="symbols/publish" in={$in.symbols} />
 
         <Return
             value={{
-                initial: {
-                    returned: $ctx.reserveExpressionLink,
-                    first: $ctx.plan.rows.length > 0 ? 0 : null,
-                    ranges: $ctx.headers,
-                    count: $ctx.plan.count,
+                publication: {
                     symbols: $ctx.publish,
-                    literals: $ctx.prepareLinkLiterals ? $in.literals : null
+                    literals: $in.literals
                 }
             }}
         />
@@ -56,12 +62,8 @@
 
     <Return
         value={{
-            initial: {
-                returned: $ctx.reserveExpressionLink,
-                first: $ctx.plan.rows.length > 0 ? 0 : null,
-                ranges: $ctx.headers,
-                count: $ctx.plan.count,
-                literals: $ctx.prepareLinkLiterals ? $in.literals : null
+            publication: {
+                literals: $in.literals
             }
         }}
     />

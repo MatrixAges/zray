@@ -52,22 +52,6 @@ pub fn record(self: *Self, io: std.Io, path: []const u8, source: []const u8) !vo
 
 pub const observed = @import("observation/capture.zig").capture;
 
-pub fn verify(self: *const Self, io: std.Io, allocator: std.mem.Allocator, snapshot: Snapshot) !bool {
-    if (!self.retain_versions) return snapshot.unchanged(io, allocator);
-
-    return snapshot.verifyVersions(io, allocator);
-}
-
-pub fn retainPublished(self: *Self, snapshot: Snapshot) bool {
-    if (!self.retain_versions) return false;
-
-    std.debug.assert(self.published == null);
-
-    self.published = snapshot;
-
-    return true;
-}
-
 pub fn takePublished(self: *Self) ?Snapshot {
     defer self.published = null;
 

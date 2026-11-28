@@ -4,12 +4,29 @@
     <Args in={Project.Input} out={Project.Result} />
 
     <If on={$in.external}>
-        <Call module="installed/read" in={$in.host} />
+        <Call
+            module="installed/read"
+            in={$in.pick([
+                "graph",
+                "root"
+            ])}
+        />
 
-        <If on={$ctx.read == Project.Status.PackagesNotInstalled}>
-            <Call fn="missing" in={$in.host} />
+        <If on={$ctx.read.status == Project.Status.PackagesNotInstalled}>
+            <Call
+                fn="missing"
+                in={$in.pick([
+                    "missing_path",
+                    "missing_name"
+                ])}
+            />
 
-            <Call fn="effects.reportMissing" />
+            <Return
+                value={{
+                    status: $ctx.read.status,
+                    diagnostic: $ctx.missing
+                }}
+            />
         </If>
 
         <Return value={$ctx.read} />
@@ -18,8 +35,9 @@
             <Call
                 module="workspace/read"
                 in={$in.pick([
-                    "host",
-                    "count"
+                    "graph",
+                    "root",
+                    "counts"
                 ])}
             />
 

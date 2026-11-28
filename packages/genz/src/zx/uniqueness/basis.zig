@@ -1,11 +1,14 @@
 const std = @import("std");
-const ir = @import("zx").ir;
+const zx = @import("zx");
+const ir = zx.ir;
 const Flow = @import("flow.zig");
 const Memo = @import("memo.zig");
 const Slots = @import("slots.zig");
 const Self = @This();
 const generated = @import("genz_options").generated_analysis;
 const analyzing_effects = if (generated) @import("generated_uniqueness_effects") else void;
+const publication = @import("../construction/publication.zig");
+const FlowRows = @import("../expressions/evaluate.zig").Api.BasisFlowRows;
 const identity = @import("identity.zig");
 const Error = std.mem.Allocator.Error;
 pub const Effects = if (generated) analyzing_effects.Output else void;
@@ -36,9 +39,18 @@ pub fn create(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progra
             .result = &result,
         };
 
-        const input: std.meta.Child(entry.Input) = .{ .work = @ptrCast(&frame), .persistent = kept != null };
+        const Input = std.meta.Child(entry.Input);
+        const Functions = std.meta.Child(@FieldType(Input, "functions"));
+        var functions: Functions = undefined;
 
-        try @import("../expressions/evaluate.zig").execute(entry, &input);
+        inline for (@typeInfo(Functions).@"struct".field_names) |name| {
+            @field(functions, name) = zx.columns.slice(@FieldType(Functions, name), @field(program.functions, name));
+        }
+
+        const input: Input = .{ .work = @ptrCast(&frame), .persistent = kept != null, .functions = &functions };
+        const effects = entry.executeIn(allocator, &input) catch |err| return publication.failure(err);
+        result.return_only = effects.return_only;
+        result.effects = zx.columns.view(Effects, effects);
 
         return result;
     }
@@ -64,6 +76,7 @@ const Frame = struct {
     memo: ?*Memo,
     result: *Self,
     texts: []const bool = undefined,
+    flow_rows: FlowRows = undefined,
     fn borrow(handle: *anyopaque) *Frame {
         return @ptrCast(@alignCast(handle));
     }
@@ -82,30 +95,17 @@ pub fn hashBasis(handle: *anyopaque) Error!void {
     frame.result.types = identity.types(frame.program.types);
 }
 
-pub fn buildBasisFlow(handle: *anyopaque) Error!void {
+pub fn buildBasisFlow(handle: *anyopaque) Error!*const FlowRows {
     const frame = Frame.borrow(handle);
     const result = frame.result;
-
     result.flow = try Flow.create(frame.allocator, frame.workspace, frame.program.*, result.slots, frame.texts, result.contents, result.types, frame.memo);
-}
 
-pub fn buildBasisReturns(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-    frame.result.return_only = try @import("return_only.zig").create(frame.allocator, frame.program.*);
-}
-
-pub fn buildBasisEffects(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-    const result = frame.result;
-
-    result.effects = analyzing_effects.executeIn(frame.allocator, &.{
+    frame.flow_rows = .{
         .held = result.flow.held,
         .written = result.flow.written,
-        .return_only = result.return_only,
-    }) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => unreachable,
     };
+
+    return &frame.flow_rows;
 }
 
 pub fn lists(allocator: std.mem.Allocator, slots: Slots, type_id: ir.TypeId) std.mem.Allocator.Error![]const ir.TypeId {

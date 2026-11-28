@@ -1,13 +1,8 @@
 const std = @import("std");
 const c = @import("yaml");
-const Map = @import("compiler").project.source_index.Map;
 const Self = @This();
-pub const Diagnostic = struct { line: usize, column: usize, message: []const u8 };
 
 yaml: *c.yaml_document_t,
-diagnostic: ?Diagnostic = null,
-scratch: std.heap.ArenaAllocator = .init(std.heap.smp_allocator),
-keys: Map = .empty,
 pub fn borrowNodes(self: *const Self, allocator: std.mem.Allocator, comptime Node: type) std.mem.Allocator.Error![]const *const Node {
     const nodes = self.yaml.nodes;
     const count = (@intFromPtr(nodes.top) - @intFromPtr(nodes.start)) / @sizeOf(c.yaml_node_t);
@@ -60,23 +55,6 @@ fn items(input: *const c.yaml_node_t) ?[]const u32 {
     return if (length == 0) &.{} else @as([*]const u32, @ptrCast(range.start))[0..length];
 }
 
-pub fn prepareKeys(document: *anyopaque, count: u64) std.mem.Allocator.Error!void {
-    const self = get(document);
-
-    _ = self.scratch.reset(.retain_capacity);
-    self.keys = try Map.init(self.scratch.allocator(), @intCast(count));
-}
-
-pub fn claimKey(document: *anyopaque, row: u64, key: []const u8) bool {
-    return get(document).keys.claim(@intCast(row), key);
-}
-
-pub fn reject(document: *anyopaque, value: anytype, message: []const u8) error{InvalidManifest}!void {
-    get(document).diagnostic = .{ .line = @intCast(value.line), .column = @intCast(value.column), .message = message };
-
-    return error.InvalidManifest;
-}
-
 pub fn packageName(value: []const u8) bool {
     return @import("pkgs").validName(value);
 }
@@ -85,8 +63,4 @@ pub fn semanticVersion(value: []const u8) bool {
     _ = std.SemanticVersion.parse(value) catch return false;
 
     return true;
-}
-
-fn get(document: *anyopaque) *Self {
-    return @ptrCast(@alignCast(document));
 }
