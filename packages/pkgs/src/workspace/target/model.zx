@@ -3,7 +3,8 @@ import type { TextColumn } from "memory"
 export enum Key {
     Name,
     RelativePath,
-    HostPath
+    HostPath,
+    CheckedRelativePath
 }
 
 export enum Status {
@@ -12,7 +13,8 @@ export enum Status {
     LockVersionMismatch,
     InvalidVersion,
     InvalidRange,
-    Overflow
+    Overflow,
+    InvalidLockWorkspacePath
 }
 
 export type Query = {

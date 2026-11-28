@@ -1,10 +1,12 @@
+export { StoredType } from "lowering_host"
+
 import type { AstSequence, AstWriter } from "ast_rows"
 import type {
-    IterationResourceFrame,
     LoopConsumer,
-    LoopFrame,
+    LoopProjection,
     Lowering
 } from "lowering_host"
+import type { Facts as OwnershipFacts } from "../../../state/ownership/model"
 import type { Facts as AssignmentFacts } from "../../assignment/model"
 import type { Source as RenewalSource } from "../../deferred/model"
 import type { Output as InitialPlan } from "../../initial/model"
@@ -28,6 +30,12 @@ export type GuardInfo = {
     fallback: u32
 }
 
+export type GrowthFacts = {
+    shared: bool,
+    may_grow: bool,
+    inline_lists: bool
+}
+
 export type Input = {
     admission: Admission,
     frame: Lowering,
@@ -38,12 +46,10 @@ export type Input = {
     skipped_seq: AstSequence,
     wrap_seq: AstSequence,
     consumer?: LoopConsumer,
-    loop_frame: LoopFrame,
-    context: IterationResourceFrame,
     assignment_facts: AssignmentFacts,
+    ownership_facts: OwnershipFacts,
     state_active: bool,
     loop_state: LoopState,
-    guard_info: GuardInfo,
     id: u32,
     type_id: u32,
     initial: u32,
@@ -53,19 +59,20 @@ export type Input = {
     body: u32,
     postcondition: bool,
     discard: bool,
-    renewal_source?: RenewalSource
+    renewal_source?: RenewalSource,
+    growth_facts: GrowthFacts
 }
 
 export type InitialValue = {
     name: u8[],
-    value: u32
+    value: u32,
+    guard_info?: GuardInfo
 }
 
 export type Parameters =
     Input.Pick(
         "frame",
         "writer",
-        "loop_frame",
         "parameters",
         "initial_plan"
     ) & {
@@ -75,7 +82,7 @@ export type Parameters =
 
 export type ParametersOutcome = {
     seed_name: u8[],
-    projected: bool
+    fields?: LoopProjection
 }
 
 export type Output = {

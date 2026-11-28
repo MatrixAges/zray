@@ -11,6 +11,21 @@ pub const Statements = if (generated)
 
 else
     std.ArrayList(node.Statement);
+
+pub const Resources = struct {
+    context: *Self,
+    previous: ?*const Resources,
+    pub fn push(entry: *Resources, context: *Self) void {
+        const lower = context.lowering;
+
+        entry.* = .{ .context = context, .previous = lower.iteration_resources };
+        lower.iteration_resources = entry;
+    }
+    pub fn pop(entry: *const Resources) void {
+        entry.context.lowering.iteration_resources = entry.previous;
+    }
+};
+
 lowering: *Lower,
 declarations: *Statements,
 

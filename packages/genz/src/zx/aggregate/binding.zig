@@ -53,5 +53,5 @@ fn execute(self: *Lower, comptime entry: type, input: entry.Input) Lower.Error!n
 
     const result = entry.executeIn(buffered.allocator(), input) catch |err| return failure(err);
 
-    return @fromBackingInt(result);
+    return @fromBackingInt(if (entry.Output == u32) result else result.root);
 }

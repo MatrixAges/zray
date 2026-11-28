@@ -1,0 +1,60 @@
+import observe from "./interface_fact"
+
+import type { GenerationInterface } from "generation_host"
+import type { Observation } from "../../snapshot/records/model"
+
+export type Input = {
+    declarations: GenerationInterface[],
+    source: Observation[]
+}
+
+export type Output = Observation[]?
+
+export default function (in: Input): Output {
+    const { declarations, source } = in
+
+    const missing: Observation? = null
+
+    const found = loop({
+        row: 0,
+        valid: true,
+        facts: source
+    }, {
+        while: state => state.valid && state.row < declarations.length,
+        next: state => {
+            const name = declarations[state.row].path
+            const match_source = loop({
+                row: 0,
+                fact: missing
+            }, {
+                while: search => search.fact == null && search.row < source.length,
+                next: search => {
+                    const fact = source[search.row]
+
+                    if (fact.key == name) {
+                        search.fact = fact
+                    }
+
+                    search.row += 1
+                },
+                return: search => search.fact
+            })
+
+            const fact: Observation? = match {
+                match_source != null => match_source,
+                _ => observe(name)
+            }
+
+            if (fact == null) {
+                state.valid = false
+            } else {
+                state.facts = state.facts.push(fact)[0]
+            }
+
+            state.row += 1
+        },
+        return: state => state
+    })
+
+    return found.valid ? found.facts : null
+}

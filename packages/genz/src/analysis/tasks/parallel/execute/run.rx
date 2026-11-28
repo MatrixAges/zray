@@ -87,7 +87,8 @@
     <Call
         fn="result"
         in={{
-            frame: $in.frame,
+            writer: $in.writer,
+            body: $in.body,
             type_id: $in.type_id,
             value: $ctx.build.root,
             construct: $ctx.build.construct

@@ -6,37 +6,40 @@ export type Input = Collected
 export type Output = GenerationPath[]
 
 export default function (in: Input): Output {
+    const { levels } = in
+
+    if (levels.length == 1 && levels[0].length == 1) {
+        return levels[0][0]
+    }
+
     const paths: GenerationPath[] = []
 
-    return loop({
+    const found = loop({
+        level: 0,
         batch: 0,
+        row: 0,
         paths
     }, {
-        while: state => state.batch < in.batches.length,
+        while: state => state.level < levels.length,
         next: state => {
-            const batch = in.batches[state.batch]
+            const level = levels[state.level]
+            const batch = level[state.batch]
 
-            state.paths = loop({
-                row: 0,
-                paths: state.paths
-            }, {
-                while: cursor => cursor.row < batch.length,
-                next: cursor => {
-                    const { path, relative, retain, stat } = batch[cursor.row]
+            state.paths = state.paths.push(batch[state.row])[0]
+            state.row += 1
 
-                    cursor.paths = cursor.paths.push({
-                        path,
-                        relative,
-                        retain,
-                        stat
-                    })[0]
-                    cursor.row += 1
-                },
-                return: cursor => cursor.paths
-            })
+            if (state.row == batch.length) {
+                state.row = 0
+                state.batch += 1
 
-            state.batch += 1
+                if (state.batch == level.length) {
+                    state.batch = 0
+                    state.level += 1
+                }
+            }
         },
         return: state => state.paths
     })
+
+    return found
 }

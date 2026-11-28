@@ -1,0 +1,35 @@
+import bytes from "std:bytes"
+import crypto from "std:crypto/blake3"
+import fs from "std:fs"
+
+import { snapshot_limit } from "../const"
+import split from "../envelope/split"
+
+export type Input = string
+
+export type Output = u8[]?
+
+export default function (in: Input): Output {
+    const [failure, recorded] = try fs.readFile({
+        path: in,
+        max_bytes: snapshot_limit
+    })
+
+    if (failure != null || recorded == null) {
+        return null
+    }
+
+    const frame = split(recorded)
+
+    if (!frame.valid) {
+        return null
+    }
+
+    const tag = crypto.blake3FinalHex(crypto.blake3Init(frame.payload))
+
+    if (!bytes.equals(frame.checksum, tag)) {
+        return null
+    }
+
+    return frame.payload
+}

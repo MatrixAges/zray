@@ -49,6 +49,8 @@
             module="loaded"
             in={{
                 host: $in.host,
+                document: $in.document,
+                maximum_lines: $in.maximum_lines,
                 manifest: $ctx.is_manifest,
                 project: $ctx.loadSemanticProject
             }}
@@ -56,7 +58,7 @@
 
         <Return
             value={{
-                outcome: $ctx.loaded,
+                ...$ctx.loaded,
                 configuration: $ctx.configuration
             }}
         />

@@ -1,5 +1,6 @@
 <Module>
     <Type from="model" as="Sort" />
+    <Type from="../rows" as="AST" />
 
     <Args in={Sort.Execute} out={Sort.Result} />
 
@@ -31,7 +32,13 @@
         ]}
     />
 
-    <Call fn="../rows.astIdentifierCount" in={$in.writer} />
+    <Call
+        fn="../rows.astColumnCount"
+        in={[
+            $in.writer,
+            AST.AstColumn.Identifiers
+        ]}
+    />
 
     <Call
         fn="../rows.appendExtendedExpressions"
@@ -47,7 +54,7 @@
         fn="../rows.replaceAstIdentifier"
         in={[
             $in.writer,
-            $ctx.astIdentifierCount + $ctx.build.name_slot,
+            $ctx.astColumnCount + $ctx.build.name_slot,
             $ctx.retainLoweringText
         ]}
     />

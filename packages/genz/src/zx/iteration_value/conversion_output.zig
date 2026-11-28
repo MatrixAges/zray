@@ -39,15 +39,22 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
     const prepare: Prepare = .{
         .source = &.{ .source = &request, .facts = &facts },
         .root = @backingInt(root_layout),
-        .frame = @ptrCast(context),
+        .frame = @ptrCast(self),
     };
 
     const serial = self.serial;
     const declarations = context.declarations.last;
     const storage = self.referenceBatches();
 
-    const prepared = (preparation.executeIn(temporary, &prepare) catch |err|
-        return @import("../construction/publication.zig").failure(err)) orelse return value;
+    const prepared = prepared: {
+        var resources: Context.Resources = undefined;
+
+        resources.push(context);
+        defer resources.pop();
+
+        break :prepared (preparation.executeIn(temporary, &prepare) catch |err|
+            return @import("../construction/publication.zig").failure(err)) orelse return value;
+    };
 
     const generated = @import("generated_conversion_output");
     const Call = std.meta.Child(generated.Input);

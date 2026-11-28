@@ -1,0 +1,43 @@
+<Module>
+    <Type from="model" as="Execution" />
+    <Type from="../model" as="Schedule" />
+
+    <Args in={Execution.Step} out={Execution.StepResult} />
+
+    <If on={$in.action == Schedule.Action.Open}>
+        <Call
+            module="open_scope"
+            in={$in.pick([
+                "context",
+                "first",
+                "count"
+            ])}
+        />
+
+        <Call
+            fn="save_scope"
+            in={{
+                ...$in.pick([
+                    "state",
+                    "scope",
+                    "first",
+                    "count",
+                    "child"
+                ]),
+                routes: $ctx.open_scope
+            }}
+        />
+
+        <Return value={$ctx.save_scope} />
+    </If>
+
+    <If on={$in.action == Schedule.Action.EndSelection}>
+        <Call module="selection_finish" in={$in} />
+
+        <Return value={$ctx.selection_finish} />
+    </If>
+
+    <Call fn="step" in={$in} />
+
+    <Return value={$ctx.step} />
+</Module>

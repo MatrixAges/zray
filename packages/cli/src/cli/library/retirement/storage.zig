@@ -1,13 +1,10 @@
 const std = @import("std");
 const Inputs = @import("watch_inputs").Inputs;
 const inventory = @import("../inventory.zig");
-const effects = @import("../../publication/effects.zig");
-const Verification = @import("../../publication/verification.zig");
 const output = @import("../../watch/output.zig");
 const rule = @import("cli_source").library_retirement_plan;
 const memory = @import("zx").memory;
 const history = .{ .paths = "path", .digests = "sha256" };
-const Error = effects.Error;
 const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
 
 const StoreHost = struct {
@@ -17,13 +14,7 @@ const StoreHost = struct {
     }
 };
 
-pub fn prepareRetirement(allocator: std.mem.Allocator, handle: *const anyopaque, destination: []const u8, managed: []const []const u8) Error![]const []const u8 {
-    const self = effects.state(Verification, handle);
-
-    return retired(self.io, allocator, self.allocator, destination, managed, self.inputs) catch |err| self.failure.save(err);
-}
-
-fn retired(io: std.Io, allocator: std.mem.Allocator, backing: std.mem.Allocator, directory: []const u8, current: []const []const u8, inputs: *Inputs) ![]const []const u8 {
+pub fn retired(io: std.Io, allocator: std.mem.Allocator, backing: std.mem.Allocator, directory: []const u8, current: []const []const u8, inputs: *Inputs) ![]const []const u8 {
     var previous = (try inventory.read(io, backing, directory)) orelse return &.{};
 
     defer previous.deinit();

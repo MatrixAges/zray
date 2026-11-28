@@ -1,6 +1,19 @@
-<Store name="statement_selection_binding" version={1}>
+<Store name="statement_traversal_state" version={1}>
     <Object name="binding">
         <Field name="subject" type={u32} value={0} />
         <Field name="reference" type={u32?} value={null} />
+    </Object>
+
+    <Object name="locals">
+        <Field name="open" type={bool} value={false} />
+        <Field name="first" type={u32} value={0} />
+        <Field name="count" type={u32} value={0} />
+        <Field name="keys" type={u32[]} value={[]} />
+        <Field name="buckets" type={u32[]} value={[]} />
+    </Object>
+
+    <Object name="effects">
+        <Field name="uses_context" type={bool} value={false} />
+        <Field name="uses_parallel" type={bool} value={false} />
     </Object>
 </Store>

@@ -3,7 +3,7 @@
     <Type from="../model" as="Preparation" />
     <Type from="../../collection/index" as="Collection" />
 
-    <Args in={Preparation.TypeReference} out={bool} />
+    <Args in={Preparation.TypeReference} out={Preparation.PassResult} />
 
     <Call
         fn="../index.resolvePreparationTarget"
@@ -15,7 +15,11 @@
     />
 
     <If on={$ctx.resolvePreparationTarget.target == IO.Target.Invalid}>
-        <Return value={false} />
+        <Return
+            value={{
+                valid: false
+            }}
+        />
     </If>
 
     <If on={$ctx.resolvePreparationTarget.target == IO.Target.Source}>
@@ -32,18 +36,21 @@
                 }}
             />
 
-            <Return value={$ctx.read} />
+            <Return
+                value={{
+                    valid: $ctx.read
+                }}
+            />
         </If>
     </If>
 
-    <Call
-        fn="../index.reportPreparationReference"
-        in={[
-            $in.references,
-            $in.reference,
-            $in.diagnostic
-        ]}
+    <Return
+        value={{
+            valid: false,
+            issue: {
+                reference: $in.reference,
+                message: $in.diagnostic
+            }
+        }}
     />
-
-    <Return value={false} />
 </Module>

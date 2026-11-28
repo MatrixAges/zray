@@ -20,6 +20,7 @@
 
     <Object name="initial_scope">
         <Field name="active" type={bool} value={false} />
+        <Field name="guard_name" type={u8[]?} value={null} />
     </Object>
 
     <Object name="representation">

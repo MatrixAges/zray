@@ -17,7 +17,16 @@ import type { Check as Input } from "./model"
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { fields, observed, index, now } = in
+    const { fields, observed, now } = in
+    const { inode: found_inode, size: found_size, mtime_ns, ctime_ns } = observed
+
+    if (found_inode == null || found_size == null) {
+        return false
+    }
+
+    if (mtime_ns == null || ctime_ns == null) {
+        return false
+    }
 
     const inode = memory.readU64Bytes(fields, inode_at, true)
     const size = memory.readU64Bytes(fields, size_at, true)
@@ -26,20 +35,12 @@ export default function (in: Input): Output {
     const modified_high = memory.readI32Bytes(fields, modified_high_at, true)
     const changed_high = memory.readI32Bytes(fields, changed_high_at, true)
 
-    const same_inode = inode == memory.readColumnU64(observed.inodes, index)
-    const same_size = size == memory.readColumnU64(observed.sizes, index)
-
-    const same_mtime_low =
-        modified_low == memory.readColumnU64(observed.mtime_low, index)
-
-    const same_ctime_low =
-        changed_low == memory.readColumnU64(observed.ctime_low, index)
-
-    const same_mtime_high =
-        modified_high == memory.readColumnI32(observed.mtime_high, index)
-
-    const same_ctime_high =
-        changed_high == memory.readColumnI32(observed.ctime_high, index)
+    const same_inode = inode == found_inode
+    const same_size = size == found_size
+    const same_mtime_low = modified_low == mtime_ns.low
+    const same_ctime_low = changed_low == ctime_ns.low
+    const same_mtime_high = modified_high == mtime_ns.high
+    const same_ctime_high = changed_high == ctime_ns.high
 
     const matches = (
         - same_inode

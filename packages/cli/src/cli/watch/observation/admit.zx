@@ -10,7 +10,7 @@ export default function (in: Input): Output {
     const [slot, directory_entries] = in
 
     return match {
-        !slot.existing => Admission.New,
+        slot.prior == null => Admission.New,
         directory_entries && !slot.directory_entries => Admission.Upgrade,
         _ => Admission.Unchanged
     }

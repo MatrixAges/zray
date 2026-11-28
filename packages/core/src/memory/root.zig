@@ -12,7 +12,6 @@ pub const bindColumnSet = column_set.bind;
 const column_length = @import("column_length.zig");
 pub const ColumnLengths = column_length.Lengths;
 pub const borrowColumnLengths = column_length.borrow;
-pub const lengthSlotCount = column_length.count;
 pub const readLengthSlot = column_length.read;
 pub const advanceLengthSlot = column_length.advance;
 pub const columnSetSlotCount = column_set.slotCount;
@@ -29,22 +28,10 @@ pub const functionBodyLayout = column_set.projectedLayout;
 pub const functionNativeLayout = column_set.projectedLayout;
 pub const writeColumnCell = column_set.writeCell;
 pub const column_transfer = @import("column_transfer.zig");
-pub const borrowTransferGroup = column_transfer.borrowGroup;
-pub const transferColumnCount = column_transfer.countColumns;
-pub const transferOwnsPayload = column_transfer.ownsPayload;
-pub const transferOwnsTextItems = column_transfer.ownsTextItems;
-pub const transferTextList = column_transfer.textList;
-pub const writeTransferTextList = column_transfer.writeTextList;
 pub const reserveTransferColumn = column_transfer.reserveOne;
-pub const transferLayout = column_transfer.layout;
-pub const transferColumn = column_transfer.borrowColumn;
-pub const transferColumnStride = column_transfer.columnStride;
-pub const transferColumnLength = column_transfer.columnLength;
 pub const copyTransferRange = column_transfer.copyRange;
-pub const copyTransferCell = column_transfer.copyCell;
 pub const retainTransferItem = column_transfer.retainItem;
 pub const releaseTransferItem = column_transfer.releaseItem;
-pub const publishTransferColumn = column_transfer.publishOne;
 pub const cloneTextList = column_transfer.cloneTextList;
 
 pub inline fn freeOwnedText(resource: *const anyopaque, text: []const u8) void {
@@ -218,17 +205,3 @@ pub const SourceSpan = struct {
     start: usize,
     end: usize,
 };
-
-pub inline fn readU64(target: *const anyopaque, index: u64) error{IndexOutOfBounds}!u64 {
-    return read(u64, target, index);
-}
-
-pub const readU64View = readU64;
-
-inline fn read(comptime T: type, target: *const anyopaque, index: u64) error{IndexOutOfBounds}!T {
-    const buffer: *const []T = @ptrCast(@alignCast(target));
-
-    if (index >= buffer.len) return error.IndexOutOfBounds;
-
-    return buffer.*[@intCast(index)];
-}

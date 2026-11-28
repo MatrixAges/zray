@@ -38,23 +38,6 @@ pub fn lowerType(frame: *anyopaque, id: u32, in_iteration: bool) Error!u32 {
         try self.typeExpr(@fromBackingInt(id)));
 }
 
-pub fn materializeType(frame: *anyopaque, id: u32, representation: evaluate.Api.StoredType) Error!u32 {
-    return @backingInt(try @import("../../types.zig").resource(borrow(frame), @fromBackingInt(id), representation));
-}
-
-pub fn constructValue(frame: *anyopaque, type_id: u32, value: u32, layout: ?u32) Error!u32 {
-    return @backingInt(try @import("../../construction/build.zig").lower(
-        borrow(frame),
-        @fromBackingInt(type_id),
-        @fromBackingInt(value),
-        if (layout) |target| @fromBackingInt(target) else null,
-    ));
-}
-
-pub fn lowerLayout(frame: *anyopaque, id: u32) Error!u32 {
-    return @backingInt(try borrow(frame).layoutExpr(@fromBackingInt(id)));
-}
-
 pub fn retainLoweringText(frame: *anyopaque, text: []const u8) Error![]const u8 {
     return borrow(frame).allocator.dupe(u8, text);
 }

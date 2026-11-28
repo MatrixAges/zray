@@ -3,8 +3,10 @@
 
     <Args in={Execution.Input} out={u64?} />
 
+    <Store from="selection" as="traversal" />
+
     <Call
-        fn="open_scope"
+        module="open_scope"
         in={$in.pick([
             "context",
             "first",
@@ -21,7 +23,7 @@
                 "count"
             ]),
             writes: [],
-            routes: $ctx.open_scope.routes,
+            routes: $ctx.open_scope,
             scope_first: $in.first,
             scope_count: $in.count
         }}
@@ -34,12 +36,13 @@
     <Call
         fn="close_scope"
         in={{
-            frame: $in.context.frame,
-            checkpoint: $ctx.open_scope.checkpoint,
+            writer: $in.context.writer,
             count: $in.count,
             writes: $ctx.scope.writes
         }}
     />
+
+    <Call fn="set_scope" in={null} setter={[$store.traversal.locals]} />
 
     <Return value={$ctx.close_scope} />
 </Module>

@@ -26,7 +26,6 @@ pub const Borrowed = struct {
     stores: Stores,
     history: ScanHistory,
     transfers: [type_count + origin_count + function_count]Transfer.Column,
-    group: []const Transfer.Column,
     pub fn init(self: *Borrowed, state: *State, current: *const History.Frame, previous: *const History.Retained, digests: History.SourceDigests, redone: []const bool) void {
         const graph = &state.graph;
         const edges = graph.source_dependencies.?;
@@ -57,7 +56,6 @@ pub const Borrowed = struct {
             .stores = undefined,
             .history = undefined,
             .transfers = undefined,
-            .group = undefined,
         };
 
         self.boundaries = .{
@@ -69,8 +67,6 @@ pub const Borrowed = struct {
         columns.bindTransfers(self.transfers[0..type_count], &state.types.items, previous.types);
         columns.bindTransfers(self.transfers[type_count..][0..origin_count], &state.types.origins.items, previous.origins);
         columns.bindTransfers(self.transfers[type_count + origin_count ..], &state.functions, previous.functions);
-
-        self.group = &self.transfers;
 
         const earlier = &previous.derived;
         const shared = self.previous_sources.zx_count == graph.sources.zx_count and earlier.resolved.inputs.ptr == current.resolved.inputs.ptr and earlier.resolved.inputs.len == current.resolved.inputs.len;

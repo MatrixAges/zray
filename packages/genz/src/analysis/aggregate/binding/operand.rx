@@ -2,7 +2,7 @@
     <Type from="publication" as="Binding" />
     <Type from="rows" as="AST" />
 
-    <Args in={Binding.Operand} out={u32} />
+    <Args in={Binding.Operand} out={Binding.PublishedReference} />
 
     <Call
         fn="reference"
@@ -58,5 +58,10 @@
         ]}
     />
 
-    <Return value={$ctx.reference.root} />
+    <Return
+        value={{
+            name: $ctx.retainLoweringText,
+            root: $ctx.reference.root
+        }}
+    />
 </Module>

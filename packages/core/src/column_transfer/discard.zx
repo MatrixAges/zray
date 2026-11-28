@@ -1,24 +1,33 @@
 import memory from "memory"
 
-import rollback from "./rollback"
+import { ColumnLayout } from "./model"
 
-import type { Reservation } from "./model"
+import type { Allocator, TransferColumn } from "memory"
 
-export type Input = Reservation
+export type Input = {
+    allocator: Allocator,
+    columns: TransferColumn[],
+    cursor: u64,
+    count: u64
+}
 
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
-    if (in.count == 0) {
-        return
+    const { allocator, columns, cursor, count } = in
+
+    const previous = cursor - 1
+    const column = columns[previous]
+
+    if (column.layout == ColumnLayout.Retained) {
+        const released = loop(0, {
+            while: row => row < count,
+            next: row => {
+                memory.releaseTransferItem(allocator, column.target, row)
+                row += 1
+            }
+        })
     }
 
-    const group = memory.borrowTransferGroup(in.groups, in.index, null)
-
-    rollback({
-        allocator: in.allocator,
-        group,
-        completed: memory.transferColumnCount(group),
-        count: in.count
-    })
+    return previous
 }

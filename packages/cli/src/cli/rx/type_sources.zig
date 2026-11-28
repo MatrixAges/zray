@@ -58,14 +58,16 @@ pub fn collect(allocator: std.mem.Allocator, options: Options) !?[]const rx.Text
     var visited: StoreState = &.{ .paths = &.{} };
     var host: StoreHost = .{ .store_0 = &visited };
 
-    const valid = rule.execute(&store_arena, &.{
+    const outcome = rule.execute(&store_arena, &.{
         .references = @ptrCast(&references),
         .module_count = options.modules.len + options.stores.len,
         .scoped = options.project.package_scopes.len != 0,
         .initial_paths = initial_paths,
     }, &host) catch |err| return cursor.failure.unwrap(err);
 
-    return if (valid) cursor.type_sources.items else null;
+    if (outcome.issue) |issue| cursor.report(issue.reference, issue.message) catch |err| return cursor.failure.unwrap(err);
+
+    return if (outcome.valid) cursor.type_sources.items else null;
 }
 
 pub fn validateTypeSourceFile(handle: *const anyopaque, path: []const u8) Error!void {

@@ -1,5 +1,6 @@
 import { clipCollectionTarget, convertStateValue, lowerBorrowedOperand } from "ast_rows"
 import host from "lowering_host"
+import { StoredType } from "lowering_host"
 import { CallArgument, Representation } from "lowering_host"
 
 import emitCast from "../../collections/workflow/emit_cast"
@@ -20,7 +21,12 @@ export default function (in: Input): Output {
                 sequence: in.body,
                 value: emitCast({
                     writer: in.writer,
-                    layout: host.lowerLayout(frame, in.operand_type),
+                    layout:
+                        host.materializeType(
+                            frame,
+                            in.operand_type,
+                            StoredType.Layout
+                        ),
                     value: host.lowerAggregate(
                         frame,
                         operand,

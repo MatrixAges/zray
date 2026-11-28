@@ -32,7 +32,7 @@
     <Call
         fn="prepare_fields"
         in={{
-            loop_frame: $in.loop_frame,
+            frame: $in.frame,
             project_fields: $in.initial_plan.project_fields
         }}
     />
@@ -90,7 +90,7 @@
     <Return
         value={{
             seed_name: $ctx.create_seed.name,
-            projected: $ctx.prepare_fields
+            fields: $ctx.prepare_fields
         }}
     />
 </Module>

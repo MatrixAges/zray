@@ -17,23 +17,33 @@ export default function (in: Input): Output {
         offset: header_width,
         valid: true
     }, {
-        while: state => state.valid && state.index < observed.count,
+        while: state => state.valid && state.index < observed.length,
         next: state => {
-            const fields = memory.borrowU8Range(payload, state.offset, row_width)
-            const expected = memory.readTextColumn(observed.paths, state.index)
-            const length = integers.widen(bytes.readU32(fields, path_length_at, true))
-            const path_at = state.offset + row_width
-            const path = memory.borrowU8Range(payload, path_at, length)
+            if (payload.length - state.offset < row_width) {
+                state.valid = false
+            } else {
+                const fields = memory.borrowU8Range(payload, state.offset, row_width)
+                const length =
+                    integers.widen(bytes.readU32(fields, path_length_at, true))
+                const path_at = state.offset + row_width
 
-            state.valid = bytes.equals(path, bytes.fromText(expected)) && check({
-                fields,
-                observed,
-                index: state.index,
-                now
-            })
+                if (length > payload.length - path_at) {
+                    state.valid = false
+                } else {
+                    const expected = observed[state.index]
+                    const path = memory.borrowU8Range(payload, path_at, length)
 
-            state.offset = path_at + length
-            state.index += 1
+                    state.valid = bytes.equals(path, bytes.fromText(expected.path)) &&
+                        check({
+                            fields,
+                            observed: expected,
+                            now
+                        })
+
+                    state.offset = path_at + length
+                    state.index += 1
+                }
+            }
         },
         return: state => state.valid && state.offset == payload.length
     })

@@ -22,7 +22,7 @@ fn checkLength(text: []const u8, maximum: ?usize) ?usize {
     var fixed = std.heap.FixedBufferAllocator.init(&storage);
 
     const output = generated.executeIn(fixed.allocator(), &.{
-        .check_length = true,
+        .mode = .Length,
         .source = text,
         .maximum = if (maximum) |limit| @intCast(limit) else null,
         .fields = &.{},
@@ -31,7 +31,17 @@ fn checkLength(text: []const u8, maximum: ?usize) ?usize {
     return if (output.lines) |lines| @intCast(lines) else null;
 }
 
-pub fn formatYaml(allocator: std.mem.Allocator, source: []const u8, fields: anytype) std.mem.Allocator.Error!?[]u8 {
+pub fn formatYaml(allocator: std.mem.Allocator, source: []const u8, fields: anytype) std.mem.Allocator.Error![]u8 {
+    return (try runYaml(allocator, source, fields, .Format)).?;
+}
+
+pub fn formatYamlEdits(allocator: std.mem.Allocator, source: []const u8, fields: anytype) std.mem.Allocator.Error!?[]u8 {
+    if (fields.len < 2) return null;
+
+    return runYaml(allocator, source, fields, .Edits);
+}
+
+fn runYaml(allocator: std.mem.Allocator, source: []const u8, fields: anytype, mode: @FieldType(Input, "mode")) std.mem.Allocator.Error!?[]u8 {
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();
@@ -46,7 +56,7 @@ pub fn formatYaml(allocator: std.mem.Allocator, source: []const u8, fields: anyt
         slot.* = item;
     }
 
-    const output = generated.executeIn(temporary, &.{ .check_length = false, .source = source, .maximum = null, .fields = values }) catch |err| switch (err) {
+    const output = generated.executeIn(temporary, &.{ .mode = mode, .source = source, .maximum = null, .fields = values }) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };

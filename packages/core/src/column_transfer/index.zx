@@ -1,6 +1,6 @@
 export { default as copy } from "./copy"
 export { default as discard } from "./discard"
-export { ColumnLayout, Mode } from "./model"
+export { ColumnLayout } from "./model"
 export { default as publish } from "./publish"
 export { default as reserve } from "./reserve"
 

@@ -1,4 +1,1 @@
-export declare function readU64View(
-    target: U64View,
-    index: u64
-): u64 throws { IndexOutOfBounds }
+export declare function readLengthSlot(source: ColumnLengths, slot: u64): u64

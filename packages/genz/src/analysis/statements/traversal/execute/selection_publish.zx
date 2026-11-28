@@ -1,0 +1,49 @@
+import integers from "std:integer"
+import { joinAstStatementRows } from "ast_rows"
+
+import unpackSpan from "../../../tasks/worker/execute/reference"
+import saveScopeWrites from "./save_scope_writes"
+
+import type { Block } from "../../switch/model"
+import type { Write } from "../commit"
+import type { Step, StepResult as Output } from "./model"
+
+export type Input = {
+    step: Step,
+    outer: u64,
+    tail: Block
+}
+
+export default function (in: Input): Output {
+    const { context, state, scope, first, placement, child } = in.step
+
+    const outer = unpackSpan(in.outer)
+    const tail = in.tail
+
+    const start = joinAstStatementRows(context.writer, [
+        outer.start,
+        tail.start
+    ], [
+        outer.count,
+        tail.count
+    ])
+
+    const write: Write = {
+        row: integers.widen(first),
+        start,
+        count: outer.count + tail.count
+    }
+
+    return {
+        ok: true,
+        child,
+        binding: {
+            subject: state.selection_subjects[placement]
+        },
+        state: saveScopeWrites({
+            state,
+            scope,
+            writes: state.scope_writes[scope].push(write)[0]
+        })
+    }
+}

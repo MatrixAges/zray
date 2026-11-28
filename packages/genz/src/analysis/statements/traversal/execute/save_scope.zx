@@ -1,0 +1,26 @@
+import saveScopeWrites from "./save_scope_writes"
+
+import type { Step, StepResult as Output } from "./model"
+
+export type Input = Step.Pick("state", "scope", "first", "count", "child") & {
+    routes: u8[]
+}
+
+export default function (in: Input): Output {
+    const { state, scope, first, count, child, routes } = in
+
+    return {
+        ok: true,
+        child,
+        state: {
+            ...saveScopeWrites({
+                state,
+                scope,
+                writes: []
+            }),
+            scope_firsts: state.scope_firsts.with(scope, first),
+            scope_counts: state.scope_counts.with(scope, count),
+            scope_routes: state.scope_routes.splice(scope, 1, [routes])[0]
+        }
+    }
+}

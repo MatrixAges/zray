@@ -1,4 +1,5 @@
 const std = @import("std");
+const sources = @import("sources.zig");
 const rx = @import("rx");
 const collection = @import("../rx/collection.zig");
 const gateway = @import("../rx/gateway/analyze.zig");
@@ -9,7 +10,17 @@ const configuration = @import("../configuration/root.zig");
 const library = @import("../library/analyze.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
-const SemanticProject = @import("cli_abi").layouts.@"zig:lint_workflow_host".SemanticProject;
+const rule = @import("cli_source").lint_semantics;
+const abi = @import("cli_abi").layouts.@"zig:lint_workflow_host";
+const SemanticProject = abi.SemanticProject;
+const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
+
+const StoreHost = struct {
+    store_0: *StoreState,
+    pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
+        if (pending.store_0) |next| self.store_0.* = next;
+    }
+};
 
 pub const State = struct {
     context: *const Compile.Context,
@@ -17,6 +28,7 @@ pub const State = struct {
     collection: ?collection.Result = null,
     functions: []const rx.TextSource = &.{},
     gateway: ?gateway.Result = null,
+    gateway_view: abi.LintGateway = undefined,
     project_view: SemanticProject = undefined,
     fallback: [1]model.Export = undefined,
     analyzed: ?library.Result = null,
@@ -35,7 +47,7 @@ pub fn run(context: Compile.Context) !Compile.Status {
 
     scoped.allocator = arena.allocator();
 
-    return execute(scoped) catch |err| {
+    return execute(scoped, &arena) catch |err| {
         if (err == error.OutOfMemory or err == error.Canceled) return err;
         try context.stderr.print("{s}: semantic lint: {s}\n", .{ context.options.input, @errorName(err) });
 
@@ -43,7 +55,7 @@ pub fn run(context: Compile.Context) !Compile.Status {
     };
 }
 
-fn execute(context: Compile.Context) !Compile.Status {
+fn execute(context: Compile.Context, arena: *std.heap.ArenaAllocator) !Compile.Status {
     var state: State = .{ .context = &context };
     const reference = &state;
 
@@ -53,8 +65,17 @@ fn execute(context: Compile.Context) !Compile.Status {
         if (state.collection) |*loaded| loaded.deinit();
     }
 
-    const outcome = @import("cli_source").lint_semantics.executeIn(context.allocator, &.{
+    var visited: StoreState = &.{ .paths = &.{} };
+    var host: StoreHost = .{ .store_0 = &visited };
+    var parsed: ?rx.document.Parsed = null;
+    const document = &parsed;
+
+    defer rx.document.release(&parsed);
+
+    const outcome = rule.execute(arena, &.{
         .host = @ptrCast(&reference),
+        .document = @ptrCast(&document),
+        .maximum_lines = context.options.max_lines,
         .configuration = &.{
             .path = context.options.input,
             .input_path = context.options.input,
@@ -63,7 +84,15 @@ fn execute(context: Compile.Context) !Compile.Status {
             .check = context.options.check,
             .write = context.options.write,
         },
-    }, context.io) catch |err| return state.failure.unwrap(err);
+    }, &host, context.io) catch |err| return state.failure.unwrap(err);
+
+    if (outcome.failure) |failure| {
+        if (failure.error_name) |name| {
+            try context.stderr.print("{s}: semantic lint: {s}\n", .{ context.options.input, name });
+        } else {
+            _ = try @import("source.zig").report(context.stderr, failure.path, failure.result.?);
+        }
+    }
 
     if (outcome.configuration) |result| _ = try configuration.report(context, result);
 
@@ -101,7 +130,7 @@ pub fn prepareSemanticSpecial(handle: *const anyopaque, entry: ?[]const u8) Erro
     self.loaded.project.entry = std.fs.path.resolve(self.context.allocator, &.{ self.loaded.project.root_dir, entry.? }) catch |err| return self.failure.save(err);
 }
 
-pub fn analyzeSemanticLibrary(handle: *const anyopaque, use_entry: bool, entry: ?[]const u8) Error!bool {
+pub fn analyzeSemanticLibrary(handle: *const anyopaque, use_entry: bool, entry: ?[]const u8) Error!?[]const *const abi.LintItem {
     const self = State.get(handle);
     const context = self.context;
 
@@ -121,14 +150,9 @@ pub fn analyzeSemanticLibrary(handle: *const anyopaque, use_entry: bool, entry: 
         .writer = context.stderr,
     }) catch |err| return self.failure.save(err);
 
-    return self.analyzed != null;
-}
+    const analyzed = &(self.analyzed orelse return null);
 
-pub fn checkSemanticSources(handle: *const anyopaque) Error!bool {
-    const self = State.get(handle);
-    const status = @import("sources.zig").check(self.context.*, self.analyzed.?.modules, self.loaded.project.root_dir) catch |err| return self.failure.save(err);
-
-    return status == .success;
+    return sources.collectItems(context.allocator, analyzed.modules, self.loaded.project.root_dir) catch |err| return self.failure.save(err);
 }
 
 pub fn linkSemanticLibrary(handle: *const anyopaque, is_gateway: bool) Error!void {

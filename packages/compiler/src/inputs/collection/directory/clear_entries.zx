@@ -7,10 +7,9 @@ export type Output = void
 export default function (in: Input, {
     $store
 }): Output {
-    if (in.count != 0) {
+    if (in.levels.length != 0) {
         $store.entries.collected = {
-            batches: [],
-            count: 0
+            levels: []
         }
     }
 }

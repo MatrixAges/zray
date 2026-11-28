@@ -1,27 +1,24 @@
 import memory from "memory"
 
-import type { TransferGroup } from "memory"
+import type { TransferColumn } from "memory"
 import type { Span } from "./model"
 
 export type Input = Span & {
-    group: TransferGroup,
-    column: u64,
-    repeated: bool
+    column: TransferColumn
 }
 
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
-    const { group, column, first, count, repeated } = in
+    const { column, first, count } = in
+    const { target, stride } = column
 
-    const target = memory.transferColumn(group, column, null)
-    const stride = repeated ? 0 : memory.transferColumnStride(target)
     const offset = first * stride
 
-    const copied = loop(0, {
+    return loop(0, {
         while: row => row < count,
         next: row => {
-            memory.copyTransferCell(target, offset + row * stride, row)
+            memory.copyTransferRange(target, offset + row * stride, row, 1)
             row += 1
         }
     })

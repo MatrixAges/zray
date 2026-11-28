@@ -1,0 +1,46 @@
+<Module>
+    <Type from="model" as="Emit" />
+
+    <Args in={Emit.Input} out={u64} />
+
+    <Store from="../traversal/execute/selection" as="traversal" />
+
+    <Call fn="prefix" in={$in} />
+
+    <If on={!$ctx.prefix}>
+        <Return value={0} />
+    </If>
+
+    <Call
+        module="../../store/begin/build"
+        in={{
+            writer: $in.context.writer,
+            control: $in.context.control.pick([
+                "statement_kinds",
+                "statement_payloads",
+                "evaluations",
+                "constant_values"
+            ]),
+            values: $in.context.store_values,
+            function_modes: $in.context.function_modes,
+            first: $in.scope_first,
+            count: $in.scope_count,
+            index: $in.index
+        }}
+    />
+
+    <If on={$ctx.build != null}>
+        <Call
+            fn="set_effects"
+            in={{
+                uses_context: true,
+                uses_parallel: false
+            }}
+            setter={[$store.traversal.effects]}
+        />
+
+        <Return value={$ctx.build} />
+    </If>
+
+    <Return value={0} />
+</Module>

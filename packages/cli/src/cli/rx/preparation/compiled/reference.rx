@@ -2,7 +2,7 @@
     <Type from="../index" as="IO" />
     <Type from="../model" as="Preparation" />
 
-    <Args in={Preparation.CompiledReference} out={bool} />
+    <Args in={Preparation.CompiledReference} out={Preparation.PassResult} />
 
     <Call
         fn="../index.resolvePreparationTarget"
@@ -14,7 +14,11 @@
     />
 
     <If on={$ctx.resolvePreparationTarget.target != IO.Target.Compiled}>
-        <Return value={$ctx.resolvePreparationTarget.target == IO.Target.Source} />
+        <Return
+            value={{
+                valid: $ctx.resolvePreparationTarget.target == IO.Target.Source
+            }}
+        />
     </If>
 
     <If on={$ctx.resolvePreparationTarget.compiled != null}>
@@ -27,18 +31,21 @@
         />
 
         <If on={$ctx.prepareCompiledReference}>
-            <Return value={true} />
+            <Return
+                value={{
+                    valid: true
+                }}
+            />
         </If>
     </If>
 
-    <Call
-        fn="../index.reportPreparationReference"
-        in={[
-            $in.references,
-            $in.reference,
-            $in.diagnostic
-        ]}
+    <Return
+        value={{
+            valid: false,
+            issue: {
+                reference: $in.reference,
+                message: $in.diagnostic
+            }
+        }}
     />
-
-    <Return value={false} />
 </Module>

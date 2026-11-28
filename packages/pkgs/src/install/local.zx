@@ -1,5 +1,3 @@
-import { Kind as Path } from "../workspace/path/valid"
-import validPath from "../workspace/path/valid"
 import { Kind } from "../workspace/specifier"
 import { Status as Selected } from "../workspace/target/model"
 import query from "../workspace/target/query"
@@ -34,17 +32,6 @@ export default function (in: Input): Output {
         owner
     })
 
-    if (in.spec.kind == Kind.Path && !validPath({
-        owner,
-        path: target.value,
-        kind: Path.Dependency
-    })) {
-        return {
-            status: Status.InvalidLockWorkspacePath,
-            row: 0
-        }
-    }
-
     const selected = select({
         ...in.members,
         ...target,
@@ -57,6 +44,7 @@ export default function (in: Input): Output {
         Selected.InvalidVersion => Status.InvalidVersion,
         Selected.InvalidRange => Status.InvalidRange,
         Selected.Overflow => Status.Overflow,
+        Selected.InvalidLockWorkspacePath => Status.InvalidLockWorkspacePath,
         _ => Status.LockVersionMismatch
     }
 

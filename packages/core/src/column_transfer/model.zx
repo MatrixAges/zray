@@ -1,11 +1,4 @@
-import type { Allocator, ColumnTransfers, TransferGroup } from "memory"
-
-export enum Mode {
-    Owned,
-    BorrowingText,
-    Borrowed,
-    Selected
-}
+import type { Allocator, ColumnTransfers, TransferColumn } from "memory"
 
 export { TransferLayout as ColumnLayout } from "memory"
 
@@ -14,12 +7,9 @@ export type Span = {
     count: u64
 }
 
-export type Group = {
+export type Extent = {
     groups: ColumnTransfers,
-    index: u64
-}
-
-export type Extent = Group & {
+    index: u64,
     count: u64
 }
 
@@ -29,13 +19,14 @@ export type Reservation = Extent & {
 
 export type Copy = Reservation & Span
 
-export type Payload = {
+export type Retain = Span & {
     allocator: Allocator,
-    group: TransferGroup,
-    column: u64,
-    count: u64
+    column: TransferColumn
 }
 
-export type Retain = Payload & {
-    first: u64
+export type RetainCell = {
+    allocator: Allocator,
+    column: TransferColumn,
+    source: u64,
+    row: u64
 }

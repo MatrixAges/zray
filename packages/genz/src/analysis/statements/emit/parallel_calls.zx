@@ -1,0 +1,42 @@
+import integers from "std:integer"
+
+import type { Invocations } from "../../parallel/emit/execute/model"
+import type { Input as Statement } from "./model"
+
+export type Input = Statement.Pick("context", "statement")
+
+export type Output = Invocations.Omit("frame", "writer")
+
+export default function (in: Input): Output {
+    const { control, store_values, call_arguments } = in.context
+
+    const payload = integers.widen(control.statement_payloads[in.statement])
+    const first = integers.widen(control.parallel_first[payload])
+    const count = integers.widen(control.parallel_count[payload])
+    const empty: u32[] = []
+    const symbols: u32?[] = []
+
+    return loop({
+        index: first,
+        arguments: empty,
+        functions: empty,
+        symbols
+    }, {
+        while: state => state.index < first + count,
+        next: state => {
+            const expression = control.parallel_values[state.index]
+            const call =
+                integers.widen(store_values.payloads[integers.widen(
+                    expression
+                )])
+
+            state.arguments = state.arguments.push(call_arguments[call])[0]
+            state.functions =
+                state.functions.push(store_values.call_functions[call])[0]
+            state.symbols =
+                state.symbols.push(control.parallel_symbols[state.index])[0]
+            state.index += 1
+        },
+        return: state => state.omit(["index"])
+    })
+}

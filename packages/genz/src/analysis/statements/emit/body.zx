@@ -7,7 +7,6 @@ import {
     destructure_operation,
     evaluate_operation,
     operation_mask,
-    parallel_operation,
     return_operation,
     write_operation
 } from "../block/const"
@@ -40,15 +39,6 @@ export default function (in: Input): Output {
                     value: lowered
                 })
             ),
-            consumed_previous: false
-        }
-    }
-
-    if (operation == integers.widenByte(parallel_operation)) {
-        const span = host.emitParallelStatement(context.frame, statement)
-
-        return {
-            span,
             consumed_previous: false
         }
     }

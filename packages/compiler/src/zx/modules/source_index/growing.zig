@@ -45,7 +45,7 @@ pub fn Map(comptime Value: type) type {
                 const input: std.meta.Child(rule.Input) = .{
                     .keys = self.keys.items,
                     .rows = null,
-                    .buckets = @ptrCast(&self.buckets),
+                    .buckets = &.{ .values = self.buckets },
                     .capacity = self.buckets.len,
                     .key = path,
                 };

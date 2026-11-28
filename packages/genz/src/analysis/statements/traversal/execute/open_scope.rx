@@ -1,0 +1,29 @@
+<Module>
+    <Type from="open_scope" as="Plan" />
+
+    <Args in={Plan.Input.Omit("stack")} out={Plan.Output} />
+
+    <Store from="selection" as="traversal" />
+
+    <Call
+        fn="set_scope"
+        in={$in.pick([
+            "first",
+            "count"
+        ])}
+        setter={[$store.traversal.locals]}
+    />
+
+    <Call
+        fn="open_scope"
+        in={{
+            ...$in,
+            stack: $store.traversal.locals.pick([
+                "keys",
+                "buckets"
+            ])
+        }}
+    />
+
+    <Return value={$ctx.open_scope} />
+</Module>

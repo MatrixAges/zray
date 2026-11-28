@@ -1,6 +1,7 @@
 <Module>
     <Type from="emission_model" as="Loop" />
     <Type from="../../initial/model" as="Initial" />
+    <Type from="../../fields/projection/model" as="Projection" />
 
     <Args in={Loop.Emit} out={u32} />
 
@@ -9,15 +10,73 @@
     <Call
         module="growth"
         in={$in.pick([
-            "loop_frame",
+            "frame",
+            "writer",
+            "type_id",
             "renewals",
-            "schedule"
+            "schedule",
+            "renewal_source",
+            "growth_facts",
+            "projected",
+            "seed",
+            "state"
         ])}
     />
 
-    <If on={$in.projected}>
-        <Call fn="index.maskLoopBorrowedFields" in={$in.loop_frame} />
-        <Call fn="index.declareProjectedLoopState" in={$in.loop_frame} />
+    <If on={$in.fields != null}>
+        <Call
+            module="bind_field_value"
+            in={{
+                ...$in.pick([
+                    "frame",
+                    "writer",
+                    "type_id"
+                ]),
+                fields: $in.fields,
+                sequence: $in.projected_seq,
+                facts: $in.ownership_facts,
+                value: $in.seed
+            }}
+        />
+
+        <Call
+            module="project_fields"
+            in={{
+                ...$in.pick([
+                    "frame",
+                    "writer",
+                    "type_id"
+                ]),
+                fields: $in.fields,
+                facts: $in.assignment_facts,
+                value: $ctx.bind_field_value,
+                layout: $in.fields.layout,
+                mode: Projection.Mode.Initial,
+                fields_update: {
+                    values: [],
+                    changed: [],
+                    replacements: []
+                }
+            }}
+        />
+
+        <Call fn="index.astExpressionCount" in={$in.writer} />
+
+        <Call
+            module="../../state/build"
+            in={{
+                writer: $in.writer,
+                body: $in.projected_seq,
+                declaration: {
+                    name: $in.name,
+                    layout: $in.fields.layout,
+                    initial: $ctx.project_fields,
+                    mutable: true
+                },
+                tracking: null,
+                expression_base: $ctx.astExpressionCount
+            }}
+        />
     </If>
 
     <Call
@@ -34,7 +93,6 @@
         in={$in.pick([
             "frame",
             "writer",
-            "loop_frame",
             "loop_seq",
             "body",
             "schedule",
@@ -42,6 +100,8 @@
             "state",
             "type_id",
             "assignment_facts",
+            "ownership_facts",
+            "fields",
             "state_active"
         ])}
     />
@@ -69,8 +129,15 @@
     <Call
         module="recover"
         in={{
-            loop_frame: $in.loop_frame,
-            state: $in.state,
+            ...$in.pick([
+                "frame",
+                "writer",
+                "state",
+                "type_id",
+                "projected_seq",
+                "assignment_facts",
+                "fields"
+            ]),
             restore: $in.schedule.restore_projected
         }}
     />
@@ -86,7 +153,6 @@
                 "skipped_seq",
                 "wrap_seq",
                 "consumer",
-                "context",
                 "discard",
                 "type_id",
                 "guard_info",

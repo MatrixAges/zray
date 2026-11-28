@@ -99,6 +99,7 @@ pub fn run(context: Compile.Context) !Compile.Status {
         if (!(result.defer_diagnostic_flush orelse false)) try context.stderr.flush();
     }
 
+    if (result.flush_diagnostics orelse false) try context.stderr.flush();
     if (result.stdout) |source| try context.stdout.writeAll(source);
 
     return switch (result.status) {

@@ -2,9 +2,6 @@ export {
     classify,
     readObservationContent,
     openRegistration,
-    reusePrior,
     readCurrent,
-    comparePrevious,
-    resolveRecordedPath,
     publishObservation
 } from "snapshot_host"

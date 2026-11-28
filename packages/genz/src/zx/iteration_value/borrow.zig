@@ -32,11 +32,18 @@ pub fn lower(self: *Context, body: *Context.Statements, id: ir.TypeId, value: no
     const prepare: Prepare = .{
         .source = &request,
         .root = @backingInt(root_layout),
-        .frame = @ptrCast(self),
+        .frame = @ptrCast(lowering),
     };
 
-    const prepared = (preparation.executeIn(temporary, &prepare) catch |err|
-        return @import("../construction/publication.zig").failure(err)) orelse return value;
+    const prepared = prepared: {
+        var resources: Context.Resources = undefined;
+
+        resources.push(self);
+        defer resources.pop();
+
+        break :prepared (preparation.executeIn(temporary, &prepare) catch |err|
+            return @import("../construction/publication.zig").failure(err)) orelse return value;
+    };
 
     const emitter = @import("generated_iteration_borrow_emit");
     const Call = std.meta.Child(emitter.Input);

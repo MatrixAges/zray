@@ -17,10 +17,11 @@
     <Call fn="../policy" in={$in.policy} />
 
     <Call
-        fn="model.lowerLayout"
+        fn="model.materializeType"
         in={[
             $in.frame,
-            $in.id
+            $in.id,
+            Preparation.StoredType.Layout
         ]}
     />
 
@@ -37,7 +38,7 @@
         <Return
             value={{
                 mode: $ctx.policy,
-                layout: $ctx.lowerLayout,
+                layout: $ctx.materializeType,
                 type_expr: $ctx.lowerType,
                 storage_layout: 0
             }}
@@ -48,9 +49,9 @@
         <Return
             value={{
                 mode: $ctx.policy,
-                layout: $ctx.lowerLayout,
+                layout: $ctx.materializeType,
                 type_expr: 0,
-                storage_layout: $ctx.lowerLayout
+                storage_layout: $ctx.materializeType
             }}
         />
     </If>
@@ -58,7 +59,7 @@
     <Return
         value={{
             mode: $ctx.policy,
-            layout: $ctx.lowerLayout,
+            layout: $ctx.materializeType,
             type_expr: 0,
             storage_layout: 0
         }}

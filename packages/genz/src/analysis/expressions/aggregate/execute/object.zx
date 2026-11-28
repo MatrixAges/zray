@@ -1,7 +1,8 @@
 import integers from "std:integer"
-import { prepareObjectFields } from "ast_rows"
+import { convertStateValue, prepareObjectFields, StateValueMode } from "ast_rows"
 import { appendAstBindingRows } from "ast_rows"
 import host from "lowering_host"
+import { StoredType } from "lowering_host"
 import { requireAllocation } from "memory"
 
 import finishBlock from "../../../aggregate/execute/finish_block"
@@ -77,7 +78,7 @@ export default function (in: Input): Output {
         writer,
         type_expr: match {
             layout.project => in.projection_layout ?? host.invalidLowering(),
-            _ => host.lowerLayout(frame, in.type_id)
+            _ => host.materializeType(frame, in.type_id, StoredType.Layout)
         },
         names: in.field_names,
         indices: in.field_indices,
@@ -85,7 +86,15 @@ export default function (in: Input): Output {
     })
 
     const constructed = match {
-        layout.construct => host.constructValue(frame, in.type_id, result, null),
+        layout.construct =>
+            convertStateValue(
+                writer,
+                sequence,
+                in.type_id,
+                result,
+                StateValueMode.Construct,
+                false
+            ),
         _ => result
     }
 

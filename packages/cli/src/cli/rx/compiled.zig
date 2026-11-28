@@ -30,8 +30,12 @@ pub fn collect(allocator: std.mem.Allocator, options: Options) !bool {
 
     defer cursor.deinit();
 
-    return rule.executeIn(allocator, &.{
+    const outcome = rule.executeIn(allocator, &.{
         .references = @ptrCast(&reference),
         .module_count = options.modules.len,
     }) catch |err| return cursor.failure.unwrap(err);
+
+    if (outcome.issue) |issue| cursor.report(issue.reference, issue.message) catch |err| return cursor.failure.unwrap(err);
+
+    return outcome.valid;
 }

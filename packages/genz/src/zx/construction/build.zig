@@ -18,7 +18,7 @@ pub fn lower(self: *Lower, id: ir.TypeId, value: node.ExpressionId, layout: ?nod
         .policy = &.{
             .active = self.state_active,
             .selected = selected,
-            .borrowed = self.state_plan.referenced(id),
+            .borrowed = layout == null and @import("borrow.zig").proven(self, id, value, selected),
         },
         .target = target,
     };

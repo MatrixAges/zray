@@ -8,7 +8,7 @@
             fn="model.projectIterationResult"
             in={[
                 $in.lower,
-                $in.context,
+                $in.buffered,
                 $in.consumer,
                 $in.state,
                 $in.consumer.result
@@ -18,7 +18,7 @@
         <Return value={$ctx.projectIterationResult} />
     </If>
 
-    <If on={$in.context != null}>
+    <If on={$in.buffered}>
         <Loop on={$in.running}>
             <Call
                 module="transfer_row"
@@ -29,7 +29,6 @@
                         "state",
                         "plan"
                     ]),
-                    context: $in.context,
                     slots: [],
                     row: 0,
                     running: $in.plan.transfers.length != 0
@@ -49,7 +48,7 @@
                     "consumer",
                     "state"
                 ]),
-                context: $in.context,
+                buffered: $in.buffered,
                 ids: $ctx.reads,
                 row: 0,
                 running: $ctx.reads.length != 0

@@ -1,9 +1,9 @@
 import memory from "memory"
 
 import copyProjected from "./copy_projected"
+import discard from "./discard"
 import { ColumnLayout } from "./model"
 import retain from "./retain"
-import rollback from "./rollback"
 
 import type { Copy } from "./model"
 
@@ -18,37 +18,36 @@ export default function (in: Input): Output {
         return true
     }
 
-    const group = memory.borrowTransferGroup(groups, index, null)
-    const columns = memory.transferColumnCount(group)
+    const columns = groups[index].columns
 
     const copied = loop({
         column: 0,
         valid: true
     }, {
-        while: state => state.valid && state.column < columns,
+        while: state => state.valid && state.column < columns.length,
         next: state => {
-            const layout = memory.transferLayout(group, state.column, null)
+            const column = columns[state.column]
 
-            if (layout == ColumnLayout.Contiguous) {
-                memory.copyTransferRange(group, state.column, first, count)
-            } else if (
-                layout == ColumnLayout.Strided || layout == ColumnLayout.Repeated
-            ) {
-                copyProjected({
-                    group,
-                    column: state.column,
-                    first,
-                    count,
-                    repeated: layout == ColumnLayout.Repeated
-                })
-            } else {
+            if (column.layout == ColumnLayout.Contiguous) {
+                memory.copyTransferRange(
+                    column.target,
+                    first * column.width,
+                    0,
+                    count
+                )
+            } else if (column.layout == ColumnLayout.Retained) {
                 state.valid = retain({
                     allocator,
-                    group,
-                    column: state.column,
+                    column,
                     first,
                     count
                 })
+            } else {
+                state.valid = copyProjected({
+                    column,
+                    first,
+                    count
+                }) == count
             }
 
             if (state.valid) {
@@ -58,15 +57,20 @@ export default function (in: Input): Output {
         return: state => state.column
     })
 
-    if (copied == columns) {
+    if (copied == columns.length) {
         return true
     }
 
-    rollback({
-        allocator,
-        group,
-        completed: copied,
-        count
+    const released = loop(copied, {
+        while: cursor => cursor != 0,
+        next: cursor => {
+            cursor = discard({
+                allocator,
+                columns,
+                cursor,
+                count
+            })
+        }
     })
 
     return false

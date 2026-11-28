@@ -68,7 +68,7 @@ export declare function joinAstStatementRows(
     counts: u32[]
 ): u32 throws { OutOfMemory }
 
-export declare function astIdentifierCount(writer: AstWriter): u64
+export declare function astColumnCount(writer: AstWriter, column: AstColumn): u64
 
 export declare function replaceAstIdentifier(writer: AstWriter, index: u64, name: u8[]): void
 

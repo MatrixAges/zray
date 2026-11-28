@@ -2,7 +2,6 @@
     <Type from="model" as="Directory" />
 
     <Object name="collected">
-        <Field name="batches" type={Directory.File[][]} value={[]} />
-        <Field name="count" type={u64} value={0} />
+        <Field name="levels" type={Directory.File[][][]} value={[]} />
     </Object>
 </Store>

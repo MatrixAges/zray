@@ -1,11 +1,12 @@
 import { Kind as EntryKind } from "std:fs"
+import memory from "memory"
 
 import kind from "../kind"
 import { Kind } from "../kind"
 import qualify from "../qualify"
 
 import type { DirectoryEntry } from "std:fs"
-import type { File, Stat } from "./model"
+import type { File } from "./model"
 import type { Level } from "./scan_shape"
 
 export type Input = {
@@ -14,7 +15,7 @@ export type Input = {
 }
 
 // Object spread supplies null for the change time in the previous standard ABI.
-export type Entry = Stat & {
+export type Entry = File.Pick("inode", "size", "mtime_ns", "ctime_ns") & {
     name: string,
     kind: EntryKind
 }
@@ -49,15 +50,16 @@ export default function (in: Input): Output {
                 const selected = kind(entry.name)
 
                 if (selected != Kind.Ignored) {
-                    const relative = qualify({
-                        prefix: "",
+                    const path = qualify({
+                        prefix,
                         parent,
                         name: entry.name
                     })
-                    const path = match {
-                        prefix.length == 0 => relative,
-                        _ => `${prefix}${relative}`
-                    }
+                    const relative = memory.borrowTextRange(
+                        path,
+                        prefix.length,
+                        path.length - prefix.length
+                    )
 
                     const complete: Entry = {
                         ...entry
@@ -66,13 +68,10 @@ export default function (in: Input): Output {
                     state.files = state.files.push({
                         path,
                         relative,
-                        kind: selected,
-                        stat: complete.pick([
-                            "inode",
-                            "size",
-                            "mtime_ns",
-                            "ctime_ns"
-                        ]),
+                        inode: complete.inode,
+                        size: complete.size,
+                        mtime_ns: complete.mtime_ns,
+                        ctime_ns: complete.ctime_ns,
                         retain: selected != Kind.RX
                     })[0]
                 }
@@ -92,7 +91,6 @@ export default function (in: Input): Output {
         step: level.step,
         row: level.row + 1,
         children: found.children,
-        files,
-        count: level.count + found.files.length
+        files
     }
 }

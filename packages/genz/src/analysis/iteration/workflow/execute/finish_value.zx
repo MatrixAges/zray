@@ -1,7 +1,6 @@
 import { finishAstSequence, tailAstPackedStatements } from "ast_rows"
 
 import finishStored from "../../../aggregate/execute/finish_stored"
-import { Guard } from "../../initial/model"
 
 import type { Guard as BlockGuard } from "../../../aggregate/binding/model"
 import type { Finish } from "./emission_model"
@@ -39,7 +38,7 @@ export default function (in: Input): Output {
         })
     }
 
-    if (in.initial_plan.guard == Guard.None) {
+    if (guard_info == null) {
         return value
     }
 

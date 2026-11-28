@@ -7,7 +7,8 @@
         fn="index.openRegistration"
         in={[
             $in.registration,
-            $in.path
+            $in.path,
+            $in.directory_entries
         ]}
     />
 
@@ -29,8 +30,7 @@
                         directory_entries: $ctx.openRegistration.directory_entries,
                         consumed: $ctx.openRegistration.consumed,
                         consistent: true,
-                        backend_preloaded: false,
-                        update_state: false
+                        backend_preloaded: false
                     }
                 ]}
             />
@@ -39,10 +39,20 @@
         <Return value={$ctx.admit} />
     </If>
 
-    <If on={!$in.directory_entries && $ctx.admit == Snapshot.Admission.New}>
-        <Call fn="index.reusePrior" in={$in.registration} />
+    <If on={$ctx.openRegistration.reusable != null}>
+        <Call
+            fn="index.readCurrent"
+            in={[
+                $in.registration,
+                {
+                    path: $ctx.openRegistration.path,
+                    directory_entries: false,
+                    previous: $ctx.openRegistration.reusable.request
+                }
+            ]}
+        />
 
-        <If on={$ctx.reusePrior != Snapshot.Reuse.Unavailable}>
+        <If on={$ctx.readCurrent.fact.kind == Snapshot.FactKind.Failed}>
             <Call
                 fn="index.publishObservation"
                 in={[
@@ -52,7 +62,25 @@
                         consumed: false,
                         consistent: true,
                         backend_preloaded: false,
-                        update_state: true
+                        fact: $ctx.readCurrent.fact
+                    }
+                ]}
+            />
+
+            <Return value={$ctx.admit} />
+        </If>
+
+        <If on={$ctx.readCurrent.unchanged}>
+            <Call
+                fn="index.publishObservation"
+                in={[
+                    $in.registration,
+                    {
+                        directory_entries: false,
+                        consumed: false,
+                        consistent: true,
+                        backend_preloaded: false,
+                        fact: $ctx.openRegistration.reusable.fact
                     }
                 ]}
             />
@@ -62,46 +90,20 @@
     </If>
 
     <Call
-        fn="index.readCurrent"
-        in={[
-            $in.registration,
-            $in.directory_entries
-        ]}
+        module="read_current"
+        in={{
+            registration: $in.registration,
+            slot: $ctx.openRegistration,
+            directory_entries: $in.directory_entries,
+            backend_input: $in.backend_input
+        }}
     />
-
-    <If on={$ctx.readCurrent && $ctx.admit == Snapshot.Admission.Upgrade}>
-        <Call fn="index.comparePrevious" in={$in.registration} />
-
-        <Call
-            fn="index.publishObservation"
-            in={[
-                $in.registration,
-                {
-                    directory_entries: $in.directory_entries,
-                    consumed: $ctx.openRegistration.consumed,
-                    consistent: $ctx.comparePrevious,
-                    backend_preloaded:
-                        $ctx.openRegistration.backend_preloaded && !$in.backend_input,
-                    update_state: true
-                }
-            ]}
-        />
-
-        <Return value={$ctx.admit} />
-    </If>
 
     <Call
         fn="index.publishObservation"
         in={[
             $in.registration,
-            {
-                directory_entries: $in.directory_entries,
-                consumed: false,
-                consistent: $ctx.readCurrent || !$ctx.openRegistration.existing,
-                backend_preloaded:
-                    $ctx.openRegistration.backend_preloaded && !$in.backend_input,
-                update_state: true
-            }
+            $ctx.read_current
         ]}
     />
 

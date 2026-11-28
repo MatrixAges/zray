@@ -61,44 +61,35 @@ pub fn setLoopInitialScope(frame: *Frame, active: bool) void {
     }
 }
 
-pub fn saveLoopInitial(handle: *anyopaque, value: u32) Error!void {
-    const frame = Frame.borrow(handle);
-
+pub fn saveLoopInitial(frame: *Frame, value: u32) Error!void {
     frame.initial_value = if (frame.initial.local) try aggregate.bind(frame.lowering, &frame.body, @fromBackingInt(value)) else @fromBackingInt(value);
 
-    if (frame.initial.guard != .None) try guardLoopInitial(handle, @backingInt(frame.initial_value));
+    if (frame.initial.guard != .None) {
+        frame.guard = try @import("../../iteration_value/initial.zig").create(
+            frame.lowering,
+            &frame.body,
+            frame.iteration,
+            frame.consumer,
+            frame.initial_value,
+            frame.initial.guard,
+        );
+    }
 }
 
-pub fn guardLoopInitial(handle: *anyopaque, value: u32) Error!void {
-    const frame = Frame.borrow(handle);
-    const guard = try @import("../../iteration_value/initial.zig").create(frame.lowering, &frame.body, frame.iteration, frame.consumer, @fromBackingInt(value), frame.initial.guard);
-
-    frame.guard = guard;
-
-    frame.guard_info = .{
-        .body = @import("../../construction/publication.zig").packSpan(guard.body),
-        .condition = @backingInt(guard.condition),
-        .fallback = @backingInt(guard.result),
-    };
-}
-
-pub fn prepareLoopState(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-
+pub fn prepareLoopState(frame: *Frame) Error!void {
     if (frame.initial.state_scope) try enterLoopRepresentation(frame);
 
-    _ = try createLoopSeed(handle);
+    _ = try createLoopSeed(frame);
 
-    if (frame.initial.project_fields) _ = try prepareLoopFields(handle);
-    if (frame.initial.track) try trackLoopChange(handle);
+    if (frame.initial.project_fields) try prepareLoopFieldsFrame(frame);
+    if (frame.initial.track) frame.changed_name = try frame.lowering.fresh("state_changed");
 }
 
 pub fn enterLoopRepresentation(frame: *Frame) Error!void {
     frame.representation = try @import("../../state_value/root.zig").enter(frame.lowering);
 }
 
-fn createLoopSeed(handle: *anyopaque) Error![]const u8 {
-    const frame = Frame.borrow(handle);
+fn createLoopSeed(frame: *Frame) Error![]const u8 {
     const lowering = frame.lowering;
     const name = try lowering.fresh("loop_seed");
     frame.seed = try lowering.builder.identifier(name);
@@ -106,22 +97,25 @@ fn createLoopSeed(handle: *anyopaque) Error![]const u8 {
     return name;
 }
 
-pub fn prepareLoopFields(handle: *anyopaque) Error!bool {
-    const frame = Frame.borrow(handle);
+const LoopProjection = @import("../../expressions/evaluate.zig").Api.LoopProjection;
+
+pub fn prepareLoopFields(handle: *anyopaque) Error!?*const LoopProjection {
+    const frame = @import("../../expressions/evaluate.zig").borrow(handle).loop.?;
+
+    try prepareLoopFieldsFrame(frame);
+
+    const fields = if (frame.fields) |*value| value else return null;
+
+    frame.projection = .{ .borrowed = fields.borrowed, .layout = @backingInt(fields.layout) };
+
+    return &frame.projection;
+}
+
+fn prepareLoopFieldsFrame(frame: *Frame) Error!void {
     frame.fields = try @import("../fields/prepare.zig").prepare(frame.lowering, frame.iteration, frame.type_id, &frame.body, frame.seed);
-
-    return frame.fields != null;
 }
 
-fn trackLoopChange(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-
-    frame.changed_name = try frame.lowering.fresh("state_changed");
-}
-
-pub fn openLoopParameters(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-
+pub fn openLoopParameters(frame: *Frame) Error!void {
     frame.parameters = try seed_parameters.enter(frame.lowering, frame.iteration, frame.initial.parameters, frame.name, &frame.context);
 }
 
@@ -146,8 +140,7 @@ pub fn openLoopParameterContext(frame: *Frame) void {
     frame.parameters.context = scope.enter(frame.lowering, .Iteration, .{ .iteration_value = &frame.context });
 }
 
-pub fn prepareLoopUpdate(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
+pub fn prepareLoopUpdate(frame: *Frame) Error!void {
     const initial_value = @backingInt(frame.initial_value);
 
     const value = switch (frame.initial.storage) {

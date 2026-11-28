@@ -12,7 +12,6 @@ export {
     analyzeCompilation,
     verifyCompilationProgram,
     generateCompilationFpga,
-    flushCompilationDiagnostics,
     openCompilationGeneration,
     formatCompilationSource,
     emitCompilationText,

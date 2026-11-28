@@ -1,6 +1,7 @@
 import type { SemanticLint } from "lint_workflow_host"
+import type { SourceOptions } from "../model"
 
-export type Input = {
+export type Input = SourceOptions & {
     check: SemanticLint,
     store: bool
 }

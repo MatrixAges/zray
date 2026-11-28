@@ -12,6 +12,7 @@ const Sequence = @import("../../node/blocks.zig").Sequence;
 const emitter = @import("generated_state_element_emit");
 const Call = std.meta.Child(emitter.Input);
 const Decision = @typeInfo(@typeInfo(@TypeOf(querying.executeValue)).@"fn".return_type.?).error_union.payload;
+pub const StoredTable = @FieldType(Decision, "table");
 
 pub fn inlineStored(self: *const Lower, list: ir.TypeId) bool {
     const entry = @import("generated_state_inline_stored");

@@ -9,6 +9,16 @@ export type SemanticProject = {
     has_exports: bool
 }
 
+export type LintItem = {
+    path: string,
+    source?: u8[]
+}
+
+export type LintGateway = {
+    valid: bool,
+    services?: LintItem[]
+}
+
 export enum Layout {
     Unknown,
     Manifest,
@@ -69,16 +79,18 @@ export declare function loadSemanticProject(
     manifest: bool
 ): SemanticProject? throws { SourceLoadFailure }
 export declare function prepareSemanticSpecial(check: SemanticLint, entry: string?): void throws { SourceLoadFailure }
-export declare function analyzeSemanticLibrary(check: SemanticLint, use_entry: bool, entry: string?): bool throws { SourceLoadFailure }
-export declare function checkSemanticSources(check: SemanticLint): bool throws { SourceLoadFailure }
+export declare function analyzeSemanticLibrary(
+    check: SemanticLint,
+    use_entry: bool,
+    entry: string?
+): LintItem[]? throws { SourceLoadFailure }
 export declare function linkSemanticLibrary(check: SemanticLint, gateway: bool): void throws { SourceLoadFailure }
 
 export declare function checkSpecialSource(check: SemanticLint): bool throws { SourceLoadFailure }
 export declare function collectLintStore(check: SemanticLint): bool throws { SourceLoadFailure }
 export declare function collectLintStoreTypes(check: SemanticLint): bool throws { SourceLoadFailure }
 export declare function checkLintStoreTypes(check: SemanticLint): bool throws { SourceLoadFailure }
-export declare function analyzeLintGateway(check: SemanticLint): bool? throws { SourceLoadFailure }
-export declare function checkLintServices(check: SemanticLint): bool throws { SourceLoadFailure }
+export declare function analyzeLintGateway(check: SemanticLint): LintGateway throws { SourceLoadFailure }
 
 export declare function discoverLintWorkspace(check: WorkspaceLint): bool throws { SourceLoadFailure }
 export declare function resolveLintWorkspace(allocator, check: WorkspaceLint): WorkspacePlan? throws { SourceLoadFailure, OutOfMemory }

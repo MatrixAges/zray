@@ -4,10 +4,8 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
 const Context = @import("../iteration_value/root.zig");
-const evaluation = @import("../expressions/evaluate.zig");
 const generated = @import("genz_options").generated_analysis;
 const Consumer = @import("../iteration_consumer.zig").Consumer;
-const Api = evaluation.Api;
 
 const Plan = struct {
     preparation: enum { BufferedConsumer, DeepConsumer, Consumer, ConvertedConsumer, Unit, Reserve, Block, Layout, Pointer },
@@ -180,40 +178,4 @@ fn wrapResult(lowering: *Lower, type_id: ir.TypeId, state: node.ExpressionId, ac
     const value = if (action == .Block) state else try @import("../state_value/conversion.zig").convert(lowering, &inner, type_id, state, if (action == .Layout) .layout else .pointer);
 
     return aggregate.finish(lowering, &inner, value);
-}
-
-fn readConsumer(consumer: *const Api.LoopConsumer) Consumer {
-    return .{ .symbol = @fromBackingInt(consumer.symbol), .result = @fromBackingInt(consumer.result), .layout = consumer.layout };
-}
-
-pub fn consumeDeepLoopResult(handle: *anyopaque, consumer: *const Api.LoopConsumer, state: u32) Lower.Error!u32 {
-    return @backingInt(try @import("../iteration_value/result.zig").lower(evaluation.borrow(handle), readConsumer(consumer), @fromBackingInt(state)));
-}
-
-pub fn consumeBufferedLoopResult(allocator: std.mem.Allocator, handle: *anyopaque, consumer: *const Api.LoopConsumer, state: u32) Lower.Error!*const Api.LoopConsumption {
-    const context: *Context = @ptrCast(@alignCast(handle));
-    var body = context.lowering.builder.statementSequence(allocator);
-    const result = try allocator.create(Api.LoopConsumption);
-    const value = try @import("../iteration_value/result.zig").buffered(context, &body, readConsumer(consumer), @fromBackingInt(state));
-
-    result.* = .{ .value = @backingInt(value), .spans = body.parts.items, .tail = body.last };
-
-    return result;
-}
-
-pub fn consumeLoopProjection(allocator: std.mem.Allocator, handle: *anyopaque, consumer: *const Api.LoopConsumer, state: u32, converted: bool) Lower.Error!*const Api.LoopConsumption {
-    const lowering = evaluation.borrow(handle);
-    var body = lowering.builder.statementSequence(allocator);
-    const result = try allocator.create(Api.LoopConsumption);
-    const value = try readProjection(lowering, &body, readConsumer(consumer), @fromBackingInt(state), converted);
-
-    result.* = .{ .value = @backingInt(value), .spans = body.parts.items, .tail = body.last };
-
-    return result;
-}
-
-pub fn convertLoopResult(handle: *anyopaque, type_id: u32, state: u32, output: bool) Lower.Error!u32 {
-    const context: *Context = @ptrCast(@alignCast(handle));
-
-    return @backingInt(try @import("../iteration_value/conversion.zig").convert(context, @fromBackingInt(type_id), @fromBackingInt(state), output));
 }

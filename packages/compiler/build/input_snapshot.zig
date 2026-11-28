@@ -41,7 +41,7 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocato
     return observed;
 }
 
-pub fn inspect(io: std.Io, allocator: std.mem.Allocator, files: *Files, digest: [32]u8, interfaces: []const manifest.Interface, text: []const u8, partitions: u32, cache: []const u8, source_facts: std.ArrayList(Fact)) !Self {
+fn inspect(io: std.Io, allocator: std.mem.Allocator, files: *Files, digest: [32]u8, interfaces: []const manifest.Interface, text: []const u8, partitions: u32, cache: []const u8, source_facts: std.ArrayList(Fact)) !Self {
     var facts = source_facts;
 
     if (!try observeInterfaces(io, allocator, &facts, interfaces)) return .{ .facts = &.{}, .context = "", .path = "" };
@@ -65,8 +65,6 @@ fn reuseSaved(io: std.Io, workspace: std.mem.Allocator, path: []const u8, contex
     const recorded = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(source.storage_limit)) catch return null;
     const payload = try source.open(allocator, recorded) orelse return null;
     const now = source.timestamp(std.Io.Timestamp.now(io, .real).nanoseconds);
-
-    if (comptime source.binary_records) return source.records.reuse(payload, context, facts, now);
 
     return seed.reuse(allocator, payload, context, facts, now);
 }
@@ -99,37 +97,10 @@ pub fn save(self: Self, io: std.Io, files: *const Files, fingerprint: [32]u8) !v
 fn observeInterfaces(io: std.Io, allocator: std.mem.Allocator, facts: *std.ArrayList(Fact), declarations: []const manifest.Interface) !bool {
     const existing = facts.items.len;
 
-    if (comptime !source.binary_records) {
-        for (declarations) |interface| {
-            const matching = seed_interfaces.find("key", interface.path, facts.items[0..existing]);
+    for (declarations) |interface| {
+        const matching = seed_interfaces.find("key", interface.path, facts.items[0..existing]);
 
-            if (!try appendInterface(io, allocator, facts, interface.path, matching)) return false;
-        }
-
-        return true;
-    }
-
-    if (declarations.len == 0) return true;
-
-    const rule = @import("generated_observe_input_interfaces");
-    const memory = @import("zx").memory;
-    const paths = memory.borrowTextColumn("path", declarations);
-    const keys = memory.borrowTextColumn("key", facts.items);
-    var arena = std.heap.ArenaAllocator.init(allocator);
-
-    defer arena.deinit();
-
-    const observations = try rule.executeIn(arena.allocator(), &.{
-        .paths = @ptrCast(&paths),
-        .count = declarations.len,
-        .keys = @ptrCast(&keys),
-        .existing = existing,
-    });
-
-    for (observations) |observation| {
-        const matching: ?usize = if (observation.matching) |row| @intCast(row) else null;
-
-        if (!try appendInterface(io, allocator, facts, observation.path, matching)) return false;
+        if (!try appendInterface(io, allocator, facts, interface.path, matching)) return false;
     }
 
     return true;

@@ -1,21 +1,62 @@
 <Module>
     <Type from="emission_model" as="Loop" />
+    <Type from="../../../growth/const" as="Growth" />
 
     <Args in={Loop.Growth} out={u64} />
 
-    <If on={$in.renewals.emit}>
+    <If on={$in.renewals.emit && $in.renewal_source != null}>
+        <Call fn="index.readAstOrigin" in={$in.writer} />
+
         <Call
-            fn="index.emitLoopRenewals"
-            in={[
-                $in.loop_frame,
-                $in.renewals.first,
-                $in.renewals.end,
-                $in.renewals.skipped,
-                $in.schedule.inline_lists
-            ]}
+            module="../../../growth/delivery/execute"
+            in={{
+                ...$in.pick([
+                    "frame",
+                    "writer"
+                ]),
+                request: {
+                    entry: {
+                        source: {
+                            ...$ctx.readAstOrigin.pick([
+                                "expression_base",
+                                "statement_base",
+                                "serial"
+                            ]),
+                            operation: Growth.Operation.Renew,
+                            element: 0,
+                            value: $in.projected ? $in.seed : $in.state,
+                            count: 0,
+                            minimum: 0,
+                            flag: !$in.growth_facts.may_grow,
+                            shared: $in.growth_facts.shared,
+                            capture: $ctx.readAstOrigin.capture
+                        },
+                        types: $in.renewal_source.facts.types,
+                        type_id: $in.type_id,
+                        records: $in.renewal_source.records,
+                        inline_lists: $in.growth_facts.inline_lists,
+                        range: {
+                            first: $in.renewals.first,
+                            end: $in.renewals.end
+                        },
+                        skipped: $in.renewals.skipped,
+                        entry_rows: true,
+                        filtered_inline: $in.schedule.inline_lists
+                    },
+                    uses_allocator: false
+                }
+            }}
         />
 
-        <Return value={$ctx.emitLoopRenewals} />
+        <Call
+            fn="growth_span"
+            in={{
+                start: $ctx.execute.start,
+                count: $ctx.execute.count
+            }}
+        />
+
+        <Return value={$ctx.growth_span} />
     </If>
 
     <Return value={0} />

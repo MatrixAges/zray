@@ -1,0 +1,65 @@
+<Module>
+    <Type from="model" as="Execution" />
+    <Type from="../../rows" as="AST" />
+
+    <Args in={Execution.Step} out={Execution.StepResult} />
+
+    <Call
+        fn="../../rows.astColumnCount"
+        in={[
+            $in.context.writer,
+            AST.AstColumn.SelectionArms
+        ]}
+    />
+
+    <Call
+        fn="selection_finish"
+        in={{
+            step: $in,
+            arm_base: $ctx.astColumnCount
+        }}
+    />
+
+    <Call fn="../../rows.readAstOrigin" in={$in.context.writer} />
+    <Call fn="../../rows.astFieldCount" in={$in.context.writer} />
+
+    <Call
+        module="../../switch/build"
+        in={{
+            ...$ctx.selection_finish,
+            bases: {
+                ...$ctx.readAstOrigin,
+                capture: null,
+                field_base: $ctx.astFieldCount
+            }
+        }}
+    />
+
+    <Call fn="../../rows.requireAllocation" in={$ctx.build.valid} />
+
+    <Call
+        fn="../../rows.publishAstStatementBatch"
+        in={[
+            $in.context.writer,
+            $ctx.build.statements,
+            null,
+            $ctx.build.pick([
+                "expressions",
+                "extra",
+                "arms",
+                "children"
+            ])
+        ]}
+    />
+
+    <Call
+        fn="selection_publish"
+        in={{
+            step: $in,
+            outer: $ctx.publishAstStatementBatch,
+            tail: $ctx.build.tail
+        }}
+    />
+
+    <Return value={$ctx.selection_publish} />
+</Module>

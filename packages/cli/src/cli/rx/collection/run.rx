@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Collection" />
 
-    <Args in={Collection.Request} out={Collection.Records?} />
+    <Args in={Collection.Request} out={Collection.Result} />
 
     <Store from="physical" as="physical" />
     <Store from="records" as="records" />
@@ -38,17 +38,20 @@
             }}
         />
 
-        <Return value={$ctx.selected_records} />
+        <Return
+            value={{
+                records: $ctx.selected_records,
+                issue: $ctx.walk.issue
+            }}
+        />
     </If>
 
-    <Call
-        fn="index.writeCollectionDiagnostic"
-        in={[
-            $in.collection,
-            $in.entry,
-            "invalid RX entry path"
-        ]}
+    <Return
+        value={{
+            issue: {
+                path: $in.entry,
+                message: "invalid RX entry path"
+            }
+        }}
     />
-
-    <Return value={null} />
 </Module>

@@ -643,7 +643,6 @@ pub const execution = [_]Entry{
     .{ .path = "genz/analysis/state/conversion/emit/execute.rx", .name = "state_conversion_emit", .owner = .genz },
     .{ .path = "rx/analysis/condition/walk.zx", .name = "rx_condition_walk", .owner = .rx_analysis },
     .{ .path = "inputs/fingerprint/frame.rx", .name = "input_frame_fingerprint", .owner = .bootstrap },
-    .{ .path = "inputs/collection/interface/observe.zx", .name = "observe_input_interfaces", .owner = .bootstrap },
     .{ .path = "inputs/collection/directory/scan.rx", .name = "scan_input_directory", .owner = .bootstrap },
     .{ .path = "inputs/collection/load/load.zx", .name = "load_input_documents", .owner = .bootstrap },
     .{ .path = "inputs/collection/interface/register.rx", .name = "input_interface_registration", .owner = .bootstrap },

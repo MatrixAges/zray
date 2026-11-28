@@ -1,10 +1,8 @@
 const std = @import("std");
-const zx = @import("zx");
 const History = @import("../../history.zig");
 const State = @import("../state.zig");
 const Borrowed = @import("admit.zig").Borrowed;
 const columns = @import("../../history/columns.zig");
-const Transfer = zx.memory.column_transfer;
 const rule = @import("generated_rx_mixed_history_replay");
 const Input = std.meta.Child(rule.Input);
 
@@ -21,7 +19,7 @@ pub fn run(state: *State, previous: *const History.Retained, prefix: *const Borr
             .sources = &.{ .zx_count = graph.sources.zx_count, .rx_end = graph.sources.rx_end },
             .history = &prefix.history,
         },
-        .column_count = prefix.group.len,
+        .column_count = prefix.transfers.len,
         .publication = &.{
             .rows = @ptrCast(&order),
             .modules = &.{
@@ -45,15 +43,12 @@ pub fn run(state: *State, previous: *const History.Retained, prefix: *const Borr
     };
 
     if (result.publication) |publication| {
-        const group: *const anyopaque = @ptrCast(&prefix.group);
-
         for (result.ranges) |range| {
-            _ = try Transfer.reserveOne(&state.allocator, group, range.column, range.count);
+            _ = try prefix.transfers[@intCast(range.column)].reserve(state.allocator, @intCast(range.count));
         }
 
         for (result.ranges) |range| {
-            Transfer.copyRange(group, range.column, range.first, range.count);
-            Transfer.publishOne(group, range.column, range.count);
+            prefix.transfers[@intCast(range.column)].appendBorrowed(@intCast(range.first), @intCast(range.count));
         }
 
         for (publication.modules) |module| {

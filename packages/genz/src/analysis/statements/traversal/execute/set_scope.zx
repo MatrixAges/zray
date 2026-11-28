@@ -1,0 +1,17 @@
+import type { ScopeRange } from "./model"
+
+export type Input = ScopeRange?
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.traversal.locals = {
+        open: in != null,
+        first: in != null ? in.first : 0,
+        count: in != null ? in.count : 0,
+        keys: [],
+        buckets: []
+    }
+}

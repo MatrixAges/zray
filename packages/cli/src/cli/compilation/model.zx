@@ -28,6 +28,7 @@ export type Outcome = {
     status: Status,
     stdout?: string,
     diagnostic?: string,
+    flush_diagnostics?: bool,
     defer_diagnostic_flush?: bool
 }
 

@@ -94,7 +94,18 @@ export type Cursor = {
     count: u64,
     index: u64,
     valid: bool,
-    running: bool
+    running: bool,
+    issue?: ReferenceIssue
+}
+
+export type ReferenceIssue = {
+    reference: ModuleReference,
+    message: string
+}
+
+export type PassResult = {
+    valid: bool,
+    issue?: ReferenceIssue
 }
 
 export type CompiledWalk = CompiledModuleState & Cursor
@@ -105,14 +116,16 @@ export type CompiledRefWalk = CompiledModuleState & {
     items: ModuleReference[],
     index: u64,
     valid: bool,
-    running: bool
+    running: bool,
+    issue?: ReferenceIssue
 }
 
 export type TypeRefWalk = TypeModuleState & {
     items: ModuleReference[],
     index: u64,
     valid: bool,
-    running: bool
+    running: bool,
+    issue?: ReferenceIssue
 }
 
 export type RangeWalk = Range & {

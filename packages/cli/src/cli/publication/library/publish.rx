@@ -3,42 +3,37 @@
 
     <Args in={Library.Input} out={Library.Output} />
 
-    <Call fn="../index.capture" in={$in.verification} />
+    <If on={$in.retired == null}>
+        <Call fn="../index.capture" in={$in.verification} />
 
-    <Call
-        fn="disjoint"
-        in={{
-            destination: $in.destination,
-            observed: $in.observed,
-            separator: $in.separator,
-            count: $ctx.capture
-        }}
-    />
+        <Call
+            fn="disjoint"
+            in={{
+                destination: $in.destination,
+                observed: $in.observed,
+                separator: $in.separator,
+                count: $ctx.capture
+            }}
+        />
 
-    <If on={!$ctx.disjoint}>
-        <Return value={Library.Output.Overlap} />
+        <If on={!$ctx.disjoint}>
+            <Return value={Library.Output.Overlap} />
+        </If>
+
+        <Call
+            fn="../index.verify"
+            in={[
+                $in.verification,
+                $in.versioned
+            ]}
+        />
+
+        <If on={!$ctx.verify}>
+            <Return value={Library.Output.Changed} />
+        </If>
+
+        <Return value={Library.Output.Retirement} />
     </If>
-
-    <Call
-        fn="../index.verify"
-        in={[
-            $in.verification,
-            $in.versioned
-        ]}
-    />
-
-    <If on={!$ctx.verify}>
-        <Return value={Library.Output.Changed} />
-    </If>
-
-    <Call
-        fn="../index.prepareRetirement"
-        in={[
-            $in.verification,
-            $in.destination,
-            $in.managed
-        ]}
-    />
 
     <Call
         fn="../index.openDirectory"
@@ -73,15 +68,17 @@
         />
     </Loop>
 
-    <Loop on={$in.index < $in.paths.length}>
-        <Call
-            module="retire"
-            in={{
-                paths: $ctx.prepareRetirement,
-                index: 0
-            }}
-        />
-    </Loop>
+    <If on={$in.retired != null}>
+        <Loop on={$in.index < $in.paths.length}>
+            <Call
+                module="retire"
+                in={{
+                    paths: $in.retired,
+                    index: 0
+                }}
+            />
+        </Loop>
+    </If>
 
     <Call
         fn="relative_source"

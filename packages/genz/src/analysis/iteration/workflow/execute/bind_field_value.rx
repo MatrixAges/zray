@@ -1,0 +1,57 @@
+<Module>
+    <Type from="emission_model" as="Loop" />
+
+    <Args in={Loop.FieldValue} out={u32} />
+
+    <If on={$in.origin != null}>
+        <Call fn="index.readAstOrigin" in={$in.writer} />
+
+        <Call
+            module="../../../aggregate/binding/operand"
+            in={{
+                ...$in.pick([
+                    "frame",
+                    "writer",
+                    "sequence",
+                    "value"
+                ]),
+                expression_base: $ctx.readAstOrigin.expression_base,
+                serial: $ctx.readAstOrigin.serial
+            }}
+        />
+
+        <Call
+            module="rebuild_field_value"
+            in={{
+                ...$in,
+                value: $ctx.operand.root
+            }}
+        />
+
+        <Return value={$ctx.rebuild_field_value} />
+    </If>
+
+    <Call module="rebuild_field_value" in={$in} />
+
+    <If on={$ctx.rebuild_field_value != $in.value}>
+        <Call fn="index.readAstOrigin" in={$in.writer} />
+
+        <Call
+            module="../../../aggregate/binding/operand"
+            in={{
+                ...$in.pick([
+                    "frame",
+                    "writer",
+                    "sequence"
+                ]),
+                value: $ctx.rebuild_field_value,
+                expression_base: $ctx.readAstOrigin.expression_base,
+                serial: $ctx.readAstOrigin.serial
+            }}
+        />
+
+        <Return value={$ctx.operand.root} />
+    </If>
+
+    <Return value={$in.value} />
+</Module>

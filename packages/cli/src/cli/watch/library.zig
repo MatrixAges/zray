@@ -24,20 +24,31 @@ pub fn publish(io: std.Io, backing: std.mem.Allocator, staging: []const u8, outp
 
     for (managed, managed_paths) |file, *path| path.* = file.path;
 
-    const status = @import("cli_source").publish_library.executeIn(allocator, &.{
-        .managed = managed_paths,
+    const publish_entry = @import("cli_source").publish_library;
+    const Request = std.meta.Child(publish_entry.Input);
+
+    var request: Request = .{
+        .retired = null,
         .destination = destination,
         .directory = @ptrCast(&cursor),
         .verification = @ptrCast(&observation),
         .versioned = inputs.retain_versions,
         .observed = @ptrCast(&verification.observed),
         .separator = std.fs.path.sep,
-    }, io) catch |err| return failure.unwrap(err);
+    };
+
+    var status = publish_entry.executeIn(allocator, &request, io) catch |err| return failure.unwrap(err);
+
+    if (status == .Retirement) {
+        request.retired = try host.retirement.retired(io, allocator, backing, destination, managed_paths, inputs);
+        status = publish_entry.executeIn(allocator, &request, io) catch |err| return failure.unwrap(err);
+    }
 
     return switch (status) {
         .Changed => false,
         .Overlap => error.OutputOverlapsInput,
         .MissingInventory => error.MissingLibraryInventory,
         .Published => true,
+        .Retirement => unreachable,
     };
 }

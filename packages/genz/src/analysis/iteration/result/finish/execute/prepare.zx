@@ -1,6 +1,5 @@
 import integers from "std:integer"
 import {
-    appendAstSequenceSpan,
     convertStateValue,
     readAstOrigin,
     StateValueMode,
@@ -8,6 +7,7 @@ import {
 } from "ast_rows"
 import host from "lowering_host"
 
+import bindOperand from "../../../../aggregate/execute/bind_operand"
 import finishStored from "../../../../aggregate/execute/finish_stored"
 import emitUnit from "../../../../collections/workflow/emit_unit"
 import { word_radix } from "../../../../node_headers/block/const"
@@ -18,7 +18,7 @@ import type { Actions as Input } from "./model"
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { context, consumer, frame, writer, body, wrap, state, type_id } = in
+    const { consumer, frame, writer, body, wrap, state, type_id } = in
 
     if (in.preparation == Preparation.Reserve) {
         const current = readAstOrigin(writer)
@@ -41,34 +41,32 @@ export default function (in: Input): Output {
     }
 
     if (consumer != null) {
-        if (in.preparation == Preparation.DeepConsumer) {
-            return host.consumeDeepLoopResult(frame, consumer, state)
+        const buffered = in.preparation == Preparation.BufferedConsumer
+        const planned = buffered || in.preparation == Preparation.DeepConsumer
+        const row: u32? = planned ? null : consumer.result
+
+        const projected =
+            host.projectIterationResult(frame, buffered, consumer, state, row)
+
+        if (in.preparation == Preparation.ConvertedConsumer) {
+            const bound = bindOperand({
+                frame,
+                writer,
+                sequence: body,
+                value: projected
+            })
+
+            return convertStateValue(
+                writer,
+                body,
+                consumer.result_type,
+                bound,
+                StateValueMode.Pointer,
+                false
+            )
         }
 
-        const consumed = match in.preparation {
-            Preparation.BufferedConsumer =>
-                host.consumeBufferedLoopResult(context, consumer, state),
-            _ =>
-                host.consumeLoopProjection(
-                    frame,
-                    consumer,
-                    state,
-                    in.preparation == Preparation.ConvertedConsumer
-                )
-        }
-
-        const appended = loop(0, {
-            while: row => row < consumed.spans.length,
-            next: row => {
-                appendAstSequenceSpan(body, consumed.spans[row])
-
-                row += 1
-            }
-        })
-
-        appendAstSequenceSpan(body, consumed.tail)
-
-        return consumed.value
+        return projected
     }
 
     if (in.preparation == Preparation.Unit) {

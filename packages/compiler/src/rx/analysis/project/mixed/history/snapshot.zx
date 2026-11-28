@@ -1,11 +1,8 @@
-import memory from "memory"
-
-import type { ColumnLengths } from "memory"
 import type { Extent } from "./extent"
 
 export type Input = {
-    types: ColumnLengths,
-    origins: ColumnLengths,
+    types: u64[],
+    origins: u64[],
     extent: Extent
 }
 
@@ -16,16 +13,13 @@ export default function (in: Input): Output {
 
     const words: u64[] = []
 
-    const type_count = memory.lengthSlotCount(types)
-    const total = type_count + memory.lengthSlotCount(origins)
-
     const captured = loop(words, {
-        while: values => values.length < total,
+        while: values => values.length < types.length + origins.length,
         next: values => {
             const slot = values.length
             const count = match {
-                slot < type_count => memory.readLengthSlot(types, slot),
-                _ => memory.readLengthSlot(origins, slot - type_count)
+                slot < types.length => types[slot],
+                _ => origins[slot - types.length]
             }
 
             values = values.push(count)[0]

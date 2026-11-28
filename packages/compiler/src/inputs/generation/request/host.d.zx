@@ -46,18 +46,14 @@ export type GenerationTime = {
     low: u64
 }
 
-export type GenerationStat = {
-    inode?: u64,
-    size?: u64,
-    mtime_ns?: GenerationTime,
-    ctime_ns?: GenerationTime
-}
-
 export type GenerationPath = {
     path: string,
     relative: string,
     retain: bool,
-    stat?: GenerationStat
+    inode?: u64,
+    size?: u64,
+    mtime_ns?: GenerationTime,
+    ctime_ns?: GenerationTime
 }
 
 export type GenerationObservedRoot = {
@@ -90,24 +86,6 @@ export type GenerationBinding = {
     resolve_members: bool
 }
 
-export type GenerationFact = {
-    path: string,
-    key: string
-}
-
-export type GenerationSnapshot = {
-    path: string,
-    context: string,
-    facts: GenerationFact[]
-}
-
-export type GenerationObservation = {
-    enabled: bool,
-    snapshot?: GenerationSnapshot,
-    roots: GenerationObservedRoot[],
-    digest?: u8[]
-}
-
 export type GenerationRegistration = {
     bindings: GenerationBinding[],
     external: u64,
@@ -120,13 +98,6 @@ export type PreparedGeneration = {
     shape: u8[],
     digests: GenerationDigest[]
 }
-
-export declare function readGenerationSnapshot(
-    allocator,
-    io,
-    host: GenerationIO,
-    roots: GenerationObservedRoot[]
-): GenerationObservation throws { GenerationRequestFailed }
 
 export declare function readGenerationFiles(
     allocator,

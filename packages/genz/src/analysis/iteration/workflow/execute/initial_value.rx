@@ -31,24 +31,115 @@
         />
     </If>
 
+    <If on={!$in.initial_plan.local}>
+        <Return
+            value={{
+                name: $in.loop_state.name,
+                value: $ctx.initial_operand,
+                guard_info: null
+            }}
+        />
+    </If>
+
+    <Call fn="index.readAstOrigin" in={$in.writer} />
+
     <Call
-        fn="initial"
+        module="../../../aggregate/binding/operand"
         in={{
             ...$in.pick([
                 "frame",
-                "writer",
-                "body_seq",
-                "loop_frame",
-                "initial_plan"
+                "writer"
             ]),
+            sequence: $in.body_seq,
+            expression_base: $ctx.readAstOrigin.expression_base,
+            serial: $ctx.readAstOrigin.serial,
             value: $ctx.initial_operand
         }}
+    />
+
+    <If on={$in.initial_plan.guard == Initial.Guard.None}>
+        <Return
+            value={{
+                name: $in.loop_state.name,
+                value: $ctx.operand.root,
+                guard_info: null
+            }}
+        />
+    </If>
+
+    <Call
+        fn="index.takeAstSequence"
+        in={[
+            $in.writer,
+            $in.body_seq,
+            false
+        ]}
+    />
+
+    <Call
+        fn="set_guard_scope"
+        in={$ctx.operand.name}
+        setter={[$store.loop_state.initial_scope]}
+    />
+
+    <Call
+        fn="index.lowerExpression"
+        in={[
+            $in.frame,
+            $in.condition,
+            false,
+            null
+        ]}
+    />
+
+    <If on={$in.consumer != null}>
+        <Call
+            fn="index.projectIterationResult"
+            in={[
+                $in.frame,
+                false,
+                $in.consumer,
+                $ctx.operand.root,
+                null
+            ]}
+        />
+
+        <Call
+            fn="set_guard_scope"
+            in={null}
+            setter={[$store.loop_state.initial_scope]}
+        />
+
+        <Return
+            value={{
+                name: $in.loop_state.name,
+                value: $ctx.operand.root,
+                guard_info: {
+                    body: $ctx.takeAstSequence,
+                    condition: $ctx.lowerExpression,
+                    fallback: $ctx.projectIterationResult
+                }
+            }}
+        />
+    </If>
+
+    <Call fn="../../../collections/workflow/emit_unit" in={$in.writer} />
+
+    <Call
+        fn="set_guard_scope"
+        in={null}
+        setter={[$store.loop_state.initial_scope]}
     />
 
     <Return
         value={{
             name: $in.loop_state.name,
-            value: $ctx.initial
+            value: $ctx.operand.root,
+            guard_info: {
+                body: $ctx.takeAstSequence,
+                condition: $ctx.lowerExpression,
+                fallback: $ctx.emit_unit
+            }
         }}
     />
 </Module>

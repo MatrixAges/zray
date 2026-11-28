@@ -27,12 +27,11 @@ export default function (in: Input): Output {
             })
 
             if (state.ready) {
-                publish({
+                state.row += publish({
                     groups,
                     index: group,
                     count: 1
                 })
-                state.row += 1
             }
         },
         return: state => state.row

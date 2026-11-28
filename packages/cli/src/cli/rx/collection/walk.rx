@@ -27,7 +27,7 @@
             }}
         />
 
-        <If on={$ctx.visit == State.Readiness.Ready}>
+        <If on={$ctx.visit.readiness == State.Readiness.Ready}>
             <Call
                 fn="record"
                 in={{
@@ -39,12 +39,26 @@
             />
         </If>
 
+        <If on={$ctx.visit.problem != null}>
+            <Return
+                value={{
+                    ...$in,
+                    valid: false,
+                    running: false,
+                    issue: {
+                        path: $ctx.selectCollectionPath,
+                        message: $ctx.visit.problem
+                    }
+                }}
+            />
+        </If>
+
         <Return
             value={{
                 ...$in,
                 index: $in.index + 1,
-                valid: $ctx.visit != State.Readiness.Invalid,
-                running: $ctx.visit != State.Readiness.Invalid
+                valid: $ctx.visit.readiness != State.Readiness.Invalid,
+                running: $ctx.visit.readiness != State.Readiness.Invalid
             }}
         />
     </If>

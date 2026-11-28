@@ -1,4 +1,4 @@
-import type { IterationResourceFrame, LoopConsumer, Lowering } from "lowering_host"
+import type { LoopConsumer, Lowering } from "lowering_host"
 import type { Output as Plan } from "../model"
 
 export {
@@ -17,20 +17,19 @@ export type Projection = {
 
 export type Input = Projection & {
     plan: Plan,
-    context?: IterationResourceFrame
+    buffered: bool
 }
 
 export type Reads = Input.Pick("plan")
 
 export type ReadCursor = Projection & {
-    context?: IterationResourceFrame,
+    buffered: bool,
     ids: u32[],
     row: u64,
     running: bool
 }
 
 export type TransferCursor = Projection & {
-    context: IterationResourceFrame,
     plan: Plan,
     slots: u32[],
     row: u64,

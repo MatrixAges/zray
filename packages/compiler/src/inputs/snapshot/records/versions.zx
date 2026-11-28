@@ -4,12 +4,12 @@ import { sort_equal, sort_greater, sort_less } from "../../collection/const"
 import { fingerprint_width, snapshot_limit } from "../const"
 import { header_width, row_width } from "./const"
 
-import type { GenerationSnapshot } from "generation_host"
 import type { Document } from "../../fingerprint/model"
+import type { Snapshot } from "./model"
 import type { Version, WriteRows } from "./write_shape"
 
 export type Input = {
-    target: GenerationSnapshot,
+    target: Snapshot,
     digest: u8[],
     batches: Document[][],
     external: Document[]

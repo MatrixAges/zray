@@ -6,7 +6,7 @@ export type Input = Finish & {
 }
 
 export default function (in: Input): Output {
-    const { consumer, context, discard, frame, writer, initial_plan, skipped } = in
+    const { consumer, discard, frame, writer, initial_plan, skipped } = in
 
     const body = match {
         skipped => in.skipped_seq,
@@ -15,7 +15,6 @@ export default function (in: Input): Output {
     }
 
     return {
-        context,
         consumer,
         frame,
         writer,

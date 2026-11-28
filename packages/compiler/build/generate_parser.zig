@@ -76,6 +76,7 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
     defer arena.deinit();
 
     const scratch = arena.allocator();
+    const now = compiler.input_snapshot.timestamp(std.Io.Timestamp.now(io, .real).nanoseconds);
 
     const input: Input = .{
         .packages = &packages,
@@ -87,11 +88,14 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
         .generator = &resident.digest,
         .manifest = manifest_source,
         .partitions = request.partitions,
+        .cache = request.cache,
+        .cwd = if (request.write) try std.process.currentPathAlloc(io, scratch) else "",
+        .now = &.{ .high = now.high, .low = now.low },
     };
 
     const Entries = std.meta.Child(@FieldType(workflow.zx_pending, "store_0"));
     const Documents = std.meta.Child(@FieldType(workflow.zx_pending, "store_1"));
-    const initial_entries: std.meta.Child(Entries) = .{ .batches = &.{}, .count = 0 };
+    const initial_entries: std.meta.Child(Entries) = .{ .levels = &.{} };
     const initial_documents: std.meta.Child(Documents) = .{ .batches = &.{} };
     var collected: Entries = &initial_entries;
     var documents: Documents = &initial_documents;
@@ -320,51 +324,7 @@ fn generationInterfaces(allocator: std.mem.Allocator, project: []const manifest.
     return result;
 }
 
-pub fn readGenerationSnapshot(allocator: std.mem.Allocator, io: std.Io, reference: *const anyopaque, roots: []const Host.GenerationObservedRoot) Error!Host.GenerationObservation {
-    const host = borrow(GenerationIO, reference);
-    const facts = observedFacts(allocator, io, host.project.roots, roots) catch |err| return host.fail(err);
-    const snapshot = InputSnapshot.inspect(io, allocator, &host.resident.files, host.resident.digest, host.project.interfaces, host.manifest_source, host.request.partitions, host.request.cache, facts) catch |err| return host.fail(err);
-    const target = if (snapshot.facts.len == 0) null else snapshotTarget(allocator, &snapshot) catch |err| return host.fail(err);
-    const digest = if (snapshot.fingerprint) |*value| allocator.dupe(u8, value) catch |err| return host.fail(err) else null;
-
-    return keep(host, allocator, @as(std.meta.Child(Host.GenerationObservation), .{
-        .enabled = true,
-        .snapshot = target,
-        .roots = roots,
-        .digest = digest,
-    }));
-}
-
-fn observedFacts(allocator: std.mem.Allocator, io: std.Io, roots: []const manifest.Root, observed: []const Host.GenerationObservedRoot) !std.ArrayList(compiler.input_snapshot.Observation) {
-    const Observation = compiler.input_snapshot.Observation;
-    var facts: std.ArrayList(Observation) = .empty;
-
-    for (roots, observed) |root, listed| {
-        var directory: ?std.Io.Dir = null;
-
-        defer if (directory) |handle| handle.close(io);
-
-        try facts.ensureUnusedCapacity(allocator, listed.files.len);
-
-        for (listed.files) |entry| {
-            const path = try std.fs.path.resolve(allocator, &.{ root.path, entry.relative });
-
-            const info = listedMetadata(entry.stat) orelse fallback: {
-                // Older generator binaries do not return nanosecond change times.
-                if (directory == null) directory = try std.Io.Dir.cwd().openDir(io, root.path, .{});
-
-                break :fallback Files.metadata(try directory.?.statFile(io, entry.relative, .{ .follow_symlinks = false }));
-            };
-
-            facts.appendAssumeCapacity(Observation.init(path, entry.path, info));
-        }
-    }
-
-    return facts;
-}
-
-fn listedMetadata(stat: ?Host.GenerationStat) ?Files.Metadata {
-    const value = stat orelse return null;
+fn listedMetadata(value: Host.GenerationPath) ?Files.Metadata {
     const modified = value.mtime_ns orelse return null;
     const changed = value.ctime_ns orelse return null;
 
@@ -378,22 +338,6 @@ fn listedMetadata(stat: ?Host.GenerationStat) ?Files.Metadata {
 
 fn nanoseconds(time: Host.GenerationTime) i96 {
     return (@as(i96, time.high) << 64) | time.low;
-}
-
-fn snapshotTarget(allocator: std.mem.Allocator, snapshot: *const InputSnapshot) !Host.GenerationSnapshot {
-    const rows = try allocator.alloc(std.meta.Child(Host.GenerationFact), snapshot.facts.len);
-    const facts = try allocator.alloc(Host.GenerationFact, snapshot.facts.len);
-
-    for (snapshot.facts, rows, facts) |fact, *row, *field| {
-        row.* = .{ .path = fact.path, .key = fact.key };
-        field.* = row;
-    }
-
-    const result = try allocator.create(std.meta.Child(Host.GenerationSnapshot));
-
-    result.* = .{ .path = snapshot.path, .context = snapshot.context, .facts = facts };
-
-    return result;
 }
 
 pub fn readGenerationFiles(allocator: std.mem.Allocator, io: std.Io, reference: *const anyopaque, input: Host.GenerationRead) Error!Host.GenerationReadResult {
@@ -417,14 +361,15 @@ fn readFiles(host: *const GenerationIO, allocator: std.mem.Allocator, io: std.Io
     for (input.files, fields, documents, 0..) |item, *field, *document, row| {
         const key = if (input.root != null) item.path else try std.fs.path.resolve(allocator, &.{item.path});
 
-        const source = files.readObserved(io, directory, item.relative, key, item.retain, listedMetadata(item.stat)) catch |err| source: {
+        const read = files.readObserved(io, directory, item.relative, key, item.retain, listedMetadata(item)) catch |err| read: {
             if (!input.optional) return err;
             if (failure == null) failure = @intFromError(err);
 
-            break :source "";
+            break :read null;
         };
 
-        const path = if (input.root != null) try host.owned.dupe(u8, item.path) else key;
+        const source = if (read) |value| value.text else "";
+        const path = if (read) |value| value.key else key;
 
         const digest: []const u8 = if (input.root != null) digest: {
             digests[row] = files.digest(key, source);
@@ -432,7 +377,7 @@ fn readFiles(host: *const GenerationIO, allocator: std.mem.Allocator, io: std.Io
             break :digest &digests[row];
         } else &.{};
 
-        const version = if (host.request.write) observedVersion(files, key, &versions[row]) else null;
+        const version = if (host.request.write and read != null) observedVersion(read.?.version, &versions[row]) else null;
 
         field.* = .{ .path = path, .source = source, .digest = digest, .version = version };
         document.* = field;
@@ -441,8 +386,7 @@ fn readFiles(host: *const GenerationIO, allocator: std.mem.Allocator, io: std.Io
     return keep(host, allocator, @as(std.meta.Child(Host.GenerationReadResult), .{ .documents = documents, .failure = failure }));
 }
 
-fn observedVersion(files: *const Files, key: []const u8, output: *std.meta.Child(Host.GenerationVersion)) ?Host.GenerationVersion {
-    const version = files.version(key) orelse return null;
+fn observedVersion(version: Files.Version, output: *std.meta.Child(Host.GenerationVersion)) Host.GenerationVersion {
     const timestamp = compiler.input_snapshot.timestamp;
     const modified = timestamp(version.metadata.mtime);
     const changed = timestamp(version.metadata.ctime);

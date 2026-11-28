@@ -1,12 +1,58 @@
 <Module>
     <Type from="emission_model" as="Loop" />
+    <Type from="model" as="Types" />
+    <Type from="../../fields/projection/model" as="Projection" />
 
     <Args in={Loop.Recovery} out={u32} />
 
-    <If on={$in.restore}>
-        <Call fn="index.restoreLoopFields" in={$in.loop_frame} />
+    <If on={$in.restore && $in.fields != null}>
+        <Call
+            fn="index.materializeType"
+            in={[
+                $in.frame,
+                $in.type_id,
+                Types.StoredType.Layout
+            ]}
+        />
 
-        <Return value={$ctx.restoreLoopFields} />
+        <Call
+            module="project_fields"
+            in={{
+                ...$in.pick([
+                    "frame",
+                    "writer",
+                    "type_id"
+                ]),
+                fields: $in.fields,
+                facts: $in.assignment_facts,
+                value: $in.state,
+                layout: $ctx.materializeType,
+                mode: Projection.Mode.Restore,
+                fields_update: {
+                    values: [],
+                    changed: [],
+                    replacements: []
+                }
+            }}
+        />
+
+        <Call fn="index.readAstOrigin" in={$in.writer} />
+
+        <Call
+            module="../../../aggregate/binding/operand"
+            in={{
+                ...$in.pick([
+                    "frame",
+                    "writer"
+                ]),
+                sequence: $in.projected_seq,
+                value: $ctx.project_fields,
+                expression_base: $ctx.readAstOrigin.expression_base,
+                serial: $ctx.readAstOrigin.serial
+            }}
+        />
+
+        <Return value={$ctx.operand.root} />
     </If>
 
     <Return value={$in.state} />

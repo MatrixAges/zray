@@ -36,19 +36,21 @@ pub fn route(allocator: std.mem.Allocator, claims: *Claims, internal: []const in
         const names = zx.memory.borrowTextColumn("module", internal);
         var buckets: []u64 = &.{};
         var claim: ?Claim = null;
+        var bucket_view: std.meta.Child(@FieldType(Claim, "buckets")) = undefined;
 
         if (comptime indexed) {
             const row = item.header.storage.imports[item.index];
 
             if (!row.exported and row.count != 0) {
                 buckets = try claims.buckets(allocator, item.header.importBindingCount());
+                bucket_view = .{ .values = buckets };
 
                 claim = .{
                     .source = item.header.source,
                     .names = zx.columns.slice(@FieldType(Claim, "names"), item.header.storage.import_names),
                     .first = row.first,
                     .count = row.count,
-                    .buckets = @ptrCast(&buckets),
+                    .buckets = &bucket_view,
                     .capacity = buckets.len,
                 };
             }
@@ -178,7 +180,7 @@ pub fn source(index: *const Index, state_column: []State, request: Source) Plan 
             .row = if (request.row) |row| row else null,
             .import_row = request.import_row,
             .keys = index.keys,
-            .buckets = @ptrCast(&index.buckets),
+            .buckets = &.{ .values = index.buckets },
             .capacity = index.buckets.len,
             .states = std.mem.sliceAsBytes(state_column),
         };

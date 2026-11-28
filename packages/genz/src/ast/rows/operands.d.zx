@@ -42,7 +42,44 @@ export enum StateValueMode {
     Layout,
     Pointer,
     Construct,
-    ViewLayout
+    ViewLayout,
+    IterationInput,
+    IterationOutput
+}
+
+export type StatementScopes = {
+    variables: StatementVariables,
+    starts: u32[],
+    counts: u32[]
+}
+
+export type StatementSelectionArms = {
+    value: u32?[],
+    capture: u8[]?[],
+    result: u32[]
+}
+
+export type StatementSelectionHeaders = {
+    tags: StatementsKind[],
+    offsets: u32[]
+}
+
+export enum AstColumn {
+    Identifiers,
+    SelectionArms
+}
+
+export type SelectionColumns = {
+    selection_subject: u32[],
+    selection_arms_start: u32[],
+    selection_arms_len: u32[]
+}
+
+export type StatementSelection = {
+    expressions: ExpressionRows,
+    extra: SelectionColumns,
+    arms: StatementSelectionArms,
+    children: StatementSelectionHeaders
 }
 
 export type ValueCallEmission = {

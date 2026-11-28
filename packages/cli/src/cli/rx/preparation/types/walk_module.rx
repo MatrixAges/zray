@@ -32,7 +32,8 @@
                 ...$in,
                 index: $in.index + 1,
                 valid: $ctx.walk_reference.valid,
-                running: $ctx.walk_reference.valid && $in.index + 1 < $in.count
+                running: $ctx.walk_reference.valid && $in.index + 1 < $in.count,
+                issue: $ctx.walk_reference.issue
             }}
         />
     </If>

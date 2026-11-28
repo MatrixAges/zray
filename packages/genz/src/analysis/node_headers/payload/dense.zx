@@ -43,12 +43,20 @@ export default function (in: Input): Output {
             const group = cursor - 1
             const count = integers.widen(counts[group])
 
-            discard({
-                allocator,
-                groups,
-                index: group,
-                count
+            const columns = groups[group].columns
+
+            const discarded = loop(columns.length, {
+                while: slot => count != 0 && slot != 0,
+                next: slot => {
+                    slot = discard({
+                        allocator,
+                        columns,
+                        cursor: slot,
+                        count
+                    })
+                }
             })
+
             cursor = group
         }
     })

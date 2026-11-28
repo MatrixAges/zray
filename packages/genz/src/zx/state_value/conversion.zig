@@ -16,6 +16,12 @@ pub fn convertStateValue(frame: *anyopaque, body: *anyopaque, type_id: u32, valu
 
     if (mode == .Construct) return @backingInt(try self.construct(target, expression));
 
+    if (mode == .IterationInput or mode == .IterationOutput) {
+        const context = self.iteration_resources.?.context;
+
+        return @backingInt(try @import("../iteration_value/conversion.zig").convert(context, target, expression, mode == .IterationOutput));
+    }
+
     const source = if (bind) try aggregate.bind(self, sequence, expression) else expression;
 
     const conversion_mode: Mode = switch (mode) {
@@ -24,7 +30,7 @@ pub fn convertStateValue(frame: *anyopaque, body: *anyopaque, type_id: u32, valu
         .ValueLayout => .value_layout,
         .Layout => .layout,
         .Pointer => .pointer,
-        .Construct => unreachable,
+        .Construct, .IterationInput, .IterationOutput => unreachable,
         .ViewLayout => .view_layout,
     };
 

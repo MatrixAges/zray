@@ -1,14 +1,14 @@
 import host from "lowering_host"
 
-import type { LoopFrame } from "lowering_host"
+import type { LoopProjection, Lowering } from "lowering_host"
 
 export type Input = {
-    loop_frame: LoopFrame,
+    frame: Lowering,
     project_fields: bool
 }
 
-export type Output = bool
+export type Output = LoopProjection?
 
 export default function (in: Input): Output {
-    return in.project_fields ? host.prepareLoopFields(in.loop_frame) : false
+    return in.project_fields ? host.prepareLoopFields(in.frame) : null
 }

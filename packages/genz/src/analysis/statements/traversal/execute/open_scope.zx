@@ -1,27 +1,22 @@
 import integers from "std:integer"
-import host from "lowering_host"
 
 import plan from "../../block/plan"
 
-import type { Context, ScopeCheckpoint } from "./model"
+import type { Context, StackView } from "./model"
 
 export type Input = {
     context: Context,
     first: u32,
-    count: u32
+    count: u32,
+    stack: StackView
 }
 
-export type Output = {
-    checkpoint: ScopeCheckpoint,
-    routes: u8[]
-}
+export type Output = u8[]
 
 export default function (in: Input): Output {
-    const { context, first, count } = in
+    const { context, first, count, stack } = in
 
-    const stack = host.openStatementScope(context.frame, first, count)
-
-    const routes = plan({
+    return plan({
         control: context.control.pick([
             "statement_kinds",
             "statement_payloads",
@@ -39,15 +34,7 @@ export default function (in: Input): Output {
         count: integers.widen(count),
         mode: context.store_mode,
         store_count: context.store_count,
-        stack_keys: stack.stack_keys,
-        stack_buckets: stack.stack_buckets
+        stack_keys: stack.keys,
+        stack_buckets: stack.buckets
     })
-
-    return {
-        checkpoint: stack.pick([
-            "state_checkpoint",
-            "stack_checkpoint"
-        ]),
-        routes
-    }
 }

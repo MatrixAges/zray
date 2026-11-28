@@ -29,16 +29,16 @@ pub const Members = struct {
         };
     }
     pub fn select(self: *const Members, spec: workspace.Specifier, owner: []const u8) !usize {
-        try workspace.checkOwner(spec, owner);
+        if (spec == .invalid or spec == .external) return error.InvalidLockWorkspaceTarget;
 
-        return (try self.lookup(spec, owner, &.{})) orelse error.InvalidLockWorkspaceTarget;
+        return (try self.lookup(spec, owner, &.{}, true)) orelse error.InvalidLockWorkspaceTarget;
     }
     pub fn absolute(self: *const Members, root: []const u8, path: []const u8) ?usize {
         return self.search(.HostPath, path, root, null, &.{}) catch unreachable;
     }
-    fn lookup(self: *const Members, spec: workspace.Specifier, owner: []const u8, local: []const u8) !?usize {
+    fn lookup(self: *const Members, spec: workspace.Specifier, owner: []const u8, local: []const u8, check_owner: bool) !?usize {
         return switch (spec) {
-            .path => |path| self.search(.RelativePath, path, owner, null, local),
+            .path => |path| self.search(if (check_owner) .CheckedRelativePath else .RelativePath, path, owner, null, local),
             .named => |named| self.search(.Name, named.name, owner, named.range, local),
             .invalid, .external => unreachable,
         };
@@ -66,6 +66,7 @@ pub const Members = struct {
             .InvalidVersion => error.InvalidVersion,
             .Overflow => error.Overflow,
             .LockVersionMismatch => error.LockVersionMismatch,
+            .InvalidLockWorkspacePath => error.InvalidLockWorkspacePath,
         };
     }
 };
@@ -75,10 +76,11 @@ pub fn find(spec: workspace.Specifier, packages: []const Lock.Package, owner: us
 
     const path = packages[owner].source.workspace;
 
-    try workspace.checkOwner(spec, path);
+    if (spec == .invalid or spec == .external) return error.InvalidLockWorkspaceTarget;
 
     var window: LockRows = .{};
     var first: usize = 0;
+    var check_owner = true;
 
     while (first < packages.len) {
         const rows = window.take(packages[first..]);
@@ -86,7 +88,9 @@ pub fn find(spec: workspace.Specifier, packages: []const Lock.Package, owner: us
         if (window.count != 0) {
             const view = Members.locked(rows);
 
-            if (try view.lookup(spec, path, window.local)) |row| return first + row;
+            if (try view.lookup(spec, path, window.local, check_owner)) |row| return first + row;
+
+            check_owner = false;
         }
 
         first += rows.len;
@@ -100,5 +104,5 @@ pub fn matches(spec: workspace.Specifier, owner: []const u8, target: Lock.Packag
 
     const member = Members.locked(&.{target});
 
-    return (try member.lookup(spec, owner, &.{})) != null;
+    return (try member.lookup(spec, owner, &.{}, false)) != null;
 }

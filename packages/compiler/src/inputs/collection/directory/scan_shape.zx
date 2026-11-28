@@ -15,8 +15,7 @@ export type Level = {
     step: Step,
     row: u64,
     children: string[],
-    files: File[][],
-    count: u64
+    files: File[][]
 }
 
 export type Parent = {

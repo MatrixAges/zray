@@ -1,4 +1,5 @@
 export {
+    AstColumn,
     AstPayloadOwnership,
     appendAstBindingRows,
     appendAstSequenceSpan,
@@ -7,11 +8,13 @@ export {
     appendExpressionRows,
     appendStatementRows,
     appendStatementSequence,
+    astColumnCount,
     astExpressionCount,
     astFieldCount,
     astStatementCount,
     finishAstSequence,
     publishAstBasicStatements,
+    publishAstStatementBatch,
     readAstOrigin,
     takeAstSequence,
     tailAstPackedStatements
@@ -21,7 +24,6 @@ export {
     lowerCapture,
     lowerDiscardedExpression,
     lowerExpression,
-    lowerLayout,
     lowerType,
     retainLoweringText
 } from "lowering_host"

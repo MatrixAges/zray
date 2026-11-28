@@ -10,7 +10,6 @@
         fn="state_layout"
         in={$in.pick([
             "frame",
-            "context",
             "type_id",
             "layout"
         ])}

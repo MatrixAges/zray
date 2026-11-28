@@ -4,16 +4,24 @@
 
     <Args in={Loop.AssignmentValue} out={u32} />
 
-    <If on={$in.assignment == Step.Assignment.Projected}>
+    <If on={$in.assignment == Step.Assignment.Projected && $in.fields != null}>
         <Call
-            fn="index.projectLoopAssignment"
-            in={[
-                $in.loop_frame,
-                $in.value
-            ]}
+            module="bind_field_value"
+            in={{
+                ...$in.pick([
+                    "frame",
+                    "writer",
+                    "type_id",
+                    "value"
+                ]),
+                fields: $in.fields,
+                sequence: $in.loop_seq,
+                facts: $in.ownership_facts,
+                origin: $in.body
+            }}
         />
 
-        <Return value={$ctx.projectLoopAssignment} />
+        <Return value={$ctx.bind_field_value} />
     </If>
 
     <If on={$in.assignment == Step.Assignment.State}>

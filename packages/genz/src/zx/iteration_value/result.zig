@@ -51,7 +51,12 @@ fn materialize(lowering: *Lower, context: ?*Context, body: anytype, selected: co
     std.debug.assert(plan.primitive or plan.valid);
     defer if (!plan.primitive) lowering.cache.removeKeys(plan.projections);
 
+    var resources: Context.Resources = undefined;
     const previous_body = if (context) |owner| owner.active_body else null;
+
+    if (context) |owner| resources.push(owner);
+
+    defer if (context != null) resources.pop();
 
     if (@TypeOf(body) != void) context.?.active_body = body;
 
@@ -68,10 +73,11 @@ fn materialize(lowering: *Lower, context: ?*Context, body: anytype, selected: co
         .consumer = &.{
             .symbol = @backingInt(selected.symbol),
             .result = @backingInt(selected.result),
+            .result_type = lowering.program.expressions.types[@backingInt(selected.result)],
             .layout = selected.layout,
         },
         .state = @backingInt(state),
-        .context = if (context) |owner| @ptrCast(owner) else null,
+        .buffered = context != null,
     };
 
     const result = application.executeIn(temporary, &input) catch |err| return @import("../construction/publication.zig").failure(err);
@@ -79,9 +85,8 @@ fn materialize(lowering: *Lower, context: ?*Context, body: anytype, selected: co
     return @fromBackingInt(result);
 }
 
-pub fn projectIterationResult(frame: *anyopaque, context_handle: ?*anyopaque, source: *const Api.LoopConsumer, state: u32, raw: u32) Lower.Error!u32 {
+pub fn projectIterationResult(frame: *anyopaque, is_buffered: bool, source: *const Api.LoopConsumer, state: u32, raw: ?u32) Lower.Error!u32 {
     const lowering = evaluation.borrow(frame);
-    const id: ir.ExprId = @fromBackingInt(raw);
 
     const selected: consumer.Consumer = .{
         .symbol = @fromBackingInt(source.symbol),
@@ -91,15 +96,24 @@ pub fn projectIterationResult(frame: *anyopaque, context_handle: ?*anyopaque, so
 
     const value: node.ExpressionId = @fromBackingInt(state);
 
-    return @backingInt(if (context_handle) |handle| buffered_value: {
-        const context: *Context = @ptrCast(@alignCast(handle));
+    if (raw) |id| {
+        return @backingInt(if (is_buffered)
+            try @import("projection_emission.zig").lower(lowering.iteration_resources.?.context, selected, @fromBackingInt(id), value)
+        else
+            try consumer.read(lowering, selected, @fromBackingInt(id), value));
+    }
 
-        break :buffered_value try @import("projection_emission.zig").lower(context, selected, id, value);
-    } else try consumer.read(lowering, selected, id, value));
+    if (is_buffered) {
+        const context = lowering.iteration_resources.?.context;
+
+        return @backingInt(try buffered(context, context.declarations, selected, value));
+    }
+
+    return @backingInt(try lower(lowering, selected, value));
 }
 
-pub fn transferIterationResult(allocator: std.mem.Allocator, context_handle: *anyopaque, id: u32, value: u32) Lower.Error!*const Api.IterationTransferResult {
-    const context: *Context = @ptrCast(@alignCast(context_handle));
+pub fn transferIterationResult(allocator: std.mem.Allocator, handle: *anyopaque, id: u32, value: u32) Lower.Error!*const Api.IterationTransferResult {
+    const context = evaluation.borrow(handle).iteration_resources.?.context;
     const type_id: ir.TypeId = @fromBackingInt(context.lowering.program.expressions.types[id]);
     const moved = try @import("transfer.zig").lower(context, context.active_body.?, type_id, @fromBackingInt(value));
     const result = try allocator.create(Api.IterationTransferResult);

@@ -16,14 +16,64 @@
         </Loop>
 
         <Call
-            fn="host.readGenerationSnapshot"
-            in={[
-                $in.host,
-                $ctx.observe_root.observed
-            ]}
+            fn="source_facts"
+            in={{
+                roots: $in.roots,
+                observed: $ctx.observe_root.observed
+            }}
         />
 
-        <Return value={$ctx.readGenerationSnapshot} />
+        <Call
+            fn="interface_facts"
+            in={{
+                declarations: $in.interfaces,
+                source: $ctx.source_facts
+            }}
+        />
+
+        <If on={$ctx.interface_facts != null && $ctx.interface_facts.length != 0}>
+            <Call
+                fn="../../snapshot/records/target"
+                in={{
+                    cache: $in.cache,
+                    cwd: $in.cwd,
+                    generator: $in.generator,
+                    manifest: $in.manifest,
+                    partitions: $in.partitions,
+                    facts: $ctx.interface_facts
+                }}
+            />
+
+            <Call fn="../../snapshot/records/read_file" in={$ctx.target.path} />
+
+            <Call
+                module="../../snapshot/records/read"
+                in={{
+                    payload: $ctx.read_file,
+                    context: $ctx.target.context,
+                    observed: $ctx.target.facts,
+                    now: $in.now
+                }}
+            />
+
+            <Return
+                value={{
+                    enabled: true,
+                    snapshot: $ctx.target,
+                    roots: $ctx.observe_root.observed,
+                    digest: $ctx.read
+                }}
+            />
+        </If>
+
+        <Return
+            value={{
+                enabled: true,
+                snapshot: null,
+                roots: $ctx.observe_root.observed,
+                digest: null
+            }}
+        />
     </If>
 
     <Return

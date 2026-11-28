@@ -3,67 +3,114 @@
 
     <Args in={Emit.Input} out={Emit.Output} />
 
-    <Call fn="prefix" in={$in} />
+    <Store from="../traversal/execute/selection" as="traversal" />
 
-    <If on={$ctx.prefix != null}>
-        <Call fn="is_binding" in={$in.route} />
+    <Call module="prefix" in={$in} />
 
-        <If on={$ctx.is_binding}>
-            <Call fn="binding" in={$in} />
+    <Call fn="is_parallel" in={$in.route} />
 
-            <If on={$ctx.binding.publication != null}>
-                <Call module="publish_binding" in={$ctx.binding.publication} />
+    <If on={$ctx.is_parallel}>
+        <Call
+            fn="parallel_calls"
+            in={$in.pick([
+                "context",
+                "statement"
+            ])}
+        />
 
-                <Call
-                    fn="publish"
-                    in={{
-                        context: $in.context,
-                        index: $in.index,
-                        prefix: $ctx.prefix,
-                        span: $ctx.publish_binding,
-                        consumed_previous: false
-                    }}
-                />
+        <Call
+            fn="set_effects"
+            in={{
+                uses_context: false,
+                uses_parallel: true
+            }}
+            setter={[$store.traversal.effects]}
+        />
 
-                <Return value={$ctx.publish} />
-            </If>
+        <Call
+            module="../../parallel/emit/execute/run"
+            in={{
+                ...$ctx.parallel_calls,
+                ...$in.context.pick([
+                    "frame",
+                    "writer",
+                    "used",
+                    "names"
+                ])
+            }}
+        />
 
-            <If on={$ctx.binding.task_span != null}>
-                <Call
-                    fn="publish"
-                    in={{
-                        context: $in.context,
-                        index: $in.index,
-                        prefix: $ctx.prefix,
-                        span: $ctx.binding.task_span,
-                        consumed_previous: false
-                    }}
-                />
+        <Call
+            fn="publish"
+            in={{
+                context: $in.context,
+                index: $in.index,
+                prefix: $ctx.prefix,
+                span: $ctx.run,
+                consumed_previous: false
+            }}
+        />
 
-                <Return value={$ctx.publish} />
-            </If>
+        <Return value={$ctx.publish} />
+    </If>
 
-            <Return value={null} />
-        </If>
+    <Call fn="is_binding" in={$in.route} />
 
-        <Call fn="body" in={$in} />
+    <If on={$ctx.is_binding}>
+        <Call fn="binding" in={$in} />
 
-        <If on={$ctx.body != null}>
+        <If on={$ctx.binding.publication != null}>
+            <Call module="publish_binding" in={$ctx.binding.publication} />
+
             <Call
                 fn="publish"
                 in={{
-                    ...$in.pick([
-                        "context",
-                        "index"
-                    ]),
+                    context: $in.context,
+                    index: $in.index,
                     prefix: $ctx.prefix,
-                    span: $ctx.body.span,
-                    consumed_previous: $ctx.body.consumed_previous
+                    span: $ctx.publish_binding,
+                    consumed_previous: false
                 }}
             />
 
             <Return value={$ctx.publish} />
         </If>
+
+        <If on={$ctx.binding.task_span != null}>
+            <Call
+                fn="publish"
+                in={{
+                    context: $in.context,
+                    index: $in.index,
+                    prefix: $ctx.prefix,
+                    span: $ctx.binding.task_span,
+                    consumed_previous: false
+                }}
+            />
+
+            <Return value={$ctx.publish} />
+        </If>
+
+        <Return value={null} />
+    </If>
+
+    <Call fn="body" in={$in} />
+
+    <If on={$ctx.body != null}>
+        <Call
+            fn="publish"
+            in={{
+                ...$in.pick([
+                    "context",
+                    "index"
+                ]),
+                prefix: $ctx.prefix,
+                span: $ctx.body.span,
+                consumed_previous: $ctx.body.consumed_previous
+            }}
+        />
+
+        <Return value={$ctx.publish} />
     </If>
 
     <Return value={null} />

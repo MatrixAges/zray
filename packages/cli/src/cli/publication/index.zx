@@ -6,7 +6,6 @@ export {
     verify,
     retain,
     checkPublishedTarget,
-    prepareRetirement,
     copyDirectoryFile
 } from "publication_host"
 export {

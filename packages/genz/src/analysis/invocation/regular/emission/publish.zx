@@ -1,5 +1,5 @@
 import ast from "ast_rows"
-import { AstPayloadOwnership } from "ast_rows"
+import { AstColumn, AstPayloadOwnership } from "ast_rows"
 import host from "lowering_host"
 import { requireAllocation } from "memory"
 
@@ -19,7 +19,7 @@ export default function (in: Input): Output {
         host.requestFunction(frame, target.id, true)
     }
 
-    const first = ast.astIdentifierCount(writer)
+    const first = ast.astColumnCount(writer, AstColumn.Identifiers)
     const count = output.nodes.identifier.length
 
     const function_name: u8[]? = match {

@@ -115,10 +115,6 @@ pub fn resolvePreparationTarget(
     return result;
 }
 
-pub fn reportPreparationReference(handle: *const anyopaque, reference: ModuleReference, message: []const u8) Error!void {
-    try Cursor.get(handle).report(reference, message);
-}
-
 pub fn prepareCompiledReference(handle: *const anyopaque, target: *const CompiledTarget) Error!bool {
     const self = Cursor.get(handle);
     const exported = self.libraries.?.add(self.io, .{ .name = target.name, .instance = target.instance, .artifact = target.artifact }, self.project, self.inputs) catch |err| return self.failure.save(err);

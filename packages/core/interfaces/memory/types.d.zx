@@ -1,5 +1,8 @@
 export type AtomicRows = opaque
-export type U64View = opaque
+// This single field borrows the caller's native slice descriptor.
+export type U64View = {
+    values: u64[]
+}
 
 export type NamedRows = opaque
 
@@ -11,14 +14,26 @@ export type ListColumn = opaque
 export type ListProjection = opaque
 export type OptionalListColumn = opaque
 export type ColumnLengths = opaque
-export type ColumnTransfers = opaque
-export type TransferGroup = opaque
-export type TransferColumn = opaque
+export type TransferTarget = opaque
+
+export type TransferColumn = {
+    target: TransferTarget,
+    layout: TransferLayout,
+    stride: u64,
+    width: u64,
+    text_lists?: string[][],
+    optional_text_lists?: string[]?[]
+}
+
+export type TransferGroup = {
+    columns: TransferColumn[],
+    lengths: ColumnLengths
+}
+
+export type ColumnTransfers = TransferGroup[]
 
 export enum TransferLayout {
     Contiguous,
-    Strided,
-    Repeated,
-    Owned,
-    BorrowingText
+    Projected,
+    Retained
 }

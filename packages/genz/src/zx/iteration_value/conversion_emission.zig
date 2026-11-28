@@ -31,14 +31,21 @@ pub fn lower(context: *Context, id: ir.TypeId, value: node.ExpressionId) Lower.E
     const prepare: Prepare = .{
         .source = &request,
         .root = @backingInt(root_layout),
-        .frame = @ptrCast(context),
+        .frame = @ptrCast(self),
     };
 
     const serial = self.serial;
     const declarations = context.declarations.last;
 
-    const prepared = (preparation.executeIn(temporary, &prepare) catch |err|
-        return @import("../construction/publication.zig").failure(err)) orelse return value;
+    const prepared = prepared: {
+        var resources: Context.Resources = undefined;
+
+        resources.push(context);
+        defer resources.pop();
+
+        break :prepared (preparation.executeIn(temporary, &prepare) catch |err|
+            return @import("../construction/publication.zig").failure(err)) orelse return value;
+    };
 
     std.debug.assert(serial == self.serial and std.meta.eql(declarations, context.declarations.last));
 

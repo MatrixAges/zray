@@ -1,7 +1,6 @@
 import memory from "memory"
 
-import release from "./release"
-import retainTextLists from "./retain_text_lists"
+import retainTextList from "./retain_text_lists"
 
 import type { Retain } from "./model"
 
@@ -10,11 +9,9 @@ export type Input = Retain
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { allocator, group, column, first, count } = in
+    const { allocator, column, first, count } = in
 
-    if (memory.transferOwnsTextItems(group, column)) {
-        return retainTextLists(in)
-    }
+    const has_lists = column.text_lists != null || column.optional_text_lists != null
 
     const copied = loop({
         row: 0,
@@ -22,14 +19,25 @@ export default function (in: Input): Output {
     }, {
         while: state => state.valid && state.row < count,
         next: state => {
-            state.valid =
-                memory.retainTransferItem(
+            const row = state.row
+            const source = first + row
+
+            state.valid = match {
+                has_lists => retainTextList({
                     allocator,
-                    group,
                     column,
-                    first + state.row,
-                    state.row
-                )
+                    source,
+                    row
+                }),
+                _ =>
+                    memory.retainTransferItem(
+                        allocator,
+                        column.target,
+                        source,
+                        row,
+                        null
+                    )
+            }
 
             if (state.valid) {
                 state.row += 1
@@ -42,11 +50,12 @@ export default function (in: Input): Output {
         return true
     }
 
-    release({
-        allocator,
-        group,
-        column,
-        count: copied
+    const released = loop(0, {
+        while: row => row < copied,
+        next: row => {
+            memory.releaseTransferItem(allocator, column.target, row)
+            row += 1
+        }
     })
 
     return false

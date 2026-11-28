@@ -1,0 +1,73 @@
+<Module>
+    <Type from="emission_model" as="Loop" />
+    <Type from="../../fields/projection/model" as="Projection" />
+
+    <Args in={Loop.FieldValue} out={u32} />
+
+    <Call fn="index.astExpressionCount" in={$in.writer} />
+
+    <Call
+        module="../../fields/ownership/build"
+        in={{
+            ...$in.pick([
+                "facts",
+                "type_id",
+                "origin",
+                "value"
+            ]),
+            borrowed: $in.fields.borrowed,
+            expression_base: $ctx.astExpressionCount
+        }}
+    />
+
+    <If on={$ctx.build != null}>
+        <Call fn="index.requireAllocation" in={$ctx.build.valid} />
+
+        <Call
+            module="../../fields/ownership/execute"
+            in={{
+                ...$in.pick([
+                    "frame",
+                    "writer",
+                    "type_id"
+                ]),
+                body: $in.sequence,
+                ...$ctx.build.pick([
+                    "origin",
+                    "expressions",
+                    "requests",
+                    "values"
+                ]),
+                layout: $in.origin != null ? $in.fields.layout : null
+            }}
+        />
+
+        <Call
+            module="project_fields"
+            in={{
+                ...$in.pick([
+                    "frame",
+                    "writer",
+                    "type_id",
+                    "fields",
+                    "value"
+                ]),
+                facts: $in.facts.pick([
+                    "types",
+                    "selected"
+                ]),
+                layout: $ctx.execute.layout,
+                mode: Projection.Mode.Rebuild,
+                fields_update: {
+                    values: $ctx.build.values,
+                    changed: $ctx.build.requests.fields,
+                    replacements: $ctx.execute.replacements
+                }
+            }}
+        />
+
+        <Return value={$ctx.project_fields} />
+    </If>
+
+    <Return value={$in.value} />
+</Module>

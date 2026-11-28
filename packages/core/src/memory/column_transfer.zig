@@ -11,6 +11,42 @@ pub const Column = struct {
     stride: u32 = 0,
     kind: Kind,
     grow: *const fn (*anyopaque, std.mem.Allocator, usize) bool,
+    pub fn describe(self: *const Column, comptime View: type) View {
+        return .{
+            .target = @ptrCast(self),
+            .layout = switch (self.kind) {
+                .value => .Contiguous,
+                .strided, .repeated => .Projected,
+                else => .Retained,
+            },
+            .stride = self.stride,
+            .width = self.width,
+            .text_lists = if (self.kind == .texts) @as([*]const []const Bytes, @ptrCast(@alignCast(self.source)))[0..self.source_count] else null,
+            .optional_text_lists = if (self.kind == .optional_texts) @as([*]const ?[]const Bytes, @ptrCast(@alignCast(self.source)))[0..self.source_count] else null,
+        };
+    }
+    pub fn reserve(self: Column, allocator: std.mem.Allocator, count: usize) std.mem.Allocator.Error!usize {
+        if (count > self.storage.capacity - self.storage.items.len) {
+            if (!self.grow(self.storage, allocator, count)) return error.OutOfMemory;
+        }
+
+        return self.storage.items.len;
+    }
+
+    pub fn appendBorrowed(self: Column, first: usize, count: usize) void {
+        self.copyAt(first * self.width, 0, count);
+
+        self.storage.items.len += count;
+    }
+
+    fn copyAt(self: Column, offset: usize, row: usize, count: usize) void {
+        if (self.width == 0 or count == 0) return;
+
+        const target = self.storage.items.ptr + (self.storage.items.len + row) * self.width;
+        const length = count * self.width;
+
+        @memcpy(target[0..length], self.source[offset..][0..length]);
+    }
     pub fn sourceLength(self: Column) ?u64 {
         return if (self.width != 0 and self.kind != .repeated) self.source_count else null;
     }
@@ -87,17 +123,48 @@ fn kind(comptime Value: type, comptime copy_payloads: bool, comptime borrow_text
     return .value;
 }
 
-pub fn copy(resource: *const anyopaque, target: *const anyopaque, index: u64, first: u64, count: u64) bool {
+pub fn Description(comptime GroupsView: type, comptime group_count: usize, comptime column_count: usize) type {
+    const Group = std.meta.Child(std.meta.Elem(GroupsView));
+    const ColumnView = std.meta.Child(std.meta.Elem(@FieldType(Group, "columns")));
+
+    return struct {
+        const Self = @This();
+
+        groups: [group_count]Group = undefined,
+        group_views: [group_count]*const Group = undefined,
+        columns: [column_count]ColumnView = undefined,
+        column_views: [column_count]*const ColumnView = undefined,
+        lengths: [column_count]*usize = undefined,
+        length_views: [group_count][]const *usize = undefined,
+        pub fn bind(self: *Self, groups: Groups) GroupsView {
+            var first: usize = 0;
+
+            for (groups, &self.groups, &self.group_views, &self.length_views) |group, *view, *reference, *lengths| {
+                const end = first + group.len;
+
+                for (group, self.columns[first..end], self.column_views[first..end], self.lengths[first..end]) |*column, *value, *pointer, *length| {
+                    value.* = column.describe(ColumnView);
+                    pointer.* = value;
+                    length.* = &column.storage.items.len;
+                }
+
+                lengths.* = self.lengths[first..end];
+                view.* = .{ .columns = self.column_views[first..end], .lengths = @ptrCast(lengths) };
+                reference.* = view;
+                first = end;
+            }
+
+            return &self.group_views;
+        }
+    };
+}
+
+pub fn copy(allocator: std.mem.Allocator, columns: []const Column, first: usize, count: usize) bool {
     if (count == 0) return true;
 
-    const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
-    const fields = group(target, index);
-    const start: usize = @intCast(first);
-    const length: usize = @intCast(count);
-
-    for (fields, 0..) |column, field| {
-        copyColumn(allocator.*, column, start, length) catch {
-            discardColumns(allocator.*, fields[0..field], length);
+    for (columns, 0..) |column, field| {
+        copyColumn(allocator, column, first, count) catch {
+            discard(allocator, columns[0..field], count);
 
             return false;
         };
@@ -106,160 +173,61 @@ pub fn copy(resource: *const anyopaque, target: *const anyopaque, index: u64, fi
     return true;
 }
 
-pub fn discard(resource: *const anyopaque, target: *const anyopaque, index: u64, count: u64) void {
-    if (count == 0) return;
-
-    const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
-
-    discardColumns(allocator.*, group(target, index), @intCast(count));
+pub fn discard(allocator: std.mem.Allocator, columns: []const Column, count: usize) void {
+    if (count != 0) discardColumns(allocator, columns, count);
 }
 
-pub fn publish(target: *const anyopaque, index: u64, count: u64) void {
-    if (count == 0) return;
-    for (group(target, index)) |column| column.storage.items.len += @intCast(count);
-}
-
-fn group(target: *const anyopaque, index: u64) []const Column {
-    const groups: *const Groups = @ptrCast(@alignCast(target));
-
-    return groups.*[@intCast(index)];
-}
-
-pub fn borrowGroup(target: *const anyopaque, index: u64, shape: anytype) std.meta.Child(@TypeOf(shape)) {
-    const groups: *const Groups = @ptrCast(@alignCast(target));
-
-    return @ptrCast(&groups.*[@intCast(index)]);
-}
-
-fn groupColumns(target: *const anyopaque) []const Column {
-    return (@as(*const []const Column, @ptrCast(@alignCast(target)))).*;
-}
-
-pub fn countColumns(target: *const anyopaque) u64 {
-    return groupColumns(target).len;
-}
-
-pub fn ownsPayload(target: *const anyopaque, index: u64) bool {
-    return switch (groupColumns(target)[@intCast(index)].kind) {
-        .value, .strided, .repeated => false,
-        else => true,
-    };
-}
-
-pub fn ownsTextItems(target: *const anyopaque, index: u64) bool {
-    return switch (groupColumns(target)[@intCast(index)].kind) {
-        .texts, .optional_texts => true,
-        else => false,
-    };
-}
-
-pub inline fn textList(target: *const anyopaque, index: u64, row: u64, staged: bool) ?[]const Bytes {
-    const column = groupColumns(target)[@intCast(index)];
-    const address = if (staged) column.storage.items.ptr else column.source;
-    const item: usize = @intCast(row);
-    const offset = if (staged) column.storage.items.len + item else item;
-
-    return switch (column.kind) {
-        .texts => @as([*]const []const Bytes, @ptrCast(@alignCast(address)))[offset],
-        .optional_texts => @as([*]const ?[]const Bytes, @ptrCast(@alignCast(address)))[offset],
-        else => unreachable,
-    };
+pub fn publish(columns: []const Column, count: usize) void {
+    for (columns) |column| column.storage.items.len += count;
 }
 
 pub fn cloneTextList(resource: *const anyopaque, source: []const Bytes) ?[]const Bytes {
     return clone(column_set.borrowAllocator(resource), source, false) catch null;
 }
 
-pub fn writeTextList(target: *const anyopaque, index: u64, row: u64, value: ?[]const Bytes) void {
-    const column = groupColumns(target)[@intCast(index)];
-    const address = column.storage.items.ptr;
-    const offset = column.storage.items.len + @as(usize, @intCast(row));
-
-    switch (column.kind) {
-        .texts => @as([*][]const Bytes, @ptrCast(@alignCast(address)))[offset] = value.?,
-        .optional_texts => @as([*]?[]const Bytes, @ptrCast(@alignCast(address)))[offset] = value,
-        else => unreachable,
-    }
-}
-
-pub fn reserveOne(resource: *const anyopaque, target: *const anyopaque, index: u64, count: u64) std.mem.Allocator.Error!u64 {
-    const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
+pub fn reserveOne(resource: *const anyopaque, target: *const anyopaque, count: u64) std.mem.Allocator.Error!u64 {
     const length = std.math.cast(usize, count) orelse return error.OutOfMemory;
 
-    return reserveColumn(allocator.*, groupColumns(target)[@intCast(index)], length);
+    return columnFrom(target).reserve(column_set.borrowAllocator(resource), length);
 }
 
-fn reserveColumn(allocator: std.mem.Allocator, column: Column, count: usize) std.mem.Allocator.Error!usize {
-    if (count > column.storage.capacity - column.storage.items.len) {
-        if (!column.grow(column.storage, allocator, count)) return error.OutOfMemory;
-    }
+pub inline fn copyRange(target: *const anyopaque, offset: u64, row: u64, count: u64) void {
+    const column = columnFrom(target);
+    const first: usize = @intCast(offset);
+    const start: usize = @intCast(row);
+    const length: usize = @intCast(count);
 
-    return column.storage.items.len;
+    column.copyAt(first, start, length);
 }
 
-pub fn publishOne(target: *const anyopaque, index: u64, count: u64) void {
-    groupColumns(target)[@intCast(index)].storage.items.len += @intCast(count);
-}
-
-pub inline fn layout(target: *const anyopaque, index: u64, shape: anytype) std.meta.Child(@TypeOf(shape)) {
-    return switch (groupColumns(target)[@intCast(index)].kind) {
-        .value => .Contiguous,
-        .strided => .Strided,
-        .repeated => .Repeated,
-        .text_views, .optional_text_views => .BorrowingText,
-        else => .Owned,
-    };
-}
-
-pub inline fn borrowColumn(target: *const anyopaque, index: u64, shape: anytype) std.meta.Child(@TypeOf(shape)) {
-    return @ptrCast(&groupColumns(target)[@intCast(index)]);
-}
-
-pub inline fn columnStride(target: *const anyopaque) u64 {
-    const column: *const Column = @ptrCast(@alignCast(target));
-
-    return column.stride;
-}
-
-pub inline fn columnLength(target: *const anyopaque, index: u64) u64 {
-    return groupColumns(target)[@intCast(index)].source_count;
-}
-
-pub inline fn copyRange(target: *const anyopaque, index: u64, first: u64, count: u64) void {
-    copyContiguous(groupColumns(target)[@intCast(index)], @intCast(first), @intCast(count));
-}
-
-pub inline fn copyCell(target: *const anyopaque, source_offset: u64, target_row: u64) void {
-    const column: *const Column = @ptrCast(@alignCast(target));
-    const storage = column.storage;
-    const width = column.width;
-    const start = (storage.items.len + @as(usize, @intCast(target_row))) * width;
-
-    copyBytesAt(storage.items.ptr + start, column.source + @as(usize, @intCast(source_offset)), width);
-}
-
-pub fn retainItem(resource: *const anyopaque, target: *const anyopaque, index: u64, from: u64, to: u64) bool {
-    const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
-    const column = groupColumns(target)[@intCast(index)];
+pub fn retainItem(resource: *const anyopaque, target: *const anyopaque, from: u64, to: u64, retained: ?[]const Bytes) bool {
+    const column = columnFrom(target);
+    const row = column.storage.items.len + @as(usize, @intCast(to));
+    const allocator = column_set.borrowAllocator(resource);
 
     switch (column.kind) {
-        .value, .strided, .repeated, .texts, .optional_texts => unreachable,
+        .value, .strided, .repeated => unreachable,
         inline else => |format| {
             const payload = Payload(format);
-            const source: [*]const payload.Value = @ptrCast(@alignCast(column.source));
             const destination: [*]payload.Value = @ptrCast(@alignCast(column.storage.items.ptr));
-            const item = clone(allocator.*, source[@intCast(from)], payload.borrow_text) catch return false;
 
-            destination[column.storage.items.len + @as(usize, @intCast(to))] = item;
+            destination[row] = switch (format) {
+                .texts => retained.?,
+                .optional_texts => retained,
+                else => item: {
+                    const source: [*]const payload.Value = @ptrCast(@alignCast(column.source));
+
+                    break :item clone(allocator, source[@intCast(from)], payload.borrow_text) catch return false;
+                },
+            };
         },
     }
 
     return true;
 }
 
-pub fn releaseItem(resource: *const anyopaque, target: *const anyopaque, index: u64, row: u64) void {
-    const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
-    const column = groupColumns(target)[@intCast(index)];
+pub fn releaseItem(resource: *const anyopaque, target: *const anyopaque, row: u64) void {
+    const column = columnFrom(target);
 
     switch (column.kind) {
         .value, .strided, .repeated => unreachable,
@@ -267,9 +235,13 @@ pub fn releaseItem(resource: *const anyopaque, target: *const anyopaque, index: 
             const payload = Payload(format);
             const destination: [*]const payload.Value = @ptrCast(@alignCast(column.storage.items.ptr));
 
-            release(allocator.*, destination[column.storage.items.len + @as(usize, @intCast(row))], payload.borrow_text);
+            release(column_set.borrowAllocator(resource), destination[column.storage.items.len + @as(usize, @intCast(row))], payload.borrow_text);
         },
     }
+}
+
+fn columnFrom(target: *const anyopaque) *const Column {
+    return @ptrCast(@alignCast(target));
 }
 
 fn Payload(comptime kind_value: Kind) type {
@@ -287,29 +259,11 @@ fn Payload(comptime kind_value: Kind) type {
     };
 }
 
-inline fn copyBytesAt(target: [*]u8, source: [*]const u8, width: usize) void {
-    @memcpy(target[0..width], source[0..width]);
-}
-
-inline fn copyContiguous(column: Column, first: usize, count: usize) void {
-    if (column.width == 0 or count == 0) return;
-
-    const source = column.source + first * column.width;
-    const target = column.storage.items.ptr + column.storage.items.len * column.width;
-
-    copyBytesAt(target, source, count * column.width);
-}
-
 fn copyBytes(column: Column, first: usize, count: usize) void {
     switch (column.kind) {
-        .value => copyContiguous(column, first, count),
-        .strided, .repeated => {
-            const target = column.storage.items.ptr + column.storage.items.len * column.width;
-            const source = column.source + first * @as(usize, column.stride);
-
-            for (0..count) |index| {
-                copyBytesAt(target + index * column.width, source + index * @as(usize, column.stride), column.width);
-            }
+        .value => column.copyAt(first * column.width, 0, count),
+        .strided, .repeated => for (0..count) |row| {
+            column.copyAt((first + row) * @as(usize, column.stride), row, 1);
         },
         else => unreachable,
     }

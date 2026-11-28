@@ -1,7 +1,7 @@
 <Module>
     <Type from="../model" as="Preparation" />
 
-    <Args in={Preparation.TypeWalkStart} out={bool} />
+    <Args in={Preparation.TypeWalkStart} out={Preparation.PassResult} />
 
     <Call fn="cursor" in={$in} />
 
@@ -9,5 +9,10 @@
         <Call module="walk_module" />
     </Loop>
 
-    <Return value={$ctx.walk_module.valid} />
+    <Return
+        value={$ctx.walk_module.pick([
+            "valid",
+            "issue"
+        ])}
+    />
 </Module>

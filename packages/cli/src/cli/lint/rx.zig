@@ -5,10 +5,19 @@ const gateway = @import("../rx/gateway/analyze.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
 const State = @import("semantic.zig").State;
+const LintGateway = @import("cli_abi").layouts.@"zig:lint_workflow_host".LintGateway;
 
 pub fn checkSpecialSource(handle: *const anyopaque) Error!bool {
     const self = State.get(handle);
-    const status = sources.file(self.context.*, self.loaded.project.entry) catch |err| return self.failure.save(err);
+    var context = self.context.*;
+    const path = self.loaded.project.entry;
+    const source = std.Io.Dir.cwd().readFileAlloc(context.io, path, context.allocator, .limited(16 * 1024 * 1024)) catch |err| return self.failure.save(err);
+
+    defer context.allocator.free(source);
+
+    context.options.input = path;
+
+    const status = @import("source.zig").check(context, source) catch |err| return self.failure.save(err);
 
     return status == .success;
 }
@@ -55,7 +64,7 @@ pub fn checkLintStoreTypes(handle: *const anyopaque) Error!bool {
     return @import("../rx/store_types.zig").validate(context.io, context.allocator, self.collection.?.data, self.functions, self.loaded.project, context.stderr) catch |err| self.failure.save(err);
 }
 
-pub fn analyzeLintGateway(handle: *const anyopaque) Error!?bool {
+pub fn analyzeLintGateway(handle: *const anyopaque) Error!*const LintGateway {
     const self = State.get(handle);
     const context = self.context;
 
@@ -65,14 +74,13 @@ pub fn analyzeLintGateway(handle: *const anyopaque) Error!?bool {
         .writer = context.stderr,
     }) catch |err| return self.failure.save(err);
 
-    const analyzed = &(self.gateway orelse return null);
+    self.gateway_view = .{ .valid = self.gateway != null, .services = null };
 
-    return analyzed.services != null;
-}
+    if (self.gateway) |*analyzed| {
+        if (analyzed.services) |*services| {
+            self.gateway_view.services = sources.collectItems(context.allocator, services.modules, self.loaded.project.root_dir) catch |err| return self.failure.save(err);
+        }
+    }
 
-pub fn checkLintServices(handle: *const anyopaque) Error!bool {
-    const self = State.get(handle);
-    const status = sources.check(self.context.*, self.gateway.?.services.?.modules, self.loaded.project.root_dir) catch |err| return self.failure.save(err);
-
-    return status == .success;
+    return &self.gateway_view;
 }

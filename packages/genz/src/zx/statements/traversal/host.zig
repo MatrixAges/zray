@@ -8,39 +8,87 @@ const entry = @import("generated_statement_traversal");
 const execute = @import("generated_execute_statement_traversal");
 const Input = std.meta.Child(entry.Input);
 const Rows = std.meta.Child(@FieldType(Input, "rows"));
-const Api = @import("../../expressions/evaluate.zig").Api;
-const StatementStack = Api.StatementStack;
 const Registered = @import("../../value_call/locals.zig").Registered;
 const Binding = @FieldType(Lower, "cache").Binding;
-const Selection = std.meta.Child(@FieldType(execute.zx_pending, "store_0"));
+
+fn Store(comptime field: []const u8) type {
+    return std.meta.Child(@FieldType(execute.zx_pending, field));
+}
 
 const StoreHost = struct {
     lowering: *Lower,
-    stack: []Binding,
-    count: usize = 0,
-    store_0: *Selection,
+    selections: []Binding,
+    selection_count: usize = 0,
+    scopes: []Registered,
+    scope_count: usize = 0,
+    locals_view: std.meta.Child(Store("store_0")) = undefined,
+    store_0: *Store("store_0"),
+    store_1: *Store("store_1"),
+    store_2: *Store("store_2"),
     pub fn commit(self: *StoreHost, pending: anytype) Lower.Error!void {
-        const next = pending.store_0 orelse return;
+        if (pending.store_0) |next| {
+            if (next.open) {
+                try self.openScope(next);
+            } else {
+                self.scope_count -= 1;
 
-        if (next.reference) |value| {
-            self.stack[self.count] = try self.lowering.cache.bind(
-                self.lowering.allocator,
-                @fromBackingInt(next.subject),
-                @fromBackingInt(value),
-            );
+                self.scopes[self.scope_count].release(self.lowering);
 
-            self.count += 1;
-        } else {
-            self.pop();
+                self.store_0.* = next;
+            }
         }
 
-        self.store_0.* = next;
+        if (pending.store_1) |next| {
+            self.lowering.uses_context = self.lowering.uses_context or next.uses_context;
+            self.lowering.uses_parallel = self.lowering.uses_parallel or next.uses_parallel;
+            self.lowering.uses_allocator = self.lowering.uses_allocator or next.uses_parallel;
+            self.store_1.* = next;
+        }
+
+        if (pending.store_2) |next| {
+            if (next.reference) |value| {
+                self.selections[self.selection_count] = try self.lowering.cache.bind(
+                    self.lowering.allocator,
+                    @fromBackingInt(next.subject),
+                    @fromBackingInt(value),
+                );
+
+                self.selection_count += 1;
+            } else {
+                self.popSelection();
+            }
+
+            self.store_2.* = next;
+        }
+    }
+    fn openScope(self: *StoreHost, next: Store("store_0")) Lower.Error!void {
+        const lowering = self.lowering;
+
+        const registered: Registered = if (next.count != 0)
+            try @import("../../value_call/locals.zig").register(lowering, .{
+                .control = lowering.program.body.control,
+                .first = next.first,
+                .len = next.count,
+            })
+
+        else
+            .{ .state = lowering.state_symbols.checkpoint(), .stack = lowering.stack_symbols.checkpoint() };
+
+        self.scopes[self.scope_count] = registered;
+        self.scope_count += 1;
+
+        const stack = lowering.stack_symbols.current();
+
+        self.locals_view = next.*;
+        self.locals_view.keys = stack.keys.items;
+        self.locals_view.buckets = stack.buckets.items;
+        self.store_0.* = &self.locals_view;
     }
 
-    fn pop(self: *StoreHost) void {
-        self.count -= 1;
+    fn popSelection(self: *StoreHost) void {
+        self.selection_count -= 1;
 
-        self.stack[self.count].restore();
+        self.selections[self.selection_count].restore();
     }
 };
 
@@ -67,11 +115,22 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
 
     errdefer baseline.release(self);
 
-    const stack = try scratch.alloc(Binding, @intCast(plan.selection_depth));
-    var store: Selection = &.{ .subject = 0, .reference = null };
-    var host: StoreHost = .{ .lowering = self, .stack = stack, .store_0 = &store };
+    const selections = try scratch.alloc(Binding, @intCast(plan.selection_depth));
+    const scopes = try scratch.alloc(Registered, @intCast(plan.depth));
+    var locals: Store("store_0") = &.{ .open = false, .first = 0, .count = 0, .keys = &.{}, .buckets = &.{} };
+    var effects: Store("store_1") = &.{ .uses_context = false, .uses_parallel = false };
+    var selection: Store("store_2") = &.{ .subject = 0, .reference = null };
 
-    errdefer while (host.count != 0) host.pop();
+    var host: StoreHost = .{
+        .lowering = self,
+        .selections = selections,
+        .scopes = scopes,
+        .store_0 = &locals,
+        .store_1 = &effects,
+        .store_2 = &selection,
+    };
+
+    errdefer while (host.selection_count != 0) host.popSelection();
 
     const Execution = std.meta.Child(execute.Input);
     const Schedule = std.meta.Child(@FieldType(Execution, "plan"));
@@ -82,6 +141,8 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     const control = zx.columns.borrow(Control, control_source);
     const expressions = zx.columns.borrow(Expressions, @as(*const ir.ExpressionTable, &self.program.expressions));
     const types = ir.TypeTable.borrow(Types, self.program.types);
+    const StoreValues = std.meta.Child(@FieldType(Context, "store_values"));
+    const store_values = zx.columns.borrow(StoreValues, @as(*const ir.ExpressionTable, &self.program.expressions));
     const schedule = zx.columns.view(Schedule, plan);
 
     const context: Context = .{
@@ -91,6 +152,9 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
         .control = &control,
         .expressions = &expressions,
         .types = &types,
+        .store_values = &store_values,
+        .function_modes = zx.columns.slice(@FieldType(Context, "function_modes"), self.program.functions.store_modes),
+        .call_arguments = self.program.expressions.call_arguments,
         .output_type = @backingInt(self.program.output_type),
         .store_mode = @fromBackingInt(@backingInt(self.program.store_mode)),
         .store_count = self.program.stores.count(),
@@ -114,70 +178,6 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
         return failure(err)) orelse return error.OutOfMemory;
 
     return rows.unpackSpan(span);
-}
-
-pub fn openStatementScope(allocator: std.mem.Allocator, handle: *anyopaque, first: u32, count: u32) Lower.Error!*const StatementStack {
-    const self = @import("../../expressions/evaluate.zig").borrow(handle);
-    const result = try allocator.create(StatementStack);
-
-    const registered: Registered = if (count != 0)
-        try @import("../../value_call/locals.zig").register(self, .{ .control = self.program.body.control, .first = first, .len = count })
-
-    else
-        .{ .state = self.state_symbols.checkpoint(), .stack = self.stack_symbols.checkpoint() };
-
-    const stack = self.stack_symbols.current();
-
-    result.* = .{
-        .state_checkpoint = registered.state,
-        .stack_checkpoint = registered.stack,
-        .stack_keys = stack.keys.items,
-        .stack_buckets = stack.buckets.items,
-    };
-
-    return result;
-}
-
-pub fn finishStatementScope(handle: *anyopaque, state_checkpoint: u64, stack_checkpoint: u64, spans: []const u64) Lower.Error!u64 {
-    const self = @import("../../expressions/evaluate.zig").borrow(handle);
-    const saved: Registered = .{ .state = state_checkpoint, .stack = stack_checkpoint };
-
-    defer saved.release(self);
-
-    if (spans.len == 0) return 0;
-
-    return rows.packSpan(try @import("../../../node/blocks.zig").joinStatementSpans(
-        self.allocator,
-        self.builder.nodes,
-        spans,
-        false,
-    ));
-}
-
-pub fn finishStatementSelection(
-    allocator: std.mem.Allocator,
-    handle: *anyopaque,
-    name: []const u8,
-    subject: u32,
-    reference: u32,
-    selected: bool,
-    exhaustive: bool,
-    total_count: u64,
-    fallback: ?u64,
-    cases: *const Api.StatementCases,
-) Lower.Error!u64 {
-    const self = @import("../../expressions/evaluate.zig").borrow(handle);
-
-    return rows.packSpan(try @import("../switch/publish.zig").lower(self, .{
-        .name = name,
-        .subject = subject,
-        .reference = reference,
-        .selected = selected,
-        .exhaustive = exhaustive,
-        .total_count = total_count,
-        .fallback = if (fallback) |span| rows.unpackSpan(span) else null,
-        .cases = cases,
-    }, allocator));
 }
 
 fn failure(err: anyerror) Lower.Error {

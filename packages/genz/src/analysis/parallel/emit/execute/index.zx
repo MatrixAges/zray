@@ -1,1 +1,1 @@
-export { publishAstScopedRows } from "ast_rows"
+export { publishAstStatementBatch } from "ast_rows"

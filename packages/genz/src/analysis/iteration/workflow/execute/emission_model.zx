@@ -1,6 +1,10 @@
+import type { AstSequence } from "ast_rows"
+import type { LoopProjection } from "lowering_host"
+import type { Facts as OwnershipFacts } from "../../../state/ownership/model"
 import type { Output as RenewalPlan } from "../../deferred/model"
+import type { Mode } from "../../fields/projection/model"
 import type { Assignment as AssignmentKind, Output as StepPlan } from "../../step/model"
-import type { Input } from "./model"
+import type { GuardInfo, Input } from "./model"
 import type { Update } from "./update_model"
 
 export type Emit =
@@ -13,30 +17,44 @@ export type Emit =
         "skipped_seq",
         "wrap_seq",
         "consumer",
-        "context",
         "discard",
         "body",
-        "loop_frame",
-        "guard_info",
         "initial_plan",
         "type_id",
         "assignment_facts",
+        "ownership_facts",
+        "renewal_source",
+        "growth_facts",
         "state_active"
     ) & {
+        guard_info?: GuardInfo,
         schedule: StepPlan,
         renewals: RenewalPlan,
         projected: bool,
+        fields?: LoopProjection,
+        name: u8[],
+        seed: u32,
         state: u32,
         initial_value: u32,
         update: Update
     }
 
-export type Growth = Emit.Pick("loop_frame", "renewals", "schedule")
+export type Growth = Emit.Pick(
+    "frame",
+    "writer",
+    "type_id",
+    "renewals",
+    "schedule",
+    "renewal_source",
+    "growth_facts",
+    "projected",
+    "seed",
+    "state"
+)
 
 export type Assignment = Emit.Pick(
     "frame",
     "writer",
-    "loop_frame",
     "loop_seq",
     "body",
     "schedule",
@@ -44,13 +62,44 @@ export type Assignment = Emit.Pick(
     "state",
     "type_id",
     "assignment_facts",
+    "ownership_facts",
+    "fields",
     "state_active"
 )
 
 export type AssignmentValue =
-    Assignment.Pick("loop_frame", "writer", "loop_seq", "body") & {
+    Assignment.Pick(
+        "frame",
+        "writer",
+        "loop_seq",
+        "body",
+        "type_id",
+        "ownership_facts",
+        "fields"
+    ) & {
         assignment: AssignmentKind,
         value: u32
+    }
+
+export type FieldValue =
+    Emit.Pick("frame", "writer", "type_id") & {
+        sequence: AstSequence,
+        facts: OwnershipFacts,
+        fields: LoopProjection,
+        value: u32,
+        origin?: u32
+    }
+
+export type Projection =
+    FieldValue.Pick("frame", "writer", "type_id", "fields", "value") & {
+        facts: OwnershipFacts.Pick("types", "selected"),
+        layout: u32,
+        mode: Mode,
+        fields_update: {
+            values: u32[],
+            changed: u32[],
+            replacements: u32[]
+        }
     }
 
 export type Assigned = {
@@ -58,9 +107,18 @@ export type Assigned = {
     count: u32
 }
 
-export type Recovery = Emit.Pick("loop_frame", "state") & {
-    restore: bool
-}
+export type Recovery =
+    Emit.Pick(
+        "frame",
+        "writer",
+        "state",
+        "type_id",
+        "projected_seq",
+        "assignment_facts",
+        "fields"
+    ) & {
+        restore: bool
+    }
 
 export type Spans = {
     renewals: u64,
@@ -73,9 +131,14 @@ export type Finish =
         "schedule",
         "renewals",
         "loop_seq",
-        "loop_frame",
         "body",
         "assignment_facts",
+        "ownership_facts",
+        "renewal_source",
+        "growth_facts",
+        "fields",
+        "name",
+        "seed",
         "state_active"
     ) & {
         changed_name?: u8[],

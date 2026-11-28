@@ -1,0 +1,12 @@
+export type Input = {
+    uses_context: bool,
+    uses_parallel: bool
+}
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.traversal.effects = in
+}

@@ -33,11 +33,10 @@
         <Call fn="index.verifyCompilationProgram" in={$in.compilation} />
 
         <If on={!$ctx.verifyCompilationProgram}>
-            <Call fn="index.flushCompilationDiagnostics" in={$in.compilation} />
-
             <Return
                 value={{
-                    status: IO.Status.Failed
+                    status: IO.Status.Failed,
+                    flush_diagnostics: true
                 }}
             />
         </If>
@@ -46,11 +45,10 @@
             <Call fn="index.generateCompilationFpga" in={$in.compilation} />
 
             <If on={!$ctx.generateCompilationFpga}>
-                <Call fn="index.flushCompilationDiagnostics" in={$in.compilation} />
-
                 <Return
                     value={{
-                        status: IO.Status.Failed
+                        status: IO.Status.Failed,
+                        flush_diagnostics: true
                     }}
                 />
             </If>

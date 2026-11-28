@@ -90,9 +90,3 @@ pub fn readCollectionFile(handle: *const anyopaque, retained: bool) Error!*const
 
     return &self.file_read;
 }
-
-pub fn writeCollectionDiagnostic(handle: *const anyopaque, path: []const u8, message: []const u8) Error!void {
-    const self = State.get(handle);
-
-    self.options.writer.print("{s}: {s}\n", .{ path, message }) catch |err| return self.failure.save(err);
-}

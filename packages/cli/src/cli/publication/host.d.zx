@@ -66,13 +66,6 @@ export declare function checkPublishedTarget(
     path: string
 ): string throws { PublicationFailure }
 
-export declare function prepareRetirement(
-    allocator,
-    verification: Verification,
-    destination: string,
-    managed: string[]
-): string[] throws { PublicationFailure }
-
 export declare function resolvePublicationPath(
     allocator,
     io,

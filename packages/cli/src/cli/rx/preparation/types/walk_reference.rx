@@ -16,13 +16,14 @@
                 }}
             />
 
-            <If on={!$ctx.reference}>
+            <If on={!$ctx.reference.valid}>
                 <Return
                     value={{
                         ...$in,
                         index: $in.index - 1,
                         valid: false,
-                        running: false
+                        running: false,
+                        issue: $ctx.reference.issue
                     }}
                 />
             </If>

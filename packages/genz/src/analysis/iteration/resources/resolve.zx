@@ -1,5 +1,5 @@
 import host from "lowering_host"
-import { IterationResource } from "lowering_host"
+import { StoredType } from "lowering_host"
 
 import { Operation as Borrow } from "../borrow/model"
 import { Operation } from "../conversion/model"
@@ -10,12 +10,6 @@ import type { Input, Resolved as Output } from "./model"
 
 export default function (in: Input): Output {
     const { frame, mode, with_operands } = in
-
-    const base_kind = match mode {
-        Mode.Input => IterationResource.IterationType,
-        Mode.Leaves => IterationResource.NativeType,
-        _ => IterationResource.NativeLayout
-    }
 
     const empty: u32[] = []
 
@@ -30,7 +24,10 @@ export default function (in: Input): Output {
             const id = in.types[row]
             const base = match {
                 row == 0 && mode != Mode.Leaves => in.root,
-                _ => host.materializeIterationResource(frame, id, base_kind)
+                mode == Mode.Input =>
+                    host.materializeType(frame, id, StoredType.IterationType),
+                mode == Mode.Leaves => host.lowerType(frame, id, false),
+                _ => host.materializeType(frame, id, StoredType.Layout)
             }
 
             const optional = match mode {
@@ -41,33 +38,32 @@ export default function (in: Input): Output {
 
             const layout = match {
                 optional =>
-                    host.materializeIterationResource(
-                        frame,
-                        id,
-                        IterationResource.NativeType
-                    ),
+                    host.lowerType(frame, id, false),
                 _ => base
             }
 
             state.layouts = state.layouts.push(layout)[0]
 
             if (with_operands) {
-                const kind = match mode {
+                const value = match mode {
                     Mode.Input => match in.operations[row] {
-                        Operation.Buffer => IterationResource.IterationItem,
-                        _ => IterationResource.None
+                        Operation.Buffer => host.materializeType(
+                            frame,
+                            id,
+                            StoredType.IterationItem
+                        ),
+                        _ => 0
                     },
                     _ => match in.requirements[row] {
-                        Requirement.HeapType => IterationResource.NativeType,
-                        Requirement.ReferenceLayout => IterationResource.StateLayout,
-                        Requirement.Unsupported => IterationResource.Invalid,
-                        _ => IterationResource.None
+                        Requirement.HeapType => host.lowerType(frame, id, false),
+                        Requirement.ReferenceLayout => host.materializeType(
+                            frame,
+                            id,
+                            StoredType.StateLayout
+                        ),
+                        Requirement.Unsupported => host.invalidLowering(),
+                        _ => 0
                     }
-                }
-
-                const value = match kind {
-                    IterationResource.None => 0,
-                    _ => host.materializeIterationResource(frame, id, kind)
                 }
 
                 state.operands = state.operands.push(value)[0]

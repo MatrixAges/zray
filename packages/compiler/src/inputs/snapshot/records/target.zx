@@ -1,0 +1,55 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+
+import { directory_separator } from "../../../zx/modules/path/const"
+import { sort_equal, sort_greater, sort_less } from "../../collection/const"
+import parentPath from "../../collection/directory/parent_path"
+import fingerprint from "../../fingerprint/snapshot"
+
+import type { Observation, Snapshot as Output } from "./model"
+
+export type Input = {
+    cache: string,
+    cwd: string,
+    generator: u8[],
+    manifest: string,
+    partitions: u32,
+    facts: Observation[]
+}
+
+export default function (in: Input): Output {
+    const context = encoding.encodeHex(fingerprint({
+        generator: in.generator,
+        partitions: in.partitions,
+        directory: in.cwd,
+        manifest: bytes.fromText(in.manifest)
+    }))
+
+    const facts = in.facts.sort(
+        (left, right) => match {
+            left.path == right.path => sort_equal,
+            bytes.lessThan(
+                bytes.fromText(left.path),
+                bytes.fromText(right.path)
+            ) =>
+                sort_less,
+            _ => sort_greater
+        }
+    )[0]
+
+    const relative = `input-snapshots${directory_separator}${context}`
+
+    const path = match {
+        in.cache.length == 0 => relative,
+        _ => parentPath({
+            root: in.cache,
+            relative
+        })
+    }
+
+    return {
+        path,
+        context,
+        facts
+    }
+}

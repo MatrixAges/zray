@@ -11,6 +11,21 @@ export enum Readiness {
     Invalid
 }
 
+export type VisitResult = {
+    readiness: Readiness,
+    problem?: string
+}
+
+export type Issue = {
+    path: string,
+    message: string
+}
+
+export type Result = {
+    records?: Records,
+    issue?: Issue
+}
+
 export type SeenPhysical = {
     real_paths: string[],
     logical_paths: string[]
@@ -53,7 +68,9 @@ export type File = Document & {
     first: bool
 }
 
-export type Unavailable = File & {
+export type Unavailable = {
+    kind: Kind,
+    first: bool,
     availability: Availability,
     problem: string
 }
@@ -63,7 +80,8 @@ export type Walk = {
     entry: string,
     index: u64,
     valid: bool,
-    running: bool
+    running: bool,
+    issue?: Issue
 }
 
 export type ServiceWalk = ServicesInput & {

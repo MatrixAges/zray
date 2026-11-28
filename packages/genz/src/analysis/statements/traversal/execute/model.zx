@@ -6,6 +6,7 @@ import type { Lowering, StatementCases } from "lowering_host"
 import type {
     Expressions as SelectionExpressions
 } from "../../../selection/labels/model"
+import type { Values as StoreValues } from "../../../store/begin/model"
 import type { Write } from "../commit"
 import type { Action, Schedule } from "../model"
 
@@ -27,17 +28,25 @@ export type Control = ControlTable.Pick(
     "selection_first",
     "selection_count",
     "selection_exhaustive",
-    "case_values"
+    "case_values",
+    "parallel_first",
+    "parallel_count",
+    "parallel_values",
+    "parallel_symbols"
 )
 
-export type ScopeCheckpoint = {
-    state_checkpoint: u64,
-    stack_checkpoint: u64
+export type ScopeRange = {
+    first: u32,
+    count: u32
+}
+
+export type StackView = {
+    keys: u32[],
+    buckets: u32[]
 }
 
 export type State = {
     scope_writes: Write[][],
-    scope_checkpoints: ScopeCheckpoint[],
     scope_firsts: u32[],
     scope_counts: u32[],
     scope_conditions: u32[],
@@ -63,6 +72,9 @@ export type Context = {
     control: Control,
     expressions: SelectionExpressions,
     types: TypeTable,
+    store_values: StoreValues,
+    function_modes: StoreMode[],
+    call_arguments: u32[],
     output_type: u32,
     store_mode: StoreMode,
     store_count: u64,

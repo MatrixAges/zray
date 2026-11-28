@@ -64,20 +64,23 @@
     />
 
     <Call
-        fn="index.publishAstScopedRows"
+        fn="index.publishAstStatementBatch"
         in={[
             $in.writer,
             $ctx.build.statements,
-            $ctx.build.variables,
-            $ctx.build.extra.scope_start,
-            $ctx.build.extra.scope_len
+            {
+                variables: $ctx.build.variables,
+                starts: $ctx.build.extra.scope_start,
+                counts: $ctx.build.extra.scope_len
+            },
+            null
         ]}
     />
 
     <Call
         fn="outer_span"
         in={{
-            span: $ctx.publishAstScopedRows,
+            span: $ctx.publishAstStatementBatch,
             inner: $ctx.build.inner_count
         }}
     />

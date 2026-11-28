@@ -13,9 +13,9 @@ pub fn append(allocator: std.mem.Allocator, target: anytype, tags: anytype, offs
         for (tags, offsets) |tag, source| {
             const group = @backingInt(tag);
 
-            if (!transfer.copy(&allocator, &groups, group, source, 1)) return error.OutOfMemory;
+            if (!transfer.copy(allocator, groups[group], source, 1)) return error.OutOfMemory;
 
-            transfer.publish(&groups, group, 1);
+            transfer.publish(groups[group], 1);
             target.tags.appendAssumeCapacity(tag);
             target.offsets.appendAssumeCapacity(bases[group]);
 
@@ -26,16 +26,16 @@ pub fn append(allocator: std.mem.Allocator, target: anytype, tags: anytype, offs
     }
 
     for (counts, 0..) |count, group| {
-        if (!transfer.copy(&allocator, &groups, group, 0, count)) {
+        if (!transfer.copy(allocator, groups[group], 0, count)) {
             for (counts[0..group], 0..) |size, done| {
-                transfer.discard(&allocator, &groups, done, size);
+                transfer.discard(allocator, groups[done], size);
             }
 
             return error.OutOfMemory;
         }
     }
 
-    for (counts, 0..) |count, group| transfer.publish(&groups, group, count);
+    for (counts, 0..) |count, group| transfer.publish(groups[group], count);
 
     for (tags, offsets) |tag, offset| {
         target.tags.appendAssumeCapacity(tag);

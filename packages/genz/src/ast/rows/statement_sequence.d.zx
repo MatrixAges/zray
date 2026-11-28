@@ -31,10 +31,9 @@ export declare function takeAstSequence(
     at_tail: bool
 ): u64 throws { OutOfMemory }
 
-export declare function publishAstScopedRows(
+export declare function publishAstStatementBatch(
     writer: AstWriter,
     rows: StatementRows,
-    variables: StatementVariables,
-    starts: u32[],
-    counts: u32[]
+    scopes: StatementScopes?,
+    selection: StatementSelection?
 ): u64 throws { OutOfMemory }

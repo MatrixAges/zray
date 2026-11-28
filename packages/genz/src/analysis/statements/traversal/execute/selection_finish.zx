@@ -1,53 +1,40 @@
 import integers from "std:integer"
-import { finishStatementSelection } from "lowering_host"
 
 import unpackSpan from "../../../tasks/worker/execute/reference"
-import saveScopeWrites from "./save_scope_writes"
 
-import type { Write } from "../commit"
-import type { Step as Input, StepResult as Output } from "./model"
+import type { Input as Selection } from "../../switch/model"
+import type { Step } from "./model"
+
+export type Input = {
+    step: Step,
+    arm_base: u64
+}
+
+export type Output = Selection.Omit("bases")
 
 export default function (in: Input): Output {
-    const { context, state, scope, first, placement, child } = in
+    const { context, state, placement } = in.step
 
     const payload = integers.widen(state.selection_payloads[placement])
     const cases = state.selection_cases[placement]
+    const fallback = state.selection_fallbacks[placement]
+    const block = unpackSpan(fallback ?? 0)
 
-    const span = finishStatementSelection(
-        context.frame,
-        state.selection_names[placement],
-        state.selection_values[placement],
-        state.selection_references[placement],
-        state.selection_selected[placement],
-        context.control.selection_exhaustive[payload],
-        integers.widen(context.control.selection_count[payload]),
-        state.selection_fallbacks[placement],
-        {
+    return {
+        name: state.selection_names[placement],
+        subject: state.selection_values[placement],
+        reference: state.selection_references[placement],
+        selected: state.selection_selected[placement],
+        exhaustive: context.control.selection_exhaustive[payload],
+        total_count: integers.widen(context.control.selection_count[payload]),
+        fallback_start: fallback != null ? block.start : null,
+        fallback_count: block.count,
+        arm_base: integers.narrow(in.arm_base),
+        cases: {
             body_start: cases.body_start.reverse()[0],
             body_count: cases.body_count.reverse()[0],
             conditions: cases.conditions.reverse()[0],
             literals: cases.literals.reverse()[0]
         }
-    )
-
-    const block = unpackSpan(span)
-
-    const write: Write = {
-        row: integers.widen(first),
-        start: block.start,
-        count: block.count
-    }
-
-    return {
-        ok: true,
-        child,
-        binding: {
-            subject: state.selection_subjects[placement]
-        },
-        state: saveScopeWrites({
-            state,
-            scope,
-            writes: state.scope_writes[scope].push(write)[0]
-        })
     }
 }

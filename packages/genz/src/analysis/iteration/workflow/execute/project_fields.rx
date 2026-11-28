@@ -1,0 +1,35 @@
+<Module>
+    <Type from="emission_model" as="Loop" />
+
+    <Args in={Loop.Projection} out={u32} />
+
+    <Call fn="index.astExpressionCount" in={$in.writer} />
+    <Call fn="index.astFieldCount" in={$in.writer} />
+
+    <Call
+        module="../../fields/projection/build"
+        in={{
+            ...$in.pick([
+                "frame",
+                "writer",
+                "type_id",
+                "value",
+                "layout",
+                "mode"
+            ]),
+            types: $in.facts.types,
+            selected: $in.facts.selected,
+            borrowed: $in.fields.borrowed,
+            capacity: null,
+            operation: 0,
+            active: false,
+            ...$in.fields_update,
+            expression_base: $ctx.astExpressionCount,
+            field_base: $ctx.astFieldCount
+        }}
+    />
+
+    <Call fn="index.requireAllocation" in={$ctx.build != null} />
+
+    <Return value={$ctx.build ?? 0} />
+</Module>

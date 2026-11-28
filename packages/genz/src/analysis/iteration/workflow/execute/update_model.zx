@@ -5,7 +5,6 @@ import type { Output as StepPlan } from "../../step/model"
 import type { Input } from "./model"
 
 export type StorageInput = Input.Pick(
-    "context",
     "writer",
     "body_seq",
     "type_id",
@@ -32,8 +31,6 @@ export type Evaluate =
         "frame",
         "writer",
         "body_seq",
-        "loop_frame",
-        "context",
         "type_id",
         "initial_plan"
     ) & {
@@ -46,7 +43,6 @@ export type Evaluate =
 
 export type Evaluation = Evaluate.Pick(
     "frame",
-    "loop_frame",
     "schedule",
     "renewals",
     "name",
@@ -61,7 +57,6 @@ export type Declaration = Evaluate.Pick(
     "frame",
     "writer",
     "body_seq",
-    "context",
     "type_id",
     "initial_state"
 ) & {

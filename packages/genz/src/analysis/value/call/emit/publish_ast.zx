@@ -1,3 +1,4 @@
+import { AstColumn } from "ast_rows"
 import ast from "ast_rows"
 import { AstPayloadOwnership, AstSequenceMode } from "ast_rows"
 import host from "lowering_host"
@@ -24,7 +25,7 @@ export default function (in: Input): Output {
         }
     }
 
-    const first = ast.astIdentifierCount(writer)
+    const first = ast.astColumnCount(writer, AstColumn.Identifiers)
 
     const function_name: u8[]? = match {
         output.request => host.retainLoweringText(

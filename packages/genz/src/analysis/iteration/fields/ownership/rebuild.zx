@@ -1,4 +1,5 @@
 import host from "lowering_host"
+import { StoredType } from "lowering_host"
 
 import type { Input as Execution, Output as Rebuilt } from "./execute_model"
 
@@ -9,7 +10,8 @@ export type Input = Execution.Pick("frame", "type_id", "layout") & {
 export type Output = Rebuilt
 
 export default function (in: Input): Output {
-    const layout = in.layout ?? host.lowerLayout(in.frame, in.type_id)
+    const layout =
+        in.layout ?? host.materializeType(in.frame, in.type_id, StoredType.Layout)
 
     return {
         layout,

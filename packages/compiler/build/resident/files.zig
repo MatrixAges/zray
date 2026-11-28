@@ -46,10 +46,12 @@ pub fn deinit(self: *Self) void {
 
 /// The contents of `path` in `directory`, keyed by `key`, which names the file across requests.
 pub fn read(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, key: []const u8, borrowable: bool) ![]const u8 {
-    return self.readObserved(io, directory, path, key, borrowable, null);
+    return (try self.readObserved(io, directory, path, key, borrowable, null)).text;
 }
 
-pub fn readObserved(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, key: []const u8, borrowable: bool, known: ?Metadata) ![]const u8 {
+pub const Read = struct { key: []const u8, text: []const u8, version: Version };
+
+pub fn readObserved(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, key: []const u8, borrowable: bool, known: ?Metadata) !Read {
     const found = self.entries.position(key);
     const previous = if (found.row) |row| &self.entries.values.items[row] else null;
 
@@ -63,7 +65,7 @@ pub fn readObserved(self: *Self, io: std.Io, directory: std.Io.Dir, path: []cons
         })) |mark| {
             entry.borrow_mark = mark;
 
-            return entry.text;
+            return readResult(self.entries.keys.items[found.row.?], entry.*);
         }
     }
 
@@ -89,7 +91,9 @@ pub fn readObserved(self: *Self, io: std.Io, directory: std.Io.Dir, path: []cons
 
     var observed: Entry = .{ .metadata = metadata(stat), .read = started, .text = text, .borrow_mark = plan.mark };
 
-    if (previous) |entry| {
+    const owned_key = if (previous) |entry| previous_key: {
+        const stored_key = self.entries.keys.items[found.row.?];
+
         if (plan.reuse) {
             self.gpa.free(text);
 
@@ -97,25 +101,38 @@ pub fn readObserved(self: *Self, io: std.Io, directory: std.Io.Dir, path: []cons
             observed.digest = entry.digest;
             entry.* = observed;
 
-            return observed.text;
+            return readResult(stored_key, observed);
         }
 
         const keep = plan.previous.?;
 
         if (keep.keep_on_abort) try self.replaced.ensureUnusedCapacity(self.gpa, plan.counters.abortable);
+
         try self.transient.append(self.gpa, .{ .text = entry.text, .retention = keep });
 
         entry.* = observed;
-    } else {
-        const slot = try self.entries.prepare(self.gpa, key, found.slot);
-        const owned_key = try self.gpa.dupe(u8, key);
 
-        self.entries.append(slot, owned_key, observed);
-    }
+        break :previous_key stored_key;
+    } else new_key: {
+        const slot = try self.entries.prepare(self.gpa, key, found.slot);
+        const stored_key = try self.gpa.dupe(u8, key);
+
+        self.entries.append(slot, stored_key, observed);
+
+        break :new_key stored_key;
+    };
 
     self.counters = plan.counters;
 
-    return text;
+    return readResult(owned_key, observed);
+}
+
+fn readResult(key: []const u8, entry: Entry) Read {
+    return .{
+        .key = key,
+        .text = entry.text,
+        .version = .{ .metadata = entry.metadata, .read = entry.read },
+    };
 }
 
 /// The text kept for `key` while the metadata of `path` in `directory` vouches for it: `known` when the listing of

@@ -2,13 +2,14 @@ import type {
     GenerationCatalog,
     GenerationInterface,
     GenerationIO,
-    GenerationObservation,
     GenerationObservedRoot,
     GenerationRoot,
     GenerationRegistration,
     PreparedGeneration
 } from "generation_host"
 import type { Document } from "../../fingerprint/model"
+import type { Time } from "../../snapshot/age"
+import type { Snapshot } from "../../snapshot/records/model"
 import type { Fields as PackageFields } from "./packages"
 
 export type Input = {
@@ -20,7 +21,10 @@ export type Input = {
     packages: PackageFields,
     generator: u8[],
     manifest: string,
-    partitions: u32
+    partitions: u32,
+    cache: string,
+    cwd: string,
+    now: Time
 }
 
 export type Current = {
@@ -31,7 +35,18 @@ export type Current = {
 
 export type Root = GenerationRoot
 
-export type Observe = Input.Pick("host", "write", "roots")
+export type Observe =
+    Input.Pick(
+        "write",
+        "roots",
+        "interfaces",
+        "generator",
+        "manifest",
+        "partitions",
+        "cache",
+        "cwd",
+        "now"
+    )
 
 export type ObserveStep = {
     roots: GenerationRoot[],
@@ -39,7 +54,12 @@ export type ObserveStep = {
     observed: GenerationObservedRoot[]
 }
 
-export type Observation = GenerationObservation
+export type Observation = {
+    enabled: bool,
+    snapshot?: Snapshot,
+    roots: GenerationObservedRoot[],
+    digest?: u8[]
+}
 
 export type Summary = {
     text?: string,
@@ -67,7 +87,7 @@ export type Refresh = Analyze & {
 }
 
 export type Load = Input.Pick("host", "roots") & {
-    observed: GenerationObservation
+    observed: Observation
 }
 
 export type LoadStep = {

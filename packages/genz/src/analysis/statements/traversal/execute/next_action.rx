@@ -4,7 +4,7 @@
 
     <Args in={Execution.ScheduleWalk} out={Execution.ScheduleWalk} />
 
-    <Store from="selection" as="selection" />
+    <Store from="selection" as="traversal" />
 
     <If on={$in.plan.actions[$in.index] == Schedule.Action.Execute}>
         <Call
@@ -42,7 +42,7 @@
     </If>
 
     <Call
-        fn="step"
+        module="step"
         in={{
             ...$in.pick([
                 "context",
@@ -57,11 +57,15 @@
         }}
     />
 
+    <If on={$in.plan.actions[$in.index] == Schedule.Action.Close}>
+        <Call fn="set_scope" in={null} setter={[$store.traversal.locals]} />
+    </If>
+
     <If on={$ctx.step.binding != null}>
         <Call
             fn="set_selection"
             in={$ctx.step.binding}
-            setter={[$store.selection.binding]}
+            setter={[$store.traversal.binding]}
         />
     </If>
 

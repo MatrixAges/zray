@@ -1,0 +1,55 @@
+import paths from "lexical_path"
+
+import type { GenerationObservedRoot, GenerationRoot } from "generation_host"
+import type { Observation } from "../../snapshot/records/model"
+
+export type Input = {
+    roots: GenerationRoot[],
+    observed: GenerationObservedRoot[]
+}
+
+export type Output = Observation[]
+
+export default function (in: Input): Output {
+    const facts: Observation[] = []
+
+    return loop({
+        root: 0,
+        facts
+    }, {
+        while: state => state.root < in.roots.length,
+        next: state => {
+            const path = in.roots[state.root].path
+            const files = in.observed[state.root].files
+
+            state.facts = loop({
+                row: 0,
+                facts: state.facts
+            }, {
+                while: cursor => cursor.row < files.length,
+                next: cursor => {
+                    const file = files[cursor.row]
+                    const resolved = paths.resolvePathParts([
+                        path,
+                        file.relative
+                    ])
+
+                    cursor.facts = cursor.facts.push({
+                        path: resolved,
+                        key: file.path,
+                        inode: file.inode,
+                        size: file.size,
+                        mtime_ns: file.mtime_ns,
+                        ctime_ns: file.ctime_ns
+                    })[0]
+
+                    cursor.row += 1
+                },
+                return: cursor => cursor.facts
+            })
+
+            state.root += 1
+        },
+        return: state => state.facts
+    })
+}

@@ -2,22 +2,22 @@
     <Type from="../index" as="IO" />
     <Type from="../model" as="Collection" />
 
-    <Args in={Collection.Unavailable} out={Collection.Readiness} />
+    <Args in={Collection.Unavailable} out={Collection.VisitResult} />
 
     <If on={$in.availability == IO.Availability.Missing}>
         <If on={!$in.first && $in.kind == IO.Kind.Zx}>
-            <Return value={Collection.Readiness.Skipped} />
+            <Return
+                value={{
+                    readiness: Collection.Readiness.Skipped
+                }}
+            />
         </If>
     </If>
 
-    <Call
-        fn="../index.writeCollectionDiagnostic"
-        in={[
-            $in.collection,
-            $in.path,
-            $in.problem
-        ]}
+    <Return
+        value={{
+            readiness: Collection.Readiness.Invalid,
+            problem: $in.problem
+        }}
     />
-
-    <Return value={Collection.Readiness.Invalid} />
 </Module>

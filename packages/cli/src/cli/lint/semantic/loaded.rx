@@ -1,7 +1,7 @@
 <Module>
     <Type from="../model" as="Lint" />
 
-    <Args in={Lint.SemanticLoaded} out={Lint.SemanticOutcome} />
+    <Args in={Lint.SemanticLoaded} out={Lint.SemanticPass} />
 
     <Call fn="entry_kind" in={$in.project.entry} />
 
@@ -18,15 +18,13 @@
             module="../special/run"
             in={{
                 check: $in.host,
-                store: $ctx.entry_kind == Lint.Entry.Store
+                store: $ctx.entry_kind == Lint.Entry.Store,
+                document: $in.document,
+                maximum_lines: $in.maximum_lines
             }}
         />
 
-        <If on={$ctx.run}>
-            <Return value={Lint.SemanticOutcome.Valid} />
-        </If>
-
-        <Return value={Lint.SemanticOutcome.Invalid} />
+        <Return value={$ctx.run} />
     </If>
 
     <Call
@@ -38,23 +36,43 @@
         ]}
     />
 
-    <If on={!$ctx.analyzeSemanticLibrary}>
-        <Return value={Lint.SemanticOutcome.Invalid} />
+    <If on={$ctx.analyzeSemanticLibrary != null}>
+        <Call
+            module="../reachable/run"
+            in={{
+                items: $ctx.analyzeSemanticLibrary,
+                document: $in.document,
+                maximum_lines: $in.maximum_lines
+            }}
+        />
+
+        <If on={$ctx.run != null}>
+            <Return
+                value={{
+                    outcome: Lint.SemanticOutcome.Invalid,
+                    failure: $ctx.run
+                }}
+            />
+        </If>
+
+        <Call
+            fn="../index.linkSemanticLibrary"
+            in={[
+                $in.host,
+                false
+            ]}
+        />
+
+        <Return
+            value={{
+                outcome: Lint.SemanticOutcome.Valid
+            }}
+        />
     </If>
 
-    <Call fn="../index.checkSemanticSources" in={$in.host} />
-
-    <If on={!$ctx.checkSemanticSources}>
-        <Return value={Lint.SemanticOutcome.Invalid} />
-    </If>
-
-    <Call
-        fn="../index.linkSemanticLibrary"
-        in={[
-            $in.host,
-            false
-        ]}
+    <Return
+        value={{
+            outcome: Lint.SemanticOutcome.Invalid
+        }}
     />
-
-    <Return value={Lint.SemanticOutcome.Valid} />
 </Module>

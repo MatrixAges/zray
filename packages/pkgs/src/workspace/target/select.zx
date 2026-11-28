@@ -1,15 +1,33 @@
+import validPath from "../path/valid"
+import { Kind } from "../path/valid"
 import locate from "./locate"
-import { Status } from "./model"
+import { Key, Status } from "./model"
 import version from "./version"
 
 import type { Input, Result as Output } from "./model"
 
 export default function (in: Input): Output {
-    const position = locate(in.omit([
-        "versions",
-        "range",
-        "limit"
-    ]))
+    const checked_path = in.kind == Key.CheckedRelativePath
+
+    if (checked_path && !validPath({
+        owner: in.owner,
+        path: in.value,
+        kind: Kind.Dependency
+    })) {
+        return {
+            status: Status.InvalidLockWorkspacePath,
+            row: 0
+        }
+    }
+
+    const position = locate({
+        ...in.omit([
+            "versions",
+            "range",
+            "limit"
+        ]),
+        kind: checked_path ? Key.RelativePath : in.kind
+    })
 
     if (position == null) {
         return {

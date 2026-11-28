@@ -1,24 +1,13 @@
 import integers from "std:integer"
-import host from "lowering_host"
 
 import { store_route } from "../block/const"
 
 import type { Input } from "./model"
 
-export type Output = u64?
+export type Output = bool
 
 export default function (in: Input): Output {
     const bits = integers.widenByte(in.route)
-    const begin = integers.andBits(bits, integers.widenByte(store_route)) != 0
 
-    if (!begin) {
-        return 0
-    }
-
-    return host.beginStatementStore(
-        in.context.frame,
-        in.scope_first,
-        in.scope_count,
-        in.index
-    )
+    return integers.andBits(bits, integers.widenByte(store_route)) != 0
 }

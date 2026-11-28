@@ -1,4 +1,4 @@
-import type { IterationResourceFrame } from "lowering_host"
+import type { Lowering } from "lowering_host"
 import type { Input as BorrowInput, Plan as BorrowPlan } from "../../borrow/model"
 import type {
     Input as ConversionInput,
@@ -13,7 +13,7 @@ export { Operation as TypeOperation } from "../../types/model"
 export { Mode } from "../model"
 
 export type Root = {
-    frame: IterationResourceFrame,
+    frame: Lowering,
     root: u32
 }
 
@@ -31,7 +31,7 @@ export type Returned = Root & {
 
 export type Types = {
     source: TypeInput,
-    frame: IterationResourceFrame
+    frame: Lowering
 }
 
 export type BorrowPrepared = {

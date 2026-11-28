@@ -1,5 +1,6 @@
 export {
     astExpressionCount,
+    astFieldCount,
     astStatementCount,
     clipCollectionTarget,
     finishAstSequence,
@@ -7,10 +8,8 @@ export {
     takeAstSequence
 } from "ast_rows"
 export {
-    emitLoopRenewals,
-    projectLoopAssignment,
-    lowerExpression,
-    maskLoopBorrowedFields,
-    declareProjectedLoopState,
-    restoreLoopFields
+    projectIterationResult,
+    lowerExpression
 } from "lowering_host"
+export { materializeType } from "lowering_host"
+export { requireAllocation } from "memory"

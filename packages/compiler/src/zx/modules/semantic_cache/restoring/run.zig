@@ -25,10 +25,10 @@ pub const Frame = struct {
         const current = self.current;
         const type_slots = memory.borrowColumnLengths(current.types);
         const origin_slots = memory.borrowColumnLengths(&current.origins.items);
-        const function_slots = memory.borrowColumnLengths(current.functions);
-        const types: memory.ColumnLengths = &type_slots;
-        const origins: memory.ColumnLengths = &origin_slots;
-        const functions: memory.ColumnLengths = &function_slots;
+        var type_counts: [type_slots.len]u64 = undefined;
+
+        for (type_slots, &type_counts) |slot, *count| count.* = slot.*;
+
         const payload_position = current.payloads.checkpoint();
 
         self.publication.bind(self);
@@ -36,9 +36,9 @@ pub const Frame = struct {
         const input: Input = .{
             .planning = planning,
             .checkpoint = &.{
-                .types = @ptrCast(&types),
-                .origins = @ptrCast(&origins),
-                .functions = @ptrCast(&functions),
+                .types = &type_counts,
+                .origin_count = origin_slots[0].*,
+                .function_count = current.functions.count(),
             },
             .columns = if (self.publication.has_columns) &self.publication.columns else null,
         };

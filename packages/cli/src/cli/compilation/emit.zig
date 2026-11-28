@@ -79,12 +79,6 @@ fn closeAnalysis(self: *State) void {
     self.analyzed = null;
 }
 
-pub fn flushCompilationDiagnostics(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    self.context.stderr.flush() catch |err| return self.failure.save(err);
-}
-
 pub fn openCompilationGeneration(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
     const context = &self.context;

@@ -9,14 +9,18 @@ export type Output = u64
 export default function (in: Input): Output {
     const { allocator, groups, index, count } = in
 
-    const group = memory.borrowTransferGroup(groups, index, null)
-    const columns = memory.transferColumnCount(group)
-    const first = memory.reserveTransferColumn(allocator, group, 0, count)
+    const columns = groups[index].columns
+    const first = memory.reserveTransferColumn(allocator, columns[0].target, count)
 
     const reserved = loop(1, {
-        while: column => column < columns,
+        while: column => column < columns.length,
         next: column => {
-            const length = memory.reserveTransferColumn(allocator, group, column, count)
+            const length =
+                memory.reserveTransferColumn(
+                    allocator,
+                    columns[column].target,
+                    count
+                )
 
             column += 1
         }

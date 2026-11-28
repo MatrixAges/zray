@@ -1,0 +1,41 @@
+<Module>
+    <Type from="model" as="Snapshot" />
+
+    <Args in={Snapshot.AddReading} out={Snapshot.Publication} />
+
+    <Call
+        fn="index.readCurrent"
+        in={[
+            $in.registration,
+            {
+                path: $in.slot.path,
+                directory_entries: $in.directory_entries
+            }
+        ]}
+    />
+
+    <If on={$in.slot.prior != null}>
+        <If on={$ctx.readCurrent.fact.kind != Snapshot.FactKind.Failed}>
+            <Call
+                module="compare_prior"
+                in={{
+                    ...$in,
+                    current: $ctx.readCurrent.fact,
+                    prior: $in.slot.prior
+                }}
+            />
+
+            <Return value={$ctx.compare_prior} />
+        </If>
+    </If>
+
+    <Return
+        value={{
+            directory_entries: $in.directory_entries,
+            consumed: false,
+            consistent: $in.slot.prior == null,
+            backend_preloaded: $in.slot.backend_preloaded && !$in.backend_input,
+            fact: $ctx.readCurrent.fact
+        }}
+    />
+</Module>

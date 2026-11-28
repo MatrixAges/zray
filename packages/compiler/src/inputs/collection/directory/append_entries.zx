@@ -13,10 +13,9 @@ export default function (in: Input, {
 }): Output {
     const { collected, level } = in
 
-    if (level.count != 0) {
+    if (level.files.length != 0) {
         $store.entries.collected = {
-            batches: collected.batches.concat(level.files)[0],
-            count: collected.count + level.count
+            levels: collected.levels.push(level.files)[0]
         }
     }
 }

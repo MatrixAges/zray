@@ -1,10 +1,3 @@
-export type StatementStack = {
-    state_checkpoint: u64,
-    stack_checkpoint: u64,
-    stack_keys: u32[],
-    stack_buckets: u32[]
-}
-
 export type StatementCases = {
     body_start: u32[],
     body_count: u32[],
@@ -54,5 +47,44 @@ export enum StoredType {
     AbiLayout,
     StateType,
     StateLayout,
-    ViewType
+    ViewType,
+    IterationType,
+    IterationItem,
+    Layout
+}
+
+export type LoopProjection = {
+    borrowed: bool[],
+    layout: u32
+}
+
+export type LoopConsumer = {
+    symbol: u32,
+    result: u32,
+    result_type: u32,
+    layout: bool
+}
+
+export type SortComparator = {
+    declaration: u32,
+    io: bool,
+    process: bool
+}
+
+export type SortOperand = {
+    value: u32,
+    span: u64
+}
+
+export type WorkerState = {
+    uses_allocator: bool,
+    uses_io: bool,
+    uses_process: bool,
+    used: bool[],
+    names: u8[][]
+}
+
+export type IterationTransferResult = {
+    root: u32,
+    cached: u32
 }

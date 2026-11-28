@@ -1,9 +1,8 @@
 import type { AstSequence, AstWriter } from "ast_rows"
-import type { IterationResourceFrame, LoopConsumer, Lowering } from "lowering_host"
+import type { LoopConsumer, Lowering } from "lowering_host"
 import type { Completion, Input as Facts, Preparation } from "../model"
 
 export type Input = {
-    context: IterationResourceFrame,
     consumer?: LoopConsumer,
     frame: Lowering,
     writer: AstWriter,
@@ -21,7 +20,6 @@ export type Input = {
 
 export type Actions =
     Input.Pick(
-        "context",
         "consumer",
         "frame",
         "writer",
@@ -36,7 +34,6 @@ export type Actions =
 
 export type Complete =
     Input.Pick(
-        "context",
         "frame",
         "writer",
         "body",

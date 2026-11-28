@@ -8,7 +8,7 @@ export type Inventory = {
 }
 
 export type Input = Inventory & {
-    managed: string[],
+    retired?: string[],
     observed: TextColumn,
     versioned: bool,
     separator: u8
@@ -24,6 +24,7 @@ export enum Output {
     Changed,
     Overlap,
     MissingInventory,
+    Retirement,
     Published
 }
 

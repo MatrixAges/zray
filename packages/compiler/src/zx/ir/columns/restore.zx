@@ -1,24 +1,35 @@
-import memory from "memory"
-
-import type { TransferGroup } from "memory"
-
 export type Input = {
-    group: TransferGroup
+    lengths: u64[]
 }
 
-export type Output = u64[]
+export type Range = {
+    column: u64,
+    count: u64
+}
+
+export type Output = Range[]
 
 export default function (in: Input): Output {
-    const { group } = in
+    const lengths = in.lengths
+    const ranges: Output = []
 
-    const columns = memory.transferColumnCount(group)
-    const empty: u64[] = []
+    return loop({
+        column: 0,
+        ranges
+    }, {
+        while: state => state.column < lengths.length,
+        next: state => {
+            const count = lengths[state.column]
 
-    return loop(empty, {
-        while: counts => counts.length < columns,
-        next: counts => {
-            const count = memory.transferColumnLength(group, counts.length)
-            counts = counts.push(count)[0]
-        }
+            if (count != 0) {
+                state.ranges = state.ranges.push({
+                    column: state.column,
+                    count
+                })[0]
+            }
+
+            state.column += 1
+        },
+        return: state => state.ranges
     })
 }

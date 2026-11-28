@@ -67,7 +67,18 @@ export type SourceInput = SourceDocument & {
     maximum_lines?: u64
 }
 
-export type SemanticInput = {
+export type ReachableFailure = {
+    path: string,
+    result?: SourceResult,
+    error_name?: string
+}
+
+export type SourceOptions = {
+    document: SourceLint,
+    maximum_lines?: u64
+}
+
+export type SemanticInput = SourceOptions & {
     host: SemanticLint,
     configuration: ConfigurationInput
 }
@@ -77,12 +88,16 @@ export type SemanticConfiguration = {
     request: ConfigurationInput
 }
 
-export type SemanticResult = {
+export type SemanticPass = {
     outcome: SemanticOutcome,
+    failure?: ReachableFailure
+}
+
+export type SemanticResult = SemanticPass & {
     configuration?: ConfigurationResult
 }
 
-export type SemanticLoaded = {
+export type SemanticLoaded = SourceOptions & {
     host: SemanticLint,
     manifest: bool,
     project: SemanticProject

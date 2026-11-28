@@ -1,15 +1,13 @@
 import integers from "std:integer"
-import { finishStatementScope } from "lowering_host"
+import { joinAstStatementRows } from "ast_rows"
 
 import packSpan from "../../../node_headers/block/span"
 
-import type { Lowering } from "lowering_host"
+import type { AstWriter } from "ast_rows"
 import type { Write } from "../commit"
-import type { ScopeCheckpoint } from "./model"
 
 export type Input = {
-    frame: Lowering,
-    checkpoint: ScopeCheckpoint,
+    writer: AstWriter,
     writes: Write[],
     count: u32
 }
@@ -17,53 +15,58 @@ export type Input = {
 export type Output = u64
 
 export default function (in: Input): Output {
-    const { frame, checkpoint, writes } = in
+    const { writer, writes } = in
 
     const count = integers.widen(in.count)
-    const empty: u64[] = []
-    const zero: u64 = 0
+    const empty: u32[] = []
+    const zero: u32 = 0
+    const total: u64 = 0
+
+    if (count == 0) {
+        return 0
+    }
 
     const blank = loop({
         row: 0,
-        spans: empty
+        values: empty
     }, {
         while: state => state.row < count,
         next: state => {
-            state.spans = state.spans.push(zero)[0]
+            state.values = state.values.push(zero)[0]
             state.row += 1
         },
-        return: state => state.spans
+        return: state => state.values
     })
 
-    const spans = loop({
+    const rows = loop({
         index: 0,
-        spans: blank
+        starts: blank,
+        counts: blank,
+        total
     }, {
         while: state => state.index < writes.length,
         next: state => {
             const write = writes[state.index]
-            const span = packSpan({
-                start: write.start,
-                count: integers.widen(write.count)
-            })
-
-            state.spans = state.spans.with(write.row, span)
-
             const previous = write.previous
 
+            state.total -= integers.widen(state.counts[write.row])
+            state.total += integers.widen(write.count)
+            state.starts = state.starts.with(write.row, write.start)
+            state.counts = state.counts.with(write.row, write.count)
+
             if (previous != null) {
-                state.spans = state.spans.with(previous, zero)
+                state.total -= integers.widen(state.counts[previous])
+                state.starts = state.starts.with(previous, zero)
+                state.counts = state.counts.with(previous, zero)
             }
 
             state.index += 1
         },
-        return: state => state.spans
+        return: state => state
     })
 
-    return finishStatementScope(
-        frame,
-        checkpoint.state_checkpoint,
-        checkpoint.stack_checkpoint,
-        spans
-    )
+    return packSpan({
+        start: joinAstStatementRows(writer, rows.starts, rows.counts),
+        count: rows.total
+    })
 }

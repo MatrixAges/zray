@@ -2,7 +2,7 @@
     <Type from="../index" as="IO" />
     <Type from="../model" as="Collection" />
 
-    <Args in={Collection.File} out={Collection.Readiness} />
+    <Args in={Collection.File} out={Collection.VisitResult} />
 
     <Store from="../physical" as="physical" />
 
@@ -12,9 +12,7 @@
         <Call
             module="unavailable"
             in={{
-                collection: $in.collection,
                 kind: $in.kind,
-                path: $in.path,
                 first: $in.first,
                 availability: $ctx.resolveCollectionPhysicalPath.availability,
                 problem: $ctx.resolveCollectionPhysicalPath.problem
@@ -27,16 +25,12 @@
     <Call fn="escape_diagnostic" in={$ctx.resolveCollectionPhysicalPath.relative} />
 
     <If on={$ctx.escape_diagnostic != null}>
-        <Call
-            fn="../index.writeCollectionDiagnostic"
-            in={[
-                $in.collection,
-                $in.path,
-                $ctx.escape_diagnostic
-            ]}
+        <Return
+            value={{
+                readiness: Collection.Readiness.Invalid,
+                problem: $ctx.escape_diagnostic
+            }}
         />
-
-        <Return value={Collection.Readiness.Invalid} />
     </If>
 
     <Call
@@ -50,7 +44,11 @@
     />
 
     <If on={$ctx.register_physical.status == Collection.PhysicalRegistration.SamePath}>
-        <Return value={Collection.Readiness.Skipped} />
+        <Return
+            value={{
+                readiness: Collection.Readiness.Skipped
+            }}
+        />
     </If>
 
     <If
@@ -59,16 +57,12 @@
     >
         <Call fn="alias_message" in={$ctx.register_physical.previous} />
 
-        <Call
-            fn="../index.writeCollectionDiagnostic"
-            in={[
-                $in.collection,
-                $in.path,
-                $ctx.alias_message
-            ]}
+        <Return
+            value={{
+                readiness: Collection.Readiness.Invalid,
+                problem: $ctx.alias_message
+            }}
         />
-
-        <Return value={Collection.Readiness.Invalid} />
     </If>
 
     <Call
@@ -83,9 +77,7 @@
         <Call
             module="unavailable"
             in={{
-                collection: $in.collection,
                 kind: $in.kind,
-                path: $in.path,
                 first: $in.first,
                 availability: $ctx.readCollectionFile.availability,
                 problem: $ctx.readCollectionFile.problem
@@ -95,5 +87,9 @@
         <Return value={$ctx.unavailable} />
     </If>
 
-    <Return value={Collection.Readiness.Ready} />
+    <Return
+        value={{
+            readiness: Collection.Readiness.Ready
+        }}
+    />
 </Module>

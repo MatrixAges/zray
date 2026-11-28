@@ -1,11 +1,7 @@
-import memory from "memory"
-
-import type { ColumnLengths } from "memory"
-
 export type Columns = {
-    types: ColumnLengths,
-    origins: ColumnLengths,
-    functions: ColumnLengths
+    types: u64[],
+    origin_count: u64,
+    function_count: u64
 }
 
 export type Input = Columns
@@ -17,21 +13,8 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const count = memory.lengthSlotCount(in.types)
-    const empty: u64[] = []
-
-    const type_counts = loop(empty, {
-        while: values => values.length < count,
-        next: values => {
-            const length = memory.readLengthSlot(in.types, values.length)
-
-            values = values.push(length)[0]
-        }
-    })
-
     return {
-        function_count: memory.readLengthSlot(in.functions, 0),
-        origin_count: memory.readLengthSlot(in.origins, 0),
-        type_counts
+        ...in.omit(["types"]),
+        type_counts: in.types
     }
 }

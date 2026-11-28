@@ -34,7 +34,8 @@ export default function (in: Input): Output {
     const output_type = match mode.output {
         Representation.View =>
             host.materializeType(in.frame, in.output_id, StoredType.ViewType),
-        Representation.Layout => host.lowerLayout(in.frame, in.output_id),
+        Representation.Layout =>
+            host.materializeType(in.frame, in.output_id, StoredType.Layout),
         _ => host.lowerType(in.frame, in.output_id, false)
     }
 

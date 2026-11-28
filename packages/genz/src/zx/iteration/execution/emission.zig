@@ -8,14 +8,11 @@ const step = @import("../step.zig");
 const scope = @import("../../state_value/scope.zig");
 const result = @import("../result.zig");
 const renew_seed = @import("../renewal_seed.zig");
-const publication = @import("../../construction/publication.zig");
 const generated = @import("genz_options").generated_analysis;
 const Error = Lower.Error;
-const Api = @import("../../expressions/evaluate.zig").Api;
 const Layout = @FieldType(@import("../initial.zig").Plan, "parameters");
 
-pub fn lowerLoopFirstTest(handle: *anyopaque) Error!?u32 {
-    const frame = Frame.borrow(handle);
+pub fn lowerLoopFirstTest(frame: *Frame) Error!?u32 {
     const condition = frame.schedule.first_test orelse return null;
     const parameters = &frame.parameters.?;
 
@@ -35,8 +32,7 @@ pub fn enterLoopUpdate(frame: *Frame, update: Frame.UpdateScope, delayed: bool) 
     };
 }
 
-pub fn declareSeedState(handle: *anyopaque, form: Layout, projected: bool, mutable: bool, initial_state: u32) Error!void {
-    const frame = Frame.borrow(handle);
+pub fn declareSeedState(frame: *Frame, form: Layout, projected: bool, mutable: bool, initial_state: u32) Error!void {
     const self = frame.lowering;
     const type_id = frame.type_id;
     const name = if (projected) self.builder.nodes.get(frame.seed).identifier else frame.name;
@@ -56,14 +52,13 @@ pub fn declareSeedState(handle: *anyopaque, form: Layout, projected: bool, mutab
     });
 }
 
-pub fn enterLoweredLoop(handle: *anyopaque) Error!struct { growth: node.Block, declarations: node.Block } {
-    const frame = Frame.borrow(handle);
+pub fn enterLoweredLoop(frame: *Frame) Error!struct { growth: node.Block, declarations: node.Block } {
     const projected = frame.fields != null;
     const growth = try renew_seed.store(frame.lowering, frame.id, frame.type_id, .{ .reference = if (projected) frame.seed else frame.state });
 
     if (projected) {
-        try maskLoopBorrowedFields(handle);
-        try declareProjectedLoopState(handle);
+        try maskLoopBorrowedFieldsFrame(frame);
+        try declareProjectedLoopStateFrame(frame);
     }
 
     const output = frame.output();
@@ -74,29 +69,11 @@ pub fn enterLoweredLoop(handle: *anyopaque) Error!struct { growth: node.Block, d
     return .{ .growth = growth, .declarations = declaration_rows };
 }
 
-pub fn emitLoopRenewals(handle: *anyopaque, first: u64, end: u64, skipped: []const u64, filtered_inline: bool) Error!u64 {
-    const frame = Frame.borrow(handle);
-
-    const growth = try @import("../../growth/delivery.zig").entry(frame.lowering, .{
-        .type_id = frame.type_id,
-        .target = .{ .reference = if (frame.fields != null) frame.seed else frame.state },
-        .first = @intCast(first),
-        .end = @intCast(end),
-        .skipped = skipped,
-        .filtered_inline = filtered_inline,
-    });
-
-    return publication.packSpan(growth);
-}
-
-pub fn maskLoopBorrowedFields(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-
+fn maskLoopBorrowedFieldsFrame(frame: *Frame) Error!void {
     return frame.fields.?.maskBorrowed(frame.lowering, frame.output());
 }
 
-pub fn declareProjectedLoopState(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
+fn declareProjectedLoopStateFrame(frame: *Frame) Error!void {
     const fields = &frame.fields.?;
     const self = frame.lowering;
 
@@ -107,9 +84,7 @@ pub fn declareProjectedLoopState(handle: *anyopaque) Error!void {
     });
 }
 
-pub fn writeLoopUpdate(handle: *anyopaque) Error!node.Block {
-    const frame = Frame.borrow(handle);
-
+pub fn writeLoopUpdate(frame: *Frame) Error!node.Block {
     return step.store(frame.lowering, &frame.loop, frame.schedule, .{
         .type_id = frame.type_id,
         .origin = frame.iteration.body,
@@ -119,29 +94,19 @@ pub fn writeLoopUpdate(handle: *anyopaque) Error!node.Block {
     }, frame.tracker);
 }
 
-pub fn projectLoopAssignment(handle: *anyopaque, value: u32) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try frame.fields.?.qualify(frame.lowering, &frame.loop, frame.iteration.body, @fromBackingInt(value)));
-}
-
-pub fn recoverLoweredLoop(handle: *anyopaque) Error!u32 {
-    const frame = Frame.borrow(handle);
-
+pub fn recoverLoweredLoop(frame: *Frame) Error!u32 {
     frame.output().clearRetainingCapacity();
 
-    return if (frame.schedule.restore_projected) restoreLoopFields(handle) else @backingInt(frame.state);
+    return if (frame.schedule.restore_projected) restoreLoopFieldsFrame(frame) else @backingInt(frame.state);
 }
 
-pub fn restoreLoopFields(handle: *anyopaque) Error!u32 {
-    const frame = Frame.borrow(handle);
+fn restoreLoopFieldsFrame(frame: *Frame) Error!u32 {
     const self = frame.lowering;
 
     return @backingInt(try aggregate.bind(self, frame.output(), try frame.fields.?.restore(self, frame.state)));
 }
 
-pub fn finishLoweredLoop(handle: *anyopaque, state: u32, spans: result.Prefix) Error!u32 {
-    const frame = Frame.borrow(handle);
+pub fn finishLoweredLoop(frame: *Frame, state: u32, spans: result.Prefix) Error!u32 {
     const initial = @backingInt(frame.initial_value);
 
     const value = @backingInt(try resultConfig(frame, frame.initial_value, frame.changed_name).lower(
@@ -152,7 +117,7 @@ pub fn finishLoweredLoop(handle: *anyopaque, state: u32, spans: result.Prefix) E
     ));
 
     if (frame.fields != null) {
-        if (frame.next.first) |first| return finishSkippedLoop(handle, initial, value, @backingInt(first), frame.changed_name);
+        if (frame.next.first) |first| return finishSkippedLoop(frame, initial, value, @backingInt(first), frame.changed_name);
 
         return @backingInt(try aggregate.finish(frame.lowering, &frame.body, @fromBackingInt(value)));
     }
@@ -176,8 +141,7 @@ fn resultConfig(frame: *Frame, initial: node.ExpressionId, changed_name: []const
     };
 }
 
-fn finishSkippedLoop(handle: *anyopaque, initial: u32, value: u32, first: u32, changed_name: ?[]const u8) Error!u32 {
-    const frame = Frame.borrow(handle);
+fn finishSkippedLoop(frame: *Frame, initial: u32, value: u32, first: u32, changed_name: ?[]const u8) Error!u32 {
     const self = frame.lowering;
     var skipped = Frame.statements(self);
 

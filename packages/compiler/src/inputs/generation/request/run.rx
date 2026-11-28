@@ -5,11 +5,17 @@
 
     <Call
         module="observe"
-        in={{
-            host: $in.host,
-            write: $in.write,
-            roots: $in.roots
-        }}
+        in={$in.pick([
+            "write",
+            "roots",
+            "interfaces",
+            "generator",
+            "manifest",
+            "partitions",
+            "cache",
+            "cwd",
+            "now"
+        ])}
     />
 
     <If on={$in.write}>

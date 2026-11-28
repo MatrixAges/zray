@@ -1,0 +1,12 @@
+export type Input = u8[]?
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.loop_state.initial_scope = {
+        active: in != null,
+        guard_name: in
+    }
+}

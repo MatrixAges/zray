@@ -1,44 +1,84 @@
 <Module>
     <Type from="model" as="Special" />
-    <Type from="../index" as="IO" />
+    <Type from="../model" as="Lint" />
 
-    <Args in={Special.Input} out={bool} />
+    <Args in={Special.Input} out={Lint.SemanticPass} />
 
     <Call fn="../index.checkSpecialSource" in={$in.check} />
 
     <If on={!$ctx.checkSpecialSource}>
-        <Return value={false} />
+        <Return
+            value={{
+                outcome: Lint.SemanticOutcome.Invalid
+            }}
+        />
     </If>
 
     <If on={$in.store}>
         <Call fn="../index.collectLintStore" in={$in.check} />
 
         <If on={!$ctx.collectLintStore}>
-            <Return value={false} />
+            <Return
+                value={{
+                    outcome: Lint.SemanticOutcome.Invalid
+                }}
+            />
         </If>
 
         <Call fn="../index.collectLintStoreTypes" in={$in.check} />
 
         <If on={!$ctx.collectLintStoreTypes}>
-            <Return value={false} />
+            <Return
+                value={{
+                    outcome: Lint.SemanticOutcome.Invalid
+                }}
+            />
         </If>
 
         <Call fn="../index.checkLintStoreTypes" in={$in.check} />
 
-        <Return value={$ctx.checkLintStoreTypes} />
+        <If on={$ctx.checkLintStoreTypes}>
+            <Return
+                value={{
+                    outcome: Lint.SemanticOutcome.Valid
+                }}
+            />
+        </If>
+
+        <Return
+            value={{
+                outcome: Lint.SemanticOutcome.Invalid
+            }}
+        />
     </If>
 
     <Call fn="../index.analyzeLintGateway" in={$in.check} />
 
-    <If on={$ctx.analyzeLintGateway == null}>
-        <Return value={false} />
+    <If on={!$ctx.analyzeLintGateway.valid}>
+        <Return
+            value={{
+                outcome: Lint.SemanticOutcome.Invalid
+            }}
+        />
     </If>
 
-    <If on={$ctx.analyzeLintGateway == true}>
-        <Call fn="../index.checkLintServices" in={$in.check} />
+    <If on={$ctx.analyzeLintGateway.services != null}>
+        <Call
+            module="../reachable/run"
+            in={{
+                items: $ctx.analyzeLintGateway.services,
+                document: $in.document,
+                maximum_lines: $in.maximum_lines
+            }}
+        />
 
-        <If on={!$ctx.checkLintServices}>
-            <Return value={false} />
+        <If on={$ctx.run != null}>
+            <Return
+                value={{
+                    outcome: Lint.SemanticOutcome.Invalid,
+                    failure: $ctx.run
+                }}
+            />
         </If>
     </If>
 
@@ -50,5 +90,9 @@
         ]}
     />
 
-    <Return value={true} />
+    <Return
+        value={{
+            outcome: Lint.SemanticOutcome.Valid
+        }}
+    />
 </Module>

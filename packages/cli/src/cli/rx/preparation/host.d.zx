@@ -51,11 +51,6 @@ export declare function resolvePreparationTarget(
     reference: ModuleReference,
     at_attribute: bool
 ): ResolvedTarget throws { SourceLoadFailure, OutOfMemory }
-export declare function reportPreparationReference(
-    references: References,
-    reference: ModuleReference,
-    message: string
-): void throws { SourceLoadFailure }
 export declare function prepareCompiledReference(references: References, target: CompiledTarget): bool throws { SourceLoadFailure }
 
 export declare function validateTypeSourceFile(references: References, path: string): void throws { SourceLoadFailure }

@@ -7,7 +7,7 @@
         fn="model.projectIterationResult"
         in={[
             $in.lower,
-            $in.context,
+            true,
             $in.consumer,
             $in.state,
             $in.plan.transfers[$in.row]
@@ -36,7 +36,7 @@
     <Call
         fn="model.transferIterationResult"
         in={[
-            $in.context,
+            $in.lower,
             $in.plan.transfers[$in.row],
             $ctx.projectIterationResult
         ]}

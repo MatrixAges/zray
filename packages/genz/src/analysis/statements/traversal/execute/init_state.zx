@@ -1,6 +1,6 @@
 import type { StatementCases } from "lowering_host"
 import type { Write } from "../commit"
-import type { ScopeCheckpoint, State } from "./model"
+import type { State } from "./model"
 
 export type Input = {
     depth: u64,
@@ -20,11 +20,6 @@ export default function (in: Input): Output {
     const no_fallback: u64? = null
     const zero_u32: u32 = 0
 
-    const no_checkpoint: ScopeCheckpoint = {
-        state_checkpoint: 0,
-        stack_checkpoint: 0
-    }
-
     const no_cases: StatementCases = {
         body_start: [],
         body_count: [],
@@ -32,13 +27,11 @@ export default function (in: Input): Output {
         literals: []
     }
 
-    const empty_checkpoints: ScopeCheckpoint[] = []
     const empty_cases: StatementCases[] = []
 
     const scopes = loop({
         index: 0,
         scope_writes: no_writes,
-        scope_checkpoints: empty_checkpoints,
         scope_firsts: empty_u32,
         scope_counts: empty_u32,
         scope_conditions: empty_u32,
@@ -49,7 +42,6 @@ export default function (in: Input): Output {
         while: state => state.index < in.depth,
         next: state => {
             state.scope_writes = state.scope_writes.push(empty_writes)[0]
-            state.scope_checkpoints = state.scope_checkpoints.push(no_checkpoint)[0]
             state.scope_counts = state.scope_counts.push(zero_u32)[0]
             state.scope_firsts = state.scope_firsts.push(zero_u32)[0]
             state.scope_conditions = state.scope_conditions.push(zero_u32)[0]
@@ -94,7 +86,6 @@ export default function (in: Input): Output {
 
     return {
         scope_writes: scopes.scope_writes,
-        scope_checkpoints: scopes.scope_checkpoints,
         scope_firsts: scopes.scope_firsts,
         scope_counts: scopes.scope_counts,
         scope_conditions: scopes.scope_conditions,

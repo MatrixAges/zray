@@ -7,7 +7,7 @@ pub const inventory = @import("library/inventory.zig");
 pub const output = @import("watch/output.zig");
 pub const paths = @import("native_sources/path.zig");
 pub const resources = @import("native_sources/resources.zig");
-const retirement = @import("library/retirement/storage.zig");
+pub const retirement = @import("library/retirement/storage.zig");
 
 pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @This(),

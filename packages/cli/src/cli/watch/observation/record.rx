@@ -1,64 +1,48 @@
 <Module>
     <Type from="model" as="Snapshot" />
 
-    <Args in={Snapshot.RecordInput} out={void} />
+    <Args in={Snapshot.RecordInput} out={Snapshot.Publication} />
 
-    <Call
-        fn="index.openRegistration"
-        in={[
-            $in.registration,
-            $in.path
-        ]}
-    />
-
-    <Call fn="index.resolveRecordedPath" in={$in.registration} />
-
-    <If on={$ctx.resolveRecordedPath != null}>
+    <If on={$in.physical_path != null}>
         <Call
             fn="record_fact"
             in={{
                 bytes: $in.bytes,
-                physical_path: $ctx.resolveRecordedPath
+                physical_path: $in.physical_path
             }}
         />
 
         <Call
             fn="same"
             in={{
-                left: $ctx.openRegistration.prior ?? $ctx.record_fact,
+                left: $in.prior ?? $ctx.record_fact,
                 right: $ctx.record_fact
             }}
         />
 
-        <Call
-            fn="index.publishObservation"
-            in={[
-                $in.registration,
-                {
-                    directory_entries: false,
-                    consumed: true,
-                    consistent: $ctx.same,
-                    backend_preloaded: $ctx.openRegistration.backend_preloaded,
-                    update_state: true,
-                    recorded: $ctx.record_fact
-                }
-            ]}
+        <Return
+            value={{
+                directory_entries: false,
+                consumed: true,
+                consistent: $ctx.same,
+                backend_preloaded: $in.backend_preloaded,
+                fact: $ctx.record_fact
+            }}
         />
-
-        <Else>
-            <Call
-                fn="index.publishObservation"
-                in={[
-                    $in.registration,
-                    {
-                        directory_entries: false,
-                        consumed: false,
-                        consistent: false,
-                        backend_preloaded: $ctx.openRegistration.backend_preloaded,
-                        update_state: true
-                    }
-                ]}
-            />
-        </Else>
     </If>
+
+    <Return
+        value={{
+            directory_entries: false,
+            consumed: false,
+            consistent: false,
+            backend_preloaded: $in.backend_preloaded,
+            fact: {
+                kind: Snapshot.FactKind.Failed,
+                tag: $in.failure,
+                digest: [],
+                physical_path: ""
+            }
+        }}
+    />
 </Module>

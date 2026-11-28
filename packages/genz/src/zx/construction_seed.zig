@@ -4,8 +4,8 @@ const node = @import("../node.zig");
 const Self = @import("lower.zig");
 
 pub fn construct(self: *Self, type_id: ir.TypeId, value: node.ExpressionId) Self.Error!node.ExpressionId {
-    const referenced = self.state_plan.referenced(type_id);
     const selected = @import("state_value/root.zig").selected(self, type_id);
+    const referenced = @import("construction/borrow.zig").proven(self, type_id, value, selected);
     const layout = try self.layoutExpr(type_id);
     const prepared = if (selected) try @import("state_value/origin_seed.zig").tuple(self, type_id, value) else value;
     const result = try self.cast(layout, prepared);

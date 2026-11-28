@@ -1,0 +1,46 @@
+<Module>
+    <Type from="model" as="Snapshot" />
+
+    <Args in={Snapshot.CompareReading} out={Snapshot.Publication} />
+
+    <Call
+        fn="index.readCurrent"
+        in={[
+            $in.registration,
+            {
+                path: $in.slot.path,
+                directory_entries: $in.slot.directory_entries
+            }
+        ]}
+    />
+
+    <If on={$ctx.readCurrent.fact.kind == Snapshot.FactKind.Failed}>
+        <Return
+            value={{
+                directory_entries: $in.slot.directory_entries,
+                consumed: $in.slot.consumed,
+                consistent: $in.slot.consistent,
+                backend_preloaded: $in.slot.backend_preloaded,
+                failure: $ctx.readCurrent.fact.tag
+            }}
+        />
+    </If>
+
+    <Call
+        fn="same"
+        in={{
+            left: $in.prior,
+            right: $ctx.readCurrent.fact
+        }}
+    />
+
+    <Return
+        value={{
+            directory_entries: $in.directory_entries,
+            consumed: $in.slot.consumed,
+            consistent: $in.slot.consistent && $ctx.same,
+            backend_preloaded: $in.slot.backend_preloaded && !$in.backend_input,
+            fact: $in.current
+        }}
+    />
+</Module>

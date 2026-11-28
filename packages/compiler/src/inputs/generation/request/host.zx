@@ -1,5 +1,4 @@
 export {
-    readGenerationSnapshot,
     readGenerationFiles,
     restoreGenerationAnalysis,
     prepareGenerationTemplates,

@@ -24,16 +24,23 @@ export type Publication = {
     consumed: bool,
     consistent: bool,
     backend_preloaded: bool,
-    update_state: bool,
-    recorded?: Fact
+    fact?: Fact,
+    failure?: u32
+}
+
+export type Prior = {
+    request: VersionRequest,
+    fact: Fact
 }
 
 export type Slot = {
-    existing: bool,
+    path: string,
     consumed: bool,
     directory_entries: bool,
     backend_preloaded: bool,
-    prior?: Fact
+    consistent: bool,
+    prior?: Fact,
+    reusable?: Prior
 }
 
 export enum PathKind {
@@ -80,10 +87,15 @@ export type ContentRequest = {
     started?: Timestamp
 }
 
-export enum Reuse {
-    Unavailable,
-    Read,
-    Failed
+export type RegistrationRequest = {
+    path: string,
+    directory_entries: bool,
+    previous?: VersionRequest
+}
+
+export type RegistrationReading = {
+    fact: Fact,
+    unchanged: bool
 }
 
 export declare function classify(
@@ -99,15 +111,18 @@ export declare function readObservationContent(
     request: ContentRequest
 ): Reading throws { OutOfMemory }
 
-export declare function openRegistration(registration: Registration, path: string): Slot throws {
-    ObservationFailure
-}
-export declare function reusePrior(registration: Registration): Reuse
-export declare function readCurrent(registration: Registration, directory_entries: bool): bool
-export declare function comparePrevious(registration: Registration): bool throws {
-    ObservationFailure
-}
-export declare function resolveRecordedPath(registration: Registration): string?
+export declare function openRegistration(
+    registration: Registration,
+    path: string,
+    directory_entries: bool
+): Slot throws { ObservationFailure }
+
+export declare function readCurrent(
+    allocator,
+    registration: Registration,
+    request: RegistrationRequest
+): RegistrationReading throws { OutOfMemory }
+
 export declare function publishObservation(
     registration: Registration,
     next: Publication

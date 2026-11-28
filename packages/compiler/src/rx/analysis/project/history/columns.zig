@@ -6,11 +6,19 @@ const generated = @import("rx_options").generated_graph;
 
 /// The length of every column of `Storage`.
 pub fn Lengths(comptime Storage: type) type {
-    return [@typeInfo(Storage).@"struct".field_names.len]usize;
+    return LengthWords(Storage, usize);
+}
+
+fn LengthWords(comptime Storage: type, comptime Word: type) type {
+    return [@typeInfo(Storage).@"struct".field_names.len]Word;
 }
 
 pub fn measure(storage: anytype) Lengths(@TypeOf(storage.*)) {
-    var result: Lengths(@TypeOf(storage.*)) = undefined;
+    return measureAs(usize, storage);
+}
+
+pub fn measureAs(comptime Word: type, storage: anytype) LengthWords(@TypeOf(storage.*), Word) {
+    var result: LengthWords(@TypeOf(storage.*), Word) = undefined;
 
     inline for (@typeInfo(@TypeOf(storage.*)).@"struct".field_names, 0..) |name, index| result[index] = @field(storage, name).items.len;
 
@@ -47,39 +55,37 @@ pub fn transplant(allocator: std.mem.Allocator, ranges: anytype) std.mem.Allocat
         const Transfer = zx.memory.column_transfer;
         const capacity = comptime countColumns(@TypeOf(ranges));
         var columns: [capacity]Transfer.Column = undefined;
+        var lengths: [capacity]u64 = undefined;
         comptime var slot: usize = 0;
 
         inline for (ranges) |range| {
             inline for (@typeInfo(@TypeOf(range.storage.*)).@"struct".field_names, 0..) |name, index| {
                 const source = @field(range.source, name)[range.start[index]..range.end[index]];
+
                 columns[slot] = Transfer.bind(&@field(range.storage, name), source, false, true);
+                lengths[slot] = source.len;
                 slot += 1;
             }
         }
 
-        const group: []const Transfer.Column = &columns;
-        const target: *const anyopaque = @ptrCast(&group);
-        const input: Input = .{ .group = @ptrCast(&group) };
+        const input: Input = .{ .lengths = &lengths };
         var buffer: [1024]u8 = undefined;
         var first = std.heap.BufferFirstAllocator.init(&buffer, allocator);
         var arena = std.heap.ArenaAllocator.init(first.allocator());
 
         defer arena.deinit();
 
-        const counts = zx.columns.invoke(rule.executeValue, arena.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        const plan = zx.columns.invoke(rule.executeValue, arena.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
             error.OutOfMemory, error.Overflow => return error.OutOfMemory,
             else => unreachable,
         };
 
-        for (counts, 0..) |count, column| {
-            if (count != 0) _ = try Transfer.reserveOne(&allocator, target, column, count);
+        for (plan) |range| {
+            _ = try columns[@intCast(range.column)].reserve(allocator, @intCast(range.count));
         }
 
-        for (counts, 0..) |count, column| {
-            if (count == 0) continue;
-
-            Transfer.copyRange(target, column, 0, count);
-            Transfer.publishOne(target, column, count);
+        for (plan) |range| {
+            columns[@intCast(range.column)].appendBorrowed(0, @intCast(range.count));
         }
 
         return;

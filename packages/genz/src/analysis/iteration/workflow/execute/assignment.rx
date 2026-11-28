@@ -8,10 +8,13 @@
         module="assignment_value"
         in={{
             ...$in.pick([
-                "loop_frame",
+                "frame",
                 "writer",
                 "loop_seq",
-                "body"
+                "body",
+                "type_id",
+                "ownership_facts",
+                "fields"
             ]),
             assignment: $in.schedule.assignment,
             value: $in.update.value

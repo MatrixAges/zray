@@ -13,7 +13,6 @@
                     "frame",
                     "writer",
                     "body_seq",
-                    "context",
                     "type_id",
                     "initial_state"
                 ]),
@@ -27,7 +26,6 @@
             module="evaluate_step"
             in={$in.pick([
                 "frame",
-                "loop_frame",
                 "schedule",
                 "renewals",
                 "name",
@@ -47,7 +45,6 @@
         module="evaluate_step"
         in={$in.pick([
             "frame",
-            "loop_frame",
             "schedule",
             "renewals",
             "name",
@@ -62,7 +59,6 @@
                 "frame",
                 "writer",
                 "body_seq",
-                "context",
                 "type_id",
                 "name",
                 "initial_state"

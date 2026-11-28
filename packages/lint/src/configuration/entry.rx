@@ -3,7 +3,7 @@
 
     <Args in={Config.EntryInput} out={Config.EntryOutput} />
 
-    <If on={$in.check_length}>
+    <If on={$in.mode == Config.Mode.Length}>
         <Call fn="../length/count" in={$in.source} />
 
         <If on={$in.maximum == null || $ctx.count > $in.maximum}>
@@ -34,6 +34,14 @@
             />
 
             <If on={$ctx.edits.length == 0}>
+                <If on={$in.mode == Config.Mode.Format}>
+                    <Return
+                        value={{
+                            formatted: $in.source
+                        }}
+                    />
+                </If>
+
                 <Return
                     value={{
                         lines: null,

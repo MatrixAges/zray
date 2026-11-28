@@ -4,31 +4,33 @@
 
     <Args in={Records.Reading} out={Header.Output} />
 
-    <Call
-        fn="header"
-        in={{
-            payload: $in.payload,
-            context: $in.context,
-            count: $in.observed.count
-        }}
-    />
+    <If on={$in.payload != null}>
+        <Call
+            fn="header"
+            in={{
+                payload: $in.payload,
+                context: $in.context,
+                count: $in.observed.length
+            }}
+        />
 
-    <If on={$ctx.header == null}>
-        <Return value={null} />
+        <If on={$ctx.header == null}>
+            <Return value={null} />
+        </If>
+
+        <Call
+            fn="scan"
+            in={{
+                payload: $in.payload,
+                observed: $in.observed,
+                now: $in.now
+            }}
+        />
+
+        <If on={$ctx.scan}>
+            <Return value={$ctx.header} />
+        </If>
     </If>
 
-    <Call
-        fn="scan"
-        in={{
-            payload: $in.payload,
-            observed: $in.observed,
-            now: $in.now
-        }}
-    />
-
-    <If on={!$ctx.scan}>
-        <Return value={null} />
-    </If>
-
-    <Return value={$ctx.header} />
+    <Return value={null} />
 </Module>

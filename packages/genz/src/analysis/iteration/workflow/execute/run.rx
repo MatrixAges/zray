@@ -3,6 +3,8 @@
 
     <Args in={Loop.Input} out={Loop.Output} />
 
+    <Store from="state" as="loop_state" />
+
     <Call
         fn="../../parameters/membership"
         in={$in.parameters.omit(["names"])}
@@ -34,7 +36,6 @@
             ...$in.pick([
                 "frame",
                 "writer",
-                "loop_frame",
                 "parameters",
                 "initial_plan"
             ]),
@@ -47,7 +48,6 @@
         fn="storage"
         in={{
             ...$in.pick([
-                "context",
                 "writer",
                 "body_seq",
                 "type_id",
@@ -73,7 +73,7 @@
                 "buffered"
             ]),
             forwarded: $in.loop_state.forwarded,
-            projected: $ctx.parameters.projected
+            projected: $ctx.parameters.fields != null
         }}
     />
 
@@ -93,8 +93,6 @@
                 "frame",
                 "writer",
                 "body_seq",
-                "loop_frame",
-                "context",
                 "type_id",
                 "initial_plan"
             ]),
@@ -118,21 +116,25 @@
                 "skipped_seq",
                 "wrap_seq",
                 "consumer",
-                "context",
                 "discard",
                 "body",
-                "loop_frame",
-                "guard_info",
                 "initial_plan",
                 "type_id",
-                "assignment_facts"
+                "assignment_facts",
+                "ownership_facts",
+                "renewal_source",
+                "growth_facts"
             ]),
             schedule: $ctx.plan,
             renewals: $ctx.renewals,
             state_active: $in.state_active || $in.initial_plan.state_scope,
-            projected: $ctx.parameters.projected,
+            projected: $ctx.parameters.fields != null,
+            fields: $ctx.parameters.fields,
+            name: $ctx.initial_value.name,
+            seed: $store.loop_state.state.seed,
             state: $in.loop_state.reference,
             initial_value: $ctx.initial_value.value,
+            guard_info: $ctx.initial_value.guard_info,
             update: $ctx.evaluate
         }}
     />

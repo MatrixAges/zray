@@ -15,6 +15,7 @@ const Initial = @import("../initial.zig");
 const Selection = @import("../../iteration_layout/select.zig").Selection;
 const Step = @import("../step.zig");
 const generated = @import("genz_options").generated_analysis;
+const LoopProjection = if (generated) @import("../../expressions/evaluate.zig").Api.LoopProjection else void;
 const Input = if (generated) std.meta.Child(@import("generated_lower_loop").Input) else void;
 pub const UpdateScope = enum { None, Projected, Ordinary };
 
@@ -22,12 +23,6 @@ const StateInfo = if (generated) std.meta.Child(@FieldType(Input, "loop_state"))
     name: []const u8,
     reference: u32,
     forwarded: ?u32,
-};
-
-const GuardInfo = if (generated) std.meta.Child(@FieldType(Input, "guard_info")) else struct {
-    body: u64,
-    condition: u32,
-    fallback: u32,
 };
 
 const Self = @This();
@@ -39,6 +34,7 @@ const Parameters = struct {
 };
 
 lowering: *Lower,
+previous: ?*Self = null,
 id: ir.ExprId,
 iteration: ir.Iteration,
 mode: Result.Mode,
@@ -55,11 +51,13 @@ type_id: ir.TypeId = undefined,
 initial: Initial.Plan = std.mem.zeroes(Initial.Plan),
 context: Context = undefined,
 initial_scope: ?state_scope.Frame(.Iteration) = null,
+guard_name: ?[]const u8 = null,
 initial_value: node.ExpressionId = undefined,
 guard: ?InitialGuard = null,
 representation: @typeInfo(Represented).error_union.payload = null,
 seed: node.ExpressionId = undefined,
 fields: ?Fields = null,
+projection: LoopProjection = undefined,
 changed_name: []const u8 = &.{},
 parameters: if (generated) Parameters else ?SeedParameters = if (generated) .{} else null,
 initial_state: node.ExpressionId = undefined,
@@ -72,7 +70,6 @@ step_scope: union(UpdateScope) {
 next: Step.Values = undefined,
 tracker: ?State.Tracker = undefined,
 state_info: StateInfo = .{ .name = &.{}, .reference = 0, .forwarded = null },
-guard_info: GuardInfo = .{ .body = 0, .condition = 0, .fallback = 0 },
 pub fn create(lowering: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Result.Mode, consumer: ?Consumer) Self {
     return .{
         .lowering = lowering,
@@ -90,10 +87,6 @@ pub fn create(lowering: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Re
 
 pub fn statements(lowering: *Lower) Context.Statements {
     return if (generated) lowering.builder.statementSequence(lowering.workspace) else .empty;
-}
-
-pub fn borrow(handle: *anyopaque) *Self {
-    return @ptrCast(@alignCast(handle));
 }
 
 pub fn output(self: *Self) *Context.Statements {
@@ -119,6 +112,7 @@ pub fn release(self: *Self) void {
 
     if (self.initial_scope) |saved| saved.restore();
 
+    self.restoreGuardName();
     self.wrap_body.deinit();
     self.skipped_body.deinit();
     self.projected_body.deinit();
@@ -138,6 +132,14 @@ pub fn release(self: *Self) void {
 
     self.loop.deinit();
     self.body.deinit();
+}
+
+pub fn restoreGuardName(self: *Self) void {
+    if (self.guard_name) |previous| {
+        self.lowering.names[@backingInt(self.iteration.condition_parameter)] = previous;
+
+        self.guard_name = null;
+    }
 }
 
 pub fn closeLoopUpdate(self: *Self, active: UpdateScope) void {

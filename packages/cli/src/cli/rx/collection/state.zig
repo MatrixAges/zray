@@ -84,12 +84,14 @@ pub const State = struct {
         var records: RecordState = &.{ .functions = &.{}, .modules = &.{}, .stores = &.{}, .gateway = null };
         var host: StoreHost = .{ .store_0 = &seen, .store_1 = &records };
 
-        const selected = rule.execute(&store_arena, &.{
+        const outcome = rule.execute(&store_arena, &.{
             .collection = @ptrCast(&reference),
             .entry = options.entry,
         }, &host) catch |err| return state.failure.unwrap(err);
 
-        return try state.finish(selected orelse return null);
+        if (outcome.issue) |issue| try options.writer.print("{s}: {s}\n", .{ issue.path, issue.message });
+
+        return try state.finish(outcome.records orelse return null);
     }
     fn finish(self: *const State, selected: RecordState) !collection.Data {
         const allocator = self.allocator;

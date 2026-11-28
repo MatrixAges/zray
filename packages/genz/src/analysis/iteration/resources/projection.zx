@@ -1,20 +1,16 @@
 import { readAstOrigin } from "ast_rows"
 import host from "lowering_host"
-import { IterationResource } from "lowering_host"
+import { StoredType } from "lowering_host"
 
 import { Requirement } from "../projection/model"
 
 import type { AstWriter } from "ast_rows"
-import type {
-    IterationResourceFrame,
-    Lowering
-} from "lowering_host"
+import type { Lowering } from "lowering_host"
 import type { Plan } from "../projection/model"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
-    context: IterationResourceFrame,
     history_count: u64,
     plan: Plan
 }
@@ -37,16 +33,16 @@ export default function (in: Input): Output {
     }, {
         while: state => state.row < in.plan.operations.length,
         next: state => {
-            const { frame, writer, context, plan } = in
+            const { frame, writer, plan } = in
             const id = plan.values[state.row]
             const value = match plan.requirements[state.row] {
                 Requirement.None => 0,
                 Requirement.Expression => host.lowerExpression(frame, id, false, null),
                 Requirement.IterationType =>
-                    host.materializeIterationResource(
-                        context,
+                    host.materializeType(
+                        frame,
                         id,
-                        IterationResource.IterationType
+                        StoredType.IterationType
                     ),
                 _ =>
                     host.lowerType(frame, id, false),

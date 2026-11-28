@@ -69,7 +69,6 @@ export declare function reportCompilationCache(check: Compilation): void throws 
 export declare function analyzeCompilation(check: Compilation, cache: bool): string? throws { SourceLoadFailure }
 export declare function verifyCompilationProgram(check: Compilation): bool throws { SourceLoadFailure }
 export declare function generateCompilationFpga(check: Compilation): bool throws { SourceLoadFailure }
-export declare function flushCompilationDiagnostics(check: Compilation): void throws { SourceLoadFailure }
 export declare function openCompilationGeneration(check: Compilation): void throws { SourceLoadFailure }
 export declare function formatCompilationSource(check: Compilation, source: u8[]): CompilationText? throws { SourceLoadFailure }
 export declare function emitCompilationText(check: Compilation, source: u8[]): CompilationText? throws { SourceLoadFailure }

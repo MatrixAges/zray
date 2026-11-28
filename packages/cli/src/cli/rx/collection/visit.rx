@@ -2,7 +2,7 @@
     <Type from="index" as="IO" />
     <Type from="model" as="Collection" />
 
-    <Args in={Collection.Visit} out={Collection.Readiness} />
+    <Args in={Collection.Visit} out={Collection.VisitResult} />
 
     <Call
         module="files/read"
@@ -14,19 +14,33 @@
         }}
     />
 
-    <If on={$ctx.read != Collection.Readiness.Ready}>
+    <If on={$ctx.read.readiness != Collection.Readiness.Ready}>
         <Return value={$ctx.read} />
     </If>
 
     <If on={$in.kind == IO.Kind.Zx}>
         <Call fn="index.collectZxReferences" in={$in.collection} />
 
-        <Return value={Collection.Readiness.Ready} />
+        <Return
+            value={{
+                readiness: Collection.Readiness.Ready
+            }}
+        />
     </If>
 
     <Call module="documents/xml" in={$in.collection} />
 
+    <If on={$ctx.xml}>
+        <Return
+            value={{
+                readiness: Collection.Readiness.Ready
+            }}
+        />
+    </If>
+
     <Return
-        value={$ctx.xml ? Collection.Readiness.Ready : Collection.Readiness.Invalid}
+        value={{
+            readiness: Collection.Readiness.Invalid
+        }}
     />
 </Module>

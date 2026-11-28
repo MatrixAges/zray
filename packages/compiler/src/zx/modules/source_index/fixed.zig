@@ -98,7 +98,7 @@ fn locate(self: *const Self, key: []const u8) Slot {
 
     const input: Input = .{
         .keys = self.keys,
-        .buckets = @ptrCast(&self.buckets),
+        .buckets = .{ .values = self.buckets },
         .capacity = self.buckets.len,
         .key = key,
         .rows = null,

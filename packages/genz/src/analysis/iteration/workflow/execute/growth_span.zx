@@ -1,0 +1,17 @@
+import integers from "std:integer"
+
+import packSpan from "../../../node_headers/block/span"
+
+export type Input = {
+    start: u64,
+    count: u64
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return packSpan({
+        start: integers.narrow(in.start),
+        count: in.count
+    })
+}

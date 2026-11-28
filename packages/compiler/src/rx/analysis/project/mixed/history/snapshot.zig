@@ -1,24 +1,18 @@
 const std = @import("std");
-const zx = @import("zx");
 const State = @import("../state.zig");
 const Checkpoint = @import("../../history.zig").Checkpoint;
 const columns = @import("../../history/columns.zig");
 const Start = std.meta.Child(@import("generated_rx_mixed_history_start").Input);
 const Input = std.meta.Child(@FieldType(Start, "capture"));
 pub const Extent = std.meta.Child(@FieldType(Input, "extent"));
-const memory = zx.memory;
 
 pub const Storage = struct {
-    type_slots: [@typeInfo(@FieldType(Checkpoint, "types")).array.len]*usize,
-    origin_slots: [@typeInfo(@FieldType(Checkpoint, "origins")).array.len]*usize,
-    types: memory.ColumnLengths,
-    origins: memory.ColumnLengths,
+    types: [@typeInfo(@FieldType(Checkpoint, "types")).array.len]u64,
+    origins: [@typeInfo(@FieldType(Checkpoint, "origins")).array.len]u64,
     extent: Extent,
     pub fn bind(self: *Storage, state: *State) Input {
-        self.type_slots = memory.borrowColumnLengths(&state.types.items);
-        self.origin_slots = memory.borrowColumnLengths(&state.types.origins.items);
-        self.types = &self.type_slots;
-        self.origins = &self.origin_slots;
+        self.types = columns.measureAs(u64, &state.types.items);
+        self.origins = columns.measureAs(u64, &state.types.origins.items);
 
         self.extent = .{
             .functions = state.functions.count(),
@@ -27,7 +21,7 @@ pub const Storage = struct {
             .libraries = state.libraries.count(),
         };
 
-        return .{ .types = @ptrCast(&self.types), .origins = @ptrCast(&self.origins), .extent = &self.extent };
+        return .{ .types = &self.types, .origins = &self.origins, .extent = &self.extent };
     }
 };
 

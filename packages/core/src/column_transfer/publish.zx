@@ -4,21 +4,26 @@ import type { Extent } from "./model"
 
 export type Input = Extent
 
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
-    if (in.count == 0) {
-        return
+    const { groups, index, count } = in
+
+    if (count == 0) {
+        return 0
     }
 
-    const group = memory.borrowTransferGroup(in.groups, in.index, null)
-    const columns = memory.transferColumnCount(group)
+    const group = groups[index]
+
+    const { columns, lengths } = group
 
     const published = loop(0, {
-        while: column => column < columns,
+        while: column => column < columns.length,
         next: column => {
-            memory.publishTransferColumn(group, column, in.count)
+            memory.advanceLengthSlot(lengths, column, count)
             column += 1
         }
     })
+
+    return count
 }

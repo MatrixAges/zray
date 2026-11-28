@@ -28,7 +28,7 @@ export default function (in: Input): Output {
     }, {
         while: state => !state.done,
         next: state => {
-            const entry = memory.readU64View(buckets, state.slot)
+            const entry = buckets.values[state.slot]
 
             if (entry == 0) {
                 state.done = true

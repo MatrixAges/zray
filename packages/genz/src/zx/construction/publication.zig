@@ -82,8 +82,13 @@ pub fn astDeclarationCount(writer: *anyopaque) u32 {
     return @intCast(borrow(writer).builder.nodes.declaration_rows.tags.items.len);
 }
 
-pub fn astIdentifierCount(writer: *anyopaque) u64 {
-    return borrow(writer).builder.nodes.expressions.payloads.identifier.values.items.len;
+pub fn astColumnCount(writer: *anyopaque, column: Ast.AstColumn) u64 {
+    const nodes = borrow(writer).builder.nodes;
+
+    return switch (column) {
+        .Identifiers => nodes.expressions.payloads.identifier.values.items.len,
+        .SelectionArms => nodes.arm_columns.count(),
+    };
 }
 
 pub fn replaceAstIdentifier(writer: *anyopaque, index: u64, name: []const u8) void {
@@ -246,13 +251,6 @@ pub fn appendAstCleanupRows(
     } else try self.builder.publishStatements(&source);
 
     return packSpan(block);
-}
-
-pub fn publishAstScopedRows(writer: *anyopaque, source: *const Ast.StatementRows, variables: *const Ast.StatementVariables, starts: []const u32, counts: []const u32) Lower.Error!u64 {
-    const self = borrow(writer);
-    const joined = view.join(view.join(source.*, variables.*), .{ .scope_start = starts, .scope_len = counts });
-
-    return packSpan(try self.builder.publishStatements(&joined));
 }
 
 pub fn appendStatementSequence(writer: *anyopaque, handle: *anyopaque, source: *const Ast.StatementRows, variables: *const Ast.StatementVariables, mode: Ast.AstSequenceMode) Lower.Error!void {

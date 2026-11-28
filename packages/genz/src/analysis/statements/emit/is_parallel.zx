@@ -1,0 +1,13 @@
+import integers from "std:integer"
+
+import { operation_mask, parallel_operation } from "../block/const"
+
+export type Input = u8
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const operation = integers.andBits(integers.widenByte(in), operation_mask)
+
+    return operation == integers.widenByte(parallel_operation)
+}

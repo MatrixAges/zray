@@ -36,12 +36,18 @@ pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.E
         .resources = &.{
             .frame = @ptrCast(self),
             .writer = @ptrCast(self),
-            .context = @ptrCast(context),
             .history_count = context.transfers.len(),
         },
     };
 
-    const prepared = preparer.executeIn(temporary, &preparation) catch |err| return emissionFailure(err);
+    const prepared = prepared: {
+        var resources: Context.Resources = undefined;
+
+        resources.push(context);
+        defer resources.pop();
+
+        break :prepared preparer.executeIn(temporary, &preparation) catch |err| return emissionFailure(err);
+    };
 
     if (!prepared.plan.valid) unreachable;
     if (prepared.plan.operations.len == 0) return value;

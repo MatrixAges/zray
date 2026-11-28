@@ -23,7 +23,7 @@ export default function (in: Input): Output {
     if (path != null) {
         if (root == null) {
             return {
-                kind: Key.RelativePath,
+                kind: Key.CheckedRelativePath,
                 value: path,
                 owner,
                 range: null

@@ -1,7 +1,7 @@
 <Module>
     <Type from="../model" as="Preparation" />
 
-    <Args in={Preparation.TypePass} out={bool} />
+    <Args in={Preparation.TypePass} out={Preparation.PassResult} />
 
     <Store from="seen" as="seen" />
 

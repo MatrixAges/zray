@@ -1,8 +1,15 @@
-export { FactKind, PathKind, Reuse } from "snapshot_host"
+export { FactKind, PathKind } from "snapshot_host"
 
-import type { Fact, FileVersion, Reading, Registration, Timestamp } from "snapshot_host"
+import type {
+    Fact,
+    FileVersion,
+    Reading,
+    Registration,
+    Slot,
+    Timestamp
+} from "snapshot_host"
 
-export type { Classification, Reading, Registration } from "snapshot_host"
+export type { Classification, Publication, Reading, Registration } from "snapshot_host"
 
 export type Observation = {
     path: string,
@@ -44,8 +51,24 @@ export type AddInput = {
     backend_input: bool
 }
 
-export type RecordInput = AddInput.Pick("registration", "path") & {
-    bytes: u8[]
+export type RecordInput = {
+    bytes: u8[],
+    physical_path?: string,
+    failure: u32,
+    backend_preloaded: bool,
+    prior?: Fact
+}
+
+export type AddReading = {
+    registration: Registration,
+    slot: Slot,
+    directory_entries: bool,
+    backend_input: bool
+}
+
+export type CompareReading = AddReading & {
+    current: Fact,
+    prior: Fact
 }
 
 export enum Admission {

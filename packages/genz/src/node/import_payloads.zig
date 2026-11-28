@@ -3,36 +3,29 @@ const zx = @import("zx");
 const transfer = zx.memory.column_transfer;
 const headers = @import("headers.zig");
 const Layout = enum { dense, selected };
+const GroupsView = @FieldType(std.meta.Child(@import("generated_node_payload_import").Input), "groups");
+const field_count = @typeInfo(@import("../node.zig").Field).@"struct".field_names.len;
 
 pub const Plain = struct {
-    slice: [1][]const transfer.Column = undefined,
-    groups: transfer.Groups = undefined,
+    columns: []const transfer.Column = undefined,
     initial: usize = undefined,
+    description: transfer.Description(GroupsView, 1, field_count) = .{},
     pub fn bind(self: *Plain, comptime Input: type, allocator: *const std.mem.Allocator, columns: []const transfer.Column, lengths: []?u64, count: usize, existing: usize, borrowed: bool) Input {
-        self.slice = .{columns};
-        self.groups = &self.slice;
+        self.columns = columns;
         self.initial = existing;
 
-        for (columns, lengths) |column, *length| length.* = column.sourceLength();
-
-        return .{
-            .allocator = @ptrCast(allocator),
-            .groups = @ptrCast(&self.groups),
-            .lengths = lengths,
-            .count = count,
-            .existing = existing,
-            .borrowed = borrowed,
-        };
+        return plainInput(Input, self.description.bind(&.{columns}), allocator, columns, lengths, count, existing, borrowed);
     }
 
     pub fn rollback(self: *const Plain, allocator: *const std.mem.Allocator) void {
-        rollbackGroups(allocator, &self.groups, &.{self.initial});
+        rollbackGroups(allocator.*, &.{self.columns}, &.{self.initial});
     }
     pub fn append(allocator: std.mem.Allocator, columns: anytype, count: usize, existing: usize, borrowed: bool) headers.Error!void {
         const entry = @import("generated_node_plain_append");
-        var packed_columns: Plain = .{};
+        const Input = std.meta.Child(entry.Input);
         var lengths: [columns.len]?u64 = undefined;
-        const input = packed_columns.bind(std.meta.Child(entry.Input), &allocator, columns, &lengths, count, existing, borrowed);
+        var description: transfer.Description(GroupsView, 1, columns.len) = .{};
+        const input = plainInput(Input, description.bind(&.{columns}), &allocator, columns, &lengths, count, existing, borrowed);
 
         return invoke(entry.executeValue, &input);
     }
@@ -57,6 +50,19 @@ pub const Plain = struct {
         };
     }
 };
+
+fn plainInput(comptime Input: type, groups: GroupsView, allocator: *const std.mem.Allocator, columns: []const transfer.Column, lengths: []?u64, count: usize, existing: usize, borrowed: bool) Input {
+    for (columns, lengths) |column, *length| length.* = column.sourceLength();
+
+    return .{
+        .allocator = @ptrCast(allocator),
+        .groups = groups,
+        .lengths = lengths,
+        .count = count,
+        .existing = existing,
+        .borrowed = borrowed,
+    };
+}
 
 pub fn Binding(comptime Target: type, comptime View: type, comptime layout: Layout) type {
     const Payloads = @FieldType(std.meta.Child(Target), "payloads");
@@ -88,8 +94,8 @@ pub fn Binding(comptime Target: type, comptime View: type, comptime layout: Layo
         slices: [names.len][]const transfer.Column = undefined,
         source_lengths: [width]?u64 = undefined,
         source_groups: [names.len][]const ?u64 = undefined,
-        groups: transfer.Groups = undefined,
         initial: [names.len]usize = undefined,
+        description: transfer.Description(GroupsView, names.len, width) = .{},
         pub fn bind(self: *Self, comptime Input: type, allocator: *const std.mem.Allocator, target: Target, source: *const View, comptime copy_payloads: bool, comptime borrow_text: bool) Input {
             @setEvalBranchQuota(100_000);
 
@@ -116,13 +122,11 @@ pub fn Binding(comptime Target: type, comptime View: type, comptime layout: Layo
                 first = end;
             }
 
-            self.groups = &self.slices;
-
             var input: Input = undefined;
 
             if (@hasField(Input, "allocator")) {
                 input.allocator = @ptrCast(allocator);
-                input.groups = @ptrCast(&self.groups);
+                input.groups = self.description.bind(&self.slices);
                 input.layout = if (layout == .selected) .Selected else .Dense;
 
                 input.reserved = target.tags.items.len <= std.math.maxInt(u32) and
@@ -145,13 +149,13 @@ pub fn Binding(comptime Target: type, comptime View: type, comptime layout: Layo
         }
 
         pub fn rollback(self: *const Self, allocator: *const std.mem.Allocator) void {
-            rollbackGroups(allocator, &self.groups, &self.initial);
+            rollbackGroups(allocator.*, &self.slices, &self.initial);
         }
     };
 }
 
-fn rollbackGroups(allocator: *const std.mem.Allocator, groups: *const transfer.Groups, initial: []const usize) void {
-    for (groups.*, initial, 0..) |group, count, index| {
+fn rollbackGroups(allocator: std.mem.Allocator, groups: transfer.Groups, initial: []const usize) void {
+    for (groups, initial) |group, count| {
         if (group.len == 0) continue;
 
         const added = group[0].storage.items.len - count;
@@ -159,7 +163,7 @@ fn rollbackGroups(allocator: *const std.mem.Allocator, groups: *const transfer.G
         if (added == 0) continue;
         for (group) |column| column.storage.items.len = count;
 
-        transfer.discard(allocator, @ptrCast(groups), index, added);
+        transfer.discard(allocator, group, added);
     }
 }
 

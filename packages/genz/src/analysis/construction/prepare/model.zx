@@ -1,7 +1,7 @@
 import type { Lowering } from "lowering_host"
 import type { Input as Construction, Policy } from "../model"
 
-export { lowerLayout, lowerType } from "lowering_host"
+export { lowerType, materializeType, StoredType } from "lowering_host"
 
 export { Mode } from "../model"
 

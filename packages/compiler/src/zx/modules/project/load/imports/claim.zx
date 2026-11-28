@@ -4,7 +4,6 @@ import integers from "std:integer"
 import empty from "core/integer/wide_index/empty"
 import get from "core/integer/wide_index/get"
 import insert from "core/integer/wide_index/insert"
-import memory from "memory"
 
 import type { U64View } from "memory"
 import type { Span } from "../../../../frontend/lexer/token_model"
@@ -62,8 +61,8 @@ export default function (in: Input): Output {
                         index: pending,
                         key: probe.slot
                     })
-                    const row = match {
-                        position == null => memory.readU64View(buckets, probe.slot),
+                    const row: u64 = match {
+                        position == null => buckets.values[probe.slot],
                         _ => first + position + 1
                     }
 

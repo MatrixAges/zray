@@ -1,4 +1,4 @@
-import type { IterationResourceFrame } from "lowering_host"
+import type { Lowering } from "lowering_host"
 import type { Operation as Borrow } from "../borrow/model"
 import type { Operation } from "../conversion/model"
 import type { Requirement } from "../conversion/output/model"
@@ -11,7 +11,7 @@ export enum Mode {
 }
 
 export type Input = {
-    frame: IterationResourceFrame,
+    frame: Lowering,
     mode: Mode,
     root: u32,
     types: u32[],

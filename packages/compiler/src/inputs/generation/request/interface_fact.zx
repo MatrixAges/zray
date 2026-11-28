@@ -1,0 +1,52 @@
+import fs from "std:fs"
+import { Kind } from "std:fs"
+import path from "std:path"
+import paths from "lexical_path"
+
+import type { Observation } from "../../snapshot/records/model"
+
+export type Input = string
+
+export type Output = Observation?
+
+export default function (in: Input): Output {
+    const name = in
+    const missing: Observation? = null
+    const parent = path.dirname(name)
+    const basename = path.basename(name)
+    const directory = parent.length == 0 ? "." : parent
+
+    const [failure, entries] = try fs.readdirMetadata(directory)
+
+    if (failure != null) {
+        return null
+    }
+
+    return loop({
+        row: 0,
+        found: missing
+    }, {
+        while: state => state.found == null && state.row < entries.length,
+        next: state => {
+            const entry = entries[state.row]
+
+            if (entry.kind == Kind.File && entry.name == basename) {
+                const key = paths.resolvePathParts([name])
+
+                state.found = {
+                    path: key,
+                    key,
+                    ...entry.pick([
+                        "inode",
+                        "size",
+                        "mtime_ns",
+                        "ctime_ns"
+                    ])
+                }
+            }
+
+            state.row += 1
+        },
+        return: state => state.found
+    })
+}

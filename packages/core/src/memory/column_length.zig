@@ -19,10 +19,6 @@ fn view(target: *const anyopaque) Lengths {
     return lengths.*;
 }
 
-pub inline fn count(target: *const anyopaque) u64 {
-    return view(target).len;
-}
-
 pub inline fn read(target: *const anyopaque, index: u64) u64 {
     return view(target)[@intCast(index)].*;
 }

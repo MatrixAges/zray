@@ -52,11 +52,18 @@ pub fn get(self: *Context, id: ir.TypeId) Lower.Error!node.ExpressionId {
 
     const prepare: Prepare = .{
         .source = &request,
-        .frame = @ptrCast(self),
+        .frame = @ptrCast(lowering),
     };
 
-    const prepared = (preparation.executeIn(temporary, &prepare) catch |err|
-        return @import("../construction/publication.zig").failure(err)) orelse return lowering.typeExpr(id);
+    const prepared = prepared: {
+        var resources: Context.Resources = undefined;
+
+        resources.push(self);
+        defer resources.pop();
+
+        break :prepared (preparation.executeIn(temporary, &prepare) catch |err|
+            return @import("../construction/publication.zig").failure(err)) orelse return lowering.typeExpr(id);
+    };
 
     const emitter = @import("generated_iteration_types_emit");
     const Call = std.meta.Child(emitter.Input);

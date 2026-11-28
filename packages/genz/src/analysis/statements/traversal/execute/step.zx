@@ -7,9 +7,7 @@ import branch from "../../basic/branch"
 import { Action } from "../model"
 import selectionCase from "./case"
 import finishScope from "./close_scope"
-import openScope from "./open_scope"
 import saveScopeWrites from "./save_scope_writes"
-import selectionFinish from "./selection_finish"
 import selectionOpen from "./selection_open"
 import selectionResolve from "./selection_resolve"
 
@@ -28,32 +26,6 @@ export default function (in: Input): Output {
         child
     } =
         in
-
-    if (action == Action.Open) {
-        const opened = openScope({
-            context,
-            first,
-            count
-        })
-
-        return {
-            ok: true,
-            child,
-            state: {
-                ...saveScopeWrites({
-                    state,
-                    scope,
-                    writes: []
-                }),
-                scope_firsts: state.scope_firsts.with(scope, first),
-                scope_counts: state.scope_counts.with(scope, count),
-                scope_checkpoints:
-                    state.scope_checkpoints.with(scope, opened.checkpoint),
-                scope_routes:
-                    state.scope_routes.splice(scope, 1, [opened.routes])[0]
-            }
-        }
-    }
 
     if (action == Action.Condition) {
         const scope_first = state.scope_firsts[scope]
@@ -131,8 +103,7 @@ export default function (in: Input): Output {
 
     if (action == Action.Close) {
         const finished = finishScope({
-            frame: context.frame,
-            checkpoint: state.scope_checkpoints[scope],
+            writer: context.writer,
             count: state.scope_counts[scope],
             writes: state.scope_writes[scope]
         })
@@ -156,10 +127,6 @@ export default function (in: Input): Output {
                     state.selection_fallbacks.splice(placement, 1, [fallback])[0]
             }
         }
-    }
-
-    if (action == Action.EndSelection) {
-        return selectionFinish(in)
     }
 
     const result = match action {

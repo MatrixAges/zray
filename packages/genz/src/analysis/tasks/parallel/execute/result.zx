@@ -1,9 +1,10 @@
-import host from "lowering_host"
+import { convertStateValue, StateValueMode } from "ast_rows"
 
-import type { Lowering } from "lowering_host"
+import type { AstSequence, AstWriter } from "ast_rows"
 
 export type Input = {
-    frame: Lowering,
+    writer: AstWriter,
+    body: AstSequence,
     type_id: u32,
     value: u32,
     construct: bool
@@ -13,7 +14,14 @@ export type Output = u32
 
 export default function (in: Input): Output {
     if (in.construct) {
-        return host.constructValue(in.frame, in.type_id, in.value, null)
+        return convertStateValue(
+            in.writer,
+            in.body,
+            in.type_id,
+            in.value,
+            StateValueMode.Construct,
+            false
+        )
     }
 
     return in.value

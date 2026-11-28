@@ -36,7 +36,7 @@ export default function (in: Input): Output {
     }, {
         while: state => !state.done,
         next: state => {
-            const row = memory.readU64View(buckets, state.slot)
+            const row = buckets.values[state.slot]
 
             if (row == 0) {
                 state.done = true

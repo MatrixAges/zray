@@ -11,8 +11,14 @@ export type BoundaryEdit = {
     separate: bool
 }
 
+export enum Mode {
+    Length,
+    Format,
+    Edits
+}
+
 export type EntryInput = {
-    check_length: bool,
+    mode: Mode,
     source: u8[],
     maximum?: u64,
     fields: Field[]

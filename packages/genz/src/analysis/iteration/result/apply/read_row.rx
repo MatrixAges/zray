@@ -7,7 +7,7 @@
         fn="model.projectIterationResult"
         in={[
             $in.lower,
-            $in.context,
+            $in.buffered,
             $in.consumer,
             $in.state,
             $in.ids[$in.row]
