@@ -192,60 +192,21 @@ fn appendRows(self: *Lower, target: anytype, source: anytype, mode: Ast.AstPaylo
     return result catch |err| failure(err);
 }
 
-pub fn appendAstBlockRows(writer: *anyopaque, source: *const Ast.AstBlockRows, conditionals: ?*const Ast.AstConditionalRows) Lower.Error!void {
-    const self = borrow(writer);
-    const target = &self.builder.nodes.expressions;
-
-    if (conditionals) |extra| {
-        const joined = view.join(source.*, extra.*);
-
-        return appendRows(self, target, &joined, .Borrowed);
-    }
-
-    return appendRows(self, target, source, .Borrowed);
-}
-
-pub fn appendAstIdentifierRows(writer: *anyopaque, source: *const Ast.AstIdentifierRows) Lower.Error!void {
-    const self = borrow(writer);
-
-    return appendRows(self, &self.builder.nodes.expressions, source, .Borrowed);
-}
-
 pub fn retainAstIds(writer: *anyopaque, ids: []const u32) Lower.Error![]const u32 {
     return borrow(writer).allocator.dupe(u32, ids);
 }
 
 pub fn appendAstLiteralRows(writer: *anyopaque, source: *const Ast.AstLiteralRows, arguments: []const []const u32) Lower.Error!void {
-    return appendValueRows(writer, source, .{ .builtin_arguments = arguments });
-}
-
-pub fn appendAstAccessRows(writer: *anyopaque, source: *const Ast.AstAccessRows, arguments: []const []const u32) Lower.Error!void {
-    return appendValueRows(writer, source, .{ .builtin_arguments = arguments });
-}
-
-fn appendValueRows(writer: *anyopaque, source: anytype, arguments: anytype) Lower.Error!void {
     const self = borrow(writer);
-    const rows = view.join(source.*, arguments);
+    const rows = view.join(source.*, .{ .builtin_arguments = arguments });
 
     return appendRows(self, &self.builder.nodes.expressions, &rows, .Borrowed);
-}
-
-pub fn appendAstOperandRows(writer: *anyopaque, source: *const Ast.AstOperandRows) Lower.Error!void {
-    const self = borrow(writer);
-
-    return appendRows(self, &self.builder.nodes.expressions, source, .Borrowed);
 }
 
 pub fn appendAstObjectFields(writer: *anyopaque, source: *const Ast.AstObjectFields) Lower.Error!void {
     const self = borrow(writer);
 
     return fields.appendObject(self.allocator, &self.builder.nodes.field_columns, source);
-}
-
-pub fn appendAstFieldAddresses(writer: *anyopaque, source: *const Ast.AstFieldAddressRows) Lower.Error!void {
-    const self = borrow(writer);
-
-    return appendRows(self, &self.builder.nodes.expressions, source, .Borrowed);
 }
 
 const Span = packed struct(u64) { count: u32, start: u32 };
@@ -389,13 +350,6 @@ pub fn joinAstStatementRows(writer: *anyopaque, starts: []const u32, counts: []c
     const block = try blocks.join(self.allocator, self.builder.nodes, starts, counts);
 
     return block.start;
-}
-
-pub fn appendAstWhileLoop(writer: *anyopaque, condition: u32, start: u32, count: u32) Lower.Error!void {
-    _ = try borrow(writer).builder.statements(&.{.{ .while_loop = .{
-        .condition = @fromBackingInt(condition),
-        .body = .{ .start = start, .len = count },
-    } }});
 }
 
 pub fn executeSpan(self: *Lower, comptime fragment: type, input: fragment.Input) Lower.Error!node.Block {

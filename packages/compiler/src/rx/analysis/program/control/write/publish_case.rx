@@ -1,8 +1,11 @@
 <Module>
     <Type from="publication" as="Control" />
     <Type from="case_member" as="Member" />
+    <Type from="../../statements/traversal/publication" as="Body" />
 
     <Args in={Control.Case} out={Member.Row} />
+
+    <Store from="../../statements/traversal/publication" as="publication" />
 
     <Call
         fn="block_id"
@@ -29,7 +32,15 @@
         }}
     />
 
-    <Call fn="../../statements/traversal/host.requireBodyBlock" />
+    <If on={!$ctx.finish_block}>
+        <Call
+            fn="../../statements/traversal/stage"
+            in={{
+                step: Body.Step.RejectBlock
+            }}
+            setter={[$store.publication.effect]}
+        />
+    </If>
 
     <Return
         value={{

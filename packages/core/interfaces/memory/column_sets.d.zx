@@ -3,19 +3,15 @@ export type ReferenceRows = opaque
 export type ReferenceRow = opaque
 export type IndirectTextColumn = opaque
 export type ReadColumn = opaque
-export type WriteColumn = mutable_opaque
 export type ListColumn = opaque
 export type ListProjection = opaque
 export type RowBuffer = mutable_opaque
 export type RowGrowth = opaque
 export type ColumnSet = opaque
-export type ColumnView = mutable_opaque
-export type ColumnViewLayout = opaque
 export type ColumnGrowth = opaque
 export type ColumnRecord = opaque
 export type ColumnRowLayout = opaque
 export type ColumnAllocator = opaque
-export type SliceColumns = opaque
 
 export enum ColumnOwnership {
     Copy,
@@ -44,13 +40,6 @@ export type LinkedSignatureColumns = {
     native_process: bool[],
     native_tuples: bool[],
     native_fallible: bool[]
-}
-
-export type LinkedPortColumns = {
-    files: string[],
-    input_types: u32[],
-    output_types: u32[],
-    ownership: u8[]
 }
 
 export type FunctionRow = {
@@ -141,15 +130,6 @@ export type NativeModuleRow = {
     type_namespaces: string[]
 }
 
-export type NativeModuleColumns = {
-    identities: string?[],
-    import_names: string[],
-    specifiers: string[],
-    type_ids: u32[][],
-    type_names: string[][],
-    type_namespaces: string[][]
-}
-
 export type TypeColumns = {
     kinds: u8[],
     first: u32[],
@@ -159,13 +139,6 @@ export type TypeColumns = {
     field_types: u32[],
     field_names: string[],
     names: string[]
-}
-
-export type NominalColumns = {
-    ids: u32[],
-    kinds: u8[],
-    owners: string[],
-    members: string[]
 }
 
 export enum StoreMode {

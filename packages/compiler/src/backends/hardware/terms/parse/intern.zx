@@ -2,13 +2,14 @@ import integers from "std:integer"
 import capacity from "core/bytes/map/capacity"
 import lookup from "core/bytes/map/lookup"
 import slot from "core/bytes/map/slot"
-import host from "hardware_graph_host"
 import { Form, Kind } from "hardware_graph_host"
 
 import rehash from "../rehash"
 import space from "./space"
 
-import type { Store as Input, Term as Output } from "./model"
+import type { Store as Input, Term } from "./model"
+
+export type Output = Term?
 
 export default function (in: Input): Output {
     const { graph, key } = in
@@ -34,7 +35,7 @@ export default function (in: Input): Output {
         node_count,
         width: in.width
     })) {
-        host.rejectHardwareTerm()
+        return null
     }
 
     const size = match found.grow {

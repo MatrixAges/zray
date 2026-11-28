@@ -108,48 +108,6 @@ pub fn reserveCell(resource: *const anyopaque, target: *const anyopaque, layout:
     if (!operations.*[index](slots(target)[index], borrowAllocator(resource), items)) return error.OutOfMemory;
 }
 
-pub fn viewLayout(shape: anytype, output: anytype) std.meta.Child(@TypeOf(output)) {
-    const View = std.meta.Child(std.meta.Child(@TypeOf(shape)));
-
-    const Layout = struct {
-        const values: []const usize = &viewOffsets(View);
-    };
-
-    return @ptrCast(&Layout.values);
-}
-
-fn viewOffsets(comptime View: type) [@typeInfo(View).@"struct".field_names.len]usize {
-    const names = @typeInfo(View).@"struct".field_names;
-    var result: [names.len]usize = undefined;
-
-    for (names, &result) |name, *offset| {
-        const Field = @typeInfo(@FieldType(View, name)).pointer;
-
-        if (Field.size != .slice or @sizeOf(@FieldType(View, name)) != @sizeOf([]const u8)) @compileError("Column view fields must be slices");
-
-        offset.* = @offsetOf(View, name);
-    }
-
-    return result;
-}
-
-pub inline fn readCell(source: *const anyopaque, buffer: *anyopaque, layout: *const anyopaque, slot: u64) void {
-    writeViewCell(buffer, layout, slot, &storageAt(source, slot).items);
-}
-
-pub inline fn writeViewCell(buffer: *anyopaque, layout: *const anyopaque, slot: u64, items: *const []const u8) void {
-    const offsets: *const []const usize = @ptrCast(@alignCast(layout));
-    const destination: [*]u8 = @ptrCast(buffer);
-    const offset = offsets.*[@intCast(slot)];
-    const bytes = std.mem.asBytes(items);
-
-    @memcpy(destination[offset..][0..bytes.len], bytes);
-}
-
-pub fn viewAt(buffer: *const anyopaque, shape: anytype) std.meta.Child(@TypeOf(shape)) {
-    return @ptrCast(@alignCast(buffer));
-}
-
 const Cell = struct { slot: usize, offset: usize, width: usize };
 
 pub fn borrowRecord(row: anytype, output: anytype) std.meta.Child(@TypeOf(output)) {

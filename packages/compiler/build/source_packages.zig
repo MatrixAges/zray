@@ -63,7 +63,6 @@ pub const entries: []const Package = &.{
     .{ .specifier = "core/constant/rows", .entry = "core/constant/rows.zx" },
     .{ .specifier = "core/column_transfer", .entry = "core/column_transfer/index.zx" },
     .{ .specifier = "core/column_lengths", .entry = "core/column_lengths/index.zx" },
-    .{ .specifier = "core/column_ranges", .entry = "core/column_ranges/index.zx" },
     .{ .specifier = "core/column_set", .entry = "core/column_set/index.zx" },
     .{ .specifier = "core/row_buffer", .entry = "core/row_buffer/index.zx" },
     .{ .specifier = "core/owned_text", .entry = "core/owned_text/index.zx" },

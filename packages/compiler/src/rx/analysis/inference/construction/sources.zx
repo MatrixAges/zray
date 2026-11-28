@@ -1,6 +1,6 @@
 import shape from "../fields/shape"
 import { Mode } from "../fields/view"
-import representative from "../forest/root"
+import representative from "../forest/borrowed_root"
 import spread from "./spread"
 import { Action } from "./spread"
 

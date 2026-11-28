@@ -1,5 +1,6 @@
-import { appendAstFieldAddresses, astExpressionCount } from "ast_rows"
+import { appendExpressionRows, AstPayloadOwnership, astExpressionCount } from "ast_rows"
 
+import addressColumns from "../../../ast/rows/address_columns"
 import { ExpressionsKind } from "../../../printer/model/expressions"
 import bindOperand from "../../aggregate/execute/bind_operand"
 
@@ -27,13 +28,20 @@ export default function (in: Input): Output {
 
     const address = astExpressionCount(writer)
 
-    appendAstFieldAddresses(writer, {
+    const columns = addressColumns({
         tags: [ExpressionsKind.AddressOf],
         offsets: [0],
         field_target: [],
         field_name: [],
         address_of: [bound]
     })
+
+    appendExpressionRows(
+        writer,
+        columns.rows,
+        columns.forms,
+        AstPayloadOwnership.Borrowed
+    )
 
     return address
 }

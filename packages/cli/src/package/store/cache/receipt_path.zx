@@ -1,0 +1,9 @@
+import { receipt_file } from "../const"
+
+export type Input = string
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return `${in}/${receipt_file}`
+}

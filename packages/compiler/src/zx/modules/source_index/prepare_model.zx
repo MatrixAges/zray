@@ -1,12 +1,7 @@
-import type { Allocator, ColumnRanges, U8ListBuffer } from "memory"
-
 export type Input = {
-    resource: Allocator,
-    columns: ColumnRanges,
-    keys: U8ListBuffer,
+    keys: u8[][],
     key: u8[],
     capacity: u64,
-    length: u64,
     maximum: u64,
     slot: u64
 }

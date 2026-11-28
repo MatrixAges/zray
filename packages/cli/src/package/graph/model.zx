@@ -1,3 +1,4 @@
+import type { ListColumn, TextColumn } from "memory"
 import type { GraphIO, Mapping } from "package_graph_host"
 
 export enum Status {
@@ -16,15 +17,27 @@ export type Read = {
     root: string
 }
 
-export type Input = Read & {
-    external: bool,
-    missing_path: string,
-    missing_name: string,
-    counts: u64[]
+export type Members = {
+    member_paths: TextColumn,
+    member_count: u64
 }
 
-export type Workspace = Read & {
-    counts: u64[]
+export type Installed = Read & Members
+
+export type Declarations = {
+    names: TextColumn,
+    production: ListColumn,
+    development: ListColumn
+}
+
+export type Input = Workspace & {
+    external: bool,
+    missing_path: string,
+    missing_name: string
+}
+
+export type Workspace = Installed & {
+    declarations: Declarations
 }
 
 export type InstalledRow = {
@@ -39,7 +52,7 @@ export type Result = {
     installed?: InstalledRow[]
 }
 
-export type InstalledLoaded = {
+export type InstalledLoaded = Members & {
     graph: GraphIO,
     mapping: Mapping
 }

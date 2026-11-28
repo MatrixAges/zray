@@ -1,5 +1,3 @@
-import { moduleView, signatureView } from "core/column_set"
-
 import { Status } from "./decision"
 
 import type { Start as Input, Traversal as Output } from "./model"
@@ -7,24 +5,10 @@ import type { Start as Input, Traversal as Output } from "./model"
 export default function (in: Input): Output {
     const { source, native_ids } = in
 
-    const modules = moduleView({
-        storage: source.native.storage,
-        view: source.native.snapshot,
-        shape: source.native.shape
-    })
-
-    const linked = signatureView({
-        storage: source.read_columns,
-        view: source.snapshot,
-        shape: source.linked_shape
-    })
-
     return {
         source,
-        modules,
         native_ids,
         ids: [],
-        linked,
         index: 0,
         status: Status.Reuse,
         running: source.signatures.files.length != 0

@@ -14,7 +14,6 @@ export type ResolvedImport = {
 }
 
 export declare function registerRoot(discovery: Discovery): u64 throws { SourceLoadFailure }
-export declare function sourceCount(discovery: Discovery): u64
 export declare function prepareSource(discovery: Discovery, row: u64): void throws { SourceLoadFailure }
 export declare function openHeader(discovery: Discovery, row: u64): u64 throws { SourceLoadFailure }
 export declare function closeHeader(discovery: Discovery): void

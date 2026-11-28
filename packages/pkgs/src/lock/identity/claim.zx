@@ -2,12 +2,12 @@ import bytes from "std:bytes"
 import integers from "std:integer"
 import memory from "memory"
 
-import type { TextColumn, U8Buffer } from "memory"
+import type { TextColumn } from "memory"
 
 export type Input = {
     keys: TextColumn,
     versions: TextColumn,
-    flags: U8Buffer,
+    flags: u8[],
     slots: u32[],
     row: u64,
     capacity: u64,
@@ -23,7 +23,7 @@ export type Output = {
 export default function (in: Input): Output {
     const { keys, versions, flags, row, capacity, offset, compound } = in
 
-    const kind = memory.readU8(flags, row)
+    const kind = flags[row]
     const key = memory.readTextColumn(keys, row)
     const hash = bytes.hash(bytes.fromText(key))
 
@@ -56,7 +56,7 @@ export default function (in: Input): Output {
                 s.done = true
             } else {
                 const previous = integers.widen(entry) - 1
-                if (memory.readU8(flags, previous) == kind) {
+                if (flags[previous] == kind) {
                     if (memory.readTextColumn(keys, previous) == key) {
                         s.done =
                             !compound ||

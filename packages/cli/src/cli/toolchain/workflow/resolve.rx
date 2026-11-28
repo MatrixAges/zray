@@ -4,47 +4,49 @@
     <Args in={Toolchain.Input} out={Toolchain.Output} />
 
     <If on={$in.override != null}>
-        <Call
-            fn="index.resolveExecutable"
-            in={[
-                $in.toolchain,
-                $in.override
-            ]}
-        />
+        <Call fn="executable" in={$in.override} />
 
-        <Call module="cache" in={$in} />
+        <If on={$ctx.executable != null}>
+            <Call module="cache" in={$in} />
 
-        <If on={$ctx.cache.status != Toolchain.Status.Ready}>
-            <Return
-                value={{
-                    status: $ctx.cache.status
+            <If on={$ctx.cache.status != Toolchain.Status.Ready}>
+                <Return
+                    value={{
+                        status: $ctx.cache.status
+                    }}
+                />
+            </If>
+
+            <Call
+                module="library"
+                in={{
+                    toolchain: $in.toolchain,
+                    executable: $ctx.executable,
+                    suffixes: $in.library_suffixes
                 }}
             />
-        </If>
 
-        <Call
-            module="library"
-            in={{
-                toolchain: $in.toolchain,
-                executable: $ctx.resolveExecutable,
-                suffixes: $in.library_suffixes
-            }}
-        />
+            <If on={$ctx.library == null}>
+                <Return
+                    value={{
+                        status: Toolchain.Status.ZxcZigLibraryNotFound
+                    }}
+                />
+            </If>
 
-        <If on={$ctx.library == null}>
             <Return
                 value={{
-                    status: Toolchain.Status.ZxcZigLibraryNotFound
+                    status: Toolchain.Status.Ready,
+                    root: $ctx.cache.root,
+                    executable: $ctx.executable,
+                    library: $ctx.library
                 }}
             />
         </If>
 
         <Return
             value={{
-                status: Toolchain.Status.Ready,
-                root: $ctx.cache.root,
-                executable: $ctx.resolveExecutable,
-                library: $ctx.library
+                status: Toolchain.Status.ZxcZigNotFound
             }}
         />
     </If>

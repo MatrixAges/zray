@@ -34,27 +34,9 @@ pub fn assembleWorkspace(
         .status = switch (assembly.status) {
             inline else => |status| @field(WorkspaceStatus, @tagName(status)),
         },
-        .failed_owner = assembly.owner,
-        .owner_path = "",
-        .owner_name = "",
-        .edge_name = "",
+        .owner = assembly.owner,
+        .edge = assembly.edge,
     };
-
-    switch (assembly.status) {
-        .Valid, .InvalidVersion, .Overflow => {},
-        else => {
-            const owner = &packages[@intCast(assembly.owner)];
-            const data = &owner.manifest;
-            const edge: usize = @intCast(assembly.edge);
-            view.owner_path = owner.path;
-            view.owner_name = data.name;
-
-            view.edge_name = switch (assembly.status) {
-                .Duplicate, .InvalidSpecifier, .Missing, .InvalidRange, .LockVersionMismatch => if (edge < data.dependencies.len) data.dependencies[edge].name else data.dev_dependencies[edge - data.dependencies.len].name,
-                else => "",
-            };
-        },
-    }
 
     return view;
 }

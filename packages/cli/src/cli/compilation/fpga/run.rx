@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Fpga" />
 
-    <Args in={Fpga.Input} out={bool} />
+    <Args in={Fpga.Input} out={string?} />
 
     <Call
         fn="proof_required"
@@ -15,18 +15,58 @@
         <Call fn="../index.verifyFpgaProgram" in={$in.program} />
 
         <If on={!$ctx.verifyFpgaProgram}>
-            <Return value={false} />
+            <Return value={null} />
         </If>
     </If>
 
     <Call fn="../index.lowerFpgaProgram" in={$in.program} />
 
     <If on={!$ctx.lowerFpgaProgram}>
-        <Return value={false} />
+        <Return value={null} />
     </If>
 
-    <Call fn="../index.renderFpgaProgram" in={$in.program} />
-    <Call fn="../index.publishFpgaProgram" in={$in.program} />
+    <Call
+        fn="../index.renderFpgaProgram"
+        in={[
+            $in.program,
+            $in.clocked
+        ]}
+    />
 
-    <Return value={true} />
+    <Call
+        fn="publication"
+        in={$in.pick([
+            "output",
+            "clocked",
+            "ir_version"
+        ])}
+    />
+
+    <Call
+        fn="../index.encodeFpgaManifest"
+        in={[
+            $in.program,
+            $ctx.publication.manifest
+        ]}
+    />
+
+    <Task name="verilog">
+        <Call
+            module="../../workspace_files/write_artifact"
+            in={{
+                path: $in.output,
+                source: $ctx.renderFpgaProgram
+            }}
+        />
+    </Task>
+
+    <Call
+        module="../../workspace_files/write_artifact"
+        in={{
+            path: $ctx.publication.path,
+            source: $ctx.encodeFpgaManifest
+        }}
+    />
+
+    <Return value={$ctx.publication.notice} />
 </Module>

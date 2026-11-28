@@ -1,0 +1,31 @@
+import emptyExpressions from "../expressions/empty"
+import emptyForms from "../expressions/forms/empty"
+
+import type { AstAccessRows } from "ast_rows"
+import type { Columns } from "./expression_columns"
+
+export type Input = {
+    rows: AstAccessRows,
+    arguments: u32[][]
+}
+
+export type Output = Columns
+
+export default function (in: Input): Output {
+    const { rows, arguments } = in
+
+    return {
+        rows: {
+            ...emptyExpressions({}),
+            ...rows.omit(["optional_unwrap"]),
+            builtin_arguments: arguments
+        },
+        forms: match {
+            rows.optional_unwrap.length == 0 => null,
+            _ => {
+                ...emptyForms({}),
+                optional_unwrap: rows.optional_unwrap
+            }
+        }
+    }
+}

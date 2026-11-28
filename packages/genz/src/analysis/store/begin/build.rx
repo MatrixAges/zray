@@ -2,7 +2,7 @@
     <Type from="execute" as="Begin" />
     <Type from="../rows" as="AST" />
 
-    <Args in={Begin.Input} out={u64} />
+    <Args in={Begin.Input} out={Begin.Output} />
 
     <Call
         fn="collect"
@@ -17,7 +17,7 @@
     />
 
     <If on={$ctx.collect.length == 0}>
-        <Return value={0} />
+        <Return value={null} />
     </If>
 
     <Call fn="../rows.readAstOrigin" in={$in.writer} />
@@ -34,7 +34,6 @@
         }}
     />
 
-    <Call fn="../rows.requireLoweringContext" in={$in.frame} />
     <Call fn="../rows.requireAllocation" in={$ctx.emit.valid} />
 
     <Call

@@ -1,4 +1,6 @@
-import { lowerExistingBorrowedOperand } from "ast_rows"
+import integers from "std:integer"
+
+import existing from "./existing"
 
 import type { Object as Input } from "./model"
 
@@ -13,11 +15,19 @@ export default function (in: Input): Output {
     }, {
         while: state => state.index < in.fields.length,
         next: state => {
-            const value = lowerExistingBorrowedOperand(
-                in.writer,
-                in.sequence,
-                in.fields[state.index]
-            )
+            const id = in.fields[state.index]
+
+            const value = existing({
+                ...in.pick([
+                    "lowering",
+                    "writer",
+                    "sequence",
+                    "state_active",
+                    "queries"
+                ]),
+                id,
+                type_id: in.expression_types[integers.widen(id)]
+            })
 
             state.values = state.values.push(value)[0]
             state.index += 1

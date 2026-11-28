@@ -1,8 +1,11 @@
 <Module>
     <Type from="model" as="Payload" />
     <Type from="../payloads" as="Scan" />
+    <Type from="../../../solve/replay_effect" as="Effect" />
 
     <Args in={Payload.Iteration} out={Payload.Iteration} />
+
+    <Store from="../../../solve/replay" as="replay" />
 
     <Call
         fn="../payloads"
@@ -18,33 +21,35 @@
 
     <If on={$ctx.payloads.action == Scan.Action.Depth}>
         <Call
-            fn="host.rejectAssignmentDepth"
-            in={[
-                $in.range.request.frame,
-                $ctx.payloads.origin
-            ]}
+            fn="../../../solve/stage_replay"
+            in={{
+                step: Effect.Step.RejectAssignmentDepth,
+                left: $ctx.payloads.origin
+            }}
+            setter={[$store.replay.effect]}
         />
     </If>
 
     <If on={$ctx.payloads.action == Scan.Action.Register}>
         <Call
-            fn="host.registerAssignmentPayload"
-            in={[
-                $in.range.request.frame,
-                $ctx.payloads.origin,
-                $ctx.payloads.source,
-                $ctx.payloads.remaining ?? 0
-            ]}
+            fn="../../../solve/stage_replay"
+            in={{
+                step: Effect.Step.RegisterAssignmentPayload,
+                left: $ctx.payloads.origin,
+                right: $ctx.payloads.source,
+                budget: $ctx.payloads.remaining ?? 0
+            }}
+            setter={[$store.replay.effect]}
         />
 
-        <Call fn="host.remainingAssignmentDepth" in={$in.range.request.frame} />
+        <Call fn="../../../solve/read_assignment_payload" in={$store.replay.effect} />
 
         <Return
             value={{
                 range: $in.range,
                 next: $ctx.payloads.next,
-                source: $ctx.registerAssignmentPayload,
-                remaining: $ctx.remainingAssignmentDepth,
+                source: $ctx.read_assignment_payload.id,
+                remaining: $ctx.read_assignment_payload.remaining,
                 values: $ctx.payloads.values
             }}
         />

@@ -75,8 +75,8 @@ pub fn run(builder: *Builder, program: *const ir.Program, block: ir.Block, borro
     if (input.symbols != null or input.literals != null) {
         const publication = (try execute(allocator, &input)).publication.?;
 
-        if (publication.symbols) |rows| try symbols.commit(builder, rows);
-        if (publication.literals) |rows| try literals.commit(builder, rows);
+        if (publication.symbols) |rows| try symbol_link.publish(builder, rows);
+        if (publication.literals) |rows| try literal_link.publish(builder, rows);
     }
 
     const target_payloads = storage.payloads.unusedCapacitySlice()[0..count];

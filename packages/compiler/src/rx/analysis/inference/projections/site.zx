@@ -1,17 +1,20 @@
-import type { ProjectionGraph, ProjectionSpans } from "rx_project_host"
+export enum SpanSource {
+    Node,
+    Assignment,
+    Length,
+    Index,
+    IndexPosition,
+    Sequence,
+    SequenceElement,
+    Selection
+}
 
 export type Site = {
-    graph: ProjectionGraph,
-    spans: ProjectionSpans,
+    spans: SpanSource,
     row: u64
 }
 
-export type Diagnostic = Site.Omit("graph") & {
+export type Diagnostic = Site & {
     message: string,
     unsupported: bool
-}
-
-export type Publication = {
-    graph: ProjectionGraph,
-    diagnostic?: Diagnostic
 }

@@ -1,4 +1,6 @@
 import encoding from "std:encoding"
+import path from "std:path"
+import strings from "std:string"
 import lexical from "lexical_path"
 
 import { current_directory, index_file, index_rx_file } from "../../../path/const"
@@ -26,12 +28,15 @@ export default function (in: Input): Output {
     }
 
     if (directory) {
+        const leaf = path.join([
+            trim(stem.path),
+            stem.rx ? index_rx_file : index_file
+        ])
+
         return {
-            path: lexical.resolvePathJoined(
+            path: lexical.resolvePathFrom(
                 anchor,
-                trim(stem.path),
-                stem.rx ? index_rx_file : index_file,
-                base.prefix
+                encoding.sliceBytes(leaf, base.prefix, leaf.length)
             ),
             fallback: false
         }
@@ -40,7 +45,10 @@ export default function (in: Input): Output {
     const spelling = encoding.sliceBytes(stem.path, base.prefix, stem.path.length)
 
     return {
-        path: lexical.resolvePathSuffix(anchor, spelling, stem.suffix),
+        path: lexical.resolvePathFrom(anchor, strings.join("", [
+            spelling,
+            stem.suffix
+        ])),
         fallback: !stem.rx
     }
 }

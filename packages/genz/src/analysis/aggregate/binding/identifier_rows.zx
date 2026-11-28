@@ -1,13 +1,15 @@
+import emptyExpressions from "../../../ast/expressions/empty"
 import { ExpressionsKind } from "../../../printer/model/expressions"
 
-import type { AstIdentifierRows } from "ast_rows"
+import type { ExpressionRows } from "ast_rows"
 
 export type Input = u8[]
 
-export type Output = AstIdentifierRows
+export type Output = ExpressionRows
 
 export default function (in: Input): Output {
     return {
+        ...emptyExpressions({}),
         tags: [ExpressionsKind.Identifier],
         offsets: [0],
         identifier: [in]

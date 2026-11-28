@@ -1,6 +1,6 @@
 import type { AstSequence, AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
-import type { U64Buffer } from "memory"
+import type { Query } from "../../../../state/queries/model"
 import type { Input as Routing } from "../route"
 
 export type Input = {
@@ -11,7 +11,9 @@ export type Input = {
     id: u32,
     type_id: u32,
     operand?: u32,
-    items: u32[]
+    items: u32[],
+    state_active: bool,
+    queries: Query[]
 }
 
 export type Call = Input.Pick("writer", "sequence", "id", "operand")
@@ -27,8 +29,10 @@ export type Object = {
     fields: u32[],
     field_indices: u32[],
     field_names: string[],
-    convert: bool,
-    cache_reads: U64Buffer
+    state_active: bool,
+    queries: Query[],
+    expression_types: u32[],
+    cache_reads: u64[]
 }
 
 export type Observed = {

@@ -1,9 +1,10 @@
 import {
-    appendAstAccessRows,
+    appendExpressionRows, AstPayloadOwnership,
     astExpressionCount
 } from "ast_rows"
 import { requireAllocation } from "memory"
 
+import accessColumns from "../../../ast/rows/access_columns"
 import optional from "../../access/optional"
 import operandIds from "../operand_ids"
 
@@ -40,15 +41,21 @@ export default function (in: Input): Output {
         arguments
     })
 
-    appendAstAccessRows(
-        in.writer,
-        {
+    const columns = accessColumns({
+        rows: {
             ...output.rows.omit(["builtin_arguments"]),
             field_target: [],
             field_name: [],
             dereference: []
         },
-        ids
+        arguments: ids
+    })
+
+    appendExpressionRows(
+        in.writer,
+        columns.rows,
+        columns.forms,
+        AstPayloadOwnership.Borrowed
     )
 
     return output.root

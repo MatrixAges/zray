@@ -1,8 +1,7 @@
 import type { State as KnownTypes } from "core/integer/map/model"
-import type { U32Buffer } from "memory"
 
 export type Endpoints = {
-    parents: U32Buffer,
+    parents: u32[],
     left: u32,
     right: u32
 }
@@ -54,7 +53,7 @@ export type Outcome = Output & Pair & {
 }
 
 export type Series = Input.Omit("endpoints") & {
-    parents: U32Buffer,
+    parents: u32[],
     values: u32[],
     targets: u32[],
     repeated?: u32,

@@ -5,41 +5,8 @@ export enum FunctionSourceKind {
     Regular
 }
 
-export type LibraryInitializers = opaque
-
 export enum PartitionFile {
     Stub,
     Exports,
     Modules
-}
-
-export type PartitionWorkers = opaque
-
-export type PartitionBodyColumns = {
-    callees: u32[][],
-    variants: u8[][][],
-    inline_names: u8[][][]
-}
-
-export declare function emitLibraryInitializer(
-    target: LibraryInitializers,
-    row: u64
-): void throws {
-    OutOfMemory,
-    InvalidAnalysis,
-    ConflictingFunction,
-    InvalidNames,
-    InvalidFunction,
-    MissingNominalOrigin,
-    InvalidNominalOrigin
-}
-
-export declare function scanPartitionBodies(
-    allocator,
-    workers: PartitionWorkers
-): PartitionBodyColumns throws {
-    OutOfMemory,
-    UnterminatedImport,
-    UnsupportedFunctionReference,
-    MissingFunctionFile
 }

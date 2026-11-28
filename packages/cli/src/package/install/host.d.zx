@@ -68,9 +68,6 @@ export declare function recordArchive(
 
 export declare function finishFresh(build: FreshBuild): void throws { InstallHostFailure }
 
-export declare function fetchLocked(session: InstallIO, row: u64): string
-    throws { InstallHostFailure }
-
 export declare function canonicalPath(session: InstallIO, path: string): string
     throws { InstallHostFailure }
 
@@ -88,11 +85,5 @@ export declare function renderInstallation(
     paths: string[]
 ): Rendered throws { InstallHostFailure }
 
-export declare function publishMapping(session: InstallIO, digest: string, mapping: string): void
-    throws { InstallHostFailure }
-
 export declare function lockUnchanged(session: InstallIO, lock: string): bool
-    throws { InstallHostFailure }
-
-export declare function publishLock(session: InstallIO, lock: string): void
     throws { InstallHostFailure }

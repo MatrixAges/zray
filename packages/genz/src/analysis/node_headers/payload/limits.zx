@@ -1,34 +1,24 @@
-import { minimum } from "core/column_transfer"
+import { max_u64 } from "core/const"
 
 import type { Validation } from "./model"
 
-export type Input = Validation.Pick("groups", "complete")
+export type Input = Validation.Pick("lengths", "complete")
 
 export type Output = u64[]
 
 export default function (in: Input): Output {
-    const { groups, complete } = in
-
-    const empty: u64[] = []
     const zero: u64 = 0
 
-    return loop({
-        index: 0,
-        limits: empty
-    }, {
-        while: state => state.index < complete.length,
-        next: state => {
-            const limit = match complete[state.index] {
-                true => minimum({
-                    groups,
-                    index: state.index
-                }),
-                _ => zero
-            }
-
-            state.limits = state.limits.push(limit)[0]
-            state.index += 1
-        },
-        return: state => state.limits
-    })
+    return in.lengths.map(
+        (group, index) => match {
+            in.complete[index] => group.reduce(
+                (limit, length) => match {
+                    length != null && length < limit => length,
+                    _ => limit
+                },
+                max_u64
+            )[1],
+            _ => zero
+        }
+    )[0]
 }

@@ -138,7 +138,6 @@ pub const main = [_]Entry{
     .{ .path = "zx/modules/compiled/initializer_registry/scan.zx", .name = "initializer_registry" },
     .{ .path = "core/bytes/index/borrowed/probe.zx", .name = "initializer_registry_lookup" },
     .{ .path = "rx/analysis/inference/known/find.zx", .name = "rx_known_lookup", .owner = .rx_analysis },
-    .{ .path = "rx/analysis/inference/known/rehash.zx", .name = "rx_known_rehash", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/expression/enum_member.zx", .name = "rx_enum_member", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/expression/operands.zx", .name = "rx_inference_operands", .owner = .rx_analysis },
     .{ .path = "rx/analysis/inference/scope/rooted.zx", .name = "rx_scope_rooted", .owner = .rx_analysis },

@@ -1,0 +1,10 @@
+import type { Command as Input } from "./effect"
+
+export type Output = Input.Pick("value", "remaining")
+
+export default function (in: Input): Output {
+    return in.pick([
+        "value",
+        "remaining"
+    ])
+}

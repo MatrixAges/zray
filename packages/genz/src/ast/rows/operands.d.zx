@@ -1,5 +1,80 @@
-export declare function retainAstIds(writer: AstWriter, ids: u32[]): u32[]
-    throws { OutOfMemory }
+export type AstOperandRows = {
+    tags: ExpressionsKind[],
+    offsets: u32[],
+    tuple: u32[][],
+    builtin_name: ExpressionsBuiltinName[],
+    builtin_arguments: u32[][],
+    identifier: u8[][],
+    address_of: u32[],
+    object_type_expr: u32?[],
+    object_fields_start: u32[],
+    object_fields_len: u32[]
+}
 
-export declare function appendAstOperandRows(writer: AstWriter, rows: AstOperandRows): void
-    throws { OutOfMemory }
+export type AstLiteralRows = {
+    tags: ExpressionsKind[],
+    offsets: u32[],
+    integer: u64[],
+    float: u64[],
+    string: u8[][],
+    boolean: bool[],
+    enum_literal: u8[][],
+    error_value: u8[][],
+    unary_operator: ExpressionsUnaryOperator[],
+    unary_operand: u32[],
+    builtin_name: ExpressionsBuiltinName[]
+}
+
+export type AstAccessRows = {
+    tags: ExpressionsKind[],
+    offsets: u32[],
+    field_target: u32[],
+    field_name: u8[][],
+    dereference: u32[],
+    optional_unwrap: u32[],
+    builtin_name: ExpressionsBuiltinName[]
+}
+
+export type AstFieldAddressRows = {
+    tags: ExpressionsKind[],
+    offsets: u32[],
+    field_target: u32[],
+    field_name: u8[][],
+    address_of: u32[]
+}
+
+export type CollectionRows = {
+    first: u32,
+    second: u32,
+    third: u32,
+    items: u32,
+    value: u32,
+    header: u32,
+    element: u32,
+    length: u32,
+    unit: u32
+}
+
+export enum StateValueMode {
+    Borrow,
+    Value,
+    ValueLayout,
+    Layout,
+    Pointer,
+    Construct,
+    ViewLayout
+}
+
+export type ValueCallEmission = {
+    regular: bool,
+    result: u8,
+    legacy: bool,
+    legacy_deref: bool
+}
+
+export type CallTarget = {
+    function_id: u32,
+    io: bool,
+    process: bool,
+    value?: ValueCallEmission
+}

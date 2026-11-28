@@ -1,19 +1,25 @@
 <Module>
     <Type from="application" as="Length" />
     <Type from="../fields/model" as="Fields" />
+    <Type from="effect" as="ProjectionEffect" />
 
     <Args in={Length.Input} out={bool} />
 
+    <Store from="publication" as="projection" />
+
     <If on={$in.node != null}>
         <Call
-            fn="host.mergeProjection"
-            in={[
-                $in.site.graph,
-                $in.site.spans,
-                $in.site.row,
-                $in.node ?? 0,
-                $in.value
-            ]}
+            fn="stage"
+            in={{
+                projection_step: ProjectionEffect.Step.Merge,
+                site: {
+                    spans: $in.site.spans,
+                    row: $in.site.row
+                },
+                left: $in.node ?? 0,
+                right: $in.value
+            }}
+            setter={[$store.projection.effect]}
         />
 
         <Return value={true} />
@@ -21,24 +27,32 @@
 
     <If on={$in.plan.route == Fields.Route.Open}>
         <Call
-            fn="host.readOpenLength"
-            in={[
-                $in.site.graph,
-                $in.site.spans,
-                $in.site.row,
-                $in.root
-            ]}
+            fn="stage"
+            in={{
+                projection_step: ProjectionEffect.Step.ReadLength,
+                site: {
+                    spans: $in.site.spans,
+                    row: $in.site.row
+                },
+                left: $in.root
+            }}
+            setter={[$store.projection.effect]}
         />
 
+        <Call fn="read_id" in={$store.projection.effect} />
+
         <Call
-            fn="host.mergeProjection"
-            in={[
-                $in.site.graph,
-                $in.site.spans,
-                $in.site.row,
-                $ctx.readOpenLength,
-                $in.value
-            ]}
+            fn="stage"
+            in={{
+                projection_step: ProjectionEffect.Step.Merge,
+                site: {
+                    spans: $in.site.spans,
+                    row: $in.site.row
+                },
+                left: $ctx.read_id,
+                right: $in.value
+            }}
+            setter={[$store.projection.effect]}
         />
 
         <Return value={true} />
@@ -46,13 +60,16 @@
 
     <If on={$in.plan.route == Fields.Route.RequireList}>
         <Call
-            fn="host.requireProjectionList"
-            in={[
-                $in.site.graph,
-                $in.site.spans,
-                $in.site.row,
-                $in.target
-            ]}
+            fn="stage"
+            in={{
+                projection_step: ProjectionEffect.Step.RequireList,
+                site: {
+                    spans: $in.site.spans,
+                    row: $in.site.row
+                },
+                left: $in.target
+            }}
+            setter={[$store.projection.effect]}
         />
 
         <Else>
@@ -63,14 +80,17 @@
                 <Call fn="../fields/diagnostic" in={$in.plan.route} />
 
                 <Call
-                    fn="host.applyProjectionDiagnostic"
-                    in={[
-                        $in.site.graph,
-                        $in.site.spans,
-                        $in.site.row,
-                        $ctx.diagnostic,
-                        false
-                    ]}
+                    fn="stage"
+                    in={{
+                        projection_step: ProjectionEffect.Step.Reject,
+                        site: {
+                            spans: $in.site.spans,
+                            row: $in.site.row
+                        },
+                        message: $ctx.diagnostic,
+                        unsupported: false
+                    }}
+                    setter={[$store.projection.effect]}
                 />
 
                 <Return value={true} />
@@ -79,24 +99,32 @@
     </If>
 
     <Call
-        fn="host.registerProjectionType"
-        in={[
-            $in.site.graph,
-            $in.site.spans,
-            $in.site.row,
-            $in.plan.value
-        ]}
+        fn="stage"
+        in={{
+            projection_step: ProjectionEffect.Step.RegisterType,
+            site: {
+                spans: $in.site.spans,
+                row: $in.site.row
+            },
+            left: $in.plan.value
+        }}
+        setter={[$store.projection.effect]}
     />
 
+    <Call fn="read_id" in={$store.projection.effect} />
+
     <Call
-        fn="host.mergeProjection"
-        in={[
-            $in.site.graph,
-            $in.site.spans,
-            $in.site.row,
-            $ctx.registerProjectionType,
-            $in.value
-        ]}
+        fn="stage"
+        in={{
+            projection_step: ProjectionEffect.Step.Merge,
+            site: {
+                spans: $in.site.spans,
+                row: $in.site.row
+            },
+            left: $ctx.read_id,
+            right: $in.value
+        }}
+        setter={[$store.projection.effect]}
     />
 
     <Return value={true} />

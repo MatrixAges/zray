@@ -34,7 +34,7 @@ pub fn lower(self: *Lower, temporary: std.mem.Allocator, id: ir.ExprId, source: 
         .field_indices = field_indices,
         .fields = source.fields.values[0..source.fields.len],
         .field_names = self.program.typeOf(type_id).object.names,
-        .cache_reads = @ptrCast(&self.cache_reads),
+        .cache_reads = self.cache_reads,
     };
 
     return @fromBackingInt(entry.executeIn(temporary, &input) catch |err| return publication.failure(err));
@@ -52,15 +52,4 @@ pub fn prepareObjectFields(allocator: std.mem.Allocator, frame: *anyopaque, body
     const updated = try @import("../object_update.zig").lower(lowering, allocator, @fromBackingInt(id), sequence);
 
     return if (updated) |result| @backingInt(result) else null;
-}
-
-pub fn convertAggregateField(frame: *anyopaque, body: *anyopaque, type_id: u32, bound: u32) Error!u32 {
-    const lowering = evaluation.borrow(frame);
-    const sequence: *Sequence = @ptrCast(@alignCast(body));
-
-    return @backingInt(try @import("../state_value/conversion.zig").convert(lowering, sequence, @fromBackingInt(type_id), @fromBackingInt(bound), .pointer));
-}
-
-pub fn finishObject(frame_handle: *anyopaque, type_id: u32, value: u32) Error!u32 {
-    return @backingInt(try evaluation.borrow(frame_handle).construct(@fromBackingInt(type_id), @fromBackingInt(value)));
 }

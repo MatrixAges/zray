@@ -48,12 +48,6 @@ pub const State = struct {
     }
 };
 
-pub fn resolveExecutable(handle: *const anyopaque, path: []const u8) Error![]const u8 {
-    const self = State.get(handle);
-
-    return std.Io.Dir.cwd().realPathFileAlloc(self.io, path, self.allocator) catch return self.fail(error.ZxcZigNotFound);
-}
-
 pub fn lockCache(handle: *const anyopaque, parent: []const u8, path: []const u8) Error!void {
     const self = State.get(handle);
     const cwd: std.Io.Dir = .cwd();

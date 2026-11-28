@@ -16,7 +16,7 @@ pub fn validate(lock: Lock, allocator: std.mem.Allocator) !void {
         .root = root,
     }) catch unreachable);
 
-    var marks = try allocator.alloc(u8, packages.len);
+    const marks = try allocator.alloc(u8, packages.len);
 
     defer allocator.free(marks);
     graph.prepare(marks, packages, .lock);
@@ -50,7 +50,7 @@ pub fn validate(lock: Lock, allocator: std.mem.Allocator) !void {
             .paths = @ptrCast(&paths),
             .archives = @ptrCast(&archives),
             .digests = @ptrCast(&digests),
-            .flags = @ptrCast(&marks),
+            .flags = marks,
             .count = packages.len,
             .limit = std.math.maxInt(usize),
         },

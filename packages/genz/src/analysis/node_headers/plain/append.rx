@@ -10,9 +10,47 @@
         <Return value={$ctx.check} />
     </If>
 
-    <Call fn="write" in={$in} />
+    <Call
+        fn="model.reserve"
+        in={{
+            allocator: $in.allocator,
+            groups: $in.groups,
+            index: 0,
+            count: $in.count
+        }}
+    />
 
-    <If on={$ctx.write}>
+    <If on={$in.borrowed}>
+        <Call
+            fn="model.copy"
+            in={{
+                allocator: $in.allocator,
+                groups: $in.groups,
+                index: 0,
+                first: 0,
+                count: $in.count
+            }}
+        />
+
+        <If on={!$ctx.copy}>
+            <Return value={Headers.Check.Exhausted} />
+        </If>
+
+        <Call
+            fn="model.publish"
+            in={{
+                groups: $in.groups,
+                index: 0,
+                count: $in.count
+            }}
+        />
+
+        <Return value={Headers.Check.Valid} />
+    </If>
+
+    <Call fn="append_owned" in={$in} />
+
+    <If on={$ctx.append_owned}>
         <Return value={Headers.Check.Valid} />
     </If>
 

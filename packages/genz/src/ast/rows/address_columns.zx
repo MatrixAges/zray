@@ -1,0 +1,22 @@
+import emptyExpressions from "../expressions/empty"
+import emptyForms from "../expressions/forms/empty"
+
+import type { AstFieldAddressRows } from "ast_rows"
+import type { Columns } from "./expression_columns"
+
+export type Input = AstFieldAddressRows
+
+export type Output = Columns
+
+export default function (in: Input): Output {
+    return {
+        rows: {
+            ...emptyExpressions({}),
+            ...in.omit(["address_of"])
+        },
+        forms: {
+            ...emptyForms({}),
+            address_of: in.address_of
+        }
+    }
+}

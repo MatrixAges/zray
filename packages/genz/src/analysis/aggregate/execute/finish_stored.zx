@@ -1,6 +1,6 @@
 import integers from "std:integer"
 import {
-    appendAstBlockRows,
+    appendExpressionRows,
     appendStatementRows,
     AstPayloadOwnership,
     readAstOrigin
@@ -65,7 +65,14 @@ export default function (in: Input): Output {
     })
 
     appendStatementRows(writer, break_statements, null, AstPayloadOwnership.Borrowed)
-    appendAstBlockRows(writer, block_expressions.block, block_expressions.conditionals)
+
+    appendExpressionRows(
+        writer,
+        block_expressions.block,
+        block_expressions.conditionals,
+        AstPayloadOwnership.Borrowed
+    )
+
     host.finishGeneratedAst(frame, planned.serial, false)
 
     return planned.root

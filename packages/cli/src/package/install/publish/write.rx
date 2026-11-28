@@ -33,12 +33,16 @@
     </If>
 
     <Call
-        fn="../effects.publishMapping"
-        in={[
-            $in.session,
-            $ctx.renderInstallation.digest,
-            $ctx.renderInstallation.mapping
-        ]}
+        fn="artifacts"
+        in={{
+            root: $in.root,
+            rendered: $ctx.renderInstallation
+        }}
+    />
+
+    <Call
+        module="../../../workspace_files/write_bytes"
+        in={$ctx.artifacts.mapping}
     />
 
     <If on={$in.reuse}>
@@ -60,11 +64,8 @@
 
         <Else>
             <Call
-                fn="../effects.publishLock"
-                in={[
-                    $in.session,
-                    $ctx.renderInstallation.lock
-                ]}
+                module="../../../workspace_files/write_bytes"
+                in={$ctx.artifacts.lock}
             />
         </Else>
     </If>

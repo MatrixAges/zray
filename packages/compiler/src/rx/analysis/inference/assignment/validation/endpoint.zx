@@ -3,12 +3,11 @@ import integers from "std:integer"
 import representative from "../../forest/borrowed_root"
 import { Kind } from "../../unification/model"
 
-import type { U32Buffer } from "memory"
 import type { Graph } from "../../optional/model"
 
 export type Input = {
     graph: Graph,
-    parents: U32Buffer,
+    parents: u32[],
     value: u32
 }
 

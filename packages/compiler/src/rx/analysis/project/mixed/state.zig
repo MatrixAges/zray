@@ -44,9 +44,32 @@ pub fn init(allocator: std.mem.Allocator, backing: std.mem.Allocator, graph: Sou
 
     if (comptime generated) {
         const rule = @import("generated_rx_open_mixed_state");
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const Command = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
 
-        rule.executeIn(empty.allocator(), @ptrCast(&opening)) catch |err| return switch (err) {
+        const Host = struct {
+            opening: *const Opening,
+            store_0: *Command,
+            pub fn commit(host: *@This(), pending: rule.zx_pending) Error!void {
+                const command = pending.store_0 orelse return;
+                const state = host.opening;
+
+                switch (command.step) {
+                    .Types => try state.installTypes(),
+                    .Natives => try state.installNatives(),
+                    .Results => try state.openResults(),
+                    .Origins => try state.installOrigins(),
+                    .Signatures => try state.installSignatures(),
+                }
+            }
+        };
+
+        const initial: std.meta.Child(Command) = .{ .step = .Types };
+        var command: Command = &initial;
+        var host: Host = .{ .opening = &opening, .store_0 = &command };
+        var buffer: [512]u8 = undefined;
+        var scratch = std.heap.BufferFirstAllocator.init(&buffer, self.scratch.allocator());
+
+        rule.executeIn(scratch.allocator(), {}, &host) catch |err| return switch (err) {
             error.OutOfMemory => error.OutOfMemory,
             error.InvalidSourceGraph => error.InvalidSourceGraph,
             else => unreachable,
@@ -65,13 +88,9 @@ pub fn init(allocator: std.mem.Allocator, backing: std.mem.Allocator, graph: Sou
 const Opening = struct {
     state: *Self,
     types: *const ir.TypeTable,
-    fn borrow(handle: *const anyopaque) *const Opening {
-        return @ptrCast(@alignCast(handle));
-    }
     fn installTypes(self: *const Opening) std.mem.Allocator.Error!void {
         self.state.types.items = try frontend.type_table.storage(self.state.allocator, self.types.*);
     }
-
     fn installNatives(self: *const Opening) std.mem.Allocator.Error!void {
         self.state.native_modules = try frontend.native_context.storage(self.state.allocator, self.state.options.context.native_modules);
     }
@@ -104,26 +123,6 @@ const Opening = struct {
         }});
     }
 };
-
-pub fn installMixedTypes(handle: *const anyopaque) std.mem.Allocator.Error!void {
-    try Opening.borrow(handle).installTypes();
-}
-
-pub fn installMixedNatives(handle: *const anyopaque) std.mem.Allocator.Error!void {
-    try Opening.borrow(handle).installNatives();
-}
-
-pub fn openMixedResults(handle: *const anyopaque) std.mem.Allocator.Error!void {
-    try Opening.borrow(handle).openResults();
-}
-
-pub fn installMixedOrigins(handle: *const anyopaque) Error!void {
-    try Opening.borrow(handle).installOrigins();
-}
-
-pub fn installMixedSignatures(handle: *const anyopaque) std.mem.Allocator.Error!void {
-    try Opening.borrow(handle).installSignatures();
-}
 
 pub fn destination(self: *Self) frontend.project.artifact.program_link.Destination {
     return .{ .allocator = self.allocator, .temporary = self.scratch.allocator(), .types = &self.types, .functions = &self.functions, .native_modules = &self.native_modules };

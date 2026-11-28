@@ -51,11 +51,12 @@
     />
 
     <Call
-        fn="rows.appendAstBlockRows"
+        fn="rows.appendExpressionRows"
         in={[
             $in.writer,
             $ctx.block_rows.block,
-            $ctx.block_rows.conditionals
+            $ctx.block_rows.conditionals,
+            AST.AstPayloadOwnership.Borrowed
         ]}
     />
 

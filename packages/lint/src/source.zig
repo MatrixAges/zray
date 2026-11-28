@@ -1,6 +1,16 @@
 const std = @import("std");
 const zx = @import("zx");
-const spacing = @import("spacing.zig");
+const spacing = @import("source/boundaries.zig");
+
+pub const Edit = struct {
+    span: zx.Span,
+    replacement: []const u8,
+};
+
+pub fn formatEdits(allocator: std.mem.Allocator, source: []const u8, edits: []const Edit) std.mem.Allocator.Error![]u8 {
+    return @import("lint_source").formatEdits(allocator, source, edits);
+}
+
 const Header = zx.syntax.header;
 pub const formatting_required = "import order, blank lines or indentation require formatting";
 

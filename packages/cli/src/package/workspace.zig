@@ -239,7 +239,7 @@ fn read(io: std.Io, result: *Result, path: []const u8, inputs: ?*Inputs, manifes
     const relative = try std.fs.path.relative(allocator, result.root, null, result.root, file.physical);
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
-    const within = rules.workspace_manifest_within.executeValue(scratch.allocator(), &.{
+    const within = rules.workspace_manifest_within.executeValue(scratch.allocator(), .{
         .path = relative,
         .absolute = std.fs.path.isAbsolute(relative),
     }) catch unreachable;

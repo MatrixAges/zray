@@ -1,18 +1,10 @@
-export type U8Buffer = mutable_opaque
 export type AtomicRows = opaque
-export type StreamReader = mutable_opaque
-export type U32Buffer = mutable_opaque
 export type U32View = opaque
 export type U64View = opaque
 
-export type U64Buffer = mutable_opaque
-export type StringBuffer = mutable_opaque
-export type U8ListBuffer = mutable_opaque
 export type NamedRows = opaque
 export type NamedColumns = opaque
-export type NamedRowViewBuffer = mutable_opaque
 export type TextSlots = mutable_opaque
-export type OptionalTextSlots = mutable_opaque
 
 export type Allocator = opaque
 
@@ -21,7 +13,6 @@ export type ReadColumn = opaque
 export type ListColumn = opaque
 export type OptionalListColumn = opaque
 export type WriteColumn = mutable_opaque
-export type ColumnRanges = mutable_opaque
 export type ColumnLengths = opaque
 export type ColumnTransfers = opaque
 export type TransferGroup = opaque

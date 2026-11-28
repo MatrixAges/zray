@@ -1,6 +1,5 @@
 export type Toolchain = opaque
 
-export declare function resolveExecutable(toolchain: Toolchain, path: string): string throws { ToolchainHostFailure }
 export declare function lockCache(toolchain: Toolchain, parent: string, path: string): void throws {
     ToolchainHostFailure
 }

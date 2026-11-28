@@ -1,7 +1,8 @@
 export {
     appendAstBindingRows,
     appendAstObjectFields,
-    appendAstOperandRows,
+    appendExpressionRows,
+    AstPayloadOwnership,
     retainAstIds
 } from "ast_rows"
 export { finishGeneratedAst, retainLoweringText } from "lowering_host"

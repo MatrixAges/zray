@@ -2,7 +2,6 @@ import integers from "std:integer"
 import { scalar_void } from "core/type_table/const"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
-import host from "hardware_graph_host"
 import memory from "memory"
 import columns from "memory/columns"
 
@@ -20,9 +19,10 @@ export default function (in: Input): Output {
 
     return loop({
         stack: in.stack,
-        leaf
+        leaf,
+        valid: true
     }, {
-        while: state => state.leaf == null && state.stack.length != 0,
+        while: state => state.valid && state.leaf == null && state.stack.length != 0,
         next: state => {
             const position = state.stack.length - 1
             const frame = state.stack[position]
@@ -93,16 +93,16 @@ export default function (in: Input): Output {
                     if (
                         text != null || values.length / value_layout.width != count
                     ) {
-                        host.rejectHardwareTerm()
-                    }
-
-                    state.stack[position] = {
-                        ...frame,
-                        children: {
-                            object: shape == Kind.Object,
-                            first: integers.widen(types.first[row]),
-                            count,
-                            next: 0
+                        state.valid = false
+                    } else {
+                        state.stack[position] = {
+                            ...frame,
+                            children: {
+                                object: shape == Kind.Object,
+                                first: integers.widen(types.first[row]),
+                                count,
+                                next: 0
+                            }
                         }
                     }
                 } else {
@@ -118,7 +118,7 @@ export default function (in: Input): Output {
                             )
 
                         if (text == null) {
-                            host.rejectHardwareTerm()
+                            state.valid = false
                         } else {
                             const port = portType({
                                 types,
@@ -126,13 +126,13 @@ export default function (in: Input): Output {
                             })
 
                             if (port.width == 0) {
-                                host.rejectHardwareTerm()
-                            }
-
-                            state.leaf = {
-                                path: frame.path,
-                                expression: text,
-                                ...port
+                                state.valid = false
+                            } else {
+                                state.leaf = {
+                                    path: frame.path,
+                                    expression: text,
+                                    ...port
+                                }
                             }
                         }
                     }

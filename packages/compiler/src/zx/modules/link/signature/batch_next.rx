@@ -37,18 +37,7 @@
                     input: $ctx.bind.input_type,
                     output: $ctx.bind.output_type,
                     native_module: $ctx.bind.native_id
-                },
-                empty: $in.source.empty,
-                destination: $in.source.destination
-            }}
-        />
-
-        <Call
-            fn="../../../../core/column_set/signature_view"
-            in={{
-                storage: $in.source.read_columns,
-                view: $in.source.snapshot,
-                shape: $in.source.linked_shape
+                }
             }}
         />
 
@@ -64,7 +53,6 @@
             value={{
                 ...$in,
                 ids: $ctx.reuse,
-                linked: $ctx.signature_view,
                 index: $in.index + 1,
                 running: $in.index + 1 < $in.source.signatures.files.length
             }}

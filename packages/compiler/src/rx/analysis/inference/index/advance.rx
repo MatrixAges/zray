@@ -1,15 +1,16 @@
 <Module>
     <Type from="workflow" as="Indexes" />
     <Type from="model" as="Model" />
+    <Type from="../solve/replay_effect" as="Effect" />
 
     <Args in={Indexes.Cursor} out={Indexes.Cursor} />
+
+    <Store from="../solve/replay" as="replay" />
 
     <Call
         fn="replay"
         in={{
             ...$in.request.omit([
-                "frame",
-                "owner",
                 "spans",
                 "index_spans"
             ]),
@@ -29,11 +30,12 @@
 
         <Case value={Model.Action.Resolved}>
             <Call
-                fn="../solve/host.markSolverIndexResolved"
-                in={[
-                    $in.request.frame,
-                    $ctx.replay.row
-                ]}
+                fn="../solve/stage_replay"
+                in={{
+                    step: Effect.Step.MarkIndexResolved,
+                    row: $ctx.replay.row
+                }}
+                setter={[$store.replay.effect]}
             />
         </Case>
 
@@ -42,7 +44,6 @@
                 module="apply"
                 in={{
                     site: {
-                        graph: $in.request.owner,
                         spans: $in.request.spans,
                         row: $ctx.replay.row
                     },
@@ -57,15 +58,22 @@
 
             <If on={$ctx.apply}>
                 <Call
-                    fn="../solve/host.markSolverIndexResolved"
-                    in={[
-                        $in.request.frame,
-                        $ctx.replay.row
-                    ]}
+                    fn="../solve/stage_replay"
+                    in={{
+                        step: Effect.Step.MarkIndexResolved,
+                        row: $ctx.replay.row
+                    }}
+                    setter={[$store.replay.effect]}
                 />
             </If>
 
-            <Call fn="../solve/host.refreshSolverIndexes" in={$in.request.frame} />
+            <Call
+                fn="../solve/stage_replay"
+                in={{
+                    step: Effect.Step.RefreshIndexes
+                }}
+                setter={[$store.replay.effect]}
+            />
         </Case>
     </Switch>
 

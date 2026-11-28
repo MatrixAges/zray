@@ -3,7 +3,6 @@
 
     <Args in={Partition.Input} out={Partition.Output} />
 
-    <Call fn="host.scanPartitionBodies" in={$in.workers} />
     <Call fn="../scanning/batch" in={$in.support} />
 
     <If on={$ctx.batch.status != Partition.Status.Valid}>
@@ -19,12 +18,10 @@
     <Call
         module="../layout/plan"
         in={{
-            ...$ctx.scanPartitionBodies,
             ...$ctx.support,
-            ...$in.pick([
-                "paths",
-                "sizes",
-                "count"
+            ...$in.omit([
+                "files",
+                "support"
             ])
         }}
     />

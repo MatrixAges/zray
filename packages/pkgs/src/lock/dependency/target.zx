@@ -26,7 +26,7 @@ export default function (in: Input): Output {
     const { flags, names, paths, versions, limit } = packages
 
     const spec = parse(requirement)
-    const local = memory.readU8(flags, target) == workspace_root
+    const local = flags[target] == workspace_root
 
     if (spec.kind == Kind.External) {
         if (local || name != memory.readTextColumn(names, target)) {
@@ -40,7 +40,7 @@ export default function (in: Input): Output {
         })
     }
 
-    if (!local || memory.readU8(flags, row) != workspace_root) {
+    if (!local || flags[row] != workspace_root) {
         return Status.InvalidLockWorkspaceTarget
     }
 
@@ -48,15 +48,10 @@ export default function (in: Input): Output {
         return Status.InvalidLockWorkspaceTarget
     }
 
-    if (spec.kind == Kind.Path) {
-        const owner = memory.readTextColumn(paths, row)
+    const { path, range } = spec
 
-        const path =
-            memory.borrowTextRange(
-                requirement,
-                spec.body,
-                requirement.length - spec.body
-            )
+    if (path != null) {
+        const owner = memory.readTextColumn(paths, row)
 
         const valid = validPath({
             owner,
@@ -77,25 +72,16 @@ export default function (in: Input): Output {
         return same ? Status.Valid : Status.InvalidLockWorkspaceTarget
     }
 
-    const wanted = match spec.kind {
-        Kind.Alias =>
-            memory.borrowTextRange(requirement, spec.body, spec.range - spec.body - 1),
-        _ => name
-    }
+    const wanted = spec.alias ?? name
 
     if (wanted != memory.readTextColumn(names, target)) {
         return Status.InvalidLockWorkspaceTarget
     }
 
-    if (spec.constrained) {
+    if (range != null) {
         return checkVersion({
             version: memory.readTextColumn(versions, target),
-            range:
-                memory.borrowTextRange(
-                    requirement,
-                    spec.range,
-                    requirement.length - spec.range
-                ),
+            range,
             limit
         })
     }

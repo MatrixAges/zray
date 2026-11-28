@@ -7,6 +7,7 @@ export default function (in: Input, {
 }): Output {
     $store.task.effect = {
         ...in,
+        result_row: 0,
         id: 0
     }
 }

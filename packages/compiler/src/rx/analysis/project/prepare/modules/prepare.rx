@@ -3,45 +3,62 @@
 
     <Args in={Preparation.Run} out={Preparation.Run} />
 
-    <Call
-        fn="host.beginPreparedModule"
-        in={[
-            $in.state,
-            $in.row
-        ]}
-    />
+    <Store from="publication" as="publication" />
 
-    <Call
-        fn="host.prepareModuleStores"
-        in={[
-            $in.state,
-            $in.row
-        ]}
-    />
+    <Task name="begin">
+        <Call
+            fn="publish"
+            in={{
+                step: Preparation.Step.Begin,
+                row: $in.row
+            }}
+            setter={[$store.publication.command]}
+        />
+    </Task>
 
-    <Call
-        fn="host.prepareModuleFlow"
-        in={[
-            $in.state,
-            $in.row
-        ]}
-    />
+    <Task name="stores">
+        <Call
+            fn="publish"
+            in={{
+                step: Preparation.Step.Stores,
+                row: $in.row
+            }}
+            setter={[$store.publication.command]}
+        />
+    </Task>
 
-    <Call
-        fn="host.prepareModuleImports"
-        in={[
-            $in.state,
-            $in.row
-        ]}
-    />
+    <Task name="flow">
+        <Call
+            fn="publish"
+            in={{
+                step: Preparation.Step.Flow,
+                row: $in.row
+            }}
+            setter={[$store.publication.command]}
+        />
+    </Task>
 
-    <Call
-        fn="host.publishPreparedModule"
-        in={[
-            $in.state,
-            $in.row
-        ]}
-    />
+    <Task name="imports">
+        <Call
+            fn="publish"
+            in={{
+                step: Preparation.Step.Imports,
+                row: $in.row
+            }}
+            setter={[$store.publication.command]}
+        />
+    </Task>
+
+    <Task name="publish">
+        <Call
+            fn="publish"
+            in={{
+                step: Preparation.Step.Publish,
+                row: $in.row
+            }}
+            setter={[$store.publication.command]}
+        />
+    </Task>
 
     <Return
         value={{

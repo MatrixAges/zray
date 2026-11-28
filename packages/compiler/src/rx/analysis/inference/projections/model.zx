@@ -1,10 +1,8 @@
-import type { ConstraintRound, ProjectionGraph, ProjectionSpans } from "rx_project_host"
 import type { Input as Scan } from "./length"
+import type { SpanSource } from "./site"
 
 export type Replay = Scan.Omit("start") & {
-    frame: ConstraintRound,
-    owner: ProjectionGraph,
-    spans: ProjectionSpans
+    spans: SpanSource
 }
 
 export type Cursor = {

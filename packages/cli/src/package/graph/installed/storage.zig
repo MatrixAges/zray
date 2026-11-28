@@ -1,6 +1,5 @@
 const std = @import("std");
 const abi = @import("cli_abi").layouts.@"zig:package_graph_host";
-const pkgs = @import("pkgs");
 const files = @import("../../install/files.zig");
 const model = @import("../../install/model.zig");
 const host = @import("../host.zig");
@@ -74,11 +73,4 @@ pub fn readInstalledArchive(allocator: std.mem.Allocator, handle: *const anyopaq
     self.installed[row] = .{ .path = path, .manifest = data };
 
     return true;
-}
-
-pub fn matchWorkspaceMember(handle: *const anyopaque, ordinal: u64, relative: []const u8) ?u64 {
-    const self = host.Context.get(handle);
-    const row = pkgs.workspace.manifest.memberAt(self.members, @intCast(ordinal), relative) orelse return null;
-
-    return row;
 }

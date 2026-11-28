@@ -84,20 +84,8 @@ pub fn renderInstallation(handle: *const anyopaque, paths: []const []const u8) E
     return view;
 }
 
-pub fn publishMapping(handle: *const anyopaque, digest: []const u8, mapping: []const u8) Error!void {
-    const self = Context.get(handle);
-
-    files.writeMapping(self.io, self.allocator, self.root, digest, mapping) catch |err| return self.fail(err);
-}
-
 pub fn lockUnchanged(handle: *const anyopaque, lock: []const u8) Error!bool {
     const self = Context.get(handle);
 
     return files.lockUnchanged(self.io, self.allocator, self.root, lock) catch |err| self.fail(err);
-}
-
-pub fn publishLock(handle: *const anyopaque, lock: []const u8) Error!void {
-    const self = Context.get(handle);
-
-    files.writeLock(self.io, self.allocator, self.root, lock) catch |err| return self.fail(err);
 }

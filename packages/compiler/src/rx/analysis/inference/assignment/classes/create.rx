@@ -7,7 +7,6 @@
     <Call
         module="payload/run"
         in={{
-            frame: $in.frame,
             view: $in.view,
             initial_count: $in.nodes.kinds.length
         }}

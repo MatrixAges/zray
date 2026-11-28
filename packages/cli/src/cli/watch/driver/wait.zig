@@ -3,19 +3,13 @@ const interrupt = @import("../interrupt.zig");
 const storage = @import("storage.zig");
 const State = storage.State;
 const Error = storage.Error;
-const constants = @import("cli_source").watch_constants.@"zx.constants";
 
 pub fn interrupted(_: *const anyopaque) bool {
     return interrupt.requested();
 }
 
-pub fn delay(handle: *const anyopaque, interval: @import("cli_abi").native.@"zig:watch_host".Delay) Error!void {
+pub fn delay(handle: *const anyopaque, milliseconds: u64) Error!void {
     const self = State.get(handle);
-
-    const milliseconds = switch (interval) {
-        .Poll => constants.poll_delay_ms,
-        .Retry => constants.retry_delay_ms,
-    };
 
     std.Io.sleep(self.io, .fromMilliseconds(@intCast(milliseconds)), .awake) catch |err| return self.fail(err);
 }

@@ -1,7 +1,17 @@
-import type { ModulePreparation } from "rx_project_host"
+export enum Step {
+    Begin,
+    Stores,
+    Flow,
+    Imports,
+    Publish
+}
 
 export type Run = {
-    state: ModulePreparation,
     row: u64,
     count: u64
+}
+
+export type Command = {
+    step: Step,
+    row: u64
 }

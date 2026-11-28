@@ -1,11 +1,6 @@
 import type { Rows as Constants } from "core/constant/rows"
 import type { ReadColumn, TextColumn } from "memory"
-import type {
-    ColumnSet,
-    ColumnView,
-    LinkedPortColumns,
-    ListProjection
-} from "memory/columns"
+import type { ListProjection } from "memory/columns"
 import type { Aliases, Bindings, Checks, SignatureColumns, Status } from "../model"
 
 export type Codes = {
@@ -54,15 +49,8 @@ export type Walk = {
     intrinsic_name: string
 }
 
-export type Views = {
-    linked_columns: ColumnSet,
-    linked_view: ColumnView,
-    linked_shape?: LinkedPortColumns
-}
-
 export type Input = {
     walk: Walk,
-    views: Views,
     functions: u32?[]
 }
 

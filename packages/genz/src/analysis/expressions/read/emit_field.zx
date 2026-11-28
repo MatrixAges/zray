@@ -1,8 +1,9 @@
 import {
-    appendAstAccessRows,
+    appendExpressionRows, AstPayloadOwnership,
     astExpressionCount
 } from "ast_rows"
 
+import accessColumns from "../../../ast/rows/access_columns"
 import field from "../../access/field"
 
 import type { AstWriter } from "ast_rows"
@@ -23,15 +24,21 @@ export default function (in: Input): Output {
         name: in.name
     })
 
-    appendAstAccessRows(
-        in.writer,
-        {
+    const columns = accessColumns({
+        rows: {
             ...rows,
             dereference: [],
             optional_unwrap: [],
             builtin_name: []
         },
-        []
+        arguments: []
+    })
+
+    appendExpressionRows(
+        in.writer,
+        columns.rows,
+        columns.forms,
+        AstPayloadOwnership.Borrowed
     )
 
     return root

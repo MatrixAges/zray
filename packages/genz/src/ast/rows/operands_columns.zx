@@ -1,0 +1,34 @@
+import emptyExpressions from "../expressions/empty"
+import emptyForms from "../expressions/forms/empty"
+
+import type { AstOperandRows } from "ast_rows"
+import type { Columns } from "./expression_columns"
+
+export type Input = AstOperandRows
+
+export type Output = Columns
+
+export default function (in: Input): Output {
+    return {
+        rows: {
+            ...emptyExpressions({}),
+            ...in.pick([
+                "tags",
+                "offsets",
+                "identifier",
+                "builtin_name",
+                "builtin_arguments"
+            ])
+        },
+        forms: {
+            ...emptyForms({}),
+            ...in.pick([
+                "tuple",
+                "address_of",
+                "object_type_expr",
+                "object_fields_start",
+                "object_fields_len"
+            ])
+        }
+    }
+}

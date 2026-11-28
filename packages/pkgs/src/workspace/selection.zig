@@ -77,22 +77,6 @@ pub fn find(spec: workspace.Specifier, packages: []const Lock.Package, owner: us
 
     try workspace.checkOwner(spec, path);
 
-    if (spec == .named) {
-        var start: usize = 0;
-
-        while (start < packages.len) {
-            const view = Members.locked(packages[start..]);
-            const position = try view.search(.Name, spec.named.name, path, null, &.{}) orelse break;
-            const row = start + position;
-
-            if (packages[row].source == .workspace and try workspace.matches(spec, path, packages[row])) return row;
-
-            start = row + 1;
-        }
-
-        return error.InvalidLockWorkspaceTarget;
-    }
-
     var window: LockRows = .{};
     var first: usize = 0;
 
@@ -109,4 +93,12 @@ pub fn find(spec: workspace.Specifier, packages: []const Lock.Package, owner: us
     }
 
     return error.InvalidLockWorkspaceTarget;
+}
+
+pub fn matches(spec: workspace.Specifier, owner: []const u8, target: Lock.Package) !bool {
+    if (spec == .path) _ = target.source.workspace;
+
+    const member = Members.locked(&.{target});
+
+    return (try member.lookup(spec, owner, &.{})) != null;
 }

@@ -1,19 +1,24 @@
-import memory from "memory"
-
-import root from "./root"
-
-import type { U32Buffer } from "memory"
+import integers from "std:integer"
 
 export type Input = {
-    parents: U32Buffer,
+    parents: u32[],
     value: u32
 }
 
 export type Output = u32
 
 export default function (in: Input): Output {
-    return root({
-        value: in.value,
-        parents: memory.u32Views(in.parents)
+    const { parents, value } = in
+
+    return loop({
+        value,
+        parent: parents[integers.widen(value)]
+    }, {
+        while: state => state.value != state.parent,
+        next: state => {
+            state.value = state.parent
+            state.parent = parents[integers.widen(state.value)]
+        },
+        return: state => state.value
     })
 }

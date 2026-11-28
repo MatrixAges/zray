@@ -4,7 +4,7 @@ export {
     writeStageArtifact,
     writeStageFile,
     writeStageManifest,
-    writeStageBuild,
+    renderStageBuild,
     collectStageInventory,
     writeStageInventory
 } from "library_stage_host"

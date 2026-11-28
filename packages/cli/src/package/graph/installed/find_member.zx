@@ -1,0 +1,63 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import type { Members } from "../model"
+
+export type Input = Members & {
+    ordinal: u64,
+    relative: string
+}
+
+export type Output = u64?
+
+export default function (in: Input): Output {
+    const { member_paths, member_count, ordinal, relative } = in
+
+    if (
+        ordinal < member_count &&
+            memory.readTextColumn(member_paths, ordinal) == relative
+    ) {
+        return ordinal
+    }
+
+    const target = bytes.fromText(relative)
+
+    const position = loop({
+        first: 0,
+        end: member_count
+    }, {
+        while: state => state.first < state.end,
+        next: state => {
+            const center = state.first + (state.end - state.first) / 2
+            const candidate = memory.readTextColumn(member_paths, center)
+
+            if (bytes.lessThan(bytes.fromText(candidate), target)) {
+                state.first = center + 1
+            } else {
+                state.end = center
+            }
+        },
+        return: state => state.first
+    })
+
+    if (position < member_count) {
+        if (memory.readTextColumn(member_paths, position) == relative) {
+            return position
+        }
+    }
+
+    return loop({
+        row: 0,
+        found: false
+    }, {
+        while: state => !state.found && state.row < member_count,
+        next: state => {
+            state.found = memory.readTextColumn(member_paths, state.row) == relative
+
+            if (!state.found) {
+                state.row += 1
+            }
+        },
+        return: state => state.found ? state.row : null
+    })
+}

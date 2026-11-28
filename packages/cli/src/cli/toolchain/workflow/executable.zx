@@ -1,0 +1,11 @@
+import { resolvePublicationPath } from "publication_host"
+
+export type Input = string
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const [failure, path] = try resolvePublicationPath(in, false)
+
+    return failure == null ? path : null
+}

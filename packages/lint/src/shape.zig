@@ -2,22 +2,13 @@ const std = @import("std");
 const zx = @import("zx");
 const syntax = zx.syntax.borrow;
 
-pub fn separation(source: []const u8, left: anytype, right: @TypeOf(left)) ?bool {
-    if (multiline(source, left.span) or multiline(source, right.span)) return true;
-    if (std.meta.activeTag(left.value) != std.meta.activeTag(right.value)) return true;
-
-    const same = switch (left.value) {
+pub fn sameStatement(left: anytype, right: @TypeOf(left)) bool {
+    return switch (left.value) {
         .constant => |binding| sameType(binding.annotation, right.value.constant.annotation) and sameExpression(binding.value, right.value.constant.value),
         .destructure => |binding| sameExpression(binding.value, right.value.destructure.value),
         .store_set => |setter| sameExpression(setter.target, right.value.store_set.target) and sameExpression(setter.value, right.value.store_set.value),
         else => false,
     };
-
-    return if (same) false else null;
-}
-
-pub fn multiline(source: []const u8, span: zx.Span) bool {
-    return std.mem.indexOfScalar(u8, source[span.start..span.end], '\n') != null;
 }
 
 fn sameExpression(left: anytype, right: @TypeOf(left)) bool {

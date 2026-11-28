@@ -1,6 +1,7 @@
 import {
     appendAstBindingRows,
-    appendAstIdentifierRows,
+    AstPayloadOwnership,
+    appendExpressionRows,
     readAstOrigin
 } from "ast_rows"
 import host from "lowering_host"
@@ -41,7 +42,7 @@ export default function (in: Input): Output {
     })
 
     appendAstBindingRows(writer, sequence, rows.statements)
-    appendAstIdentifierRows(writer, rows.expressions)
+    appendExpressionRows(writer, rows.expressions, null, AstPayloadOwnership.Borrowed)
     host.finishGeneratedAst(frame, bound.serial, false)
 
     return bound.root

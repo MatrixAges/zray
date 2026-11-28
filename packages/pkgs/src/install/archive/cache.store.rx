@@ -1,0 +1,6 @@
+<Store name="installed_archive_index" version={1}>
+    <Object name="state">
+        <Field name="buckets" type={u32[]} value={[]} />
+        <Field name="indexed" type={u64} value={0} />
+    </Object>
+</Store>

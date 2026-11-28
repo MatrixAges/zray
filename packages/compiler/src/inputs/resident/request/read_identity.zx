@@ -1,19 +1,16 @@
 import memory from "memory"
 
-import readText from "../read_text"
+import type { Identity as Output, RequestFrame } from "../model"
 
-import type { Identity as Output, Reader as Input } from "../model"
+export type Input = RequestFrame.Pick("identity", "path")
 
 export default function (in: Input): Output {
-    const size = memory.takeU64Le(in)
-    const mtime_low = memory.takeU64Le(in)
-    const mtime_high = memory.takeU64Le(in)
-    const path = readText(in)
+    const { identity, path } = in
 
     return {
-        size,
-        mtime_low,
-        mtime_high,
+        size: memory.readU64Bytes(identity, 0, true),
+        mtime_low: memory.readU64Bytes(identity, 8, true),
+        mtime_high: memory.readU64Bytes(identity, 16, true),
         path
     }
 }

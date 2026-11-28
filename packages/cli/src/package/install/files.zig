@@ -48,21 +48,11 @@ pub fn render(allocator: std.mem.Allocator, prepared: @import("model.zig").Prepa
     return .{ .lock = source, .mapping = mapping, .digest = digest };
 }
 
-pub fn writeMapping(io: std.Io, allocator: std.mem.Allocator, root: []const u8, digest: []const u8, mapping: []const u8) !void {
-    try write(io, try mapPath(allocator, root, digest), mapping);
-}
-
 pub fn lockUnchanged(io: std.Io, allocator: std.mem.Allocator, root: []const u8, source: []const u8) !bool {
     const path = try std.fs.path.join(allocator, &.{ root, "pkg.lock.json" });
     const current = try read(io, allocator, path, null);
 
     return std.mem.eql(u8, current, source);
-}
-
-pub fn writeLock(io: std.Io, allocator: std.mem.Allocator, root: []const u8, source: []const u8) !void {
-    const path = try std.fs.path.join(allocator, &.{ root, "pkg.lock.json" });
-
-    try write(io, path, source);
 }
 
 fn mapPath(allocator: std.mem.Allocator, root: []const u8, digest: []const u8) ![]const u8 {
@@ -85,13 +75,4 @@ fn read(io: std.Io, allocator: std.mem.Allocator, path: []const u8, inputs: ?*In
     if (inputs) |observed| try observed.record(io, path, source);
 
     return source;
-}
-
-fn write(io: std.Io, path: []const u8, content: []const u8) !void {
-    var file = try std.Io.Dir.cwd().createFileAtomic(io, path, .{ .make_path = true, .replace = true });
-
-    defer file.deinit(io);
-
-    try file.file.writeStreamingAll(io, content);
-    try file.replace(io);
 }

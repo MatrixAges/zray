@@ -1,6 +1,5 @@
 <Module>
     <Type from="workflow" as="Model" />
-    <Type from="index" as="Host" />
 
     <Args in={Model.BindingWalk} out={Model.BindingWalk} />
 
@@ -23,16 +22,16 @@
         }}
     />
 
-    <If on={$ctx.bind != null}>
+    <If on={$ctx.bind.resolved != null}>
         <Call
             fn="index.writeNativeScopeDeclaration"
             in={[
                 $in.binding.window.frame,
                 $ctx.declaration_row.row,
                 $ctx.declaration_row.external,
-                $ctx.bind.identity,
-                $ctx.bind.module,
-                $ctx.bind.copy_module
+                $ctx.bind.resolved.identity,
+                $ctx.bind.resolved.module,
+                $ctx.bind.resolved.copy_module
             ]}
         />
 
@@ -44,18 +43,10 @@
         />
     </If>
 
-    <Call
-        fn="index.requireNativeScopeAdmission"
-        in={[
-            $in.binding.window.frame,
-            Host.Admission.InvalidExternalSpecifier
-        ]}
-    />
-
     <Return
         value={{
             ...$in,
-            index: $in.index + 1
+            status: $ctx.bind.status
         }}
     />
 </Module>

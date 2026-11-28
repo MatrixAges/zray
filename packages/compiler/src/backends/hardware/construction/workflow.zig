@@ -39,11 +39,11 @@ pub fn build(comptime Graph: type, allocator: std.mem.Allocator, scratch: std.me
         .safety = model.output.safe,
     };
 
-    const graph = source.executeIn(scratch, &input) catch |err| switch (@as(anyerror, err)) {
+    const graph = (source.executeIn(scratch, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidHardwareTerm, error.IndexOutOfBounds, error.IntegerOverflow, error.Overflow => return error.InvalidHardwareTerm,
+        error.IndexOutOfBounds, error.IntegerOverflow, error.Overflow => return error.InvalidHardwareTerm,
         else => unreachable,
-    };
+    }) orelse return error.InvalidHardwareTerm;
 
     const Node = if (Graph == Circuit) node.Row else ir.Node;
     const nodes = try allocator.alloc(Node, graph.nodes.len);
@@ -95,8 +95,4 @@ pub fn build(comptime Graph: type, allocator: std.mem.Allocator, scratch: std.me
         .outputs = outputs,
         .safe = @fromBackingInt(graph.safe),
     };
-}
-
-pub fn rejectHardwareTerm() error{InvalidHardwareTerm}!void {
-    return error.InvalidHardwareTerm;
 }

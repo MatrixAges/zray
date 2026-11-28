@@ -13,7 +13,6 @@ export {
     publishNativeScopeModule,
     publishNativeScopeNames,
     publishNativeScopeSettings,
-    requireNativeScopeAdmission,
     reserveNativeScopeDeclarations,
     reserveNativeScopeIndex,
     reserveNativeScopeInterfaces,

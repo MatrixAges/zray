@@ -38,10 +38,6 @@ pub fn lowerType(frame: *anyopaque, id: u32, in_iteration: bool) Error!u32 {
         try self.typeExpr(@fromBackingInt(id)));
 }
 
-pub fn requireLoweringContext(frame: *anyopaque) void {
-    borrow(frame).uses_context = true;
-}
-
 pub fn materializeType(frame: *anyopaque, id: u32, representation: evaluate.Api.StoredType) Error!u32 {
     return @backingInt(try @import("../../types.zig").resource(borrow(frame), @fromBackingInt(id), representation));
 }

@@ -2,14 +2,6 @@ const std = @import("std");
 const host = @import("../host.zig");
 const model = @import("../model.zig");
 
-pub fn fetchLocked(handle: *const anyopaque, row: u64) host.Error![]const u8 {
-    const self = host.Context.get(handle);
-    const package = &self.lock.?.lock.packages[@intCast(row)];
-    const source = package.source.archive;
-
-    return self.fetch(.{ .version = package.version, .archive = source.archive, .sha256 = source.sha256 }, self.root) catch |err| self.fail(err);
-}
-
 pub fn verifyLockedManifest(handle: *const anyopaque, row: u64, path: []const u8) host.Error!void {
     const self = host.Context.get(handle);
     var scratch = std.heap.ArenaAllocator.init(std.heap.smp_allocator);

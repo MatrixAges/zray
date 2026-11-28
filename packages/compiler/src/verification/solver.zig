@@ -2,8 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const frontend = @import("frontend");
 const Conditions = @import("conditions.zig");
-const Evidence = @import("solver/publication/evidence/output.zig");
-pub const writeEvidence = Evidence.write;
+const evidence_json = @import("solver/evidence.zig");
 
 pub const Options = struct {
     solver: ?[]const u8 = null,
@@ -32,12 +31,10 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
     const Request = std.meta.Child(proof.Input);
     const EvidenceInput = std.meta.Child(@FieldType(Request, "evidence"));
 
-    const evidence_sources = if (generated.value == .query)
-        try zx.columns.bridge(@FieldType(EvidenceInput, "sources"), allocator, sources)
+    const evidence = if (generated.value == .query)
+        try evidence_json.encode(EvidenceInput, allocator, sources, entry, query.inputs, &program)
     else
-        &.{};
-
-    const evidence_inputs = try bindingRows(@FieldType(EvidenceInput, "inputs"), allocator, query.inputs);
+        EvidenceInput{ .sources = "", .entry = "", .version = "", .types = "", .inputs = "", .program = "" };
 
     const input: Request = .{
         .diagnostic = if (generated.value == .diagnostic) generated.value.diagnostic.message else null,
@@ -46,13 +43,7 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
         .feasibility = query.feasibility,
         .correctness = query.correctness,
         .bindings = &.{ .symbols = @ptrCast(&symbols), .paths = @ptrCast(&paths), .count = query.inputs.len },
-        .evidence = &.{
-            .sources = evidence_sources,
-            .entry = entry,
-            .version = program.version,
-            .inputs = evidence_inputs,
-            .program = @ptrCast(&program),
-        },
+        .evidence = &evidence,
     };
 
     const report = try proof.executeIn(allocator, &input, io);
@@ -67,22 +58,4 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
         .InvalidResponse => error.InvalidSolverResponse,
         .Continue => unreachable,
     };
-}
-
-fn bindingRows(comptime Rows: type, allocator: std.mem.Allocator, inputs: []const Conditions.Input) std.mem.Allocator.Error!Rows {
-    const Row = std.meta.Child(std.meta.Elem(Rows));
-    const values = try allocator.alloc(Row, inputs.len);
-    const pointers = try allocator.alloc(*const Row, inputs.len);
-
-    for (inputs, values, pointers) |input, *row, *pointer| {
-        row.* = .{
-            .symbol = input.symbol,
-            .path = input.path,
-            .type_id = @backingInt(input.type_id),
-        };
-
-        pointer.* = row;
-    }
-
-    return pointers;
 }

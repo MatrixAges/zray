@@ -8,14 +8,10 @@ pub const native_lookup = zx.native_lookup;
 
 pub const resolveNative = native_lookup.Resolver(&.{
     @This(),
-    @import("backends/hardware/construction/workflow.zig"),
-    @import("backends/zig/library_initializers.zig"),
-    @import("backends/zig/partition/build.zig"),
     @import("verification/execution/block.zig"),
     @import("verification/execution/call.zig"),
     @import("verification/execution/context.zig"),
     @import("verification/execution/expression.zig"),
-    @import("verification/solver.zig"),
 }).resolve;
 
 pub const parallel = zx.parallel;

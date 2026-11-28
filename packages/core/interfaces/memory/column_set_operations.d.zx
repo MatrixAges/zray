@@ -1,13 +1,3 @@
-export declare function sliceColumnCount(source: SliceColumns): u64
-
-export declare function readSliceCell(
-    source: SliceColumns,
-    view: ColumnView,
-    layout: ColumnViewLayout,
-    slot: u64,
-    row: u64
-): void throws { IndexOutOfBounds }
-
 export declare function columnSetSlotCount(storage: ColumnSet): u64
 
 export declare function columnSetFirstLength(storage: ColumnSet): u64
@@ -30,68 +20,8 @@ export declare function reserveColumnCell(
     count: u64
 ): void throws { OutOfMemory }
 
-export declare function typeColumnLayout(
-    shape: TypeColumns?,
-    output: ColumnViewLayout?
-): ColumnViewLayout
-
-export declare function nominalColumnLayout(
-    shape: NominalColumns?,
-    output: ColumnViewLayout?
-): ColumnViewLayout
-
-export declare function moduleColumnLayout(
-    shape: NativeModuleColumns?,
-    output: ColumnViewLayout?
-): ColumnViewLayout
-
-export declare function signatureColumnLayout(
-    shape: LinkedSignatureColumns?,
-    output: ColumnViewLayout?
-): ColumnViewLayout
-
-export declare function linkedPortLayout(
-    shape: LinkedPortColumns?,
-    output: ColumnViewLayout?
-): ColumnViewLayout
-
-export declare function functionColumnLayout(
-    shape: Complete?,
-    output: ColumnViewLayout?
-): ColumnViewLayout
-
-export declare function readColumnCell(
-    storage: ColumnSet,
-    view: ColumnView,
-    layout: ColumnViewLayout,
-    slot: u64
-): void
-
-export declare function typeColumnView(view: ColumnView, shape: TypeColumns?): TypeColumns
-
-export declare function nominalColumnView(view: ColumnView, shape: NominalColumns?): NominalColumns
-
-export declare function moduleColumnView(view: ColumnView, shape: NativeModuleColumns?): NativeModuleColumns
-
-export declare function signatureColumnView(
-    view: ColumnView,
-    shape: LinkedSignatureColumns?
-): LinkedSignatureColumns
-
-export declare function functionColumnView(view: ColumnView, shape: Complete?): Complete
-
 export declare function borrowFunctionRecord(
     row: FunctionRow,
-    output: ColumnRecord?
-): ColumnRecord
-
-export declare function borrowSignatureRecord(
-    row: SignatureRow,
-    output: ColumnRecord?
-): ColumnRecord
-
-export declare function borrowNativeModuleRecord(
-    row: NativeModuleRow,
     output: ColumnRecord?
 ): ColumnRecord
 
@@ -112,16 +42,6 @@ export declare function emptyFunctionNativeRecord(
 
 export declare function functionRowLayout(
     shape: FunctionRow?,
-    output: ColumnRowLayout?
-): ColumnRowLayout
-
-export declare function signatureRowLayout(
-    shape: SignatureRow?,
-    output: ColumnRowLayout?
-): ColumnRowLayout
-
-export declare function nativeModuleRowLayout(
-    shape: NativeModuleRow?,
     output: ColumnRowLayout?
 ): ColumnRowLayout
 

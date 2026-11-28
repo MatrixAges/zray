@@ -53,6 +53,7 @@ export type OutputPort = {
 
 export type InputWalk = Input.Pick("inputs", "input_types", "types") & {
     row: u64,
+    valid: bool,
     ports: InputPort[],
     nodes: Row[]
 }
@@ -72,6 +73,7 @@ export type Definitions = Input.Pick("rows") & {
 export type DefinitionWalk = Definitions & {
     row: u64,
     origin_file?: string,
+    valid: bool,
     running: bool
 }
 
@@ -90,6 +92,7 @@ export type OutputWalk =
     OutputTree.Pick("graph", "variables", "types", "value_layout") & {
         stack: OutputFrame[],
         ports: OutputPort[],
+        valid: bool,
         running: bool
     }
 
@@ -102,6 +105,7 @@ export type OutputLeaf = {
 }
 
 export type OutputSearch = {
+    valid: bool,
     stack: OutputFrame[],
     leaf?: OutputLeaf
 }

@@ -30,7 +30,6 @@ export declare function formatLintRx(check: SourceLint): u8[] throws { SourceLoa
 export declare function checkLintZx(check: SourceLint): bool throws { SourceLoadFailure }
 export declare function formatLintZx(check: SourceLint): u8[] throws { SourceLoadFailure }
 
-export declare function checkSemanticManifest(check: SemanticLint): bool throws { SourceLoadFailure }
 export declare function loadSemanticProject(
     check: SemanticLint,
     manifest: bool

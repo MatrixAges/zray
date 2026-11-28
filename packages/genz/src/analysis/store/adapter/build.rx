@@ -2,9 +2,8 @@
     <Type from="execute" as="Adapter" />
     <Type from="../rows" as="AST" />
 
-    <Args in={Adapter.Input} out={u32} />
+    <Args in={Adapter.Input} out={Adapter.Output} />
 
-    <Call fn="../rows.requireLoweringContext" in={$in.frame} />
     <Call fn="../rows.readAstOrigin" in={$in.writer} />
     <Call fn="../rows.astFieldCount" in={$in.writer} />
     <Call fn="../rows.astDeclarationCount" in={$in.writer} />
@@ -80,5 +79,10 @@
         ]}
     />
 
-    <Return value={$ctx.finish.root} />
+    <Return
+        value={{
+            expression: $ctx.finish.root,
+            uses_context: true
+        }}
+    />
 </Module>

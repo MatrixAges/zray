@@ -1,5 +1,3 @@
-import type { Rows as ResultRows } from "../project/flow/traversal/select_result"
-
 export type Input = {
-    results: ResultRows
+    result_types: u32[]
 }

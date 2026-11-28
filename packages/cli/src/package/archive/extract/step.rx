@@ -68,6 +68,18 @@
                 </Case>
 
                 <Case value={Extract.Action.File}>
+                    <Call fn="parent" in={$ctx.classify_entry.path} />
+
+                    <If on={$ctx.parent != null}>
+                        <Call
+                            fn="index.makeTarDirectory"
+                            in={[
+                                $in.directory,
+                                $ctx.parent
+                            ]}
+                        />
+                    </If>
+
                     <Call
                         fn="index.writeTarFile"
                         in={[

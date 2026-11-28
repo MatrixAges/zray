@@ -1,8 +1,0 @@
-export declare function installMixedTypes(state: MixedState): void throws { OutOfMemory }
-
-export declare function installMixedNatives(state: MixedState): void throws { OutOfMemory }
-
-export declare function openMixedResults(state: MixedState): void throws { OutOfMemory }
-
-export declare function installMixedOrigins(state: MixedState): void
-    throws { OutOfMemory, InvalidSourceGraph }

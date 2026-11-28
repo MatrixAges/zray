@@ -3,9 +3,17 @@
 
     <Args in={State.Walk} out={State.Walk} />
 
-    <Call fn="index.sourceCount" in={$in.discovery} />
+    <Store from="seen" as="seen" />
 
-    <If on={$in.index >= $ctx.sourceCount}>
+    <Call
+        fn="has_row"
+        in={{
+            paths: $store.seen.state.paths,
+            row: $in.index
+        }}
+    />
+
+    <If on={!$ctx.has_row}>
         <Return
             value={{
                 ...$in,

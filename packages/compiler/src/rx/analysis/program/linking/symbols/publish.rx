@@ -7,8 +7,10 @@
 
     <Return
         value={{
-            columns: $in.columns,
-            owned_text: $in.owned_text,
+            names: $in.names,
+            types: $in.types,
+            span_start: $in.span_start,
+            span_end: $in.span_end,
             ownership: $ctx.fresh
         }}
     />

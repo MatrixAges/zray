@@ -44,8 +44,11 @@ export default function (in: Input): Output {
                 state.slot = entry.slot
                 state.tag = entry.tag
 
-                if (entry.action == Action.Scan) {
+                if (entry.action == Action.Commit || entry.action == Action.Scan) {
                     state.value = entry.value
+                }
+
+                if (entry.action == Action.Scan) {
                     state.next += 1
 
                     if (state.next < in.members.length) {

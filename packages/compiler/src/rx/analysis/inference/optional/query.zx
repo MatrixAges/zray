@@ -1,5 +1,4 @@
 import type { State as Known } from "core/integer/map/model"
-import type { U32Buffer } from "memory"
 import type { Graph } from "./model"
 import type { Action } from "./payload"
 
@@ -11,7 +10,7 @@ export enum Mode {
 export type Guard = {
     graph: Graph,
     known: Known,
-    parents: U32Buffer,
+    parents: u32[],
     value: u32
 }
 

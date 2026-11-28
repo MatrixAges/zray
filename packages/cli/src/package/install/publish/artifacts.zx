@@ -1,0 +1,42 @@
+import bytes from "std:bytes"
+import { resolvePathParts } from "lexical_path"
+
+import type { Rendered } from "installation_host"
+
+export type Input = {
+    root: string,
+    rendered: Rendered
+}
+
+export type Artifact = {
+    path: string,
+    data: u8[]
+}
+
+export type Output = {
+    mapping: Artifact,
+    lock: Artifact
+}
+
+export default function (in: Input): Output {
+    const { root, rendered } = in
+
+    return {
+        mapping: {
+            path: resolvePathParts([
+                root,
+                ".zxc",
+                "packages",
+                `${rendered.digest}.json`
+            ]),
+            data: bytes.fromText(rendered.mapping)
+        },
+        lock: {
+            path: resolvePathParts([
+                root,
+                "pkg.lock.json"
+            ]),
+            data: bytes.fromText(rendered.lock)
+        }
+    }
+}

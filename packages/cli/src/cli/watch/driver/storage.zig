@@ -6,7 +6,6 @@ const Attempt = @import("../attempt.zig");
 pub const process = @import("../process.zig");
 const ParseCache = @import("compiler").project.ParseCache;
 const abi = @import("cli_abi");
-pub const Status = abi.native.@"zig:watch_host".Status;
 pub const SnapshotSlot = abi.native.@"zig:watch_host".SnapshotSlot;
 pub const ScanResult = abi.layouts.@"zig:watch_host".ScanResult;
 pub const Error = error{WatchFailure};
@@ -19,6 +18,7 @@ pub const Turn = struct {
     next_backend: std.heap.ArenaAllocator,
     attempt: Attempt = undefined,
     diagnostics: std.Io.Writer.Allocating = undefined,
+    compilation: abi.layouts.@"zig:watch_host".CompilationTurn = undefined,
     pub fn deinit(self: *Turn) void {
         self.inputs.deinit();
         self.next_backend.deinit();
@@ -108,13 +108,8 @@ pub fn flush(handle: *const anyopaque) Error!void {
     self.stdout.flush() catch |err| return self.fail(err);
 }
 
-pub fn reportDiagnostic(handle: *const anyopaque, normalize: bool, has_last: bool, last: []const u8) Error!?[]const u8 {
+pub fn writeWatchDiagnostic(handle: *const anyopaque, message: []const u8, key: []const u8) Error![]const u8 {
     const self = State.get(handle);
-    const turn = &self.turn.?;
-    const message = turn.diagnostics.written();
-    const key = if (normalize) @import("../diagnostics.zig").key(turn.arena.allocator(), message) catch |err| return self.fail(err) else message;
-
-    if (has_last and std.mem.eql(u8, key, last)) return null;
 
     _ = self.diagnostic_arena.reset(.retain_capacity);
 

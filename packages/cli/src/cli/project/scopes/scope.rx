@@ -1,7 +1,8 @@
 <Module>
     <Type from="workflow" as="Scopes" />
+    <Type from="index" as="Host" />
 
-    <Args in={Scopes.Input} out={void} />
+    <Args in={Scopes.Input} out={Host.Admission} />
 
     <Call
         fn="index.openNativeScope"
@@ -33,37 +34,34 @@
 
     <Call fn="index.checkExternals" in={$in.workspace.externals} />
 
-    <Call
-        fn="index.requireNativeScopeAdmission"
-        in={[
-            $in.frame,
-            $ctx.checkExternals
-        ]}
-    />
+    <If on={$ctx.checkExternals != Host.Admission.Valid}>
+        <Return value={$ctx.checkExternals} />
+    </If>
 
     <Call fn="index.reserveNativeScopeInterfaces" in={$in.frame} />
 
-    <Loop on={$in.row < $in.window.declarations}>
+    <Loop on={$in.status == Host.Admission.Valid && $in.row < $in.window.declarations}>
         <Call
             module="read"
             in={{
                 window: $ctx.openNativeScope,
                 interfaces: $in.workspace.interfaces,
-                row: 0
+                row: 0,
+                status: Host.Admission.Valid
             }}
         />
     </Loop>
 
+    <If on={$ctx.read.status != Host.Admission.Valid}>
+        <Return value={$ctx.read.status} />
+    </If>
+
     <Call fn="index.reserveNativeScopeIndex" in={$in.frame} />
     <Call fn="index.checkModules" in={$in.workspace.modules} />
 
-    <Call
-        fn="index.requireNativeScopeAdmission"
-        in={[
-            $in.frame,
-            $ctx.checkModules.status
-        ]}
-    />
+    <If on={$ctx.checkModules.status != Host.Admission.Valid}>
+        <Return value={$ctx.checkModules.status} />
+    </If>
 
     <Call
         fn="resolve_names"
@@ -86,16 +84,22 @@
     />
 
     <Loop
-        on={$in.index < $in.binding.window.declarations + $in.binding.window.externals}
+        on={$in.status == Host.Admission.Valid &&
+            $in.index < $in.binding.window.declarations + $in.binding.window.externals}
     >
         <Call
             module="bind_row"
             in={{
                 binding: $in.workspace.binding,
-                index: 0
+                index: 0,
+                status: Host.Admission.Valid
             }}
         />
     </Loop>
+
+    <If on={$ctx.bind_row.status != Host.Admission.Valid}>
+        <Return value={$ctx.bind_row.status} />
+    </If>
 
     <Call fn="index.reserveNativeScopeDeclarations" in={$in.frame} />
 
@@ -131,6 +135,10 @@
     <If on={$ctx.openNativeScope.modules != 0}>
         <Call module="modules" in={$in.workspace.traversal} />
 
+        <If on={$ctx.modules != Host.Admission.Valid}>
+            <Return value={$ctx.modules} />
+        </If>
+
         <Call fn="index.reserveNativeScopeSettings" in={$in.frame} />
         <Call fn="settings" in={$in.workspace.settings} />
 
@@ -144,4 +152,6 @@
     </If>
 
     <Call fn="index.closeNativeScope" in={$in.frame} />
+
+    <Return value={Host.Admission.Valid} />
 </Module>

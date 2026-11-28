@@ -53,14 +53,10 @@ fn writeManifest(self: *State) !void {
     try file.replace(request.io);
 }
 
-pub fn writeStageBuild(handle: *const anyopaque) Error!void {
+pub fn renderStageBuild(allocator: std.mem.Allocator, handle: *const anyopaque) Error![]const u8 {
     const self = State.get(handle);
-    const allocator = self.request.allocator;
-    const source = @import("../../library_config.zig").render(allocator, self.config, self.layout.public, self.layout.generated, self.abi.views) catch |err| return self.failure.save(err);
 
-    defer allocator.free(source);
-
-    return writeStageFile(handle, constants.build_file, source);
+    return @import("../../library_config.zig").render(allocator, self.config, self.layout.public, self.layout.generated, self.abi.views) catch |err| self.failure.save(err);
 }
 
 pub fn writeStageInventory(handle: *const anyopaque) Error!void {

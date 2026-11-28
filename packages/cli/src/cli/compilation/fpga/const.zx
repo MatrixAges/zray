@@ -1,0 +1,10 @@
+export const format_version: u32 = 1
+
+export const kernel_name: string = "zxc_kernel"
+
+export const clock_handshake: string =
+    "accept on input_valid && input_ready; output becomes valid after the accepting edge and remains stable until output_ready; reset requires a clock edge"
+
+export const clock_reset: string = "synchronous_active_high"
+
+export const fault_message: string = "output data is invalid when fault is high"

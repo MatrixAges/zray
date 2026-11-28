@@ -6,12 +6,14 @@ import resolveDependencies from "./rules/dependency"
 
 import type { Traversal as Input } from "./workflow"
 
-export type Output = {
+export type Prepared = {
     name: string,
     path?: string,
     dependencies: string[],
     includes: string[]
 }
+
+export type Output = Prepared?
 
 export default function (in: Input): Output {
     const { binding, row, sources } = in
@@ -27,9 +29,13 @@ export default function (in: Input): Output {
     }
 
     const dependencies = resolveDependencies({
-        binding,
+        registry: binding.registry,
         dependencies: memory.readTextListColumn(sources.dependencies, row)
     })
+
+    if (dependencies == null) {
+        return null
+    }
 
     const includes = paths({
         frame,

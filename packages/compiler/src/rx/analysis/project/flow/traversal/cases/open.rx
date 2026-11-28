@@ -6,13 +6,13 @@
 
     <Store from="../operations" as="operations" />
 
-    <Task name="saved_bindings" out={$ctx.readLengthSlot}>
+    <Task name="saved_bindings" out={$ctx.scope_length}>
         <Call
-            fn="../host.readLengthSlot"
-            in={[
-                $in.lengths,
-                0
-            ]}
+            fn="../scope_length"
+            in={{
+                lengths: $in.lengths,
+                facts: false
+            }}
         />
     </Task>
 
@@ -37,13 +37,13 @@
         }}
     />
 
-    <Task name="saved_facts" out={$ctx.readLengthSlot}>
+    <Task name="saved_facts" out={$ctx.scope_length}>
         <Call
-            fn="../host.readLengthSlot"
-            in={[
-                $in.lengths,
-                1
-            ]}
+            fn="../scope_length"
+            in={{
+                lengths: $in.lengths,
+                facts: true
+            }}
         />
     </Task>
 

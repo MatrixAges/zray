@@ -1,7 +1,6 @@
 import integers from "std:integer"
-import { borrowedOperandCacheValue, lowerBorrowedOperand } from "ast_rows"
+import { convertStateValue, lowerBorrowedOperand, StateValueMode } from "ast_rows"
 import host from "lowering_host"
-import memory from "memory"
 
 import bindOperand from "../../../../aggregate/execute/bind_operand"
 
@@ -19,6 +18,7 @@ export default function (in: Input): Output {
         while: state => state.index < in.evaluation.length,
         next: state => {
             const id = in.evaluation[state.index]
+            const row = integers.widen(id)
             const value = lowerBorrowedOperand(in.writer, in.sequence, id)
 
             const bound = bindOperand({
@@ -28,11 +28,17 @@ export default function (in: Input): Output {
                 value
             })
 
-            const prior = memory.readU64(in.cache_reads, integers.widen(id))
+            const prior = in.cache_reads[row]
 
             const cached = match {
-                in.convert =>
-                    borrowedOperandCacheValue(in.writer, in.sequence, id, bound),
+                in.state_active => convertStateValue(
+                    in.writer,
+                    in.sequence,
+                    in.expression_types[row],
+                    bound,
+                    StateValueMode.Value,
+                    false
+                ),
                 _ => bound
             }
 

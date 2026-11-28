@@ -1,15 +1,14 @@
 import integers from "std:integer"
-import host from "hardware_graph_host"
 
 import type { Term } from "../../terms/parse/model"
 
 export type Input = Term
 
-export type Output = Term
+export type Output = Term?
 
 export default function (in: Input): Output {
     if (!in.graph.nodes[integers.widen(in.node)].node.boolean) {
-        host.rejectHardwareTerm()
+        return null
     }
 
     return in

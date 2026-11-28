@@ -3,7 +3,7 @@
 
     <Args in={Manifest.Input} out={Manifest.Result} />
 
-    <Call fn="mapping" in={$in} />
+    <Call fn="mapping" in={$in.omit(["version_limit"])} />
 
     <If on={$ctx.mapping.problem != null}>
         <Return
@@ -17,7 +17,8 @@
         fn="fields"
         in={{
             document: $in.document,
-            pairs: $ctx.mapping.pairs
+            pairs: $ctx.mapping.pairs,
+            version_limit: $in.version_limit
         }}
     />
 

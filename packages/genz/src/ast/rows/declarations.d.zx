@@ -1,5 +1,33 @@
-export declare function appendAstIdentifierRows(writer: AstWriter, rows: AstIdentifierRows): void
-    throws { OutOfMemory }
+export type FunctionRows = {
+    offsets: u32[],
+    function_name: u8[][],
+    function_parameters_start: u32[],
+    function_parameters_len: u32[],
+    function_return_type: u32[],
+    function_body_start: u32[],
+    function_body_len: u32[],
+    function_exported: bool[],
+    function_abi_export: bool[],
+    function_inlined: bool[],
+    function_calling_convention: u32?[]
+}
 
-export declare function appendAstObjectFields(writer: AstWriter, rows: AstObjectFields): void
-    throws { OutOfMemory }
+export type FieldRows = {
+    name: u8[][],
+    value: u32[],
+    default_value: u32?[],
+    comptime_parameter: bool[]
+}
+
+export type ConstantRows = {
+    offsets: u32[],
+    constant_name: u8[][],
+    constant_type_expr: u32?[],
+    constant_value: u32[],
+    constant_exported: bool[]
+}
+
+export type AstObjectFields = {
+    name: string[],
+    value: u32[]
+}

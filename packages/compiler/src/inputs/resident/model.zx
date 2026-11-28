@@ -1,5 +1,3 @@
-import type { StreamReader } from "memory"
-
 export enum Command {
     Missing,
     Unknown,
@@ -24,8 +22,6 @@ export enum Status {
     Declined
 }
 
-export type Reader = StreamReader
-
 export type Identity = {
     size: u64,
     mtime_low: u64,
@@ -42,6 +38,21 @@ export type Paths = {
 }
 
 export type Request = Identity & Paths
+
+export type RequestFrame = Request.Omit(
+    "size",
+    "mtime_low",
+    "mtime_high",
+    "partitions"
+) & {
+    identity: u8[],
+    options: u8[]
+}
+
+export type ReplyFrame = {
+    known: bool,
+    accepted: bool
+}
 
 export type Admission = {
     own: Identity,

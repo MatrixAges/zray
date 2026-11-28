@@ -1,0 +1,12 @@
+import bytes from "std:bytes"
+
+export type Input = string?
+
+export type Output = u8[]?
+
+export default function (in: Input): Output {
+    return match {
+        in != null => bytes.fromText(in),
+        _ => null
+    }
+}

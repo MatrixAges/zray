@@ -1,6 +1,6 @@
 import { max_nesting_depth } from "core/const"
 
-import representative from "../../forest/root"
+import representative from "../../forest/borrowed_root"
 import { Action } from "../application/model"
 import { Route } from "../model"
 

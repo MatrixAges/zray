@@ -1,8 +1,11 @@
 <Module>
     <Type from="../../assignment/application/round" as="Assignments" />
     <Type from="model" as="Sequences" />
+    <Type from="../../projections/effect" as="ProjectionEffect" />
 
     <Args in={Assignments.Execution} out={Assignments.Update} />
+
+    <Store from="../../projections/publication" as="projection" />
 
     <If on={$in.sequences.sequence.values.length == 0}>
         <Return
@@ -13,13 +16,11 @@
         />
     </If>
 
-    <Call fn="canonical.u32Views" in={$in.view.parents} />
-
     <Call
         module="choose"
         in={{
             graph: {
-                parents: $ctx.u32Views,
+                parents: $in.view.parents,
                 kinds: $in.view.graph.kinds,
                 arguments: $in.view.graph.arguments,
                 members: $in.sequences.members
@@ -44,13 +45,16 @@
 
         <Case value={Sequences.Route.Select}>
             <Call
-                fn="../../projections/host.requireProjectionList"
-                in={[
-                    $in.owner,
-                    $in.sequences.spans,
-                    $ctx.choose.position,
-                    $in.sequences.sequence.values[$ctx.choose.position]
-                ]}
+                fn="../../projections/stage"
+                in={{
+                    projection_step: ProjectionEffect.Step.RequireList,
+                    site: {
+                        spans: $in.sequences.spans,
+                        row: $ctx.choose.position
+                    },
+                    left: $in.sequences.sequence.values[$ctx.choose.position]
+                }}
+                setter={[$store.projection.effect]}
             />
         </Case>
 

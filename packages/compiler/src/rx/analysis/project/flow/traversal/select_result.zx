@@ -1,10 +1,7 @@
 import { scalar_void } from "core/type_table/const"
-import memory from "memory"
-
-import type { ColumnLengths } from "memory"
 
 export type Rows = {
-    cursor: ColumnLengths,
+    row: u64,
     types: u32[]
 }
 
@@ -24,7 +21,7 @@ export default function (in: Input): Output {
         }
     }
 
-    const row = memory.readLengthSlot(in.cursor, 0)
+    const row = in.row
 
     return {
         row,

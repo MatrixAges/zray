@@ -6,7 +6,6 @@ import { Action as PayloadAction } from "../../optional/payload"
 import candidate from "./merge_candidate"
 
 import type { State as Known } from "core/integer/map/model"
-import type { U32Buffer } from "memory"
 import type { Graph } from "../../optional/model"
 import type { ClassLookup } from "../model"
 
@@ -20,7 +19,7 @@ export enum Action {
 export type View = {
     graph: Graph,
     allowed: u16?[],
-    parents: U32Buffer,
+    parents: u32[],
     known: Known
 }
 

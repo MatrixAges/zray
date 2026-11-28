@@ -1,10 +1,12 @@
 import {
     appendAstObjectFields,
-    appendAstOperandRows,
+    appendExpressionRows,
+    AstPayloadOwnership,
     astExpressionCount,
     astFieldCount
 } from "ast_rows"
 
+import operandsColumns from "../../../ast/rows/operands_columns"
 import objectExpression from "../object/expression"
 import selectFields from "../object/fields"
 
@@ -41,7 +43,7 @@ export default function (in: Input): Output {
 
     appendAstObjectFields(writer, fields)
 
-    appendAstOperandRows(writer, {
+    const columns = operandsColumns({
         ...expression,
         tuple: [],
         builtin_name: [],
@@ -49,6 +51,13 @@ export default function (in: Input): Output {
         identifier: [],
         address_of: []
     })
+
+    appendExpressionRows(
+        writer,
+        columns.rows,
+        columns.forms,
+        AstPayloadOwnership.Borrowed
+    )
 
     return base
 }

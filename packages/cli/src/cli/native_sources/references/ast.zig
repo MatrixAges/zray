@@ -54,9 +54,3 @@ pub fn decodeLiteral(handle: *const anyopaque, raw: []const u8) Error![]const u8
 
     return std.zig.string_literal.parseAlloc(self.allocator, raw) catch |err| return self.fail(err);
 }
-
-pub fn invalidBuiltin(handle: *const anyopaque, invalid_import: bool) Error!void {
-    const self = Context.get(handle);
-
-    return self.fail(if (invalid_import) error.InvalidNativeImport else error.InvalidNativeSource);
-}

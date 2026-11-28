@@ -1,22 +1,28 @@
-import host from "output_host"
+import digest from "../../../../zx/artifact_codec/digest"
+import { store_prefix } from "../../publication/const"
 
-import type { LibraryInitializers } from "output_host"
-
-export type Input = {
-    target: LibraryInitializers,
-    count: u64
+export type Initializer = {
+    function: u32,
+    identity: string,
+    schema_version: u32
 }
 
-export type Output = u64
+export type Prepared = Initializer & {
+    prefix: string,
+    digest: string
+}
+
+export type Input = Initializer[]
+
+export type Output = Prepared[]
 
 export default function (in: Input): Output {
-    const { target, count } = in
-
-    return loop(0, {
-        while: row => row < count,
-        next: row => {
-            host.emitLibraryInitializer(target, row)
-            row += 1
-        }
-    })
+    return in.map(initializer => ({
+        ...initializer,
+        prefix: store_prefix,
+        digest: digest({
+            source: initializer.identity,
+            start: 0
+        })
+    }))[0]
 }

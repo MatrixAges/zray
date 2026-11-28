@@ -1,10 +1,23 @@
 <Module>
     <Type from="../model" as="Protocol" />
 
-    <Args in={Protocol.Reader} out={Protocol.Request} />
+    <Args in={Protocol.RequestFrame} out={Protocol.Request} />
 
-    <Call fn="read_identity" in={$in} />
-    <Call fn="read_paths" in={$in} />
+    <Call
+        fn="read_identity"
+        in={$in.pick([
+            "identity",
+            "path"
+        ])}
+    />
+
+    <Call
+        fn="read_paths"
+        in={$in.omit([
+            "identity",
+            "path"
+        ])}
+    />
 
     <Return
         value={{

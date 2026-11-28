@@ -12,7 +12,7 @@ const indexes = @import("../index/seed.zig");
 
 pub fn run(frame: *host.Frame) zx.Error!void {
     while (true) {
-        const revision = host.solveRevision(frame);
+        const revision = frame.graph.revision;
 
         try bindings.validateUsesSeed(frame.graph);
         try bindings.propagateSeed(frame.graph, false);

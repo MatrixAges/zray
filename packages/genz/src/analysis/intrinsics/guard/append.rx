@@ -30,21 +30,27 @@
         fn="../../statements/rows.publishAstBasicStatements"
         in={[
             $in.writer,
-            $in.fragment.roots.pick([
-                "tags",
-                "offsets",
-                "discard",
-                "assignment_target",
-                "assignment_value",
-                "branch_condition",
-                "branch_yes_start",
-                "branch_yes_len",
-                "branch_no_start",
-                "branch_no_len",
-                "branch_capture",
-                "branch_capture_reference",
-                "branch_error_capture"
-            ])
+            {
+                ...$in.fragment.roots.pick([
+                    "tags",
+                    "offsets",
+                    "discard",
+                    "assignment_target",
+                    "assignment_value",
+                    "branch_condition",
+                    "branch_yes_start",
+                    "branch_yes_len",
+                    "branch_no_start",
+                    "branch_no_len",
+                    "branch_capture",
+                    "branch_capture_reference",
+                    "branch_error_capture"
+                ]),
+                while_loop_condition: [],
+                while_loop_body_start: [],
+                while_loop_body_len: [],
+                while_loop_capture: []
+            }
         ]}
     />
 

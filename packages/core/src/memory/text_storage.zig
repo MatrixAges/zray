@@ -28,11 +28,3 @@ pub fn duplicate(resource: *const anyopaque, source: Text) ?Text {
 pub fn free(resource: *const anyopaque, items: anytype) void {
     borrowAllocator(resource).free(items);
 }
-
-pub fn require(value: anytype) std.mem.Allocator.Error!std.meta.Child(@TypeOf(value)) {
-    return value orelse error.OutOfMemory;
-}
-
-pub fn checkLength(expected: u64, length: u64) error{IndexOutOfBounds}!void {
-    if (expected != length) return error.IndexOutOfBounds;
-}

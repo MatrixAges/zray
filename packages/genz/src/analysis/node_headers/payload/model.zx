@@ -19,24 +19,26 @@ export type Input = Headers & Preparation & {
     layout: Layout
 }
 
-export type Shape = Columns & {
+export type SourceShape = {
+    lengths: u64?[][],
     complete: bool[]
 }
 
-export type Validation = Headers & {
-    groups: ColumnTransfers,
-    complete: bool[],
+export type Shape = SourceShape & {
+    counts: u32[]
+}
+
+export type Validation = Headers & SourceShape & {
     existing: u64,
     selected: bool
 }
 
 export type ValidationResult = CheckResult
 
-export type Bound = Headers & {
+export type Bound = Headers & SourceShape & {
     allocator: Allocator,
     reserved: bool,
     groups: ColumnTransfers,
-    complete: bool[],
     existing: u64,
     layout: Layout
 }

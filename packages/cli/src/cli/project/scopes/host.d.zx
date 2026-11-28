@@ -50,8 +50,6 @@ export type PublishedSetting = {
 export declare function openNativeScope(frame: NativeScopeLoad, index: u64): ScopeWindow
 export declare function openNativeScopeArtifact(frame: NativeScopeLoad, path: string): void
     throws { SourceLoadFailure }
-export declare function requireNativeScopeAdmission(frame: NativeScopeLoad, status: Admission): void
-    throws { SourceLoadFailure }
 export declare function reserveNativeScopeInterfaces(frame: NativeScopeLoad): void
     throws { OutOfMemory }
 export declare function readNativeScopeInterface(frame: NativeScopeLoad, row: u64): void

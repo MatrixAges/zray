@@ -1,16 +1,17 @@
 import lookup from "core/bytes/map/lookup"
-import host from "hardware_graph_host"
 import memory from "memory"
 
 import { Form } from "../model"
 import intern from "./intern"
 
 import type { Head } from "../model"
-import type { Input as Source, Term as Output } from "./model"
+import type { Input as Source, Term } from "./model"
 
 export type Input = Source & {
     head: Head
 }
+
+export type Output = Term?
 
 export default function (in: Input): Output {
     const { graph, variables, expression, head } = in
@@ -34,7 +35,7 @@ export default function (in: Input): Output {
         }
 
         if (form == Form.Name) {
-            host.rejectHardwareTerm()
+            return null
         }
     }
 

@@ -18,6 +18,10 @@ export default function (in: Input): Output {
         branch_no_len: [],
         branch_capture: [],
         branch_capture_reference: [],
-        branch_error_capture: []
+        branch_error_capture: [],
+        while_loop_condition: [],
+        while_loop_body_start: [],
+        while_loop_body_len: [],
+        while_loop_capture: []
     }
 }

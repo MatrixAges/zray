@@ -1,9 +1,12 @@
 <Module>
     <Type from="workflow" as="Scopes" />
+    <Type from="index" as="Host" />
 
-    <Args in={Scopes.Input} out={void} />
+    <Args in={Scopes.Input} out={Host.Admission} />
 
-    <Loop on={$in.row < $in.count}>
+    <Loop on={$in.status == Host.Admission.Valid && $in.row < $in.count}>
         <Call module="next" in={$in} />
     </Loop>
+
+    <Return value={$ctx.next.status} />
 </Module>

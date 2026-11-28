@@ -17,5 +17,6 @@ export type Command = {
 }
 
 export type Effect = Command & {
+    result_row: u64,
     id: u32
 }

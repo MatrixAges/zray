@@ -4,12 +4,6 @@ export declare function publishObjectOperand(
     reference: u32
 ): u64 throws { OutOfMemory }
 
-export declare function finishObject(
-    frame: Lowering,
-    type_id: u32,
-    value: u32
-): u32 throws { OutOfMemory }
-
 export declare function observeIterationOperand(
     context: IterationResourceFrame,
     item: u32,

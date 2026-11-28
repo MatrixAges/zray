@@ -1,0 +1,20 @@
+import memory from "memory"
+
+import type { Release as Output } from "installation_host"
+import type { LockedArchives } from "../model"
+
+export type Input = {
+    archives: LockedArchives,
+    row: u64
+}
+
+export default function (in: Input): Output {
+    const { archives, row } = in
+
+    return {
+        name: memory.readTextColumn(archives.names, row),
+        version: memory.readTextColumn(archives.versions, row),
+        archive: memory.readTextColumn(archives.sources, row),
+        sha256: memory.readTextColumn(archives.digests, row)
+    }
+}

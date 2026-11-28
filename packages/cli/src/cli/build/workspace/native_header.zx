@@ -1,7 +1,6 @@
-import { quoteJsonString } from "artifact_io"
-
 import { header_extension, include_prefix, line_end } from "./const"
 import nativePath from "./native_path"
+import quoteHeader from "./quote_header"
 
 import type { Input as NativePath } from "./native_path"
 
@@ -17,7 +16,7 @@ export type Output = {
 export default function (in: Input): Output {
     const { directory, name } = in
 
-    const include = quoteJsonString(in.header)
+    const include = quoteHeader(in.header)
 
     return {
         path: nativePath({

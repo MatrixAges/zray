@@ -1,0 +1,17 @@
+export enum Issue {
+    InvalidPath,
+    OutsideModule,
+    InvalidSource,
+    InvalidImport
+}
+
+export type RelativeInput = {
+    root: string,
+    path: string,
+    separator: u8
+}
+
+export type Resolution = {
+    path: string,
+    issue?: Issue
+}

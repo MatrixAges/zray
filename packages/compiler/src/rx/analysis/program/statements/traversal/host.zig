@@ -76,6 +76,7 @@ pub const State = struct {
 
 pub fn apply(state: *State, effect: anytype, reply: anytype) Error!void {
     switch (effect.step) {
+        .RejectBlock => return error.InvalidModule,
         .Reserve => try reserve(state, effect.slots.?),
         .SelectWriter => selectWriter(state, effect.block.?),
         .EvaluateValue => reply.id = @backingInt(try state.statements.evaluateValue(effect.row.?, effect.borrowed.?)),
@@ -107,8 +108,4 @@ fn evaluateCaseLabel(state: *State, row: u32) Error!?u32 {
     const program = state.statements.flow.cases.items(.value)[row] orelse return null;
 
     return @backingInt(try inlineValue(state.statements.builder, program.*, false));
-}
-
-pub fn requireBodyBlock(valid: bool) error{InvalidModule}!void {
-    if (!valid) return error.InvalidModule;
 }

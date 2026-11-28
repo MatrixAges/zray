@@ -15,15 +15,14 @@
     />
 
     <Call
-        fn="../effects.matchWorkspaceMember"
-        in={[
-            $in.graph,
-            $in.ordinal,
-            $in.relative
-        ]}
+        fn="find_member"
+        in={$in.omit([
+            "graph",
+            "root"
+        ])}
     />
 
-    <If on={$ctx.matchWorkspaceMember == null}>
+    <If on={$ctx.find_member == null}>
         <Return
             value={{
                 status: Project.Status.LockFileOutdated
@@ -36,7 +35,7 @@
                     status: Project.Status.Valid,
                     row: {
                         path: $ctx.canonical,
-                        member: $ctx.matchWorkspaceMember
+                        member: $ctx.find_member
                     }
                 }}
             />

@@ -30,24 +30,12 @@ export default function (in: Input): Output {
         }
     }
 
-    const fields = loop({
-        row: 0,
-        items: empty
-    }, {
-        while: state => state.row < count,
-        next: state => {
-            const row = state.row
-
-            state.items = state.items.push({
-                name: in.name[row],
-                value: in.value[row],
-                default_value: in.default_value[row],
-                comptime_parameter: in.comptime_parameter[row]
-            })[0]
-            state.row += 1
-        },
-        return: state => state.items
-    })
+    const fields: Field[] = in.name.map((name, row) => ({
+        name,
+        value: in.value[row],
+        default_value: in.default_value[row],
+        comptime_parameter: in.comptime_parameter[row]
+    }))[0]
 
     return {
         valid: true,

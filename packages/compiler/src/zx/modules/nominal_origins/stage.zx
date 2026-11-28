@@ -1,0 +1,9 @@
+import type { Publication as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.progress.state = in
+}

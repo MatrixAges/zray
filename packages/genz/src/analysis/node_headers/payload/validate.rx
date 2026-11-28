@@ -9,7 +9,7 @@
             fn="limits"
             in={$in.pick([
                 "complete",
-                "groups"
+                "lengths"
             ])}
         />
 
@@ -53,7 +53,7 @@
         in={{
             ...$in.pick([
                 "complete",
-                "groups"
+                "lengths"
             ]),
             counts: $ctx.check.counts
         }}

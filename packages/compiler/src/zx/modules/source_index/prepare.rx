@@ -4,20 +4,9 @@
     <Args in={Index.Input} out={Index.Prepared?} />
 
     <Call
-        fn="index.reserveColumns"
-        in={{
-            resource: $in.resource,
-            ranges: $in.columns,
-            precise: false,
-            uniform: true,
-            limit: null
-        }}
-    />
-
-    <Call
         fn="next_capacity"
         in={{
-            entries: $in.length + 1,
+            entries: $in.keys.length + 1,
             capacity: $in.capacity,
             maximum: $in.maximum
         }}
@@ -33,12 +22,10 @@
             />
         </If>
 
-        <Call fn="index.u8ListViews" in={$in.keys} />
-
         <Call
             module="relocate"
             in={{
-                keys: $ctx.u8ListViews,
+                keys: $in.keys,
                 key: $in.key,
                 capacity: $ctx.next_capacity
             }}

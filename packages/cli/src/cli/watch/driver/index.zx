@@ -1,5 +1,6 @@
 export {
     writeWatchNotice,
+    writeWatchDiagnostic,
     scanInputs,
     interrupted,
     delay,

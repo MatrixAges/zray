@@ -1,22 +1,20 @@
 import bytes from "std:bytes"
 import { ascii_equals } from "core/ascii/const"
 import memory from "memory"
-import { Admission, requireNativeScopeAdmission } from "native_scope_host"
 
 import registered from "./naming/registered"
 
-import type { Binding } from "../workflow"
+import type { Registry } from "./naming/model"
 
 export type Input = {
-    binding: Binding,
+    registry: Registry,
     dependencies: string[]
 }
 
-export type Output = string[]
+export type Output = string[]?
 
 export default function (in: Input): Output {
-    const { binding, dependencies } = in
-    const { registry } = binding
+    const { registry, dependencies } = in
 
     if (dependencies.length == 0) {
         return dependencies
@@ -58,12 +56,5 @@ export default function (in: Input): Output {
         ])
     })
 
-    if (!result.valid) {
-        requireNativeScopeAdmission(
-            binding.window.frame,
-            Admission.UnknownNativeDependency
-        )
-    }
-
-    return result.items
+    return result.valid ? result.items : null
 }

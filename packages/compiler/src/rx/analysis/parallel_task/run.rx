@@ -70,7 +70,13 @@
         setter={[$store.task.effect]}
     />
 
-    <Call fn="../project/flow/traversal/select_result" in={$in.results} />
+    <Call
+        fn="../project/flow/traversal/select_result"
+        in={{
+            row: $store.task.effect.result_row,
+            types: $in.result_types
+        }}
+    />
 
     <Call
         fn="stage"

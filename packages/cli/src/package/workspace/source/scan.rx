@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Ownership" />
+
+    <Args in={Ownership.Scan} out={Ownership.Status} />
+
+    <Loop on={$in.status == Ownership.Status.Valid && $in.directory != $in.root}>
+        <Call
+            module="inspect"
+            in={{
+                ...$in,
+                status: Ownership.Status.Valid
+            }}
+        />
+    </Loop>
+
+    <Return value={$ctx.inspect.status} />
+</Module>

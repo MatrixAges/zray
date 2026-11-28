@@ -1,5 +1,6 @@
 <Module>
     <Type from="publication" as="Binding" />
+    <Type from="rows" as="AST" />
 
     <Args in={Binding.Reference} out={Binding.PublishedReference} />
 
@@ -24,10 +25,12 @@
     <Call fn="identifier_rows" />
 
     <Call
-        fn="rows.appendAstIdentifierRows"
+        fn="rows.appendExpressionRows"
         in={[
             $in.writer,
-            $ctx.identifier_rows
+            $ctx.identifier_rows,
+            null,
+            AST.AstPayloadOwnership.Borrowed
         ]}
     />
 

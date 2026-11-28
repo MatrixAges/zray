@@ -4,6 +4,7 @@ import type { Input as CacheConfig } from "../cache/model"
 export enum Status {
     Ready,
     IncompleteToolchainCache,
+    ZxcZigNotFound,
     ZxcZigLibraryNotFound,
     CorruptBundledToolchain,
     InvalidZxcCacheDirectory,

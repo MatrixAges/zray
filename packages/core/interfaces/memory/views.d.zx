@@ -1,22 +1,4 @@
-export declare function columnRangeSlotCount(source: ColumnRanges): u64
-
-export declare function columnRangeLength(source: ColumnRanges, slot: u64): u64
-
-export declare function columnRangeCount(source: ColumnRanges, slot: u64): u64
-
-export declare function reserveColumnRange(
-    resource: Allocator,
-    target: ColumnRanges,
-    slot: u64,
-    uniform: u64?,
-    precise: bool
-): void throws { OutOfMemory }
-
 export declare function requireAllocation(success: bool): void throws { OutOfMemory }
-
-export declare function stringViews(source: StringBuffer): string[]
-
-export declare function u32Views(source: U32Buffer): u32[]
 
 export declare function borrowTextRange(
     source: string,

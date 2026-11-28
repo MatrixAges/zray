@@ -24,10 +24,12 @@ pub fn adapter(self: *Lower, invocation: @FieldType(@FieldType(ir.ExpressionRow,
 
     defer scratch.deinit();
 
-    const root = entry.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    const output = entry.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };
 
-    return @fromBackingInt(root);
+    self.uses_context = self.uses_context or output.uses_context;
+
+    return @fromBackingInt(output.expression);
 }

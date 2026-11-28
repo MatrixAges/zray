@@ -1,18 +1,24 @@
 <Module>
     <Type from="model" as="Solve" />
+    <Type from="replay_effect" as="Effect" />
 
     <Args in={Solve.Request} out={bool} />
 
-    <Call fn="host.refreshSolverAssignments" in={$in.frame} />
+    <Store from="replay" as="replay" />
+
+    <Call
+        fn="stage_replay"
+        in={{
+            step: Effect.Step.RefreshAssignments
+        }}
+        setter={[$store.replay.effect]}
+    />
 
     <Call module="../assignment/application/update" in={$in.assignments} />
 
     <Call
         module="../projections/apply_diagnostic"
-        in={{
-            graph: $in.assignments.owner,
-            diagnostic: $ctx.update.diagnostic
-        }}
+        in={$ctx.update.diagnostic}
     />
 
     <If on={$ctx.update.changed}>

@@ -1,10 +1,13 @@
 import integers from "std:integer"
 import {
-    appendAstBlockRows,
+    appendExpressionRows,
+    AstPayloadOwnership,
     astExpressionCount
 } from "ast_rows"
 import host from "lowering_host"
 
+import emptyExpressions from "../../../ast/expressions/empty"
+import emptyForms from "../../../ast/expressions/forms/empty"
 import emitConditional from "../../selection/conditional"
 
 import type { AstWriter } from "ast_rows"
@@ -50,24 +53,21 @@ export default function (in: Input): Output {
         no: declined
     })
 
-    appendAstBlockRows(
+    appendExpressionRows(
         writer,
         {
-            ...emitted.pick([
+            ...emptyExpressions({}),
+            tags: emitted.tags,
+            offsets: emitted.offsets
+        },
+        {
+            ...emptyForms({}),
+            ...emitted.omit([
                 "tags",
                 "offsets"
-            ]),
-            block_label: [],
-            block_statements_start: [],
-            block_statements_len: []
+            ])
         },
-        emitted.pick([
-            "conditional_condition",
-            "conditional_yes",
-            "conditional_no",
-            "conditional_capture",
-            "conditional_error_capture"
-        ])
+        AstPayloadOwnership.Borrowed
     )
 
     return root

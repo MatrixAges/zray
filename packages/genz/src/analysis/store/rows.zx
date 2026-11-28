@@ -16,7 +16,6 @@ export {
 export {
     readBorrowedList,
     readRepresentedValue,
-    requireLoweringContext,
     finishGeneratedAst
 } from "lowering_host"
 export { requireAllocation } from "memory"

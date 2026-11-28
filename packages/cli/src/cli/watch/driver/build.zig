@@ -4,6 +4,7 @@ const compiler = @import("../../compile.zig");
 const storage = @import("storage.zig");
 const State = storage.State;
 const Error = storage.Error;
+const CompilationTurn = @import("cli_abi").layouts.@"zig:watch_host".CompilationTurn;
 const ObservedEntryLayout = @import("cli_abi").layouts.@"zig:watch_host".ObservedEntry;
 const ObservedEntry = @import("cli_abi").native.@"zig:watch_host".ObservedEntry;
 
@@ -31,7 +32,7 @@ pub fn begin(handle: *const anyopaque, cache: bool, previous: ?storage.SnapshotS
     turn.diagnostics = .init(temporary);
 }
 
-pub fn compileTurn(handle: *const anyopaque) Error!storage.Status {
+pub fn compileTurn(handle: *const anyopaque) Error!*const CompilationTurn {
     const self = State.get(handle);
     const turn = &self.turn.?;
 
@@ -52,12 +53,17 @@ pub fn compileTurn(handle: *const anyopaque) Error!storage.Status {
         break :failed .failed;
     };
 
-    return switch (status) {
-        .success => .Success,
-        .failed => .Failed,
-        .retry => .Retry,
-        .backend_failed => .BackendFailed,
+    turn.compilation = .{
+        .status = switch (status) {
+            .success => .Success,
+            .failed => .Failed,
+            .retry => .Retry,
+            .backend_failed => .BackendFailed,
+        },
+        .diagnostic = turn.diagnostics.written(),
     };
+
+    return &turn.compilation;
 }
 
 pub fn refreshParseCache(handle: *const anyopaque) void {

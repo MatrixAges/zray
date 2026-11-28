@@ -1,12 +1,13 @@
 import {
-    appendAstIdentifierRows,
+    AstPayloadOwnership,
+    appendExpressionRows,
     astExpressionCount,
     statementSequenceBlock,
     tailAstPackedStatements
 } from "ast_rows"
 import host from "lowering_host"
 
-import { ExpressionsKind } from "../../../../../printer/model/expressions"
+import identifierRows from "../../../../aggregate/binding/identifier_rows"
 import finishStored from "../../../../aggregate/execute/finish_stored"
 import { Completion } from "../model"
 
@@ -44,11 +45,12 @@ export default function (in: Input): Output {
     }
 
     if (needs_guard) {
-        appendAstIdentifierRows(writer, {
-            tags: [ExpressionsKind.Identifier],
-            offsets: [0],
-            identifier: [changed_name]
-        })
+        appendExpressionRows(
+            writer,
+            identifierRows(changed_name),
+            null,
+            AstPayloadOwnership.Borrowed
+        )
     }
 
     const value = match completion {

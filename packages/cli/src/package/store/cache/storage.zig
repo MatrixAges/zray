@@ -15,7 +15,6 @@ pub const State = struct {
     downloaded: ?transfer.Downloaded = null,
     staging: ?[]const u8 = null,
     directory: ?std.Io.Dir = null,
-    extracted: ?archive.Result = null,
     failure: ?anyerror = null,
     pub fn deinit(self: *State) void {
         self.close();
@@ -28,11 +27,10 @@ pub const State = struct {
             self.allocator.free(bytes);
         }
     }
+
     fn close(self: *State) void {
-        if (self.extracted) |*extracted| extracted.deinit();
         if (self.directory) |directory| directory.close(self.io);
 
-        self.extracted = null;
         self.directory = null;
     }
 
@@ -82,7 +80,7 @@ pub fn download(handle: *const anyopaque, source: []const u8, base: []const u8) 
     return self.downloaded.?.bytes;
 }
 
-pub fn createStaging(handle: *const anyopaque, root: []const u8) Error!void {
+pub fn createStaging(handle: *const anyopaque, root: []const u8) Error![]const u8 {
     const self = State.get(handle);
     const io = self.io;
     const temporary = self.temporary;
@@ -97,9 +95,11 @@ pub fn createStaging(handle: *const anyopaque, root: []const u8) Error!void {
     std.Io.Dir.cwd().createDir(io, staging, .default_dir) catch |err| return self.fail(err);
 
     self.staging = staging;
+
+    return staging;
 }
 
-pub fn unpack(handle: *const anyopaque, bytes: []const u8) Error!void {
+pub fn unpack(handle: *const anyopaque, bytes: []const u8, hex: []const u8) Error![]const u8 {
     const self = State.get(handle);
     const io = self.io;
     const directory = std.Io.Dir.cwd().openDir(io, self.staging.?, .{}) catch |err| return self.fail(err);
@@ -112,26 +112,18 @@ pub fn unpack(handle: *const anyopaque, bytes: []const u8) Error!void {
 
     defer package.close(io);
 
-    self.extracted = archive.unpack(io, self.allocator, .{ .source = bytes }, package) catch |err| return self.fail(err);
-}
+    var extracted = archive.unpack(io, self.allocator, .{ .source = bytes }, package) catch |err| return self.fail(err);
 
-pub fn writeReceipt(handle: *const anyopaque, hex: []const u8) Error!void {
-    const self = State.get(handle);
-    const temporary = self.temporary;
-    const text = std.json.Stringify.valueAlloc(temporary, receipt.Receipt{ .archive_sha256 = hex, .files = self.extracted.?.files }, .{}) catch |err| return self.fail(err);
-    const path = std.fs.path.join(temporary, &.{ self.staging.?, constants.receipt_file }) catch |err| return self.fail(err);
+    defer extracted.deinit();
 
-    write(self.io, path, text) catch |err| return self.fail(err);
+    return std.json.Stringify.valueAlloc(self.temporary, receipt.Receipt{ .archive_sha256 = hex, .files = extracted.files }, .{}) catch |err| self.fail(err);
 }
 
 pub fn checkStaging(handle: *const anyopaque, hex: []const u8) Error!void {
     const self = State.get(handle);
 
+    defer self.close();
     receipt.verify(self.io, self.allocator, self.directory.?, hex) catch |err| return self.fail(err);
-}
-
-pub fn closeStaging(handle: *const anyopaque) void {
-    State.get(handle).close();
 }
 
 pub fn publishStaging(handle: *const anyopaque, destination: []const u8) Error!bool {
@@ -151,13 +143,4 @@ pub fn publishStaging(handle: *const anyopaque, destination: []const u8) Error!b
     };
 
     return true;
-}
-
-fn write(io: std.Io, path: []const u8, content: []const u8) !void {
-    var file = try std.Io.Dir.cwd().createFileAtomic(io, path, .{ .make_path = true, .replace = true });
-
-    defer file.deinit(io);
-
-    try file.file.writeStreamingAll(io, content);
-    try file.replace(io);
 }

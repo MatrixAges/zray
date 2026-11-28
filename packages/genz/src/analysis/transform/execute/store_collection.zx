@@ -1,11 +1,12 @@
 import {
-    appendAstIdentifierRows,
+    AstPayloadOwnership,
+    appendExpressionRows,
     astExpressionCount,
     storeFilterTransformValue,
     writeCollectionElement
 } from "ast_rows"
 
-import { ExpressionsKind } from "../../../printer/model/expressions"
+import identifierRows from "../../aggregate/binding/identifier_rows"
 import bindOperand from "../../aggregate/execute/bind_operand"
 import { index } from "./const"
 import freshName from "./fresh_name"
@@ -62,11 +63,12 @@ export default function (in: Input): Output {
 
     const identifier = astExpressionCount(ast.writer)
 
-    appendAstIdentifierRows(ast.writer, {
-        tags: [ExpressionsKind.Identifier],
-        offsets: [0],
-        identifier: [in.element_name]
-    })
+    appendExpressionRows(
+        ast.writer,
+        identifierRows(in.element_name),
+        null,
+        AstPayloadOwnership.Borrowed
+    )
 
     const value = storeFilterTransformValue(
         ast.writer,

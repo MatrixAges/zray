@@ -26,7 +26,7 @@ export default function (in: Input): Output {
     const { packages, row, capacity } = in
     const { paths, names, archives, digests, versions, flags } = packages
 
-    const local = memory.readU8(flags, row) == workspace_root
+    const local = flags[row] == workspace_root
 
     if (local) {
         const valid = validPath({

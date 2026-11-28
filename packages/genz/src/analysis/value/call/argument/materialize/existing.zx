@@ -1,0 +1,42 @@
+import integers from "std:integer"
+import { convertStateValue, StateValueMode } from "ast_rows"
+import { lowerExpression } from "lowering_host"
+
+import { Property } from "../../../../state/queries/model"
+import query from "../../../../state/queries/read"
+
+import type { Input as Argument } from "./model"
+
+export type Input = Argument.Pick(
+    "lowering",
+    "writer",
+    "sequence",
+    "id",
+    "type_id",
+    "state_active",
+    "queries"
+)
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { lowering, writer, sequence, id, type_id, state_active, queries } = in
+
+    const value = lowerExpression(lowering, id, false, null)
+
+    if (!state_active || !query({
+        value: queries[integers.widen(type_id)],
+        property: Property.Represented
+    })) {
+        return value
+    }
+
+    return convertStateValue(
+        writer,
+        sequence,
+        type_id,
+        value,
+        StateValueMode.Borrow,
+        true
+    )
+}

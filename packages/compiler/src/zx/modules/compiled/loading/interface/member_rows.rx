@@ -3,6 +3,8 @@
 
     <Args in={Publication.MemberList} out={void} />
 
+    <Store from="rows" as="rows" />
+
     <Call
         fn="list_count"
         in={{
@@ -12,24 +14,21 @@
     />
 
     <Call
-        fn="../../../../../core/row_buffer/allocate_list"
-        in={[
-            $in.column,
-            $in.output,
-            $in.buffer,
-            $ctx.list_count
-        ]}
+        fn="stage"
+        in={{
+            kind: Publication.Kind.AllocateMembers,
+            row: $in.output,
+            text: "",
+            count: $ctx.list_count
+        }}
+        setter={[$store.rows.pending]}
     />
 
     <Loop on={$in.index < $in.count}>
         <Call
             module="next_member"
             in={{
-                ...$in.omit([
-                    "output",
-                    "column",
-                    "buffer"
-                ]),
+                ...$in.omit(["output"]),
                 count: $ctx.list_count,
                 index: 0
             }}

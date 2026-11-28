@@ -2,6 +2,18 @@ export type Compilation = opaque
 
 export type FpgaProgram = opaque
 
+export type FpgaManifest = {
+    format_version: u32,
+    source_ir_version: u32,
+    top: string,
+    clocked: bool,
+    latency_cycles: u32,
+    initiation_interval?: u32,
+    handshake?: string,
+    reset?: string,
+    fault: string
+}
+
 export enum Status {
     Success,
     Failed,
@@ -67,8 +79,13 @@ export declare function saveDiskSemanticEntry(
 
 export declare function verifyFpgaProgram(check: FpgaProgram): bool throws { SourceLoadFailure }
 export declare function lowerFpgaProgram(check: FpgaProgram): bool throws { SourceLoadFailure }
-export declare function renderFpgaProgram(check: FpgaProgram): void throws { SourceLoadFailure }
-export declare function publishFpgaProgram(check: FpgaProgram): void throws { SourceLoadFailure }
+export declare function renderFpgaProgram(allocator, check: FpgaProgram, clocked: bool): string
+    throws { SourceLoadFailure }
+export declare function encodeFpgaManifest(
+    allocator,
+    check: FpgaProgram,
+    metadata: FpgaManifest
+): string throws { OutOfMemory }
 
 export declare function analyzeLibraryBuild(build: Compilation, entry: string?): bool throws { SourceLoadFailure }
 export declare function linkLibraryBuild(build: Compilation): void throws { SourceLoadFailure }

@@ -1,8 +1,11 @@
 <Module>
     <Type from="workflow" as="Indexes" />
     <Type from="../sequences/model" as="Sequences" />
+    <Type from="../projections/effect" as="ProjectionEffect" />
 
     <Args in={Indexes.Immediate} out={bool} />
+
+    <Store from="../projections/publication" as="projection" />
 
     <Call fn="plan" in={$in} />
 
@@ -13,15 +16,11 @@
     </If>
 
     <Call
-        fn="host.appendIndexProjection"
-        in={[
-            $in.site.graph,
-            $in.site.spans,
-            $in.index_spans,
-            $in.target,
-            $in.value,
-            $in.position
-        ]}
+        fn="../projections/stage"
+        in={{
+            projection_step: ProjectionEffect.Step.AppendIndex
+        }}
+        setter={[$store.projection.effect]}
     />
 
     <Return value={false} />

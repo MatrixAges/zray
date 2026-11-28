@@ -10,6 +10,7 @@ const effects = @import("../../sources/effects.zig");
 const Error = effects.Error;
 const rule = @import("cli_source").prepare_rx_project;
 const Inferred = analysis.module.Result;
+const memory = @import("zx").memory;
 const LoadedRange = @import("cli_abi").layouts.@"zig:rx_preparation_host".LoadedRange;
 
 const State = struct {
@@ -27,6 +28,7 @@ const State = struct {
     paths: [][]const u8 = &.{},
     loaded_view: LoadedRange = undefined,
     inferred: ?Inferred = null,
+    evidence_paths: memory.TextColumn = undefined,
     fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);
     }
@@ -43,9 +45,15 @@ const State = struct {
         self.libraries.deinit();
     }
 
-    fn finish(self: *State) !entry.Result {
+    fn finish(self: *State, paths: []const []const u8) !entry.Result {
         const inferred = &self.inferred.?;
         const contract = &inferred.value.contract;
+        const evidence = self.loaded.?.data.sources;
+        const sources = try self.traversal.sources.addManyAsSlice(self.allocator, evidence.len);
+
+        for (sources, evidence, paths) |*slot, source, path| {
+            slot.* = .{ .path = path, .source = source.source };
+        }
 
         const result: entry.Result = .{
             .analysis = .{
@@ -117,13 +125,15 @@ pub fn run(allocator: std.mem.Allocator, options: *const entry.Options) !?entry.
     const request: std.meta.Child(rule.Input) = .{
         .preparation = @ptrCast(&reference),
         .scoped = project.package_scopes.len != 0,
+        .root = root,
+        .evidence_paths = @ptrCast(&state.evidence_paths),
     };
 
     defer state.deinit();
 
-    const ready = rule.executeIn(allocator, &request) catch |err| return state.failure.unwrap(err);
+    const paths = rule.executeIn(allocator, &request) catch |err| return state.failure.unwrap(err);
 
-    return if (ready) try state.finish() else null;
+    return try state.finish(paths orelse return null);
 }
 
 pub fn loadPreparationDocuments(handle: *const anyopaque) Error!bool {
@@ -257,19 +267,15 @@ pub fn inferPreparedProject(handle: *const anyopaque) Error!?u64 {
 
     const value = &self.inferred.?.value;
 
-    if (value.* != .diagnostic) return loaded.sources.len;
+    if (value.* != .diagnostic) {
+        self.evidence_paths = memory.borrowTextColumn("path", loaded.sources);
+
+        return loaded.sources.len;
+    }
 
     const issue = value.diagnostic;
 
     options.writer.print("{s}:{d}:{d}: {s}: {s}\n", .{ issue.path, issue.location.line, issue.location.column, issue.code, issue.message }) catch |err| return self.failure.save(err);
 
     return null;
-}
-
-pub fn recordPreparationEvidence(handle: *const anyopaque, index: u64) Error!void {
-    const self = State.get(handle);
-    const source = &self.loaded.?.data.sources[@intCast(index)];
-    const path = std.fs.path.resolve(self.allocator, &.{ self.root, source.path }) catch |err| return self.failure.save(err);
-
-    self.traversal.sources.append(self.allocator, .{ .path = path, .source = source.source }) catch |err| return self.failure.save(err);
 }

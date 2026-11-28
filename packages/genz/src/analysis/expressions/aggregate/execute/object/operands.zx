@@ -1,6 +1,7 @@
 import {
     appendAstBindingRows,
-    appendAstIdentifierRows,
+    AstPayloadOwnership,
+    appendExpressionRows,
     astExpressionCount,
     readAstOrigin
 } from "ast_rows"
@@ -54,7 +55,12 @@ export default function (in: Input): Output {
             const value = host.lowerExpression(frame, item, false, null)
             const reference = astExpressionCount(writer)
 
-            appendAstIdentifierRows(writer, identifierRows(name))
+            appendExpressionRows(
+                writer,
+                identifierRows(name),
+                null,
+                AstPayloadOwnership.Borrowed
+            )
 
             const count = host.publishObjectOperand(frame, item, reference)
 

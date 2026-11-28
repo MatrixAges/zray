@@ -20,6 +20,7 @@
                     "version",
                     "config_size",
                     "digest_size",
+                    "metrics",
                     "saw_version",
                     "selection"
                 ]),

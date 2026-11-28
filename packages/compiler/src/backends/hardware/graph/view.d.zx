@@ -35,6 +35,3 @@ export enum Form {
     SignExtend,
     ZeroExtend
 }
-
-export declare function rejectHardwareTerm(): void
-    throws { InvalidHardwareTerm }

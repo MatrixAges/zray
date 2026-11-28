@@ -1,15 +1,18 @@
 <Module>
     <Type from="model" as="Sequences" />
     <Type from="workflow" as="Replay" />
+    <Type from="../solve/replay_effect" as="Effect" />
+    <Type from="../projections/effect" as="ProjectionEffect" />
 
     <Args in={Replay.Cursor} out={Replay.Cursor} />
+
+    <Store from="../projections/publication" as="projection" />
+    <Store from="../solve/replay" as="replay" />
 
     <Call
         fn="replay"
         in={{
             ...$in.request.omit([
-                "frame",
-                "owner",
                 "spans"
             ]),
             start: $in.row
@@ -30,7 +33,6 @@
             <Call
                 module="list"
                 in={{
-                    owner: $in.request.owner,
                     row: $ctx.replay.row,
                     argument: $ctx.replay.plan.argument,
                     declared: $ctx.replay.plan.declared
@@ -38,27 +40,35 @@
             />
 
             <Call
-                fn="host.expectSequenceMembers"
-                in={[
-                    $in.request.owner,
-                    $ctx.replay.row,
-                    $ctx.replay.targets,
-                    $ctx.list,
-                    false
-                ]}
+                fn="../projections/stage"
+                in={{
+                    projection_step: ProjectionEffect.Step.ExpectSequence,
+                    site: {
+                        spans: $in.request.spans,
+                        row: $ctx.replay.row
+                    },
+                    members: $ctx.replay.targets,
+                    repeated: $ctx.list,
+                    declared: false
+                }}
+                setter={[$store.projection.effect]}
             />
         </Case>
 
         <Case value={Sequences.SequenceRoute.Tuple}>
             <Call
-                fn="host.expectSequenceMembers"
-                in={[
-                    $in.request.owner,
-                    $ctx.replay.row,
-                    $ctx.replay.targets,
-                    null,
-                    $ctx.replay.plan.declared
-                ]}
+                fn="../projections/stage"
+                in={{
+                    projection_step: ProjectionEffect.Step.ExpectSequence,
+                    site: {
+                        spans: $in.request.spans,
+                        row: $ctx.replay.row
+                    },
+                    members: $ctx.replay.targets,
+                    repeated: null,
+                    declared: $ctx.replay.plan.declared
+                }}
+                setter={[$store.projection.effect]}
             />
         </Case>
 
@@ -81,7 +91,13 @@
         </Default>
     </Switch>
 
-    <Call fn="../solve/host.refreshSolverSequences" in={$in.request.frame} />
+    <Call
+        fn="../solve/stage_replay"
+        in={{
+            step: Effect.Step.RefreshSequences
+        }}
+        setter={[$store.replay.effect]}
+    />
 
     <Return
         value={{

@@ -1,12 +1,12 @@
 <Module>
     <Type from="model" as="Preparation" />
 
-    <Args in={Preparation.Request} out={bool} />
+    <Args in={Preparation.ProjectRequest} out={string[]?} />
 
     <Call fn="index.loadPreparationDocuments" in={$in.preparation} />
 
     <If on={!$ctx.loadPreparationDocuments}>
-        <Return value={false} />
+        <Return value={null} />
     </If>
 
     <Call fn="index.preparePhysicalRoot" in={$in.preparation} />
@@ -28,7 +28,8 @@
         <Call
             module="sources/prepare"
             in={{
-                ...$in,
+                preparation: $in.preparation,
+                scoped: $in.scoped,
                 count: $ctx.collectPreparationTypes
             }}
         />
@@ -36,26 +37,24 @@
         <Call fn="index.collectPreparationLibraries" in={$in.preparation} />
 
         <If on={!$ctx.collectPreparationLibraries}>
-            <Return value={false} />
+            <Return value={null} />
         </If>
 
         <Call fn="index.inferPreparedProject" in={$in.preparation} />
 
         <If on={$ctx.inferPreparedProject != null}>
-            <Loop on={$in.index < $in.count}>
-                <Call
-                    module="evidence"
-                    in={{
-                        preparation: $in.preparation,
-                        count: $ctx.inferPreparedProject,
-                        index: 0
-                    }}
-                />
-            </Loop>
+            <Call
+                fn="evidence"
+                in={{
+                    root: $in.root,
+                    paths: $in.evidence_paths,
+                    count: $ctx.inferPreparedProject
+                }}
+            />
 
-            <Return value={true} />
+            <Return value={$ctx.evidence} />
         </If>
     </If>
 
-    <Return value={false} />
+    <Return value={null} />
 </Module>

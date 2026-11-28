@@ -1,0 +1,17 @@
+<Store name="rx_projection_publication" version={1}>
+    <Type from="effect" as="Effect" />
+    <Type from="site" as="Source" />
+
+    <Object name="effect">
+        <Field name="projection_step" type={Effect.Step} value={Effect.Step.Merge} />
+        <Field name="site" type={Source.Site?} value={null} />
+        <Field name="left" type={u32?} value={null} />
+        <Field name="right" type={u32?} value={null} />
+        <Field name="members" type={u32[]?} value={null} />
+        <Field name="repeated" type={u32?} value={null} />
+        <Field name="declared" type={bool?} value={null} />
+        <Field name="message" type={string?} value={null} />
+        <Field name="unsupported" type={bool?} value={null} />
+        <Field name="id" type={u32} value={0} />
+    </Object>
+</Store>

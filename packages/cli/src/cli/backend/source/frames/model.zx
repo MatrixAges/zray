@@ -1,4 +1,5 @@
 import type { DiagnosticBundle } from "backend_frames"
+import type { U64U32Map } from "memory/maps"
 
 export enum Status {
     Success,
@@ -6,6 +7,7 @@ export enum Status {
     BackendFailed,
     InvalidBackendProtocol,
     BackendVersionMismatch,
+    BackendDiagnosticsTooComplex,
     IncompleteBackendResponse
 }
 
@@ -20,6 +22,7 @@ export enum Tag {
 
 export type Input = {
     bytes: string,
+    metrics: U64U32Map,
     version: string,
     config_size: u64,
     digest_size: u64,
@@ -40,7 +43,7 @@ export type Selection = {
     diagnostics?: DiagnosticBundle
 }
 
-export type Frame = Input.Pick("version", "config_size", "digest_size") & {
+export type Frame = Input.Pick("version", "config_size", "digest_size", "metrics") & {
     tag: Tag,
     body: string,
     size: u64,

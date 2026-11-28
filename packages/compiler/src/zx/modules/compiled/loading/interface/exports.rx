@@ -1,16 +1,22 @@
 <Module>
+    <Type from="publication" as="Publication" />
     <Type from="model" as="Interface" />
 
     <Args in={Interface.ExportRequest} out={void} />
 
+    <Store from="rows" as="rows" />
+
     <Call fn="export_layout" in={$in} />
 
     <Call
-        fn="columns.allocateRows"
+        fn="stage"
         in={{
-            target: $in.buffers.exports,
+            kind: Publication.Kind.AllocateExports,
+            row: 0,
+            text: "",
             count: $ctx.export_layout.count
         }}
+        setter={[$store.rows.pending]}
     />
 
     <Loop on={$in.running}>

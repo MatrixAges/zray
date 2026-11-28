@@ -1,0 +1,20 @@
+import { resolvePathParts } from "lexical_path"
+import { relativePathFrom } from "publication_host"
+
+import type { AnalysisInput } from "./model"
+
+export type Input = AnalysisInput.Pick("root", "entry")
+
+export type Output = {
+    root: string,
+    owner: string
+}
+
+export default function (in: Input): Output {
+    const root = resolvePathParts([in.root])
+
+    return {
+        root,
+        owner: relativePathFrom(root, in.entry)
+    }
+}

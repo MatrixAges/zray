@@ -1,0 +1,17 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+import { ascii_slash } from "core/ascii/const"
+
+export type Input = string
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const slash = bytes.lastIndexOfScalar(bytes.fromText(in), ascii_slash)
+
+    if (slash == null) {
+        return null
+    }
+
+    return encoding.sliceBytes(in, 0, slash)
+}

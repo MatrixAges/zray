@@ -1,7 +1,31 @@
 <Store name="registered_type_rows" version={1}>
     <Type from="../../../analysis/semantic/merging/publication/model" as="Types" />
+    <Type from="model" as="Registration" />
 
     <Object name="pending">
+        <Field
+            name="base"
+            type={Registration.Base}
+            value={{
+                types: {
+                    kinds: [],
+                    first: [],
+                    second: [],
+                    labels: [],
+                    children: [],
+                    field_types: [],
+                    field_names: [],
+                    names: []
+                },
+                origins: {
+                    ids: [],
+                    kinds: [],
+                    owners: [],
+                    members: []
+                }
+            }}
+        />
+
         <Field name="row" type={u64} value={0} />
         <Field name="mapping" type={u32[]} value={[]} />
         <Field name="publication" type={Types.Plan?} value={null} />

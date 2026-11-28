@@ -1,6 +1,8 @@
 import type { Plan } from "../../../analysis/semantic/merging/publication/model"
+import type { Base } from "./model"
 
 export type Input = {
+    base: Base,
     row: u64,
     mapping: u32[],
     publication?: Plan

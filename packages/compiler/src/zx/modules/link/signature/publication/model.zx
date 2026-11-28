@@ -1,5 +1,4 @@
 import type { Table } from "core/signature_table/model"
-import type { Allocator } from "memory"
 import type {
     ColumnAllocator,
     ColumnSet,
@@ -25,11 +24,5 @@ export type Destination = {
     storage: ColumnSet,
     shape?: FunctionRow,
     maximum_count: u64,
-    resource: ColumnAllocator,
-    text_allocator: Allocator
-}
-
-export type Input = Record & {
-    destination: Destination,
-    empty: BodyColumns
+    resource: ColumnAllocator
 }

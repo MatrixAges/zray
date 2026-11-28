@@ -1,0 +1,11 @@
+<Store name="rx_assignment_registration" version={1}>
+    <Type from="effect" as="Effect" />
+
+    <Object name="effect">
+        <Field name="registration_step" type={Effect.Step} value={Effect.Step.Append} />
+        <Field name="row" type={Effect.Commit?} value={null} />
+        <Field name="buckets" type={u32[]?} value={null} />
+        <Field name="type_id" type={u32?} value={null} />
+        <Field name="span_index" type={u64?} value={null} />
+    </Object>
+</Store>

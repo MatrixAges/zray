@@ -1,11 +1,10 @@
 import integers from "std:integer"
-import host from "hardware_graph_host"
 
 import name from "../../../../verification/ports/name"
 
 import type { OutputPort, OutputWrite as Input } from "./model"
 
-export type Output = OutputPort[]
+export type Output = OutputPort[]?
 
 export default function (in: Input): Output {
     const { sort, leaf, node, ports } = in
@@ -13,7 +12,7 @@ export default function (in: Input): Output {
     const width = integers.widenShort(sort.width)
 
     if (width != leaf.width || sort.boolean != leaf.boolean) {
-        host.rejectHardwareTerm()
+        return null
     }
 
     const symbol = name({

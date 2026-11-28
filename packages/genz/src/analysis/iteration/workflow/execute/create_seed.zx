@@ -1,4 +1,4 @@
-import { appendAstIdentifierRows, readAstOrigin } from "ast_rows"
+import { AstPayloadOwnership, appendExpressionRows, readAstOrigin } from "ast_rows"
 import host from "lowering_host"
 import { requireAllocation } from "memory"
 
@@ -32,7 +32,13 @@ export default function (in: Input): Output {
 
     const name = host.retainLoweringText(frame, generated.name)
 
-    appendAstIdentifierRows(writer, identifierRows(name))
+    appendExpressionRows(
+        writer,
+        identifierRows(name),
+        null,
+        AstPayloadOwnership.Borrowed
+    )
+
     host.finishGeneratedAst(frame, generated.serial, false)
 
     return {

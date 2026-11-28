@@ -1,0 +1,22 @@
+import type { Pair } from "./model"
+
+export enum Step {
+    Overflow,
+    Append,
+    Grow,
+    ReplaceIndex,
+    RegisterTarget
+}
+
+export type Commit = Pair & {
+    slot: u64,
+    span_index: u64
+}
+
+export type Command = {
+    registration_step: Step,
+    row?: Commit,
+    buckets?: u32[],
+    type_id?: u32,
+    span_index?: u64
+}

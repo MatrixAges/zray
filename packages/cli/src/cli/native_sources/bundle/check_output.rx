@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Bundle" />
 
-    <Args in={Bundle.OutputCheck} out={bool} />
+    <Args in={Bundle.OutputCheck} out={Bundle.OutputSafety} />
 
     <Loop on={$in.valid && $in.index < $in.bundle_files.length}>
         <Call
@@ -14,5 +14,10 @@
         />
     </Loop>
 
-    <Return value={$ctx.check_output_step.valid} />
+    <Return
+        value={$ctx.check_output_step.pick([
+            "valid",
+            "issue"
+        ])}
+    />
 </Module>

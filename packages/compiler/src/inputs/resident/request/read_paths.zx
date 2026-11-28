@@ -1,21 +1,12 @@
-import memory from "memory"
+import bytes from "std:bytes"
 
-import readText from "../read_text"
+import type { Paths as Output, RequestFrame } from "../model"
 
-import type { Paths as Output, Reader as Input } from "../model"
+export type Input = RequestFrame.Omit("identity", "path")
 
 export default function (in: Input): Output {
-    const cwd = readText(in)
-    const manifest = readText(in)
-    const output = readText(in)
-    const cache = readText(in)
-    const partitions = memory.takeU32Le(in)
-
     return {
-        cwd,
-        manifest,
-        output,
-        cache,
-        partitions
+        ...in.omit(["options"]),
+        partitions: bytes.readU32(in.options, 0, true)
     }
 }

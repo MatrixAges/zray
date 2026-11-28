@@ -1,6 +1,7 @@
 import bytes from "std:bytes"
-import { appendAstAccessRows, astExpressionCount } from "ast_rows"
+import { appendExpressionRows, AstPayloadOwnership, astExpressionCount } from "ast_rows"
 
+import accessColumns from "../../../ast/rows/access_columns"
 import { ExpressionsKind } from "../../../printer/model/expressions"
 import { length_member } from "../../intrinsics/index/const"
 
@@ -17,9 +18,8 @@ export default function (in: Input): Output {
     const base = astExpressionCount(in.writer)
     const empty: u32[][] = []
 
-    appendAstAccessRows(
-        in.writer,
-        {
+    const columns = accessColumns({
+        rows: {
             tags: [ExpressionsKind.Field],
             offsets: [0],
             field_target: [in.items],
@@ -28,7 +28,14 @@ export default function (in: Input): Output {
             optional_unwrap: [],
             builtin_name: []
         },
-        empty
+        arguments: empty
+    })
+
+    appendExpressionRows(
+        in.writer,
+        columns.rows,
+        columns.forms,
+        AstPayloadOwnership.Borrowed
     )
 
     return base

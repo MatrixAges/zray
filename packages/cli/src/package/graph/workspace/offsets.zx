@@ -1,6 +1,11 @@
-export type Input = u64[]
+import memory from "memory"
+
+import type { Workspace } from "../model"
+
+export type Input = Workspace.Pick("declarations", "member_count")
 
 export type Output = {
+    counts: u64[],
     firsts: u64[],
     total: u64
 }
@@ -11,12 +16,19 @@ export default function (in: Input): Output {
     return loop({
         row: 0,
         firsts: empty,
+        counts: empty,
         total: 0
     }, {
-        while: state => state.row < in.length,
+        while: state => state.row < in.member_count,
         next: state => {
+            const production = memory.listLength(in.declarations.production, state.row)
+            const development =
+                memory.listLength(in.declarations.development, state.row)
+            const count = production + development
+
             state.firsts = state.firsts.push(state.total)[0]
-            state.total += in[state.row]
+            state.counts = state.counts.push(count)[0]
+            state.total += count
             state.row += 1
         },
         return: state => state.omit(["row"])

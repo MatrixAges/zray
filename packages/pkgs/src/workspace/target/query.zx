@@ -1,7 +1,7 @@
+import os from "std:os"
+import strings from "std:string"
 import lexical from "lexical_path"
-import memory from "memory"
 
-import { Kind } from "../specifier"
 import { Key } from "./model"
 
 import type { Output as Specifier } from "../specifier"
@@ -13,7 +13,7 @@ export type Request = {
     requirement: string
 }
 
-export type Input = Request & {
+export type Input = Request.Omit("requirement") & {
     root?: string,
     spec: Specifier
 }
@@ -21,16 +21,11 @@ export type Input = Request & {
 export type Output = Query
 
 export default function (in: Input): Output {
-    const { requirement, spec, name, owner, root } = in
+    const { spec, name, owner, root } = in
 
-    if (spec.kind == Kind.Path) {
-        const path =
-            memory.borrowTextRange(
-                requirement,
-                spec.body,
-                requirement.length - spec.body
-            )
+    const path = spec.path
 
+    if (path != null) {
         if (root == null) {
             return {
                 kind: Key.RelativePath,
@@ -42,34 +37,29 @@ export default function (in: Input): Output {
 
         const base = root ?? ""
 
+        const resolved = lexical.resolvePathParts([
+            base,
+            owner,
+            path
+        ])
+
+        const portable = match os.platform() {
+            "win32" => strings.replaceAll(resolved, "\\", "/"),
+            _ => resolved
+        }
+
         return {
             kind: Key.HostPath,
-            value: lexical.resolvePortablePath(base, owner, path),
+            value: portable,
             owner: base,
             range: null
         }
     }
 
-    const value = match spec.kind {
-        Kind.Alias =>
-            memory.borrowTextRange(requirement, spec.body, spec.range - spec.body - 1),
-        _ => name
-    }
-
-    const range: string? = match {
-        spec.constrained =>
-            memory.borrowTextRange(
-                requirement,
-                spec.range,
-                requirement.length - spec.range
-            ),
-        _ => null
-    }
-
     return {
         kind: Key.Name,
-        value,
+        value: spec.alias ?? name,
         owner,
-        range
+        range: spec.range
     }
 }

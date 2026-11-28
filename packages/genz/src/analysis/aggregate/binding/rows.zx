@@ -1,8 +1,6 @@
 export {
     appendAstBindingRows,
-    appendAstBlockRows,
-    appendAstFieldAddresses,
-    appendAstIdentifierRows,
+    appendExpressionRows,
     appendStatementRows,
     AstPayloadOwnership
 } from "ast_rows"

@@ -1,4 +1,4 @@
-import type { ListColumn, TextColumn, U8Buffer } from "memory"
+import type { ListColumn, TextColumn } from "memory"
 import type { Input as Graph } from "../graph/model"
 
 export enum Status {
@@ -35,7 +35,7 @@ export type Packages = {
     paths: TextColumn,
     archives: TextColumn,
     digests: TextColumn,
-    flags: U8Buffer,
+    flags: u8[],
     count: u64,
     limit: u64
 }

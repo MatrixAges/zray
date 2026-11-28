@@ -1,4 +1,9 @@
 import type {
+    Input as ConfigurationInput,
+    Result as ConfigurationResult
+}
+from "../configuration/model"
+import type {
     Layout,
     SemanticLint,
     SemanticProject,
@@ -63,7 +68,17 @@ export type SourceInput = SourceDocument & {
 
 export type SemanticInput = {
     host: SemanticLint,
-    input_path: u8[]
+    configuration: ConfigurationInput
+}
+
+export type SemanticConfiguration = {
+    manifest: bool,
+    request: ConfigurationInput
+}
+
+export type SemanticResult = {
+    outcome: SemanticOutcome,
+    configuration?: ConfigurationResult
 }
 
 export type SemanticLoaded = {

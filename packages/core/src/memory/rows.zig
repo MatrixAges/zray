@@ -69,17 +69,6 @@ pub inline fn readId(source: *const anyopaque, index: u64) error{IndexOutOfBound
     return (try read(source, index)).id;
 }
 
-pub fn bindNamedRowView(source: *const anyopaque, index: u64, target: *anyopaque) error{IndexOutOfBounds}!u64 {
-    const rows: *[]const NamedId = @ptrCast(@alignCast(target));
-    rows.* = try readColumn([]const NamedId, source, index);
-
-    return rows.len;
-}
-
-pub inline fn namedRowsView(source: *anyopaque, shape: anytype) std.meta.Child(@TypeOf(shape)) {
-    return @ptrCast(source);
-}
-
 pub inline fn borrowText(comptime field: []const u8, items: anytype) TextColumn {
     return borrowColumn([]const u8, field, items);
 }
@@ -186,33 +175,6 @@ pub inline fn borrowListPath(comptime T: type, comptime fields: []const []const 
     }
 
     return .{ .lists = borrowNested(List, fields, items), .stride = @sizeOf(Row), .offset = layout.offset };
-}
-
-pub fn bindSliceColumns(comptime View: type, comptime group: []const u8, items: anytype) [@typeInfo(View).@"struct".field_names.len]ReadColumn {
-    const names = @typeInfo(View).@"struct".field_names;
-    var result: [names.len]ReadColumn = undefined;
-
-    inline for (names, &result) |name, *column| {
-        column.* = borrowNested(@FieldType(View, name), &.{ group, name }, items);
-    }
-
-    return result;
-}
-
-inline fn sliceColumns(source: *const anyopaque) []const ReadColumn {
-    const columns: *const []const ReadColumn = @ptrCast(@alignCast(source));
-
-    return columns.*;
-}
-
-pub inline fn sliceColumnCount(source: *const anyopaque) u64 {
-    return sliceColumns(source).len;
-}
-
-pub inline fn readSliceCell(source: *const anyopaque, buffer: *anyopaque, layout: *const anyopaque, slot: u64, row: u64) error{IndexOutOfBounds}!void {
-    const items = try readColumn([]const u8, &sliceColumns(source)[@intCast(slot)], row);
-
-    @import("column_set.zig").writeViewCell(buffer, layout, slot, &items);
 }
 
 pub inline fn borrowOptionalList(comptime field: []const u8, comptime member: []const u8, items: anytype) ListColumn {

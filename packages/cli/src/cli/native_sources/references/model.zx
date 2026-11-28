@@ -1,5 +1,6 @@
 import type { Context } from "native_resource_host"
 import type { Flags } from "../collect/model"
+import type { Issue } from "../path/model"
 
 export type Source = {
     collection: Context,
@@ -22,19 +23,10 @@ export enum Action {
     Asset
 }
 
-export enum ErrorKind {
-    None,
-    InvalidSource,
-    InvalidImport
-}
-
 export type Result = Flags & {
     paths: string[],
-    sources: bool[]
-}
-
-export type ScanResult = Result & {
-    error_kind: ErrorKind
+    sources: bool[],
+    issue?: Issue
 }
 
 export type DecodeInput = {

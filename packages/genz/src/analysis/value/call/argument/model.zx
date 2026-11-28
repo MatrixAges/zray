@@ -1,4 +1,5 @@
-import type { AstIdentifierRows, AstOperandRows, AstSequence } from "ast_rows"
+import type { AstSequence } from "ast_rows"
+import type { Columns } from "../../../../ast/rows/expression_columns"
 import type { Target } from "../../../aggregate/binding/publication"
 import type {
     Input as Binding,
@@ -35,13 +36,13 @@ export type Prepared = {
 
 export type Reference = {
     bound: Bound,
-    identifiers: AstIdentifierRows,
+    identifiers: u8[][],
     values: u32[],
     cast_arguments: u32[],
     object?: ObjectRows
 }
 
 export type Output = {
-    expressions: AstOperandRows,
+    expressions: Columns,
     root: u32
 }

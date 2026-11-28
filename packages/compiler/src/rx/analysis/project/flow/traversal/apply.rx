@@ -1,6 +1,5 @@
 <Module>
     <Type from="effect" as="Effect" />
-    <Type from="host" as="Host" />
     <Type from="model" as="Model" />
     <Type from="operation" as="Operation" />
 
@@ -27,7 +26,7 @@
                         index:
                             $in.cursor.target_first +
                             ($in.position - $in.cursor.target_start),
-                        kind: Host.FlowKind.Return
+                        kind: Operation.FlowKind.Return
                     }}
                 />
             </If>
@@ -141,7 +140,7 @@
                     module="write_step"
                     in={{
                         index: $in.cursor.destination,
-                        kind: Host.FlowKind.Parallel
+                        kind: Operation.FlowKind.Parallel
                     }}
                 />
             </If>
@@ -165,7 +164,7 @@
                     module="write_step"
                     in={{
                         index: $in.cursor.destination,
-                        kind: Host.FlowKind.Selection,
+                        kind: Operation.FlowKind.Selection,
                         exhaustive: $ctx.task.check_flow_selection
                     }}
                 />

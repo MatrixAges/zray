@@ -1,8 +1,11 @@
 <Module>
     <Type from="workflow" as="Registration" />
     <Type from="model" as="Registry" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Registration.Cursor} out={Registration.Cursor} />
+
+    <Store from="publication" as="publication" />
 
     <Call
         fn="register"
@@ -20,13 +23,14 @@
     <Switch on={$ctx.register.action}>
         <Case value={Registry.Action.Commit}>
             <Call
-                fn="host.commitKnownNode"
-                in={[
-                    $in.request.frame,
-                    $ctx.register.slot,
-                    $ctx.register.tag,
-                    $ctx.register.type_id
-                ]}
+                fn="stage"
+                in={{
+                    step: Effect.Step.Insert,
+                    slot: $ctx.register.slot,
+                    tag: $ctx.register.tag,
+                    type_id: $ctx.register.type_id
+                }}
+                setter={[$store.publication.effect]}
             />
 
             <Call
@@ -47,27 +51,48 @@
                     end: $ctx.register.end + 1,
                     type_id: $ctx.step.type_id,
                     remaining: $ctx.step.remaining,
-                    value: $ctx.commitKnownNode,
+                    value: $ctx.register.value,
                     running: $ctx.step.running
                 }}
             />
         </Case>
 
         <Case value={Registry.Action.Invalid}>
-            <Call fn="host.rejectKnownType" in={$in.request.frame} />
+            <Call
+                fn="stage"
+                in={{
+                    step: Effect.Step.Reject
+                }}
+                setter={[$store.publication.effect]}
+            />
         </Case>
 
         <Case value={Registry.Action.Overflow}>
-            <Call fn="host.requireAllocation" in={false} />
+            <Call
+                fn="stage"
+                in={{
+                    step: Effect.Step.Overflow
+                }}
+                setter={[$store.publication.effect]}
+            />
         </Case>
 
         <Case value={Registry.Action.Reserve}>
             <Call
-                fn="host.reserveKnownIndex"
-                in={[
-                    $in.request.frame,
-                    $ctx.register.capacity
-                ]}
+                fn="rehash"
+                in={{
+                    previous: $in.request.view.table,
+                    capacity: $ctx.register.capacity
+                }}
+            />
+
+            <Call
+                fn="stage"
+                in={{
+                    step: Effect.Step.Replace,
+                    buckets: $ctx.rehash
+                }}
+                setter={[$store.publication.effect]}
             />
         </Case>
     </Switch>

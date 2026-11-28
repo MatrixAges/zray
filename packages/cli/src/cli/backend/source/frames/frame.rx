@@ -1,5 +1,6 @@
 <Module>
     <Type from="model" as="Protocol" />
+    <Type from="../diagnostics/model" as="Diagnostics" />
 
     <Args in={Protocol.Frame} out={Protocol.FrameResult} />
 
@@ -101,24 +102,52 @@
         <Case value={Protocol.Tag.Diagnostics}>
             <Call fn="bundle" in={$in.body} />
 
-            <If on={!$ctx.bundle}>
+            <If on={$ctx.bundle != null}>
+                <Call
+                    module="../diagnostics/validate"
+                    in={{
+                        words: $ctx.bundle.words,
+                        strings: $ctx.bundle.strings,
+                        metrics: $in.metrics
+                    }}
+                />
+
+                <If on={$ctx.validate != Diagnostics.Status.Valid}>
+                    <If
+                        on={$ctx.validate ==
+                            Diagnostics.Status.BackendDiagnosticsTooComplex}
+                    >
+                        <Return
+                            value={{
+                                status: Protocol.Status.BackendDiagnosticsTooComplex,
+                                selection: $in.selection
+                            }}
+                        />
+                    </If>
+
+                    <Return
+                        value={{
+                            status: Protocol.Status.InvalidBackendProtocol,
+                            selection: $in.selection
+                        }}
+                    />
+                </If>
+
                 <Return
                     value={{
-                        status: Protocol.Status.InvalidBackendProtocol,
-                        selection: $in.selection
+                        status: Protocol.Status.Success,
+                        selection: {
+                            ...$in.selection,
+                            diagnostics: $ctx.bundle
+                        }
                     }}
                 />
             </If>
 
-            <Call fn="index.readDiagnostics" in={$in.body} />
-
             <Return
                 value={{
-                    status: Protocol.Status.Success,
-                    selection: {
-                        ...$in.selection,
-                        diagnostics: $ctx.readDiagnostics
-                    }
+                    status: Protocol.Status.InvalidBackendProtocol,
+                    selection: $in.selection
                 }}
             />
         </Case>

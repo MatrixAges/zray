@@ -7,6 +7,9 @@
         <Field name="left" type={u32?} value={null} />
         <Field name="right" type={u32?} value={null} />
         <Field name="diagnostic" type={Replay.Diagnostic?} value={null} />
+        <Field name="budget" type={u64?} value={null} />
+        <Field name="revision" type={u64} value={0} />
+        <Field name="remaining" type={u64} value={0} />
         <Field name="id" type={u32} value={0} />
     </Object>
 </Store>

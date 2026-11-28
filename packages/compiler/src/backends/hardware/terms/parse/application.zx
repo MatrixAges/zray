@@ -1,5 +1,4 @@
 import integers from "std:integer"
-import host from "hardware_graph_host"
 import memory from "memory"
 
 import fromCode from "../../binary/from_code"
@@ -12,7 +11,9 @@ import finish from "./finish"
 import intern from "./intern"
 import operandSort from "./operand_sort"
 
-import type { Apply as Input, Parsed as Output } from "./model"
+import type { Apply as Input, Parsed } from "./model"
+
+export type Output = Parsed?
 
 export default function (in: Input): Output {
     const { graph, expression, source, head, left, right, third, offset } = in
@@ -23,6 +24,10 @@ export default function (in: Input): Output {
         offset,
         closing: true
     })
+
+    if (end == null) {
+        return null
+    }
 
     const token = match form {
         Form.Binary => fromSmt(
@@ -36,7 +41,7 @@ export default function (in: Input): Output {
     }
 
     if (form == Form.Binary && token == null) {
-        host.rejectHardwareTerm()
+        return null
     }
 
     const family = match {
@@ -65,7 +70,7 @@ export default function (in: Input): Output {
     })
 
     if (sort.width == 0) {
-        host.rejectHardwareTerm()
+        return null
     }
 
     const key = memory.borrowTextRange(expression, start, end - start)
@@ -82,6 +87,10 @@ export default function (in: Input): Output {
         extra,
         origin: in.origin
     })
+
+    if (term == null) {
+        return null
+    }
 
     return {
         ...term,

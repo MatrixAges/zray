@@ -1,1 +1,0 @@
-export declare function requireBodyBlock(valid: bool): void throws { InvalidModule }

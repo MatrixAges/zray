@@ -30,7 +30,6 @@ constructed: Construction.Frame = undefined,
 construction: ConstructionRow = undefined,
 selection: SelectionRow = undefined,
 source: std.meta.Child(@FieldType(SelectionRow, "source")) = undefined,
-selection_spans: []const zx.Span = undefined,
 pub fn bind(self: *Self, graph: *Graph, closure: *Closure, scope: *zx.memory.ArenaScope) void {
     self.graph = graph;
     self.scope = scope;
@@ -40,8 +39,6 @@ pub fn bind(self: *Self, graph: *Graph, closure: *Closure, scope: *zx.memory.Are
 
     const objects = graph.pending.constructions.slice();
     const selections = graph.pending.selections.slice();
-
-    self.selection_spans = selections.items(.span);
 
     self.constructions = .{
         .columns = &self.columns,
@@ -56,8 +53,7 @@ pub fn bind(self: *Self, graph: *Graph, closure: *Closure, scope: *zx.memory.Are
         .sources = @ptrCast(selections.items(.source)),
         .constructions = objects.len,
         .revision = undefined,
-        .owner = @ptrCast(graph),
-        .spans = @ptrCast(&self.selection_spans),
+        .spans = .Selection,
     };
 
     self.view = .{
@@ -89,8 +85,7 @@ pub fn commit(self: *Self, effect: anytype, reply: anytype) zx.Error!void {
             self.memory.close(self.scope);
             self.refresh();
         },
-        .ReserveSpreads, .BindSpread, .CommitSpread, .RegisterSource, .DescribeTarget, .InferField, .RejectConstruction =>
-            try Construction.apply(&self.constructed, effect, reply),
+        .ReserveSpreads, .BindSpread, .CommitSpread, .RegisterSource, .DescribeTarget, .InferField, .RejectConstruction => try Construction.apply(&self.constructed, effect, reply),
         else => try Fields.apply(&self.fields, effect, reply),
     }
 }

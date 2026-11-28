@@ -1,16 +1,19 @@
+import { Issue } from "../path/model"
 import classify from "./classify"
-import { Action, ErrorKind } from "./model"
+import { Action } from "./model"
 
 import type { Builtin } from "native_resource_host"
-import type { ScanResult } from "./model"
+import type { Result } from "./model"
 
 export type Input = Builtin[]
 
-export type Output = ScanResult
+export type Output = Result
 
 export default function (in: Input): Output {
     const empty_paths: string[] = []
     const empty_sources: bool[] = []
+
+    const issue: Issue? = null
 
     return loop({
         index: 0,
@@ -18,9 +21,9 @@ export default function (in: Input): Output {
         c_imports: false,
         paths: empty_paths,
         sources: empty_sources,
-        error_kind: ErrorKind.None
+        issue
     }, {
-        while: state => state.index < in.length && state.error_kind == ErrorKind.None,
+        while: state => state.index < in.length && state.issue == null,
         next: state => {
             const item = in[state.index]
 
@@ -34,9 +37,9 @@ export default function (in: Input): Output {
                 case Action.CImport:
                     state.c_imports = true
                 case Action.InvalidSource:
-                    state.error_kind = ErrorKind.InvalidSource
+                    state.issue = Issue.InvalidSource
                 case Action.InvalidImport:
-                    state.error_kind = ErrorKind.InvalidImport
+                    state.issue = Issue.InvalidImport
                 case Action.DynamicAsset:
                     state.dynamic_resources = true
                 case Action.Zig:
@@ -58,7 +61,7 @@ export default function (in: Input): Output {
                 c_imports: state.c_imports,
                 paths: state.paths,
                 sources: state.sources,
-                error_kind: state.error_kind
+                issue: state.issue
             }
         }
     })

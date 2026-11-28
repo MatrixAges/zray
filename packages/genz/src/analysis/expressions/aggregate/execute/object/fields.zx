@@ -1,5 +1,5 @@
 import integers from "std:integer"
-import { convertAggregateField } from "ast_rows"
+import { convertStateValue, StateValueMode } from "ast_rows"
 import host from "lowering_host"
 
 import bindOperand from "../../../../aggregate/execute/bind_operand"
@@ -77,11 +77,13 @@ export default function (in: Input): Output {
                     value
                 })
 
-                const pointer = convertAggregateField(
+                const pointer = convertStateValue(
                     writer,
                     sequence,
                     expression_types[integers.widen(item)],
-                    bound
+                    bound,
+                    StateValueMode.Pointer,
+                    false
                 )
 
                 state.values = state.values.push(pointer)[0]

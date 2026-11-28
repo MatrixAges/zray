@@ -2,7 +2,7 @@ import integers from "std:integer"
 import { scalar_u64 } from "core/type_table/const"
 
 import { Route } from "../fields/model"
-import representative from "../forest/root"
+import representative from "../forest/borrowed_root"
 import find from "../known/find"
 import { Kind } from "../unification/model"
 import candidate from "./candidate"

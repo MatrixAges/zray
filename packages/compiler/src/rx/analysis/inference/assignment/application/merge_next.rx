@@ -1,8 +1,11 @@
 <Module>
     <Type from="workflow" as="Assignment" />
     <Type from="merge" as="Merge" />
+    <Type from="../../solve/replay_effect" as="Effect" />
 
     <Args in={Assignment.Iteration} out={Assignment.Iteration} />
+
+    <Store from="../../solve/replay" as="replay" />
 
     <Call
         fn="merge"
@@ -18,46 +21,49 @@
 
     <If on={$ctx.merge.action == Merge.Action.Depth}>
         <Call
-            fn="host.rejectAssignmentDepth"
-            in={[
-                $in.request.frame,
-                $ctx.merge.root
-            ]}
+            fn="../../solve/stage_replay"
+            in={{
+                step: Effect.Step.RejectAssignmentDepth,
+                left: $ctx.merge.root
+            }}
+            setter={[$store.replay.effect]}
         />
     </If>
 
     <If on={$ctx.merge.action == Merge.Action.Register}>
         <Call
-            fn="host.registerAssignmentPayload"
-            in={[
-                $in.request.frame,
-                $ctx.merge.root,
-                $ctx.merge.value,
-                $ctx.merge.remaining
-            ]}
+            fn="../../solve/stage_replay"
+            in={{
+                step: Effect.Step.RegisterAssignmentPayload,
+                left: $ctx.merge.root,
+                right: $ctx.merge.value,
+                budget: $ctx.merge.remaining
+            }}
+            setter={[$store.replay.effect]}
         />
 
-        <Call fn="host.remainingAssignmentDepth" in={$in.request.frame} />
+        <Call fn="../../solve/read_assignment_payload" in={$store.replay.effect} />
 
         <Return
             value={{
                 request: $in.request,
                 next: $ctx.merge.next,
                 other: $ctx.merge.other,
-                value: $ctx.registerAssignmentPayload,
-                remaining: $ctx.remainingAssignmentDepth
+                value: $ctx.read_assignment_payload.id,
+                remaining: $ctx.read_assignment_payload.remaining
             }}
         />
     </If>
 
     <If on={$ctx.merge.action == Merge.Action.Merge}>
         <Call
-            fn="host.mergeAssignmentClass"
-            in={[
-                $in.request.frame,
-                $ctx.merge.next - 1,
-                $ctx.merge.other ?? 0
-            ]}
+            fn="../../solve/stage_replay"
+            in={{
+                step: Effect.Step.MergeAssignmentClass,
+                row: $ctx.merge.next - 1,
+                right: $ctx.merge.other ?? 0
+            }}
+            setter={[$store.replay.effect]}
         />
     </If>
 

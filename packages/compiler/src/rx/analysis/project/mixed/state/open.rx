@@ -1,11 +1,31 @@
 <Module>
-    <Type from="host" as="State" />
+    <Type from="model" as="Opening" />
 
-    <Args in={State.MixedState} out={void} />
+    <Args in={void} out={void} />
 
-    <Call fn="host.installMixedTypes" in={$in} />
-    <Call fn="host.installMixedNatives" in={$in} />
-    <Call fn="host.openMixedResults" in={$in} />
-    <Call fn="host.installMixedOrigins" in={$in} />
-    <Call fn="host.installMixedSignatures" in={$in} />
+    <Store from="open" as="opening" />
+
+    <Task name="types">
+        <Call fn="publish" in={Opening.Step.Types} setter={[$store.opening.command]} />
+    </Task>
+
+    <Task name="natives">
+        <Call fn="publish" in={Opening.Step.Natives} setter={[$store.opening.command]} />
+    </Task>
+
+    <Task name="results">
+        <Call fn="publish" in={Opening.Step.Results} setter={[$store.opening.command]} />
+    </Task>
+
+    <Task name="origins">
+        <Call fn="publish" in={Opening.Step.Origins} setter={[$store.opening.command]} />
+    </Task>
+
+    <Task name="signatures">
+        <Call
+            fn="publish"
+            in={Opening.Step.Signatures}
+            setter={[$store.opening.command]}
+        />
+    </Task>
 </Module>

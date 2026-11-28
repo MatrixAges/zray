@@ -61,4 +61,3 @@ export declare function loadPreparationRoot(preparation: Preparation, index: u64
 export declare function validatePreparedSource(preparation: Preparation, index: u64): void throws { SourceLoadFailure }
 export declare function collectPreparationLibraries(preparation: Preparation): bool throws { SourceLoadFailure }
 export declare function inferPreparedProject(preparation: Preparation): u64? throws { SourceLoadFailure }
-export declare function recordPreparationEvidence(preparation: Preparation, index: u64): void throws { SourceLoadFailure }

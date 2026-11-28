@@ -1,28 +1,29 @@
 <Module>
     <Type from="workflow" as="Sequences" />
+    <Type from="../projections/site" as="Projection" />
+    <Type from="../projections/effect" as="ProjectionEffect" />
 
     <Args in={Sequences.List} out={u32} />
 
+    <Store from="../projections/publication" as="projection" />
+
     <If on={$in.declared}>
         <Call
-            fn="host.borrowSequenceElementSpans"
-            in={[
-                $in.owner,
-                $in.row
-            ]}
+            fn="../projections/stage"
+            in={{
+                projection_step: ProjectionEffect.Step.RegisterType,
+                site: {
+                    spans: Projection.SpanSource.SequenceElement,
+                    row: $in.row
+                },
+                left: $in.argument
+            }}
+            setter={[$store.projection.effect]}
         />
 
-        <Call
-            fn="../projections/host.registerProjectionType"
-            in={[
-                $in.owner,
-                $ctx.borrowSequenceElementSpans,
-                0,
-                $in.argument
-            ]}
-        />
+        <Call fn="../projections/read_id" in={$store.projection.effect} />
 
-        <Return value={$ctx.registerProjectionType} />
+        <Return value={$ctx.read_id} />
     </If>
 
     <Return value={$in.argument} />

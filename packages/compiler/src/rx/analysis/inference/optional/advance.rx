@@ -4,6 +4,8 @@
 
     <Args in={Optional.Cursor} out={Optional.Cursor} />
 
+    <Store from="publication" as="publication" />
+
     <Call
         fn="lookup"
         in={{
@@ -28,23 +30,22 @@
 
     <If on={$ctx.lookup.action == Lookup.Action.Register}>
         <Call
-            fn="host.registerOptionalPayload"
-            in={[
-                $in.request.frame,
-                $ctx.lookup.root,
-                $ctx.lookup.value,
-                $ctx.lookup.remaining
-            ]}
+            fn="stage"
+            in={$ctx.lookup.pick([
+                "root",
+                "value",
+                "remaining"
+            ])}
+            setter={[$store.publication.effect]}
         />
 
-        <Call fn="host.refreshOptionalQuery" in={$in.request.frame} />
-        <Call fn="host.remainingOptionalDepth" in={$in.request.frame} />
+        <Call fn="read" in={$store.publication.effect} />
 
         <Return
             value={{
                 request: $in.request,
-                value: $ctx.registerOptionalPayload,
-                remaining: $ctx.remainingOptionalDepth,
+                value: $ctx.read.value,
+                remaining: $ctx.read.remaining,
                 action: Lookup.Action.Continue,
                 diagnostic: null
             }}

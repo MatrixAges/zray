@@ -1,36 +1,48 @@
 <Module>
     <Type from="model" as="Term" />
 
-    <Args in={Term.Input} out={Term.Term} />
+    <Args in={Term.Input} out={Term.Term?} />
 
     <Call fn="begin" in={$in.expression} />
 
-    <Call
-        fn="walk"
-        in={{
-            graph: $in.graph,
-            variables: $in.variables,
-            expression: $in.expression,
-            origin: $in.origin,
-            source: $ctx.begin,
-            offset: 0,
-            depth: 0
-        }}
-    />
+    <If on={$ctx.begin != null}>
+        <Call
+            fn="walk"
+            in={{
+                graph: $in.graph,
+                variables: $in.variables,
+                expression: $in.expression,
+                origin: $in.origin,
+                source: $ctx.begin,
+                offset: 0,
+                depth: 0
+            }}
+        />
 
-    <Call
-        fn="finish"
-        in={{
-            source: $ctx.begin,
-            offset: $ctx.walk.offset,
-            closing: false
-        }}
-    />
+        <If on={$ctx.walk != null}>
+            <Call
+                fn="finish"
+                in={{
+                    source: $ctx.begin,
+                    offset: $ctx.walk.offset,
+                    closing: false
+                }}
+            />
 
-    <Return
-        value={$ctx.walk.pick([
-            "graph",
-            "node"
-        ])}
-    />
+            <If on={$ctx.finish == null}>
+                <Return value={null} />
+            </If>
+
+            <Return
+                value={$ctx.walk.pick([
+                    "graph",
+                    "node"
+                ])}
+            />
+        </If>
+
+        <Return value={null} />
+    </If>
+
+    <Return value={null} />
 </Module>

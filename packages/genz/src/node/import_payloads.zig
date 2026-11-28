@@ -8,14 +8,17 @@ pub const Plain = struct {
     slice: [1][]const transfer.Column = undefined,
     groups: transfer.Groups = undefined,
     initial: usize = undefined,
-    pub fn bind(self: *Plain, comptime Input: type, allocator: *const std.mem.Allocator, columns: []const transfer.Column, count: usize, existing: usize, borrowed: bool) Input {
+    pub fn bind(self: *Plain, comptime Input: type, allocator: *const std.mem.Allocator, columns: []const transfer.Column, lengths: []?u64, count: usize, existing: usize, borrowed: bool) Input {
         self.slice = .{columns};
         self.groups = &self.slice;
         self.initial = existing;
 
+        for (columns, lengths) |column, *length| length.* = column.sourceLength();
+
         return .{
             .allocator = @ptrCast(allocator),
             .groups = @ptrCast(&self.groups),
+            .lengths = lengths,
             .count = count,
             .existing = existing,
             .borrowed = borrowed,
@@ -25,11 +28,11 @@ pub const Plain = struct {
     pub fn rollback(self: *const Plain, allocator: *const std.mem.Allocator) void {
         rollbackGroups(allocator, &self.groups, &.{self.initial});
     }
-
-    pub fn append(allocator: std.mem.Allocator, columns: []const transfer.Column, count: usize, existing: usize, borrowed: bool) headers.Error!void {
+    pub fn append(allocator: std.mem.Allocator, columns: anytype, count: usize, existing: usize, borrowed: bool) headers.Error!void {
         const entry = @import("generated_node_plain_append");
         var packed_columns: Plain = .{};
-        const input = packed_columns.bind(std.meta.Child(entry.Input), &allocator, columns, count, existing, borrowed);
+        var lengths: [columns.len]?u64 = undefined;
+        const input = packed_columns.bind(std.meta.Child(entry.Input), &allocator, columns, &lengths, count, existing, borrowed);
 
         return invoke(entry.executeValue, &input);
     }
@@ -83,6 +86,8 @@ pub fn Binding(comptime Target: type, comptime View: type, comptime layout: Layo
 
         buffers: [width]transfer.Column = undefined,
         slices: [names.len][]const transfer.Column = undefined,
+        source_lengths: [width]?u64 = undefined,
+        source_groups: [names.len][]const ?u64 = undefined,
         groups: transfer.Groups = undefined,
         initial: [names.len]usize = undefined,
         pub fn bind(self: *Self, comptime Input: type, allocator: *const std.mem.Allocator, target: Target, source: *const View, comptime copy_payloads: bool, comptime borrow_text: bool) Input {
@@ -94,13 +99,19 @@ pub fn Binding(comptime Target: type, comptime View: type, comptime layout: Layo
 
             comptime var first: usize = 0;
 
-            inline for (names, &self.slices, &self.initial) |name, *group, *count| {
+            inline for (names, &self.slices, &self.source_groups, &self.initial) |name, *group, *source_group, *count| {
                 const column = &@field(target.payloads, name);
                 const end = first + comptime widthOf(std.meta.Child(@TypeOf(column)), View, name);
 
                 attach(column, source, name, self.buffers[first..end], copy_payloads, borrow_text);
 
                 group.* = self.buffers[first..end];
+                source_group.* = self.source_lengths[first..end];
+
+                for (group.*, self.source_lengths[first..end]) |descriptor, *length| {
+                    length.* = descriptor.sourceLength();
+                }
+
                 count.* = if (group.len == 0) 0 else group.*[0].storage.items.len;
                 first = end;
             }
@@ -111,6 +122,7 @@ pub fn Binding(comptime Target: type, comptime View: type, comptime layout: Layo
 
             if (@hasField(Input, "allocator")) {
                 input.allocator = @ptrCast(allocator);
+                input.groups = @ptrCast(&self.groups);
                 input.layout = if (layout == .selected) .Selected else .Dense;
 
                 input.reserved = target.tags.items.len <= std.math.maxInt(u32) and
@@ -121,7 +133,7 @@ pub fn Binding(comptime Target: type, comptime View: type, comptime layout: Layo
             input.tags = std.mem.sliceAsBytes(source.tags);
             input.offsets = source.offsets;
             input.mask = headers.mask(Tag);
-            input.groups = @ptrCast(&self.groups);
+            input.lengths = &self.source_groups;
             input.complete = &complete;
             input.existing = target.tags.items.len;
 

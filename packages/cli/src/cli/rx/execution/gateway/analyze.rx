@@ -7,8 +7,28 @@
         <Return value={Gateway.AnalysisOutcome.SourceRequired} />
     </If>
 
-    <Call fn="../index.resolveGatewayOwner" in={$in.analysis} />
-    <Call fn="../index.collectGatewayDocuments" in={$in.analysis} />
+    <Call
+        fn="paths"
+        in={$in.pick([
+            "root",
+            "entry"
+        ])}
+    />
+
+    <Call fn="../../collection/files/escape_diagnostic" in={$ctx.paths.owner} />
+
+    <If on={$ctx.escape_diagnostic != null}>
+        <Return value={Gateway.AnalysisOutcome.OutsideProject} />
+    </If>
+
+    <Call
+        fn="../index.collectGatewayDocuments"
+        in={[
+            $in.analysis,
+            $ctx.paths.root,
+            $ctx.paths.owner
+        ]}
+    />
 
     <If on={!$ctx.collectGatewayDocuments}>
         <Return value={Gateway.AnalysisOutcome.Invalid} />

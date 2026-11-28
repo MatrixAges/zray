@@ -51,7 +51,20 @@
     />
 
     <Call fn="index.writeStageManifest" in={$in.stage} />
-    <Call fn="index.writeStageBuild" in={$in.stage} />
+
+    <Task name="build">
+        <Call fn="index.renderStageBuild" in={$in.stage} />
+
+        <Call
+            fn="index.writeStageFile"
+            in={[
+                $in.stage,
+                $in.files.build_path,
+                $ctx.renderStageBuild
+            ]}
+        />
+    </Task>
+
     <Call fn="index.collectStageInventory" in={$in.stage} />
     <Call fn="index.writeStageInventory" in={$in.stage} />
 </Module>

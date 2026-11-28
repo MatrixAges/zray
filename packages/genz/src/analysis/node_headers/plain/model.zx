@@ -3,7 +3,10 @@ import type { Allocator, ColumnTransfers } from "memory"
 export type Input = {
     allocator: Allocator,
     groups: ColumnTransfers,
+    lengths: u64?[],
     count: u64,
     existing: u64,
     borrowed: bool
 }
+
+export { copy, publish, reserve } from "core/column_transfer"

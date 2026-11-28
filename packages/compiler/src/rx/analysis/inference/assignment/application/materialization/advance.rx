@@ -1,34 +1,42 @@
 <Module>
     <Type from="model" as="Materialization" />
+    <Type from="../../../solve/replay_effect" as="Effect" />
 
     <Args in={Materialization.Iteration} out={Materialization.Iteration} />
+
+    <Store from="../../../solve/replay" as="replay" />
 
     <Call
         fn="../materialize"
         in={{
             ...$in.request.views,
+            parents: $in.request.view.parents,
             next: $in.next
         }}
     />
 
     <If on={$ctx.materialize.payload != null}>
         <Call
-            fn="../host.reserveAssignmentOptional"
-            in={[
-                $in.request.frame,
-                $ctx.materialize.node,
-                $ctx.materialize.payload,
-                $ctx.materialize.layers
-            ]}
+            fn="../../../solve/stage_replay"
+            in={{
+                step: Effect.Step.ReserveAssignmentOptional,
+                left: $ctx.materialize.node,
+                right: $ctx.materialize.payload,
+                budget: $ctx.materialize.layers
+            }}
+            setter={[$store.replay.effect]}
         />
 
+        <Call fn="../../../solve/read_replay_id" in={$store.replay.effect} />
+
         <Call
-            fn="../host.mergeAssignmentClass"
-            in={[
-                $in.request.frame,
-                $ctx.materialize.next - 1,
-                $ctx.reserveAssignmentOptional
-            ]}
+            fn="../../../solve/stage_replay"
+            in={{
+                step: Effect.Step.MergeAssignmentClass,
+                row: $ctx.materialize.next - 1,
+                right: $ctx.read_replay_id
+            }}
+            setter={[$store.replay.effect]}
         />
     </If>
 

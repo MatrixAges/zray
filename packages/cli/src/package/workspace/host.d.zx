@@ -63,7 +63,7 @@ export declare function publishMember(collection: Collection, path: string): voi
     SourceLoadFailure
 }
 
-export declare function readCandidate(search: Project, directory: string): Probe
+export declare function readCandidate(search: Project, path: string): Probe
     throws { SourceLoadFailure }
 export declare function rememberCandidate(search: Project): void
 export declare function loadAncestor(search: Project, directory: string): MemberSearch?
@@ -72,7 +72,7 @@ export declare function loadAncestor(search: Project, directory: string): Member
 export declare function physicalSource(source: Source, path: string): string throws {
     SourceLoadFailure
 }
-export declare function hasPackageManifest(source: Source, directory: string): bool throws {
+export declare function hasPackageManifest(source: Source, path: string): bool throws {
     SourceLoadFailure
 }
 

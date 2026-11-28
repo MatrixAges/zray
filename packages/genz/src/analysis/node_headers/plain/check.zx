@@ -1,5 +1,3 @@
-import { matches } from "core/column_transfer"
-
 import fits from "../fits"
 import { Check } from "../model"
 
@@ -8,11 +6,9 @@ import type { Input } from "./model"
 export type Output = Check
 
 export default function (in: Input): Output {
-    const shape = matches({
-        groups: in.groups,
-        index: 0,
-        count: in.count
-    })
+    const { count } = in
+
+    const shape = in.lengths.every(length => length == null || length == count)
 
     if (!shape) {
         return Check.Invalid

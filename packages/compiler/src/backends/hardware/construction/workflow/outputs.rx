@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Hardware" />
 
-    <Args in={Hardware.OutputTree} out={Hardware.Outputs} />
+    <Args in={Hardware.OutputTree} out={Hardware.Outputs?} />
 
     <Loop on={$in.running}>
         <Call
@@ -20,10 +20,15 @@
                     children: null
                 }],
                 ports: [],
+                valid: true,
                 running: true
             }}
         />
     </Loop>
+
+    <If on={!$ctx.next_output.valid}>
+        <Return value={null} />
+    </If>
 
     <Return
         value={$ctx.next_output.pick([

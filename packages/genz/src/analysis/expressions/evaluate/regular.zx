@@ -27,13 +27,30 @@ export type Input = {
     type_id: u32
 }
 
-export type Output = u32
+export type Output = {
+    expression: u32,
+    uses_context: bool
+}
 
 export default function (in: Input): Output {
     const { frame, writer, expressions, types, id, kind, type_id } = in
 
     const payload = integers.widen(expressions.payloads[integers.widen(id)])
     const result_type = host.lowerType(frame, type_id, false)
+
+    if (kind == ExpressionKind.StoreGet) {
+        return {
+            expression: store({
+                frame,
+                writer,
+                store: in.store,
+                types,
+                slot: expressions.stores[payload],
+                type_id
+            }),
+            uses_context: true
+        }
+    }
 
     const state = {
         queries: in.store.queries,
@@ -91,7 +108,7 @@ export default function (in: Input): Output {
         type_expr: result_type
     }
 
-    return match kind {
+    const expression = match kind {
         ExpressionKind.Some => read({
             ...read_base,
             action: ReadAction.Wrap
@@ -119,14 +136,6 @@ export default function (in: Input): Output {
         ExpressionKind.Length => read({
             ...read_base,
             action: ReadAction.Length
-        }),
-        ExpressionKind.StoreGet => store({
-            frame,
-            writer,
-            store: in.store,
-            types,
-            slot: expressions.stores[payload],
-            type_id
         }),
         ExpressionKind.Task => host.lowerTask(frame, id),
         ExpressionKind.AwaitTask => future({
@@ -191,5 +200,10 @@ export default function (in: Input): Output {
         ExpressionKind.EnumValue => literal(literal_input),
         ExpressionKind.ErrorValue => literal(literal_input),
         _ => host.invalidLowering()
+    }
+
+    return {
+        expression,
+        uses_context: false
     }
 }

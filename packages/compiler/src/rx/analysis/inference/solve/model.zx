@@ -1,4 +1,3 @@
-import type { ConstraintRound } from "rx_project_host"
 import type { Request as Assignments } from "../assignment/application/round"
 import type { Request as Validation } from "../assignment/validation/model"
 import type { View } from "../bindings/workflow"
@@ -8,10 +7,7 @@ import type { View as Objects } from "../object_closure/replay"
 import type { Replay as Lengths } from "../projections/model"
 import type { Replay as Sequences } from "../sequences/workflow"
 
-export type Frame = ConstraintRound
-
 export type Request = {
-    frame: Frame,
     bindings: View,
     non_null: NonNull,
     lengths: Lengths,

@@ -27,9 +27,7 @@
             ]),
             output: $ctx.stage,
             names: $in.exports.type_names,
-            ids: $in.exports.type_ids,
-            column: $in.targets.exports.types,
-            buffer: $in.buffers.types
+            ids: $in.exports.type_ids
         }}
     />
 
@@ -42,9 +40,7 @@
                 "first"
             ]),
             output: $ctx.stage,
-            source: $in.exports.members,
-            column: $in.targets.exports.members,
-            buffer: $in.buffers.members
+            source: $in.exports.members
         }}
     />
 

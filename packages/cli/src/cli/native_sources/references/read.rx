@@ -13,14 +13,8 @@
 
     <Call fn="read" />
 
-    <If on={$ctx.read.error_kind != References.ErrorKind.None}>
-        <Call
-            fn="../index.invalidBuiltin"
-            in={[
-                $in.collection,
-                $ctx.read.error_kind == References.ErrorKind.InvalidImport
-            ]}
-        />
+    <If on={$ctx.read.issue != null}>
+        <Return value={$ctx.read} />
     </If>
 
     <If on={$ctx.read.paths.length != 0}>
@@ -51,12 +45,5 @@
         />
     </If>
 
-    <Return
-        value={$ctx.read.pick([
-            "dynamic_resources",
-            "c_imports",
-            "paths",
-            "sources"
-        ])}
-    />
+    <Return value={$ctx.read} />
 </Module>

@@ -151,10 +151,6 @@ pub inline fn refreshRowRead(target: *const anyopaque, slot: u64, count: u64) vo
     rowGrowth(target).refreshCell(@intCast(slot), @intCast(count));
 }
 
-pub inline fn clearRowStorage(target: *anyopaque) void {
-    rowBuffer(target).bytes = &.{};
-}
-
 pub fn reserveRowStorage(default_allocator: std.mem.Allocator, resource: ?*const anyopaque, target: *anyopaque, used: u64, count: u64) std.mem.Allocator.Error!bool {
     const buffer = rowBuffer(target);
     const length = std.math.cast(usize, used) orelse return error.OutOfMemory;
@@ -214,24 +210,6 @@ pub fn allocateRowStorage(allocator: std.mem.Allocator, resource: ?*const anyopa
     buffer.bytes = bytes[0..size];
 
     return true;
-}
-
-pub inline fn writeRowListCount(column: *anyopaque, index: u64, source: *const anyopaque, count: u64) IndexError!void {
-    const output = rowBufferConst(source);
-
-    try write([]const u8, column, index, output.bytes.ptr[0..@intCast(count)]);
-}
-
-pub fn copyRow(target: *anyopaque, source: u64, destination: u64) IndexError!void {
-    const output: *RowBuffer = @ptrCast(@alignCast(target));
-    const count = output.bytes.len / output.stride;
-
-    if (source >= count or destination >= count or source == destination) return error.IndexOutOfBounds;
-
-    const first = @as(usize, @intCast(source)) * output.stride;
-    const next = @as(usize, @intCast(destination)) * output.stride;
-
-    @memcpy(output.bytes[next..][0..output.stride], output.bytes[first..][0..output.stride]);
 }
 
 pub inline fn write(comptime T: type, target: *anyopaque, index: u64, value: T) IndexError!void {

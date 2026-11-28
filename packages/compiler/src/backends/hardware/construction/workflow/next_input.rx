@@ -12,13 +12,22 @@
         ])}
     />
 
-    <Call
-        fn="append_input"
-        in={{
-            walk: $in,
-            port: $ctx.inputs
+    <If on={$ctx.inputs != null}>
+        <Call
+            fn="append_input"
+            in={{
+                walk: $in,
+                port: $ctx.inputs
+            }}
+        />
+
+        <Return value={$ctx.append_input} />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            valid: false
         }}
     />
-
-    <Return value={$ctx.append_input} />
 </Module>

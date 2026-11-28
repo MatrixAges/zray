@@ -2,7 +2,7 @@ import { SnapshotSlot, Status } from "watch_host"
 
 import type { ObservedEntry, ScanResult, Watch } from "watch_host"
 
-export { Delay, SnapshotSlot, Status } from "watch_host"
+export { SnapshotSlot, Status } from "watch_host"
 
 export type { ObservedEntry, ScanResult, Watch } from "watch_host"
 
@@ -37,6 +37,7 @@ export type WatchInput = {
     watch: Watch,
     cache: bool,
     run_application: bool,
+    windows: bool,
     input_path: string,
     output_path: string
 }
@@ -63,10 +64,11 @@ export type DiagnosticStore = {
     last: string
 }
 
-export type ReportDiagnosticInput = {
-    watch: Watch,
+export type DiagnosticKey = {
+    diagnostic: string,
+    previous: DiagnosticStore,
     normalize: bool,
-    diagnostics: DiagnosticStore
+    windows: bool
 }
 
 export type BuildResult = {

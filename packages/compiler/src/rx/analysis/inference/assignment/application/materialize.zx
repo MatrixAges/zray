@@ -1,5 +1,4 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import representative from "../../forest/borrowed_root"
 import { Kind } from "../../unification/model"
@@ -24,7 +23,7 @@ export default function (in: Input): Output {
         next: state => {
             const index = state.next
             const node = integers.narrow(index)
-            if (memory.readU32(parents, index) != node) {
+            if (parents[index] != node) {
                 const root = representative({
                     parents,
                     value: node

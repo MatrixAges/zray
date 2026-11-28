@@ -85,7 +85,7 @@ export default function (in: Input): Output {
     })
 
     const constructed = match {
-        layout.construct => host.finishObject(frame, in.type_id, result),
+        layout.construct => host.constructValue(frame, in.type_id, result, null),
         _ => result
     }
 

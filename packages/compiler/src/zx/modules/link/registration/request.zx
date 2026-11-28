@@ -1,45 +1,19 @@
 import integers from "std:integer"
-import { nominalView, readSliceCells, typeView } from "core/column_set"
-import memory from "memory"
-import columns from "memory/columns"
 
 import type { Append as Output } from "../../../analysis/semantic/merging/model"
-import type { Traversal as Input } from "./model"
+import type { Base, Traversal } from "./model"
+
+export type Input = {
+    traversal: Traversal,
+    base: Base
+}
 
 export default function (in: Input): Output {
-    const state = in.source
+    const { source: state, position } = in.traversal
+    const { types: base, origins: known } = in.base
+    const { modules, publication, order } = state
 
-    const { types, origins, publication, order } = state
-
-    const row = order[in.position]
-
-    readSliceCells({
-        source: types.rows,
-        view: types.row_view,
-        layout: columns.typeColumnLayout(null, null),
-        row
-    })
-
-    const source = columns.typeColumnView(types.row_view, null)
-
-    const base = typeView({
-        storage: types.storage,
-        view: types.base_view
-    })
-
-    readSliceCells({
-        source: origins.rows,
-        view: origins.row_view,
-        layout: columns.nominalColumnLayout(null, null),
-        row
-    })
-
-    const declared = columns.nominalColumnView(origins.row_view, null)
-
-    const known = nominalView({
-        storage: origins.storage,
-        view: origins.base_view
-    })
+    const input = modules[order[position]]
 
     const offsets = {
         children: integers.narrow(base.children.length),
@@ -50,15 +24,15 @@ export default function (in: Input): Output {
     return {
         preparation: {
             request: {
-                source,
-                origins: declared,
+                source: input.types,
+                origins: input.origins,
                 base,
                 base_origins: known,
                 first: 0,
                 source_first: 0,
                 checked: true
             },
-            names: memory.readTextListColumn(state.names, row),
+            names: input.names,
             complete: true,
             validation: state.limits
         },

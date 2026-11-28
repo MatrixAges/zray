@@ -1,3 +1,10 @@
+export declare function appendStatementRows(
+    writer: AstWriter,
+    rows: StatementRows,
+    variables: StatementVariables?,
+    ownership: AstPayloadOwnership
+): void throws { OutOfMemory }
+
 export declare function appendStatementSequence(
     writer: AstWriter,
     target: AstSequence,

@@ -53,18 +53,31 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []compiler.project
         .sources = &state.module_sources,
         .row = 0,
         .aliases = &state.alias_input,
+        .status = .Valid,
     };
 
-    rule.executeIn(active.allocator(), &.{
+    const status = rule.executeIn(active.allocator(), &.{
         .frame = @ptrCast(&reference),
         .count = scopes.len,
         .row = 0,
         .workspace = &state.workspace,
+        .status = .Valid,
     }) catch |err| {
         if (state.alias_active and (err == error.Overflow or err == error.IntegerOverflow)) return error.OutOfMemory;
 
         return state.failure.unwrap(err);
     };
 
-    return state.take(manifests[owner]);
+    switch (status) {
+        .Valid => return state.take(manifests[owner]),
+        .InvalidSpecifier => return error.InvalidSpecifier,
+        .InvalidExternalSpecifier => return error.InvalidExternalSpecifier,
+        .InvalidNativeInterfacePath => return error.InvalidNativeInterfacePath,
+        .InvalidNativeModule => return error.InvalidNativeModule,
+        .ReservedNativeModule => return error.ReservedNativeModule,
+        .DuplicateNativeModule => return error.DuplicateNativeModule,
+        .UnknownNativeDependency => return error.UnknownNativeDependency,
+        .ConflictingNativeAbiAlias => return error.ConflictingNativeAbiAlias,
+        .UnknownNativeAbiAlias => return error.UnknownNativeAbiAlias,
+    }
 }

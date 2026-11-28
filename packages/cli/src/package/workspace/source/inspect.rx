@@ -1,0 +1,42 @@
+<Module>
+    <Type from="model" as="Ownership" />
+
+    <Args in={Ownership.Cursor} out={Ownership.Cursor} />
+
+    <Call fn="../paths/manifest" in={$in.directory} />
+
+    <Call
+        fn="index.hasPackageManifest"
+        in={[
+            $in.source,
+            $ctx.manifest
+        ]}
+    />
+
+    <If on={$ctx.hasPackageManifest}>
+        <Return
+            value={{
+                ...$in,
+                status: Ownership.Status.Undeclared
+            }}
+        />
+    </If>
+
+    <Call fn="../paths/parent" in={$in.directory} />
+
+    <If on={$ctx.parent != null}>
+        <Return
+            value={{
+                ...$in,
+                directory: $ctx.parent
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            status: Ownership.Status.Outside
+        }}
+    />
+</Module>

@@ -32,10 +32,19 @@
     </If>
 
     <Call
-        fn="../effects.fetchLocked"
+        fn="release"
+        in={{
+            archives: $in.locked_archives,
+            row: $in.index
+        }}
+    />
+
+    <Call
+        fn="../effects.fetchArchive"
         in={[
             $in.session,
-            $in.index
+            $ctx.release.archive,
+            $ctx.release
         ]}
     />
 
@@ -43,7 +52,7 @@
         fn="../effects.canonicalPath"
         in={[
             $in.session,
-            $ctx.fetchLocked
+            $ctx.fetchArchive
         ]}
     />
 

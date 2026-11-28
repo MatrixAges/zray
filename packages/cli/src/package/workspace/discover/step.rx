@@ -5,11 +5,13 @@
 
     <Args in={Workspace.Cursor} out={Workspace.Progress} />
 
+    <Call fn="../paths/manifest" in={$in.directory} />
+
     <Call
         fn="index.readCandidate"
         in={[
             $in.search,
-            $in.directory
+            $ctx.manifest
         ]}
     />
 

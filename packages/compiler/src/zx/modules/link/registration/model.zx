@@ -1,21 +1,23 @@
-import type { ReadColumn } from "memory"
-import type { ColumnSet, ColumnView, SliceColumns } from "memory/columns"
+import type { Table } from "core/type_table/model"
+import type { Bindings } from "core/type_table/nominal"
 import type { Status } from "../../../analysis/semantic/merging/model"
 import type { Target } from "../../../analysis/semantic/merging/publication/model"
 import type { Input as Shape } from "../../../analysis/semantic/types/validation/shape"
 
-export type Tables = {
-    rows: SliceColumns,
-    storage: ColumnSet,
-    row_view: ColumnView,
-    base_view: ColumnView
+export type Source = {
+    types: Table,
+    origins: Bindings,
+    names: string[]
+}
+
+export type Base = {
+    types: Table,
+    origins: Bindings
 }
 
 export type Input = {
     order: u64[],
-    types: Tables,
-    origins: Tables,
-    names: ReadColumn,
+    modules: Source[],
     limits: Shape.Pick("maximum_count", "scalar_count"),
     publication: Target
 }

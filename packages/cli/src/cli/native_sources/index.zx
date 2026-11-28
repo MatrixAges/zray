@@ -1,16 +1,12 @@
 export {
     physicalOutput,
-    bundlePath,
     observePhysicalResource,
     openCollection,
     readBundle,
-    relativePath,
-    resolveReference,
     checkPending,
     readPending,
     observePending,
     includeFiles,
     scanBuiltins,
-    decodeLiteral,
-    invalidBuiltin
+    decodeLiteral
 } from "native_resource_host"

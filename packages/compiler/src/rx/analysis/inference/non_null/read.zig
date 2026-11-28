@@ -14,7 +14,7 @@ pub fn run(graph: *Graph, source: Graph.Id, span: zx.Span) zx.Error!Graph.Id {
     const input: Input = .{
         .graph = &topology.graph,
         .known = &topology.known,
-        .parents = @ptrCast(&topology.parents),
+        .parents = topology.parents,
         .value = @backingInt(source),
     };
 

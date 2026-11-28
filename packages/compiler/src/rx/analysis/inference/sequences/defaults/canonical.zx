@@ -1,10 +1,8 @@
 import integers from "std:integer"
 
-import root from "../../forest/root"
+import root from "../../forest/borrowed_root"
 
 import type { Classes } from "./model"
-
-export { u32Views } from "memory"
 
 export type Input = {
     classes: Classes,

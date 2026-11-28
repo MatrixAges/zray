@@ -4,14 +4,20 @@
 
     <Args in={Project.Workspace} out={Project.Result} />
 
-    <Call fn="offsets" in={$in.counts} />
+    <Call
+        fn="offsets"
+        in={$in.pick([
+            "declarations",
+            "member_count"
+        ])}
+    />
 
     <Call
         fn="../effects.assembleWorkspace"
         in={[
             $in.graph,
             $in.root,
-            $in.counts,
+            $ctx.offsets.counts,
             $ctx.offsets.firsts,
             $ctx.offsets.total
         ]}
@@ -25,7 +31,14 @@
         />
     </If>
 
-    <Call fn="diagnostic" in={$ctx.assembleWorkspace} />
+    <Call
+        fn="diagnostic"
+        in={{
+            assembly: $ctx.assembleWorkspace,
+            paths: $in.member_paths,
+            declarations: $in.declarations
+        }}
+    />
 
     <Return value={$ctx.diagnostic} />
 </Module>

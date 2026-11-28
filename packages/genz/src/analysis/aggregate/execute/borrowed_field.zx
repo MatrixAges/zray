@@ -1,7 +1,6 @@
 import bytes from "std:bytes"
 import {
-    appendAstBlockRows,
-    appendAstFieldAddresses,
+    appendExpressionRows,
     appendStatementRows,
     AstPayloadOwnership,
     readAstOrigin
@@ -9,6 +8,7 @@ import {
 import host from "lowering_host"
 import { requireAllocation } from "memory"
 
+import addressColumns from "../../../ast/rows/address_columns"
 import emptyStatements from "../../../ast/statements/empty"
 import discard from "../../statements/basic/discard"
 import blockRows from "../binding/block_rows"
@@ -56,7 +56,14 @@ export default function (in: Input): Output {
 
     const label = host.retainLoweringText(frame, planned.name)
 
-    appendAstFieldAddresses(writer, address.nodes)
+    const columns = addressColumns(address.nodes)
+
+    appendExpressionRows(
+        writer,
+        columns.rows,
+        columns.forms,
+        AstPayloadOwnership.Borrowed
+    )
 
     const break_statements = breakRows({
         name: label,
@@ -84,7 +91,14 @@ export default function (in: Input): Output {
     )
 
     appendStatementRows(writer, break_statements, null, AstPayloadOwnership.Borrowed)
-    appendAstBlockRows(writer, block_expressions.block, block_expressions.conditionals)
+
+    appendExpressionRows(
+        writer,
+        block_expressions.block,
+        block_expressions.conditionals,
+        AstPayloadOwnership.Borrowed
+    )
+
     host.finishGeneratedAst(frame, planned.serial, false)
 
     return planned.root

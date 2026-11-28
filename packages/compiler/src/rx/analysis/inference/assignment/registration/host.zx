@@ -1,7 +1,0 @@
-export { requireAllocation } from "memory"
-export {
-    commitAssignment,
-    growAssignmentRows,
-    replaceAssignmentIndex,
-    registerAssignmentTarget
-} from "rx_project_host"

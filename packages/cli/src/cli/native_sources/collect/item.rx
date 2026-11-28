@@ -6,19 +6,29 @@
     <Store from="state" as="collection" />
 
     <Call
-        fn="../index.relativePath"
-        in={[
-            $in.collection,
-            $in.root,
-            $in.path
-        ]}
+        fn="../path/relative"
+        in={{
+            root: $in.root,
+            path: $in.path,
+            separator: $in.separator
+        }}
     />
+
+    <If on={$ctx.relative.issue != null}>
+        <Return
+            value={{
+                ...$in.flags,
+                valid: false,
+                issue: $ctx.relative.issue
+            }}
+        />
+    </If>
 
     <Call
         fn="lookup_seen"
         in={{
             seen: $store.collection.seen,
-            relative: $ctx.relativePath
+            relative: $ctx.relative.path
         }}
     />
 
@@ -86,7 +96,7 @@
                         "from_path"
                     ]),
                     seen: $store.collection.seen,
-                    relative: $ctx.relativePath,
+                    relative: $ctx.relative.path,
                     content: $ctx.load_pending
                 }}
                 setter={[$store.collection.seen]}
@@ -105,6 +115,16 @@
             content: $ctx.load_pending
         }}
     />
+
+    <If on={$ctx.read.issue != null}>
+        <Return
+            value={{
+                ...$in.flags,
+                valid: false,
+                issue: $ctx.read.issue
+            }}
+        />
+    </If>
 
     <Call
         module="scan"
@@ -128,8 +148,9 @@
                 in={{
                     collection: $in.collection,
                     root: $in.root,
+                    separator: $in.separator,
                     current_path: $in.path,
-                    relative: $ctx.relativePath,
+                    relative: $ctx.relative.path,
                     ref_paths: $ctx.read.paths,
                     ref_sources: $ctx.read.sources,
                     index: 0,
@@ -137,6 +158,16 @@
                 }}
             />
         </Loop>
+
+        <If on={$ctx.enqueue_refs.issue != null}>
+            <Return
+                value={{
+                    ...$ctx.scan,
+                    valid: false,
+                    issue: $ctx.enqueue_refs.issue
+                }}
+            />
+        </If>
     </If>
 
     <Return value={$ctx.scan} />

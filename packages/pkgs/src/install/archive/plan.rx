@@ -3,14 +3,14 @@
 
     <Args in={Archive.Input} out={Archive.Result} />
 
+    <Store from="cache" as="cache" />
+
     <Call
         fn="../../core/bytes/index/borrowed/refresh"
         in={{
-            ...$in.pick([
-                "buckets",
-                "indexed",
-                "count"
-            ]),
+            buckets: $store.cache.state.buckets,
+            indexed: $store.cache.state.indexed,
+            count: $in.count,
             keys: $in.digests,
             required: $in.count
         }}
@@ -20,9 +20,18 @@
         fn="../../core/bytes/index/borrowed/probe_slice"
         in={{
             keys: $in.digests,
-            buckets: $ctx.refresh.buckets ?? $in.buckets,
+            buckets: $ctx.refresh.buckets ?? $store.cache.state.buckets,
             text: $in.digest
         }}
+    />
+
+    <Call
+        fn="retain"
+        in={{
+            buckets: $ctx.refresh.buckets ?? $store.cache.state.buckets,
+            indexed: $in.count
+        }}
+        setter={[$store.cache.state]}
     />
 
     <If on={$ctx.probe_slice.entry != 0}>
@@ -43,8 +52,7 @@
             <Return
                 value={{
                     action: Archive.Action.PackageArchiveIdentityMismatch,
-                    row: 0,
-                    buckets: $ctx.refresh.buckets
+                    row: 0
                 }}
             />
         </If>
@@ -52,8 +60,7 @@
         <Return
             value={{
                 action: Archive.Action.Existing,
-                row: $in.first + $ctx.probe_slice.entry - 1,
-                buckets: $ctx.refresh.buckets
+                row: $in.first + $ctx.probe_slice.entry - 1
             }}
         />
     </If>
@@ -62,8 +69,7 @@
         <Return
             value={{
                 action: Archive.Action.InvalidLockPackageCount,
-                row: 0,
-                buckets: $ctx.refresh.buckets
+                row: 0
             }}
         />
     </If>
@@ -73,8 +79,7 @@
     <Return
         value={{
             action: $ctx.transport,
-            row: $in.first + $in.count,
-            buckets: $ctx.refresh.buckets
+            row: $in.first + $in.count
         }}
     />
 </Module>

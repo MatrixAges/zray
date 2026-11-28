@@ -1,35 +1,11 @@
 <Module>
     <Type from="model" as="Signature" />
 
-    <Args in={Signature.Input} out={void} />
+    <Args in={Signature.Record} out={void} />
 
-    <Call module="reserve_columns" in={$in.destination} />
+    <Store from="rows" as="rows" />
 
-    <Call
-        fn="prepare"
-        in={{
-            ...$in.pick([
-                "source",
-                "row",
-                "ports"
-            ])
-        }}
-    />
+    <Call fn="prepare" in={$in} />
 
-    <Call
-        fn="append"
-        in={{
-            destination: $in.destination,
-            empty: $in.empty,
-            prepared: $ctx.prepare
-        }}
-    />
-
-    <Call
-        fn="../../../../../core/column_set/write_function"
-        in={{
-            storage: $in.destination.storage,
-            row: $ctx.append
-        }}
-    />
+    <Call fn="stage" setter={[$store.rows.pending]} />
 </Module>

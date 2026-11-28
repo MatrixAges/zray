@@ -11,6 +11,9 @@ pub const Column = struct {
     stride: u32 = 0,
     kind: Kind,
     grow: *const fn (*anyopaque, std.mem.Allocator, usize) bool,
+    pub fn sourceLength(self: Column) ?u64 {
+        return if (self.width != 0 and self.kind != .repeated) self.source_count else null;
+    }
 };
 
 pub const Groups = []const []const Column;
@@ -134,12 +137,6 @@ fn groupColumns(target: *const anyopaque) []const Column {
 
 pub fn countColumns(target: *const anyopaque) u64 {
     return groupColumns(target).len;
-}
-
-pub fn sourceLength(target: *const anyopaque, index: u64) ?u64 {
-    const column = groupColumns(target)[@intCast(index)];
-
-    return if (column.width != 0 and column.kind != .repeated) column.source_count else null;
 }
 
 pub fn ownsPayload(target: *const anyopaque, index: u64) bool {

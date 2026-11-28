@@ -32,12 +32,10 @@ pub fn makeTarDirectory(io: std.Io, handle: *const anyopaque, path: []const u8) 
     return directory.createDirPath(io, path);
 }
 
-const WriteError = std.Io.Dir.CreateDirPathError || std.Io.File.OpenError || std.Io.File.Writer.Error;
+const WriteError = std.Io.File.OpenError || std.Io.File.Writer.Error;
 
 pub fn writeTarFile(io: std.Io, handle: *const anyopaque, path: []const u8, content: []const u8, executable: bool) WriteError!void {
     const directory: *const std.Io.Dir = @ptrCast(@alignCast(handle));
-
-    if (std.fs.path.dirname(path)) |parent| try directory.createDirPath(io, parent);
 
     const file = try directory.createFile(io, path, .{
         .exclusive = true,

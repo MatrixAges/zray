@@ -1,0 +1,6 @@
+import type { ExpressionForms, ExpressionRows } from "ast_rows"
+
+export type Columns = {
+    rows: ExpressionRows,
+    forms?: ExpressionForms
+}

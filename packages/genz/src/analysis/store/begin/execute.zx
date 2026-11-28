@@ -1,8 +1,8 @@
 import type { AstWriter } from "ast_rows"
-import type { Lowering } from "lowering_host"
 import type { Input as Selection } from "./model"
 
 export type Input = Selection & {
     writer: AstWriter,
-    frame: Lowering,
 }
+
+export type Output = u64?

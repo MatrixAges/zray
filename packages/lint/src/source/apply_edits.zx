@@ -1,12 +1,10 @@
 import bytes from "std:bytes"
-import memory from "memory"
 
-import type { Edit } from "./model"
+import editParts from "./edit_parts"
 
-export type Input = {
-    source: u8[],
-    edits: Edit[]
-}
+import type { Input as EditInput } from "./edit_parts"
+
+export type Input = EditInput
 
 export type Output = u8[]
 
@@ -15,50 +13,5 @@ export default function (in: Input): Output {
         return in.source
     }
 
-    const empty_parts: u8[][] = []
-
-    const applied = loop({
-        index: 0,
-        offset: 0,
-        parts: empty_parts
-    }, {
-        while: state => state.index < in.edits.length,
-        next: state => {
-            const edit = in.edits[state.index]
-
-            if (edit.start > state.offset) {
-                const kept = memory.borrowU8Range(
-                    in.source,
-                    state.offset,
-                    edit.start - state.offset
-                )
-
-                state.parts = state.parts.push(kept)[0]
-            }
-
-            if (edit.replacement.length > 0) {
-                state.parts = state.parts.push(edit.replacement)[0]
-            }
-
-            state.offset = edit.end
-            state.index += 1
-        },
-        return: state => state
-    })
-
-    const tail = match applied.offset < in.source.length {
-        true => memory.borrowU8Range(
-            in.source,
-            applied.offset,
-            in.source.length - applied.offset
-        ),
-        _ => bytes.fromText("")
-    }
-
-    const final_parts = match tail.length > 0 {
-        true => applied.parts.push(tail)[0],
-        _ => applied.parts
-    }
-
-    return bytes.join(bytes.fromText(""), final_parts)
+    return bytes.join(bytes.fromText(""), editParts(in))
 }

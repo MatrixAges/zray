@@ -27,42 +27,62 @@
         }}
     />
 
-    <Call
-        fn="../../terms/parse/operand_sort"
-        in={{
-            nodes: $ctx.run.graph.nodes,
-            node: $ctx.run.node
-        }}
-    />
+    <If on={$ctx.run != null}>
+        <Call
+            fn="../../terms/parse/operand_sort"
+            in={{
+                nodes: $ctx.run.graph.nodes,
+                node: $ctx.run.node
+            }}
+        />
 
-    <Call
-        module="../definition"
-        in={{
-            keys: $in.variables.keys,
-            key: $in.rows.names[$in.row],
-            width: $in.rows.widths[$in.row],
-            sort: $ctx.operand_sort
-        }}
-    />
+        <Call
+            module="../definition"
+            in={{
+                keys: $in.variables.keys,
+                key: $in.rows.names[$in.row],
+                width: $in.rows.widths[$in.row],
+                sort: $ctx.operand_sort
+            }}
+        />
 
-    <Call
-        fn="publish_definition"
-        in={{
-            variables: $in.variables,
-            key: $in.rows.names[$in.row],
-            node: $ctx.run.node,
-            placement: $ctx.definition
-        }}
-    />
+        <If on={$ctx.definition != null}>
+            <Call
+                fn="publish_definition"
+                in={{
+                    variables: $in.variables,
+                    key: $in.rows.names[$in.row],
+                    node: $ctx.run.node,
+                    placement: $ctx.definition
+                }}
+            />
+
+            <Return
+                value={{
+                    ...$in,
+                    graph: $ctx.run.graph,
+                    variables: $ctx.publish_definition,
+                    row: $in.row + 1,
+                    origin_file: $ctx.definition_origin,
+                    running: $in.row + 1 < $in.rows.names.length
+                }}
+            />
+        </If>
+
+        <Return
+            value={{
+                ...$in,
+                running: false,
+                valid: false
+            }}
+        />
+    </If>
 
     <Return
         value={{
             ...$in,
-            graph: $ctx.run.graph,
-            variables: $ctx.publish_definition,
-            row: $in.row + 1,
-            origin_file: $ctx.definition_origin,
-            running: $in.row + 1 < $in.rows.names.length
+            running: false,
+            valid: false
         }}
     />
 </Module>

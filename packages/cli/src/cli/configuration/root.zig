@@ -38,6 +38,10 @@ fn execute(context: Compile.Context) !Compile.Status {
         .write = context.options.write,
     }, context.io);
 
+    return report(context, result);
+}
+
+pub fn report(context: Compile.Context, result: anytype) !Compile.Status {
     if (result.error_name) |name| {
         try context.stderr.print("{s}: configuration: {s}\n", .{ context.options.input, name });
 

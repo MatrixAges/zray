@@ -1,0 +1,24 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+import integer from "std:integer"
+import strings from "std:string"
+
+import quote from "../package/manifest/write/json/quote"
+
+export type Input = string
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const [invalid_utf8, _] = try encoding.encodeUtf8(in)
+
+    if (invalid_utf8 == null) {
+        return quote(in)
+    }
+
+    const raw = bytes.fromText(in)
+
+    const [values, _] = raw.map(byte => `${integer.widenByte(byte)}`)
+
+    return `[${strings.join(",", values)}]`
+}

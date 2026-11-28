@@ -2,7 +2,7 @@ import { unknown_length } from "./const"
 
 import type { Diagnostic, Site } from "./site"
 
-export type Input = Site.Omit("graph")
+export type Input = Site
 
 export type Output = Diagnostic
 

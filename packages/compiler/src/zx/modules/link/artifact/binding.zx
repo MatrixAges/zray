@@ -1,4 +1,3 @@
-import type { ColumnView } from "memory/columns"
 import type { Input as Dependencies } from "../dependencies/traversal/model"
 import type { Input as NativePlan } from "../native/plan"
 import type { Input as NativePublication } from "../native/publication/model"
@@ -16,7 +15,6 @@ export enum Status {
 
 export type Native = {
     plan: NativePlan,
-    snapshot: ColumnView,
     publication: NativePublication
 }
 

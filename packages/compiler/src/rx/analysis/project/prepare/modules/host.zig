@@ -19,31 +19,53 @@ pub const State = struct {
     pub fn load(self: *const State) Error!void {
         if (comptime generated) {
             const entry = @import("generated_rx_prepare_modules");
-            var empty = std.heap.FixedBufferAllocator.init(&.{});
+            const Command = std.meta.Child(@FieldType(entry.zx_pending, "store_0"));
 
-            return entry.executeIn(empty.allocator(), &.{ .state = @ptrCast(self), .row = 0, .count = self.modules.len }) catch |err| return prepare.loadError(err);
+            const Host = struct {
+                state: *const State,
+                store_0: *Command,
+                pub fn commit(host: *@This(), pending: entry.zx_pending) Error!void {
+                    const command = pending.store_0 orelse return;
+                    const row: usize = @intCast(command.row);
+
+                    switch (command.step) {
+                        .Begin => try beginPreparedModule(host.state, row),
+                        .Stores => try prepareModuleStores(host.state, row),
+                        .Flow => try prepareModuleFlow(host.state, row),
+                        .Imports => try prepareModuleImports(host.state, row),
+                        .Publish => try publishPreparedModule(host.state, row),
+                    }
+                }
+            };
+
+            const initial: std.meta.Child(Command) = .{ .step = .Begin, .row = 0 };
+            var command: Command = &initial;
+            var host: Host = .{ .state = self, .store_0 = &command };
+            var arena = std.heap.ArenaAllocator.init(self.store_memory.child_allocator);
+
+            defer arena.deinit();
+
+            var buffer: [512]u8 = undefined;
+            var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+
+            return entry.executeIn(scratch.allocator(), &.{
+                .row = 0,
+                .count = self.modules.len,
+            }, &host) catch |err| return prepare.loadError(err);
         }
-
-        const handle: *const anyopaque = self;
 
         for (0..self.modules.len) |row| {
-            try beginPreparedModule(handle, row);
-            try prepareModuleStores(handle, row);
-            try prepareModuleFlow(handle, row);
-            try prepareModuleImports(handle, row);
-            try publishPreparedModule(handle, row);
+            try beginPreparedModule(self, row);
+            try prepareModuleStores(self, row);
+            try prepareModuleFlow(self, row);
+            try prepareModuleImports(self, row);
+            try publishPreparedModule(self, row);
         }
-    }
-
-    inline fn borrow(handle: *const anyopaque) *const State {
-        return @ptrCast(@alignCast(handle));
     }
 };
 
-pub fn beginPreparedModule(handle: *const anyopaque, row: u64) std.mem.Allocator.Error!void {
-    const self = State.borrow(handle);
+fn beginPreparedModule(self: *const State, index: usize) std.mem.Allocator.Error!void {
     const loader = self.loader;
-    const index: usize = @intCast(row);
 
     if (self.definitions.len != 0 and !self.store_memory.reset(.retain_capacity)) return error.OutOfMemory;
 
@@ -57,24 +79,18 @@ pub fn beginPreparedModule(handle: *const anyopaque, row: u64) std.mem.Allocator
     loader.deferred_shortcut = false;
 }
 
-pub fn prepareModuleStores(handle: *const anyopaque, row: u64) Error!void {
-    const self = State.borrow(handle);
+fn prepareModuleStores(self: *const State, index: usize) Error!void {
     const loader = self.loader;
-    const index: usize = @intCast(row);
+
     loader.stores = try StoreReferences.resolve(loader.allocator, self.store_memory.allocator(), self.modules[index], loader.references.edges, loader.signatures.graph.sources, self.definitions, &loader.issue);
 }
 
-pub fn prepareModuleFlow(handle: *const anyopaque, row: u64) Error!void {
-    const self = State.borrow(handle);
-    const index: usize = @intCast(row);
-
+fn prepareModuleFlow(self: *const State, index: usize) Error!void {
     self.plans[index].plan = try self.loader.moduleBody(self.modules[index]);
 }
 
-pub fn prepareModuleImports(handle: *const anyopaque, row: u64) Error!void {
-    const self = State.borrow(handle);
+fn prepareModuleImports(self: *const State, index: usize) Error!void {
     const loader = self.loader;
-    const index: usize = @intCast(row);
     const types = loader.project.context.types;
     const imports = try TypeImports.collect(loader.allocator, loader.allocator, self.modules[index], loader.references.edges, loader.signatures, types.kinds, &loader.issue);
     const plan = &self.plans[index];
@@ -82,10 +98,8 @@ pub fn prepareModuleImports(handle: *const anyopaque, row: u64) Error!void {
     plan.value_imports = imports.values;
 }
 
-pub fn publishPreparedModule(handle: *const anyopaque, row: u64) std.mem.Allocator.Error!void {
-    const self = State.borrow(handle);
+fn publishPreparedModule(self: *const State, index: usize) std.mem.Allocator.Error!void {
     const loader = self.loader;
-    const index: usize = @intCast(row);
 
     try loader.inputs.publish(self.modules.len, index, loader.arguments.items);
 

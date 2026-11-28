@@ -1,4 +1,5 @@
 <Module>
+    <Type from="publication" as="Publication" />
     <Type from="model" as="Interface" />
 
     <Args in={Interface.Traversal} out={Interface.Traversal} />
@@ -19,12 +20,14 @@
 
         <Else>
             <Call
-                fn="columns.copyRow"
-                in={[
-                    $in.source.buffers.exports,
-                    $ctx.export_row.first,
-                    $in.output
-                ]}
+                fn="stage"
+                in={{
+                    kind: Publication.Kind.Alias,
+                    row: $in.output,
+                    text: "",
+                    source: $ctx.export_row.first
+                }}
+                setter={[$store.rows.pending]}
             />
         </Else>
     </If>

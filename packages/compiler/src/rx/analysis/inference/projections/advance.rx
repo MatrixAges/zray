@@ -1,14 +1,15 @@
 <Module>
     <Type from="model" as="Lengths" />
+    <Type from="../solve/replay_effect" as="Effect" />
 
     <Args in={Lengths.Cursor} out={Lengths.Cursor} />
+
+    <Store from="../solve/replay" as="replay" />
 
     <Call
         fn="length"
         in={{
             ...$in.request.omit([
-                "frame",
-                "owner",
                 "spans"
             ]),
             start: $in.row
@@ -28,7 +29,6 @@
         module="apply"
         in={{
             site: {
-                graph: $in.request.owner,
                 spans: $in.request.spans,
                 row: $ctx.length.row
             },
@@ -40,7 +40,13 @@
         }}
     />
 
-    <Call fn="../solve/host.refreshSolverLengths" in={$in.request.frame} />
+    <Call
+        fn="../solve/stage_replay"
+        in={{
+            step: Effect.Step.RefreshLengths
+        }}
+        setter={[$store.replay.effect]}
+    />
 
     <Return
         value={{

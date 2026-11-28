@@ -1,22 +1,17 @@
-import type {
-    AssignmentApplication,
-    ProjectionGraph,
-    ProjectionSpans
-} from "rx_project_host"
-import type { Diagnostic } from "../../projections/site"
+import type { Diagnostic, SpanSource } from "../../projections/site"
 import type { Sequences } from "../../sequences/defaults/model"
 import type { ClassLookup, Edges, Nodes, Payloads } from "../model"
 import type { View } from "./merge"
 
 export type Rows = {
     edges: Edges,
-    spans: ProjectionSpans
+    spans: SpanSource
 }
 
 export type SequencesView = {
     sequence: Sequences,
     members: u32[][],
-    spans: ProjectionSpans
+    spans: SpanSource
 }
 
 export type Indexes = {
@@ -25,14 +20,12 @@ export type Indexes = {
 }
 
 export type Request = {
-    frame: AssignmentApplication,
-    owner: ProjectionGraph,
     view: View,
     nodes: Nodes,
     rows: Rows,
     sequences: SequencesView,
     indexes: Indexes,
-    node_spans: ProjectionSpans
+    node_spans: SpanSource
 }
 
 export type Execution = Request & {

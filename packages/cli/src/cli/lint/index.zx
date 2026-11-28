@@ -5,7 +5,6 @@ export {
     formatLintRx,
     checkLintZx,
     formatLintZx,
-    checkSemanticManifest,
     loadSemanticProject,
     prepareSemanticSpecial,
     analyzeSemanticLibrary,

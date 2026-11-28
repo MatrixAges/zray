@@ -1,5 +1,6 @@
 <Module>
     <Type from="model" as="Borrow" />
+    <Type from="rows" as="AST" />
 
     <Args in={Borrow.Publication} out={u32} />
 
@@ -45,7 +46,7 @@
         fn="result"
         in={{
             bound: $ctx.reference,
-            identifiers: $ctx.operand_rows.expressions,
+            identifiers: $ctx.operand_rows.expressions.identifier,
             cast_arguments: $ctx.retainAstIds,
             values: $in.values,
             object: $ctx.object
@@ -72,10 +73,12 @@
     />
 
     <Call
-        fn="rows.appendAstOperandRows"
+        fn="rows.appendExpressionRows"
         in={[
             $in.writer,
-            $ctx.result.expressions
+            $ctx.result.expressions.rows,
+            $ctx.result.expressions.forms,
+            AST.AstPayloadOwnership.Borrowed
         ]}
     />
 

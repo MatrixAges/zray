@@ -15,14 +15,12 @@
         />
     </Task>
 
-    <Call fn="host.assignmentNodeCount" in={$in.frame} />
-
     <Call
         module="range"
         in={{
             request: $in.omit(["initial_count"]),
             start: $in.initial_count,
-            limit: $ctx.assignmentNodeCount
+            limit: $in.view.parents.length
         }}
     />
 

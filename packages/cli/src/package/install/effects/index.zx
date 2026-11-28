@@ -1,6 +1,5 @@
 export {
     seedMember,
-    fetchLocked,
     canonicalPath,
     verifyLockedManifest,
     prepareIndex,
@@ -15,7 +14,5 @@ export {
     recordArchive,
     currentWorkspaceMatches,
     renderInstallation,
-    publishMapping,
-    lockUnchanged,
-    publishLock
+    lockUnchanged
 } from "installation_host"

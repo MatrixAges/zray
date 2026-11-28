@@ -1,9 +1,7 @@
-import type { AssignmentApplication } from "rx_project_host"
 import type { View } from "../../application/merge"
 import type { Cursor } from "../payloads"
 
 export type Request = {
-    frame: AssignmentApplication,
     view: View,
     initial_count: u64
 }

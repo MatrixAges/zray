@@ -18,7 +18,6 @@ pub fn View(comptime Destination: type) type {
                 .shape = null,
                 .maximum_count = std.math.maxInt(u32),
                 .resource = @ptrCast(allocator),
-                .text_allocator = @ptrCast(allocator),
             };
         }
     };

@@ -145,6 +145,8 @@ pub fn hashTreeFile(handle: *const anyopaque, remaining: u64) Error!?*const Hash
     var hash = std.crypto.hash.sha2.Sha256.init(.{});
     var length: u64 = 0;
 
+    defer self.closeFile();
+
     while (true) {
         const size = reader.interface.readSliceShort(&buffer) catch |err| return self.fail(err);
 
@@ -164,8 +166,4 @@ pub fn hashTreeFile(handle: *const anyopaque, remaining: u64) Error!?*const Hash
     };
 
     return &self.hashed_view;
-}
-
-pub fn closeTreeFile(handle: *const anyopaque) void {
-    State.get(handle).closeFile();
 }

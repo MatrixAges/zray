@@ -41,6 +41,7 @@ pub fn resolve(io: std.Io, allocator: std.mem.Allocator, environment: *const std
     switch (outcome.status) {
         .Ready => {},
         .IncompleteToolchainCache => return error.IncompleteToolchainCache,
+        .ZxcZigNotFound => return error.ZxcZigNotFound,
         .ZxcZigLibraryNotFound => return error.ZxcZigLibraryNotFound,
         .CorruptBundledToolchain => return error.CorruptBundledToolchain,
         .InvalidZxcCacheDirectory => return error.InvalidZxcCacheDirectory,
@@ -52,7 +53,10 @@ pub fn resolve(io: std.Io, allocator: std.mem.Allocator, environment: *const std
 
     return .{
         .root = root,
-        .executable = outcome.executable orelse try std.fs.path.join(allocator, &.{ root, constants.zig_directory, if (windows) constants.windows_zig_executable else constants.zig_directory }),
+        .executable = if (outcome.executable) |path|
+            try allocator.dupeSentinel(u8, path, 0)
+        else
+            try std.fs.path.join(allocator, &.{ root, constants.zig_directory, if (windows) constants.windows_zig_executable else constants.zig_directory }),
         .library = outcome.library orelse try std.fs.path.join(allocator, &.{ root, constants.zig_directory, constants.official_lib }),
         .standard = try std.fs.path.join(allocator, &.{ root, constants.standard_directory }),
     };

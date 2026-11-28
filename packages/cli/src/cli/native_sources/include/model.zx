@@ -6,7 +6,6 @@ export type Input = Root & {
     project_root: string,
     include_paths: string[],
     seen: Seen,
-    separator: u8,
     windows: bool
 }
 

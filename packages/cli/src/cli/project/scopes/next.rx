@@ -8,7 +8,8 @@
     <Return
         value={{
             ...$in,
-            row: $in.row + 1
+            row: $in.row + 1,
+            status: $ctx.scope
         }}
     />
 </Module>

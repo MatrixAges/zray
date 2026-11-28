@@ -1,17 +1,15 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import header from "../../../ast/statements/header"
 import { StatementsKind } from "../../../printer/model/statements"
 
 import type { BindingRows } from "ast_rows"
-import type { U64Buffer } from "memory"
 
 export type Input = {
     evaluation: u32[],
     prior: u64[],
     references: u32[],
-    cache_reads: U64Buffer
+    cache_reads: u64[]
 }
 
 export type Output = {
@@ -36,8 +34,7 @@ export default function (in: Input): Output {
         while: state => state.valid && state.index < evaluation.length,
         next: state => {
             const index = state.index
-            const count =
-                memory.readU64(cache_reads, integers.widen(evaluation[index]))
+            const count = cache_reads[integers.widen(evaluation[index])]
 
             if (count == prior[index]) {
                 const next = header({

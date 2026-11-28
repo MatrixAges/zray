@@ -13,6 +13,7 @@ import {
 } from "../../../printer/model/expressions"
 import { StatementsKind } from "../../../printer/model/statements"
 import packSpan from "../../node_headers/block/span"
+import basicStatements from "../../statements/basic/empty"
 import { guard_rows } from "./const"
 
 import type { Output, Publication as Input } from "./model"
@@ -86,12 +87,19 @@ export default function (in: Input): Output {
         [integers.narrow(source.prefix_count)]
     )
 
-    ast.appendAstWhileLoop(
-        source.writer,
-        in.loop.condition,
-        in.loop.start,
-        integers.narrow(in.loop.count)
-    )
+    const loop_span = ast.publishAstBasicStatements(source.writer, {
+        ...basicStatements({}),
+        tags: [StatementsKind.WhileLoop],
+        offsets: [0],
+        while_loop_condition: [in.loop.condition],
+        while_loop_body_start: [in.loop.start],
+        while_loop_body_len: [integers.narrow(in.loop.count)],
+        while_loop_capture: [null]
+    })
+
+    if (entry == null && source.prefix_count == 0) {
+        return loop_span
+    }
 
     if (entry != null) {
         ast.appendStatementRows(

@@ -1,10 +1,9 @@
-import host from "hardware_graph_host"
 
 import boundary from "../boundary"
 
 import type { End as Input } from "./model"
 
-export type Output = u64
+export type Output = u64?
 
 export default function (in: Input): Output {
     const { source, offset, closing } = in
@@ -16,9 +15,7 @@ export default function (in: Input): Output {
     })
 
     if (end == null) {
-        host.rejectHardwareTerm()
-
-        return 0
+        return null
     }
 
     return end

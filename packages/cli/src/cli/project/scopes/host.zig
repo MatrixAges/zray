@@ -56,23 +56,6 @@ pub fn openNativeScopeArtifact(handle: *const anyopaque, relative: []const u8) e
     self.owner.compiled = true;
 }
 
-pub fn requireNativeScopeAdmission(handle: *const anyopaque, status: abi.Admission) effects.Error!void {
-    if (status == .Valid) return;
-
-    return State.get(handle).failure.save(switch (status) {
-        .Valid => unreachable,
-        .InvalidSpecifier => error.InvalidSpecifier,
-        .InvalidExternalSpecifier => error.InvalidExternalSpecifier,
-        .InvalidNativeInterfacePath => error.InvalidNativeInterfacePath,
-        .InvalidNativeModule => error.InvalidNativeModule,
-        .ReservedNativeModule => error.ReservedNativeModule,
-        .DuplicateNativeModule => error.DuplicateNativeModule,
-        .UnknownNativeDependency => error.UnknownNativeDependency,
-        .ConflictingNativeAbiAlias => error.ConflictingNativeAbiAlias,
-        .UnknownNativeAbiAlias => error.UnknownNativeAbiAlias,
-    });
-}
-
 pub fn reserveNativeScopeInterfaces(handle: *const anyopaque) std.mem.Allocator.Error!void {
     const self = State.get(handle);
 

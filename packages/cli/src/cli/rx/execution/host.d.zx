@@ -34,8 +34,11 @@ export declare function resolveRxToolchain(check: RxApplication): bool throws { 
 export declare function resolveRxNativeProject(check: RxApplication): void throws { SourceLoadFailure }
 export declare function runRxBackend(check: RxApplication): Status throws { SourceLoadFailure }
 
-export declare function resolveGatewayOwner(check: GatewayAnalysis): void throws { SourceLoadFailure }
-export declare function collectGatewayDocuments(check: GatewayAnalysis): bool throws { SourceLoadFailure }
+export declare function collectGatewayDocuments(
+    check: GatewayAnalysis,
+    root: string,
+    owner: string
+): bool throws { SourceLoadFailure }
 export declare function analyzeGatewayDocument(check: GatewayAnalysis): GatewayRoutes? throws { SourceLoadFailure }
 export declare function analyzeGatewayServices(check: GatewayAnalysis, service_names: string[]): bool throws { SourceLoadFailure }
 

@@ -1,18 +1,12 @@
 import type { Index } from "core/bytes/index/model"
 import type { Modules } from "core/native_module_table/model"
 import type { Table } from "core/signature_table/model"
-import type {
-    ColumnSet,
-    ColumnView,
-    LinkedSignatureColumns,
-    NativeModuleColumns
-} from "memory/columns"
+import type { LinkedSignatureColumns } from "memory/columns"
 import type { Edges } from "../dependencies/traversal/model"
 import type { External } from "../native/signature/model"
 import type { Providers } from "../source_signature/model"
 import type { Status } from "./decision"
 import type { Ports } from "./ports"
-import type { BodyColumns, Destination } from "./publication/model"
 
 export type Request = {
     path: string,
@@ -37,12 +31,6 @@ export type Binding = {
     output_type: u32
 }
 
-export type Native = {
-    storage: ColumnSet,
-    shape?: NativeModuleColumns,
-    snapshot: ColumnView
-}
-
 export type Batch = Request.Omit(
     "path",
     "key",
@@ -53,20 +41,14 @@ export type Batch = Request.Omit(
     "linked"
 ) & {
     signatures: Table,
-    native: Native,
-    destination: Destination,
-    read_columns: ColumnSet,
-    linked_shape?: LinkedSignatureColumns,
-    snapshot: ColumnView,
-    empty: BodyColumns
+    modules: Modules,
+    linked: LinkedSignatureColumns
 }
 
 export type Traversal = {
     source: Batch,
-    modules: Modules,
     native_ids: u32?[],
     ids: u32?[],
-    linked: LinkedSignatureColumns,
     index: u64,
     status: Status,
     running: bool

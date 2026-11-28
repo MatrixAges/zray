@@ -19,8 +19,10 @@ export default function (in: Input): Output {
     return {
         ...in.omit([
             "status",
-            "found"
+            "found",
+            "cursor"
         ]),
-        status
+        status,
+        cursor: status == Status.Archive ? in.cursor - 1 : in.cursor
     }
 }

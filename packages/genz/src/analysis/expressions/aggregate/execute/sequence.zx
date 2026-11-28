@@ -1,8 +1,14 @@
 import integers from "std:integer"
-import { convertAggregateField, writeCollectionElement } from "ast_rows"
-import { appendAstOperandRows, astExpressionCount, retainAstIds } from "ast_rows"
+import { convertStateValue, StateValueMode, writeCollectionElement } from "ast_rows"
+import {
+    appendExpressionRows,
+    AstPayloadOwnership,
+    astExpressionCount,
+    retainAstIds
+} from "ast_rows"
 import host from "lowering_host"
 
+import operandsColumns from "../../../../ast/rows/operands_columns"
 import { ExpressionsKind } from "../../../../printer/model/expressions"
 import bindOperand from "../../../aggregate/execute/bind_operand"
 import policy from "../../../aggregate/sequence"
@@ -63,11 +69,13 @@ export default function (in: Input): Output {
                 Element.Direct => bound,
                 Element.List =>
                     writeCollectionElement(writer, sequence, in.type_id, bound),
-                _ => convertAggregateField(
+                _ => convertStateValue(
                     writer,
                     sequence,
                     in.expression_types[integers.widen(item)],
-                    bound
+                    bound,
+                    StateValueMode.Pointer,
+                    false
                 )
             }
 
@@ -81,7 +89,7 @@ export default function (in: Input): Output {
         const base = astExpressionCount(writer)
         const retained = retainAstIds(writer, expressions)
 
-        appendAstOperandRows(writer, {
+        const columns = operandsColumns({
             tags: [ExpressionsKind.Tuple],
             offsets: [0],
             tuple: [retained],
@@ -93,6 +101,13 @@ export default function (in: Input): Output {
             object_fields_start: [],
             object_fields_len: []
         })
+
+        appendExpressionRows(
+            writer,
+            columns.rows,
+            columns.forms,
+            AstPayloadOwnership.Borrowed
+        )
 
         return {
             result: plan.result,

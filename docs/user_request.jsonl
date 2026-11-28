@@ -548,3 +548,5 @@
 {"text":"放开限制最多允许并发6个codex执行者"}
 {"text":"另外 astra作为research时，禁止使用codex自带的子agent作为worker"}
 {"text":"关闭codex执行者的的multi agent 无论用什么模型"}
+{"text":"你给codex执行者布置的任务规模太小了！"}
+{"text":"我要求的是最多三轮 修复所有问题 然后继续自举 后续也是这样的要求，不要每次都只改一点，大胆多改，后续遇到问题修复很快"}

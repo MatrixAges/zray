@@ -1,0 +1,27 @@
+import type { Site } from "./site"
+
+export enum Step {
+    RegisterType,
+    Merge,
+    RequireList,
+    ReadLength,
+    Reject,
+    AppendIndex,
+    ExpectSequence
+}
+
+export type Command = {
+    projection_step: Step,
+    site?: Site,
+    left?: u32,
+    right?: u32,
+    members?: u32[],
+    repeated?: u32,
+    declared?: bool,
+    message?: string,
+    unsupported?: bool
+}
+
+export type Effect = Command & {
+    id: u32
+}

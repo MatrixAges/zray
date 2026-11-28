@@ -47,7 +47,17 @@ pub fn regular(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
         .type_id = table.types[row],
     };
 
-    return invokeWith(self, regular_entry, &input);
+    var scratch = std.heap.ArenaAllocator.init(self.workspace);
+    var buffer: [512]u8 = undefined;
+    var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
+
+    defer scratch.deinit();
+
+    const output = regular_entry.executeIn(memory.allocator(), &input) catch |err| return executionFailure(err);
+
+    self.uses_context = self.uses_context or output.uses_context;
+
+    return @fromBackingInt(output.expression);
 }
 
 pub fn value(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {

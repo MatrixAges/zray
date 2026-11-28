@@ -1,0 +1,9 @@
+<Store name="rx_optional_query" version={1}>
+    <Type from="effect" as="Effect" />
+
+    <Object name="effect">
+        <Field name="root" type={u32} value={0} />
+        <Field name="value" type={u32} value={0} />
+        <Field name="remaining" type={u64} value={0} />
+    </Object>
+</Store>

@@ -1,4 +1,5 @@
 import bytes from "std:bytes"
+import encoding from "std:encoding"
 import { ascii_asterisk, ascii_at } from "core/ascii/const"
 
 import { ascii_caret, ascii_tilde } from "../version/const"
@@ -16,9 +17,9 @@ export type Input = string
 
 export type Output = {
     kind: Kind,
-    body: u64,
-    range: u64,
-    constrained: bool
+    path?: string,
+    alias?: string,
+    range?: string
 }
 
 export default function (in: Input): Output {
@@ -27,10 +28,7 @@ export default function (in: Input): Output {
 
     if (!bytes.startsWithText(text, 0, scheme)) {
         return {
-            kind: Kind.External,
-            body: 0,
-            range: 0,
-            constrained: false
+            kind: Kind.External
         }
     }
 
@@ -40,9 +38,7 @@ export default function (in: Input): Output {
     if (local) {
         return {
             kind: Kind.Path,
-            body,
-            range: in.length,
-            constrained: false
+            path: encoding.sliceBytes(in, body, in.length)
         }
     }
 
@@ -69,8 +65,7 @@ export default function (in: Input): Output {
 
     return {
         kind,
-        body,
-        range,
-        constrained
+        alias: kind == Kind.Alias ? encoding.sliceBytes(in, body, at) : null,
+        range: constrained ? encoding.sliceBytes(in, range, in.length) : null
     }
 }

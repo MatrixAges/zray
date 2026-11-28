@@ -1,10 +1,21 @@
 <Module>
     <Type from="../round" as="Assignments" />
     <Type from="../../depth/model" as="Depth" />
+    <Type from="../../../solve/replay_effect" as="Effect" />
 
     <Args in={Assignments.Execution} out={Assignments.Update} />
 
-    <Call fn="../host.assignmentRevision" in={$in.frame} />
+    <Store from="../../../solve/replay" as="replay" />
+
+    <Call
+        fn="../../../solve/stage_replay"
+        in={{
+            step: Effect.Step.ReadRevision
+        }}
+        setter={[$store.replay.effect]}
+    />
+
+    <Call fn="../../../solve/read_revision" in={$store.replay.effect} />
 
     <Call
         module="../../depth/solve"
@@ -51,20 +62,19 @@
     <Call
         module="run"
         in={{
-            frame: $in.frame,
+            view: $in.view,
             views: {
                 nodes: $in.nodes,
                 depths: $ctx.solve.depths,
                 deferred: $ctx.deferred,
-                classes: $in.classes,
-                parents: $in.view.parents
+                classes: $in.classes
             }
         }}
     />
 
     <Return
         value={{
-            changed: $ctx.run != $ctx.assignmentRevision,
+            changed: $ctx.run != $ctx.read_revision,
             diagnostic: null
         }}
     />

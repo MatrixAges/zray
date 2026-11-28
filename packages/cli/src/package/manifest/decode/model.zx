@@ -52,7 +52,9 @@ export type External = {
     implementation: ExternalImplementation
 }
 
-export type Input = Value
+export type Input = Value & {
+    version_limit: u64
+}
 
 export type Values = {
     name: string,

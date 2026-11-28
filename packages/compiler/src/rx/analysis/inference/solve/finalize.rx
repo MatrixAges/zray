@@ -6,11 +6,25 @@
 
     <Store from="replay" as="replay" />
 
-    <Task name="initial" out={$ctx.solveRevision}>
-        <Call fn="host.solveRevision" in={$in.frame} />
+    <Task name="initial" out={$ctx.read_revision}>
+        <Call
+            fn="stage_replay"
+            in={{
+                step: Effect.Step.ReadRevision
+            }}
+            setter={[$store.replay.effect]}
+        />
+
+        <Call fn="read_revision" in={$store.replay.effect} />
     </Task>
 
-    <Call fn="host.refreshSolverNonNull" in={$in.frame} />
+    <Call
+        fn="stage_replay"
+        in={{
+            step: Effect.Step.RefreshNonNull
+        }}
+        setter={[$store.replay.effect]}
+    />
 
     <Call
         module="../non_null/replay"
@@ -20,15 +34,29 @@
         }}
     />
 
-    <Task name="after_non_null" out={$ctx.solveRevision}>
-        <Call fn="host.solveRevision" in={$in.frame} />
+    <Task name="after_non_null" out={$ctx.read_revision}>
+        <Call
+            fn="stage_replay"
+            in={{
+                step: Effect.Step.ReadRevision
+            }}
+            setter={[$store.replay.effect]}
+        />
+
+        <Call fn="read_revision" in={$store.replay.effect} />
     </Task>
 
     <If on={$ctx.task.after_non_null != $ctx.task.initial}>
         <Return value={true} />
     </If>
 
-    <Call fn="host.refreshSolverObjects" in={$in.frame} />
+    <Call
+        fn="stage_replay"
+        in={{
+            step: Effect.Step.RefreshObjects
+        }}
+        setter={[$store.replay.effect]}
+    />
 
     <Call
         module="../selection/select"
@@ -40,14 +68,18 @@
 
     <Call
         module="../projections/apply_diagnostic"
-        in={{
-            graph: $in.objects.selections.owner,
-            diagnostic: $ctx.select
-        }}
     />
 
-    <Task name="after_select" out={$ctx.solveRevision}>
-        <Call fn="host.solveRevision" in={$in.frame} />
+    <Task name="after_select" out={$ctx.read_revision}>
+        <Call
+            fn="stage_replay"
+            in={{
+                step: Effect.Step.ReadRevision
+            }}
+            setter={[$store.replay.effect]}
+        />
+
+        <Call fn="read_revision" in={$store.replay.effect} />
     </Task>
 
     <If on={$ctx.task.after_select != $ctx.task.initial}>
@@ -62,27 +94,43 @@
         }}
     />
 
-    <Task name="after_construct" out={$ctx.solveRevision}>
-        <Call fn="host.solveRevision" in={$in.frame} />
+    <Task name="after_construct" out={$ctx.read_revision}>
+        <Call
+            fn="stage_replay"
+            in={{
+                step: Effect.Step.ReadRevision
+            }}
+            setter={[$store.replay.effect]}
+        />
+
+        <Call fn="read_revision" in={$store.replay.effect} />
     </Task>
 
     <If on={$ctx.task.after_construct != $ctx.task.initial}>
         <Return value={true} />
     </If>
 
-    <Call fn="host.refreshSolverLengths" in={$in.frame} />
+    <Call
+        fn="stage_replay"
+        in={{
+            step: Effect.Step.RefreshLengths
+        }}
+        setter={[$store.replay.effect]}
+    />
 
     <Call module="../projections/validate" in={$in.lengths} />
 
     <Call
         module="../projections/apply_diagnostic"
-        in={{
-            graph: $in.lengths.owner,
-            diagnostic: $ctx.validate
-        }}
     />
 
-    <Call fn="host.refreshSolverBindings" in={$in.frame} />
+    <Call
+        fn="stage_replay"
+        in={{
+            step: Effect.Step.RefreshBindings
+        }}
+        setter={[$store.replay.effect]}
+    />
 
     <Task name="bindings" out={$ctx.run}>
         <Call
@@ -105,16 +153,18 @@
         />
     </If>
 
-    <Call fn="host.refreshSolverValidation" in={$in.frame} />
+    <Call
+        fn="stage_replay"
+        in={{
+            step: Effect.Step.RefreshValidation
+        }}
+        setter={[$store.replay.effect]}
+    />
 
     <Call module="../assignment/validation/run" in={$in.validation} />
 
     <Call
         module="../projections/apply_diagnostic"
-        in={{
-            graph: $in.validation.owner,
-            diagnostic: $ctx.run
-        }}
     />
 
     <Return value={false} />

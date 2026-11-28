@@ -14,6 +14,7 @@ const memory = zx.memory;
 const Error = error{ OutOfMemory, InvalidSource, InvalidFlow };
 
 pub const View = std.meta.Child(@FieldType(Input, "cursor"));
+const Lengths = std.meta.Child(@FieldType(Input, "lengths"));
 const Saved = std.meta.Child(@typeInfo(@FieldType(Input, "returns")).optional.child);
 const ResultRows = std.meta.Child(@typeInfo(@FieldType(Input, "results")).optional.child);
 
@@ -26,7 +27,14 @@ const State = struct {
     cursor: View = undefined,
     parent_return: Saved = undefined,
     slots: [2]*usize,
+    lengths: Lengths = undefined,
+    results: ?ResultRows,
     labels: memory.ReadColumn = undefined,
+    fn refreshLengths(self: *State) void {
+        self.lengths = .{ .bindings = self.slots[0].*, .facts = self.slots[1].* };
+
+        if (self.results) |*results| results.row = self.target.lowering.compiler.next_binding;
+    }
     fn shrink(self: *State, slot: usize, length: u64) void {
         const target = self.slots[slot];
 
@@ -46,19 +54,18 @@ pub fn run(target: anytype, plan: *const Flow.Plan) @TypeOf(target.closeCase()) 
             .{ &target.walker.expression.bindings.len, &target.walker.expression.nonnull.items.len }
         else
             .{ &target.compiler.bindings.len, &target.compiler.nonnull.items.len },
+        .results = if (inference) null else .{ .row = undefined, .types = @ptrCast(target.compiler.results.types) },
     };
 
-    const lengths: memory.ColumnLengths = &state.slots;
-    const result_slots: memory.ColumnLengths = if (inference) &.{} else &.{&target.compiler.next_binding};
-    const results: ResultRows = .{ .cursor = @ptrCast(&result_slots), .types = if (inference) &.{} else @ptrCast(target.compiler.results.types) };
+    state.refreshLengths();
 
     const input: Input = .{
         .cursor = &state.cursor,
-        .lengths = @ptrCast(&lengths),
+        .lengths = &state.lengths,
         .labels = @ptrCast(&state.labels),
         .fallback = @backingInt(Label.Default),
         .returns = if (inference) &state.parent_return else null,
-        .results = if (inference) null else &results,
+        .results = if (state.results) |*results| results else null,
         .kinds = plan.kinds,
         .items = plan.items,
     };
@@ -101,6 +108,8 @@ pub fn run(target: anytype, plan: *const Flow.Plan) @TypeOf(target.closeCase()) 
                 .FinishCase => try finishFlowCase(work, effect.row, effect.facts.?, effect.bindings.?),
                 .Pop => popFlowFrame(work),
             }
+
+            work.refreshLengths();
         }
     };
 

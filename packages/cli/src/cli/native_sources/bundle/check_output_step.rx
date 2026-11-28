@@ -4,19 +4,29 @@
     <Args in={Bundle.OutputStep} out={Bundle.OutputStep} />
 
     <Call
-        fn="../index.bundlePath"
-        in={[
-            $in.collection,
-            $in.root,
-            $in.bundle_files[$in.index]
-        ]}
+        fn="../path/resolve"
+        in={{
+            root: $in.root,
+            path: $in.bundle_files[$in.index],
+            separator: $in.separator
+        }}
     />
+
+    <If on={$ctx.resolve.issue != null}>
+        <Return
+            value={{
+                ...$in,
+                valid: false,
+                issue: $ctx.resolve.issue
+            }}
+        />
+    </If>
 
     <Task name="logical" out={$ctx.output_within}>
         <Call
             fn="output_within"
             in={{
-                resource: $ctx.bundlePath,
+                resource: $ctx.resolve.path,
                 output: $in.output,
                 separator: $in.separator
             }}
@@ -37,7 +47,7 @@
             fn="../index.observePhysicalResource"
             in={[
                 $in.collection,
-                $ctx.bundlePath
+                $ctx.resolve.path
             ]}
         />
 

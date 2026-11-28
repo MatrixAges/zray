@@ -27,17 +27,7 @@ export default function (in: Input): Output {
     }
 
     return {
-        ...source.omit([
-            "signatures",
-            "destination",
-            "read_columns",
-            "linked_shape",
-            "snapshot",
-            "empty",
-            "native"
-        ]),
-        linked: in.linked,
-        modules: in.modules,
+        ...source.omit(["signatures"]),
         native_ids: in.native_ids,
         path,
         key: bytes.fromText(path),

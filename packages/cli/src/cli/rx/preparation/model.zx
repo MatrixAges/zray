@@ -1,3 +1,4 @@
+import type { TextColumn } from "memory"
 import type {
     ModuleReference,
     Preparation,
@@ -57,6 +58,17 @@ export type Range = {
 export type Request = {
     preparation: Preparation,
     scoped: bool
+}
+
+export type ProjectRequest = Request & {
+    root: string,
+    evidence_paths: TextColumn
+}
+
+export type Evidence = {
+    root: string,
+    paths: TextColumn,
+    count: u64
 }
 
 export type SourcePass = Request & Range

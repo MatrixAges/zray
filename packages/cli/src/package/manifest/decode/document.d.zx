@@ -10,5 +10,3 @@ export type Node = {
 }
 
 export declare function packageName(value: string): bool
-
-export declare function semanticVersion(value: string): bool

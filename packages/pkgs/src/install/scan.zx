@@ -62,7 +62,6 @@ export default function (in: Input): Output {
                             "limit"
                         ]),
                         name,
-                        requirement: range,
                         spec
                     })
                     s.status = result.status

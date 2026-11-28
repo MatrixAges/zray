@@ -1,6 +1,6 @@
-import type { ColumnLengths, ReadColumn } from "memory"
+import type { ReadColumn } from "memory"
 import type { Batch, Cursor } from "./model"
-import type { Request } from "./workflow"
+import type { Lengths, Request } from "./workflow"
 
 export type Input = Batch.Pick("action", "item", "position") & Cursor.Pick(
     "end",
@@ -9,7 +9,7 @@ export type Input = Batch.Pick("action", "item", "position") & Cursor.Pick(
     "case_remaining",
     "case_stopped"
 ) & {
-    lengths: ColumnLengths,
+    lengths: Lengths,
     labels: ReadColumn,
     fallback: u8,
     inference: bool

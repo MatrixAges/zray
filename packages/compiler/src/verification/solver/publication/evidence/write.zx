@@ -1,57 +1,31 @@
-import json from "verification_report_host"
-import { EvidenceFieldKind as Kind } from "verification_report_host"
-
-import type {
-    EvidenceField,
-    EvidenceInput,
-    EvidenceProgram,
-    EvidenceSource
-} from "verification_report_host"
+import bytes from "std:bytes"
+import strings from "std:string"
 
 export type Input = {
-    sources: EvidenceSource[],
+    sources: string,
     entry: string,
-    version: u32,
-    inputs: EvidenceInput[],
-    program: EvidenceProgram
+    version: string,
+    types: string,
+    inputs: string,
+    program: string
 }
 
 export type Output = u8[]
 
 export default function (in: Input): Output {
-    const fields: EvidenceField[] = [
-        {
-            kind: Kind.Sources,
-            name: "sources"
-        },
-        {
-            kind: Kind.Entry,
-            name: "entry"
-        },
-        {
-            kind: Kind.Version,
-            name: "ir_version"
-        },
-        {
-            kind: Kind.Types,
-            name: "types"
-        },
-        {
-            kind: Kind.Inputs,
-            name: "inputs"
-        },
-        {
-            kind: Kind.Program,
-            name: "ir"
-        }
-    ]
-
-    return json.writeEvidence(
+    return bytes.fromText(strings.join("", [
+        "{\n  \"sources\": ",
         in.sources,
+        ",\n  \"entry\": ",
         in.entry,
+        ",\n  \"ir_version\": ",
         in.version,
+        ",\n  \"types\": ",
+        in.types,
+        ",\n  \"inputs\": ",
         in.inputs,
+        ",\n  \"ir\": ",
         in.program,
-        fields
-    )
+        "\n}"
+    ]))
 }

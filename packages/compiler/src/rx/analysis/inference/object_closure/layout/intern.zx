@@ -1,6 +1,6 @@
 import insert from "core/integer/index/insert"
 
-import representative from "../../forest/root"
+import representative from "../../forest/borrowed_root"
 
 export type Input = {
     parents: u32[],

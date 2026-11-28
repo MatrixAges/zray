@@ -1,6 +1,5 @@
 <Module>
     <Type from="../effect" as="Effect" />
-    <Type from="../host" as="Host" />
     <Type from="../operation" as="Operation" />
 
     <Args in={Effect.TaskClose} out={void} />
@@ -57,7 +56,7 @@
                 module="../write_step"
                 in={{
                     index: $in.cursor.destination,
-                    kind: Host.FlowKind.Task,
+                    kind: Operation.FlowKind.Task,
                     output: $ctx.publish
                 }}
             />

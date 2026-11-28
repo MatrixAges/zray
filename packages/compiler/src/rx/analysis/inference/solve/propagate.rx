@@ -6,11 +6,25 @@
 
     <Store from="replay" as="replay" />
 
-    <Task name="initial" out={$ctx.solveRevision}>
-        <Call fn="host.solveRevision" in={$in.frame} />
+    <Task name="initial" out={$ctx.read_revision}>
+        <Call
+            fn="stage_replay"
+            in={{
+                step: Effect.Step.ReadRevision
+            }}
+            setter={[$store.replay.effect]}
+        />
+
+        <Call fn="read_revision" in={$store.replay.effect} />
     </Task>
 
-    <Call fn="host.refreshSolverBindings" in={$in.frame} />
+    <Call
+        fn="stage_replay"
+        in={{
+            step: Effect.Step.RefreshBindings
+        }}
+        setter={[$store.replay.effect]}
+    />
 
     <Call module="../bindings/validate" in={$in.bindings} />
 
@@ -44,7 +58,13 @@
         />
     </If>
 
-    <Call fn="host.refreshSolverNonNull" in={$in.frame} />
+    <Call
+        fn="stage_replay"
+        in={{
+            step: Effect.Step.RefreshNonNull
+        }}
+        setter={[$store.replay.effect]}
+    />
 
     <Call
         module="../non_null/replay"
@@ -54,19 +74,27 @@
         }}
     />
 
-    <Call fn="host.refreshSolverSequences" in={$in.frame} />
+    <Call
+        fn="stage_replay"
+        in={{
+            step: Effect.Step.RefreshSequences
+        }}
+        setter={[$store.replay.effect]}
+    />
 
     <Call module="../sequences/replay_sequences" in={$in.sequences} />
 
     <Call
         module="../projections/apply_diagnostic"
-        in={{
-            graph: $in.sequences.owner,
-            diagnostic: $ctx.replay_sequences
-        }}
     />
 
-    <Call fn="host.refreshSolverObjects" in={$in.frame} />
+    <Call
+        fn="stage_replay"
+        in={{
+            step: Effect.Step.RefreshObjects
+        }}
+        setter={[$store.replay.effect]}
+    />
 
     <Call
         module="../construction/construct"
@@ -86,22 +114,38 @@
 
     <Call
         module="../projections/apply_diagnostic"
-        in={{
-            graph: $in.objects.selections.owner,
-            diagnostic: $ctx.select
-        }}
     />
 
-    <Call fn="host.refreshSolverLengths" in={$in.frame} />
+    <Call
+        fn="stage_replay"
+        in={{
+            step: Effect.Step.RefreshLengths
+        }}
+        setter={[$store.replay.effect]}
+    />
 
     <Call module="../projections/run" in={$in.lengths} />
 
-    <Call fn="host.refreshSolverIndexes" in={$in.frame} />
+    <Call
+        fn="stage_replay"
+        in={{
+            step: Effect.Step.RefreshIndexes
+        }}
+        setter={[$store.replay.effect]}
+    />
 
     <Call module="../index/run" in={$in.indexes} />
 
-    <Task name="current" out={$ctx.solveRevision}>
-        <Call fn="host.solveRevision" in={$in.frame} />
+    <Task name="current" out={$ctx.read_revision}>
+        <Call
+            fn="stage_replay"
+            in={{
+                step: Effect.Step.ReadRevision
+            }}
+            setter={[$store.replay.effect]}
+        />
+
+        <Call fn="read_revision" in={$store.replay.effect} />
     </Task>
 
     <Return value={$ctx.task.current != $ctx.task.initial} />

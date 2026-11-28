@@ -7,13 +7,12 @@ import {
     recursive_optional
 } from "../const"
 
-import type { ProjectionSpans } from "rx_project_host"
-import type { Diagnostic } from "../../../projections/site"
+import type { Diagnostic, SpanSource } from "../../../projections/site"
 import type { Output as IssueSite } from "../../depth/model"
 
 export type Input = {
-    node_spans: ProjectionSpans,
-    spans: ProjectionSpans,
+    node_spans: SpanSource,
+    spans: SpanSource,
     edges: u64,
     issue: IssueSite
 }

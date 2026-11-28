@@ -48,7 +48,14 @@ pub const State = struct {
         self.generated.init(self.layout.generated, &.{"source"}, bundle.modules);
         self.public.init(self.layout.public, &.{ "file", "source" }, bundle.public_modules);
 
-        self.files = .{ .abi_path = constants.abi_file, .abi = self.abi.source, .aliases = &self.aliases.rows, .generated = &self.generated.rows, .public = &self.public.rows };
+        self.files = .{
+            .abi_path = constants.abi_file,
+            .build_path = constants.build_file,
+            .abi = self.abi.source,
+            .aliases = &self.aliases.rows,
+            .generated = &self.generated.rows,
+            .public = &self.public.rows,
+        };
     }
 };
 

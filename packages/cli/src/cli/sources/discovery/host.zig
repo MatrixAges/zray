@@ -84,10 +84,6 @@ pub fn registerRoot(handle: *const anyopaque) Error!u64 {
     return first;
 }
 
-pub fn sourceCount(handle: *const anyopaque) u64 {
-    return effects.state(State, handle).traversal.sources.items.len;
-}
-
 pub fn prepareSource(handle: *const anyopaque, row: u64) Error!void {
     const self = effects.state(State, handle);
     const traversal = self.traversal;

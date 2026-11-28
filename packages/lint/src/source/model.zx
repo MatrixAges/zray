@@ -14,7 +14,11 @@ export type ImportItem = {
 export type BoundaryItem = {
     left: u64,
     right: u64,
-    separate: bool
+    left_start: u64,
+    right_end: u64,
+    adjacent: bool,
+    same_kind: bool,
+    same_shape: bool
 }
 
 export type Edit = {
@@ -30,6 +34,7 @@ export type Unit = {
 
 export type PlanInput = {
     apply: bool,
+    edits?: Edit[],
     source: u8[],
     comments: Span[],
     imports: ImportItem[],
@@ -43,5 +48,6 @@ export type Output = {
     has_edits: bool,
     first_start: u64,
     first_end: u64,
-    formatted: u8[]
+    formatted: u8[],
+    parts?: u8[][]
 }

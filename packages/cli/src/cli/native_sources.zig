@@ -86,6 +86,12 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, pr
         .OutputOverlap => return error.NativeBundleContainsOutput,
         .MissingBundle => return error.NativeBundleRequiresFiles,
         .IncompleteInclude => return error.IncompleteNativeIncludeBundle,
+        .InvalidResource => return switch (result.issue.?) {
+            .InvalidPath => error.InvalidNativeResourcePath,
+            .OutsideModule => error.NativeResourceOutsideModule,
+            .InvalidSource => error.InvalidNativeSource,
+            .InvalidImport => error.InvalidNativeImport,
+        },
     }
 
     const files = try allocator.alloc(File, result.files.len);

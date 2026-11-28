@@ -4,7 +4,6 @@ const Project = @import("project.zig").State;
 const source = @import("manifest/input.zig");
 const workspace = @import("workspace.zig");
 const rules = @import("cli_source");
-const constants = rules.workspace_constants.@"zx.constants";
 const Error = @import("../cli/sources/effects.zig").Error;
 const MemberSearch = @import("cli_abi").layouts.@"zig:package_workspace_host".MemberSearch;
 pub const Probe = @import("cli_abi").native.@"zig:package_workspace_host".Probe;
@@ -75,13 +74,11 @@ pub fn find(state: *Project) !Result {
     return search.result;
 }
 
-pub fn readCandidate(handle: *const anyopaque, directory: []const u8) Error!Probe {
+pub fn readCandidate(handle: *const anyopaque, path: []const u8) Error!Probe {
     const project = Project.get(handle);
     const self = &project.search;
 
     self.discardProbe();
-
-    const path = std.fs.path.join(project.scratch, &.{ directory, constants.manifest_name }) catch |err| return project.failure.save(err);
 
     const file = source.locate(project.io, project.scratch, path, project.inputs) catch |err| switch (err) {
         error.FileNotFound => return .Missing,

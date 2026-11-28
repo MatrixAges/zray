@@ -1,8 +1,11 @@
 <Module>
     <Type from="workflow" as="Registration" />
     <Type from="model" as="Actions" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Registration.SingleCursor} out={Registration.SingleCursor} />
+
+    <Store from="publication" as="publication" />
 
     <Call
         module="register"
@@ -20,25 +23,40 @@
     <Switch on={$ctx.register.action}>
         <Case value={Actions.Action.Commit}>
             <Call
-                fn="host.commitAssignment"
-                in={[
-                    $in.request.frame,
-                    $ctx.register.left,
-                    $ctx.register.right,
-                    $ctx.register.key,
-                    $ctx.register.slot,
-                    0
-                ]}
+                fn="stage"
+                in={{
+                    registration_step: Effect.Step.Append,
+                    row: {
+                        left: $ctx.register.left,
+                        right: $ctx.register.right,
+                        key: $ctx.register.key,
+                        slot: $ctx.register.slot,
+                        span_index: 0
+                    }
+                }}
+                setter={[$store.publication.effect]}
             />
         </Case>
 
         <Case value={Actions.Action.Overflow}>
-            <Call fn="host.requireAllocation" in={false} />
+            <Call
+                fn="stage"
+                in={{
+                    registration_step: Effect.Step.Overflow
+                }}
+                setter={[$store.publication.effect]}
+            />
         </Case>
 
         <Case value={Actions.Action.Reserve}>
             <If on={$in.request.position == $in.request.storage.capacity}>
-                <Call fn="host.growAssignmentRows" in={$in.request.frame} />
+                <Call
+                    fn="stage"
+                    in={{
+                        registration_step: Effect.Step.Grow
+                    }}
+                    setter={[$store.publication.effect]}
+                />
             </If>
 
             <If on={$ctx.register.capacity > $in.request.storage.buckets.length}>
@@ -52,11 +70,12 @@
                 />
 
                 <Call
-                    fn="host.replaceAssignmentIndex"
-                    in={[
-                        $in.request.frame,
-                        $ctx.rebuild
-                    ]}
+                    fn="stage"
+                    in={{
+                        registration_step: Effect.Step.ReplaceIndex,
+                        buckets: $ctx.rebuild
+                    }}
+                    setter={[$store.publication.effect]}
                 />
             </If>
         </Case>

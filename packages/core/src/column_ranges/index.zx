@@ -1,3 +1,0 @@
-export { default as reserve } from "./reserve"
-
-export type { Input as Reservation } from "./reserve"

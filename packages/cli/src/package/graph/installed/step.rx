@@ -41,6 +41,8 @@
         module="member"
         in={{
             graph: $in.graph,
+            member_paths: $in.member_paths,
+            member_count: $in.member_count,
             root: $in.mapping.root,
             relative: $in.mapping.sources[$in.index],
             ordinal: $in.ordinal

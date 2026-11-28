@@ -45,6 +45,7 @@ pub fn build(b: *std.Build) void {
             .{ .name = "zxc_abi", .module = b.createModule(.{ .root_source_file = generated.path(b, "types.zig") }) },
             .{ .name = "memory", .module = core.module("memory") },
             .{ .name = "zxc_standard", .module = standard },
+            .{ .name = "zxc_string", .module = compiler.module("generated_string") },
             .{ .name = "memory/columns", .module = core.module("memory") },
             .{ .name = "lexical_path", .module = standard },
         },

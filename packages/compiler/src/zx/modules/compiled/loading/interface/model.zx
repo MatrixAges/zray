@@ -1,48 +1,5 @@
-import type { TextColumn, WriteColumn } from "memory"
-import type { RowBuffer, WriteColumn as Cell } from "memory/columns"
+import type { TextColumn } from "memory"
 import type { Exports, Initializers, SelectionPlan } from "../../model"
-
-export type ExportFields = {
-    names: WriteColumn,
-    paths: WriteColumn,
-    functions: Cell,
-    types: Cell,
-    members: Cell
-}
-
-export type TypeFields = {
-    names: WriteColumn,
-    ids: WriteColumn
-}
-
-export type MemberFields = {
-    names: WriteColumn,
-    namespaces: Cell,
-    ids: Cell,
-    inputs: Cell,
-    outputs: Cell,
-    intrinsics: Cell
-}
-
-export type InitializerFields = {
-    identities: WriteColumn,
-    versions: WriteColumn,
-    functions: WriteColumn
-}
-
-export type Buffers = {
-    exports: RowBuffer,
-    types: RowBuffer,
-    members: RowBuffer,
-    initializers: RowBuffer
-}
-
-export type Targets = {
-    exports: ExportFields,
-    types: TypeFields,
-    members: MemberFields,
-    initializers: InitializerFields
-}
 
 export type Request = {
     exports: Exports,
@@ -50,9 +7,7 @@ export type Request = {
     selection?: SelectionPlan,
     mapping: u32[],
     first: u64,
-    instance: string,
-    buffers: Buffers,
-    targets: Targets
+    instance: string
 }
 
 export type ExportRequest = Request.Omit("initializers")

@@ -1,7 +1,7 @@
 import { StatementsKind } from "../../../printer/model/statements"
 import identifierRows from "./identifier_rows"
 
-import type { AstIdentifierRows, BindingRows } from "ast_rows"
+import type { BindingRows, ExpressionRows } from "ast_rows"
 
 export type Input = {
     name: u8[],
@@ -9,7 +9,7 @@ export type Input = {
 }
 
 export type Output = {
-    expressions: AstIdentifierRows,
+    expressions: ExpressionRows,
     statements: BindingRows
 }
 

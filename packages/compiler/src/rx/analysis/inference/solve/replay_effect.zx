@@ -5,7 +5,20 @@ export enum Step {
     MergeNonNull,
     RefreshNonNull,
     ReserveNonNull,
-    RegisterNonNull
+    RegisterNonNull,
+    ReadRevision,
+    RefreshLengths,
+    RefreshIndexes,
+    MarkIndexResolved,
+    RefreshSequences,
+    RefreshValidation,
+    RefreshObjects,
+    RefreshAssignments,
+    RefreshAssignmentTypes,
+    ReserveAssignmentOptional,
+    RegisterAssignmentPayload,
+    RejectAssignmentDepth,
+    MergeAssignmentClass
 }
 
 export enum DiagnosticSource {
@@ -25,9 +38,12 @@ export type Command = {
     row?: u64,
     left?: u32,
     right?: u32,
-    diagnostic?: Diagnostic
+    diagnostic?: Diagnostic,
+    budget?: u64
 }
 
 export type Effect = Command & {
-    id: u32
+    id: u32,
+    revision: u64,
+    remaining: u64
 }

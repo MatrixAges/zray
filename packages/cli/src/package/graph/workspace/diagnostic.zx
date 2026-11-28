@@ -1,3 +1,4 @@
+import memory from "memory"
 import { WorkspaceStatus } from "package_graph_host"
 
 import {
@@ -11,13 +12,20 @@ import {
 } from "../const"
 import { Status } from "../model"
 
-import type { AssemblyOutcome as Input } from "package_graph_host"
-import type { Result as Output } from "../model"
+import type { TextColumn } from "memory"
+import type { AssemblyOutcome } from "package_graph_host"
+import type { Declarations, Result as Output } from "../model"
 
 export { WorkspaceStatus } from "package_graph_host"
 
+export type Input = {
+    assembly: AssemblyOutcome,
+    paths: TextColumn,
+    declarations: Declarations
+}
+
 export default function (in: Input): Output {
-    const { status, failed_owner, owner_path, owner_name, edge_name } = in
+    const { status, owner, edge } = in.assembly
 
     const package_issue = match status {
         WorkspaceStatus.CyclicPackageDependencies => cyclic_dependencies,
@@ -26,6 +34,9 @@ export default function (in: Input): Output {
     }
 
     if (package_issue != "") {
+        const owner_path = memory.readTextColumn(in.paths, owner)
+        const owner_name = memory.readTextColumn(in.declarations.names, owner)
+
         return {
             status: Status.InvalidPackageGraph,
             diagnostic:
@@ -42,9 +53,21 @@ export default function (in: Input): Output {
         _ => ""
     }
 
-    const diagnostic: string? = match {
-        message == "" => null,
-        _ => `${owner_path}/pkg.yaml: dependency ${edge_name}: ${message}`
+    if (message != "") {
+        const owner_path = memory.readTextColumn(in.paths, owner)
+        const production = in.declarations.production
+        const count = memory.listLength(production, owner)
+
+        const edge_name = match {
+            edge < count => memory.readListText(production, owner, edge),
+            _ => memory.readListText(in.declarations.development, owner, edge - count)
+        }
+
+        return {
+            status: Status.InvalidPackageGraph,
+            keep_rows: owner,
+            diagnostic: `${owner_path}/pkg.yaml: dependency ${edge_name}: ${message}`
+        }
     }
 
     return {
@@ -53,7 +76,6 @@ export default function (in: Input): Output {
             WorkspaceStatus.Overflow => Status.Overflow,
             _ => Status.InvalidPackageGraph
         },
-        keep_rows: failed_owner,
-        diagnostic
+        keep_rows: owner
     }
 }

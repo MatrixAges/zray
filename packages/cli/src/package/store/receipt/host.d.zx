@@ -31,4 +31,3 @@ export declare function openTreeFile(receipt: Receipt, path: string): bool? thro
 export declare function hashTreeFile(receipt: Receipt, remaining: u64): HashedFile? throws {
     ReceiptHostFailure
 }
-export declare function closeTreeFile(receipt: Receipt): void

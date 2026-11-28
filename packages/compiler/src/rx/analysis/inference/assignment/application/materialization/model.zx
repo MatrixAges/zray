@@ -1,9 +1,9 @@
-import type { AssignmentApplication } from "rx_project_host"
+import type { View } from "../merge"
 import type { Materialization } from "../model"
 
 export type Request = {
-    frame: AssignmentApplication,
-    views: Materialization.Omit("next")
+    view: View,
+    views: Materialization.Omit("parents", "next")
 }
 
 export type Iteration = {

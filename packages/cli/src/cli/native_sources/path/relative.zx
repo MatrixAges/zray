@@ -1,0 +1,28 @@
+import path from "std:path"
+import { relativePathFrom } from "publication_host"
+
+import { Issue } from "./model"
+import within from "./within"
+
+import type { RelativeInput as Input, Resolution as Output } from "./model"
+
+export default function (in: Input): Output {
+    const relative = relativePathFrom(in.root, in.path)
+
+    const accepted = within({
+        path: relative,
+        absolute: path.isAbsolute(relative),
+        separator: in.separator
+    })
+
+    if (!accepted) {
+        return {
+            path: relative,
+            issue: Issue.OutsideModule
+        }
+    }
+
+    return {
+        path: relative
+    }
+}

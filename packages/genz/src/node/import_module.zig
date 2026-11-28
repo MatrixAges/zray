@@ -75,6 +75,7 @@ pub fn appendColumns(allocator: std.mem.Allocator, target: *Storage, source: any
     var declaration_binding: if (@TypeOf(declarations) == void) void else payloads.Binding(@TypeOf(&target.declaration_rows), @TypeOf(declarations), .dense) = if (@TypeOf(declarations) == void) {} else .{};
     var field_binding: payloads.Plain = .{};
     const field_columns = if (has_fields) fields.bindColumns(&target.field_columns, source.fields, modes.borrow_field_text) else {};
+    var field_lengths: [if (has_fields) field_columns.len else 0]?u64 = undefined;
     const expression_view = expression_binding.bind(Rows, &allocator, &target.expressions, &expressions, modes.expressions != .borrowed, modes.expressions != .owned);
 
     const statement_view = if (@TypeOf(statements) != void)
@@ -88,7 +89,7 @@ pub fn appendColumns(allocator: std.mem.Allocator, target: *Storage, source: any
     else {};
 
     const field_view = if (has_fields)
-        field_binding.bind(Field, &allocator, &field_columns, source.fields.name.len, target.field_columns.count(), modes.borrow_field_text)
+        field_binding.bind(Field, &allocator, &field_columns, &field_lengths, source.fields.name.len, target.field_columns.count(), modes.borrow_field_text)
 
     else {};
 

@@ -1,18 +1,24 @@
-import yaml from "manifest_yaml_document"
-
 import { bad_version } from "./const"
 import issue from "./issue"
 import text from "./text"
+import validVersion from "./version/valid"
 
 import type { Output } from "./text"
-import type { Input } from "./value"
+import type { Input as Value } from "./value"
+
+export type Input = Value & {
+    limit: u64
+}
 
 export default function (in: Input): Output {
-    const parsed = text(in)
+    const parsed = text(in.omit(["limit"]))
 
     const [value, problem] = parsed
 
-    if (problem == null && !yaml.semanticVersion(value)) {
+    if (problem == null && !validVersion({
+        text: value,
+        limit: in.limit
+    })) {
         return [
             value,
             issue([

@@ -1,41 +1,31 @@
 <Module>
     <Type from="model" as="Origin" />
 
-    <Args in={Origin.Input} out={Origin.Names} />
+    <Args in={Origin.Input} out={void} />
 
     <Store from="progress" as="progress" />
 
-    <If on={$in.own_origins}>
-        <Call
-            fn="../../../core/owned_text/into"
-            in={{
-                allocator: $in.allocator,
-                target: $in.owners_out,
-                source: $in.source.owners
-            }}
-        />
+    <Call
+        fn="stage"
+        in={{
+            column: Origin.Column.Owners,
+            source: $in.source.owners,
+            own: $in.own_origins
+        }}
+        setter={[$store.progress.state]}
+    />
 
+    <Task name="members">
         <Call
-            fn="set_completed"
-            in={1}
+            fn="stage"
+            in={{
+                column: Origin.Column.Members,
+                source: $in.source.members,
+                own: $in.own_origins
+            }}
             setter={[$store.progress.state]}
         />
-
-        <Call
-            fn="../../../core/owned_text/into"
-            in={{
-                allocator: $in.allocator,
-                target: $in.members_out,
-                source: $in.source.members
-            }}
-        />
-
-        <Call
-            fn="set_completed"
-            in={2}
-            setter={[$store.progress.state]}
-        />
-    </If>
+    </Task>
 
     <If on={$in.labels != null}>
         <Call
@@ -47,17 +37,26 @@
             }}
         />
 
-        <Return value={$ctx.bind_names} />
+        <Call
+            fn="stage"
+            in={{
+                column: Origin.Column.Names,
+                source: $ctx.bind_names,
+                own: false
+            }}
+            setter={[$store.progress.state]}
+        />
+
+        <Else>
+            <Call
+                fn="stage"
+                in={{
+                    column: Origin.Column.Names,
+                    source: $in.names,
+                    own: true
+                }}
+                setter={[$store.progress.state]}
+            />
+        </Else>
     </If>
-
-    <Call
-        fn="../../../core/owned_text/into"
-        in={{
-            allocator: $in.allocator,
-            target: $in.names_out,
-            source: $in.names
-        }}
-    />
-
-    <Return value={[]} />
 </Module>

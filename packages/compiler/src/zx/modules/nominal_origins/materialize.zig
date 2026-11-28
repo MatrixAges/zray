@@ -1,20 +1,50 @@
 const std = @import("std");
-const zx = @import("zx");
 const data = @import("nominal_data");
 const generated = @import("generated_origin_materialization");
 const release = @import("generated_origin_materialization_release");
 const Input = std.meta.Child(generated.Input);
-const StoreState = std.meta.Child(@FieldType(generated.zx_pending, "store_0"));
+const State = std.meta.Child(@FieldType(generated.zx_pending, "store_0"));
+const Error = std.mem.Allocator.Error;
 
 const StoreHost = struct {
-    store_0: *StoreState,
-    pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
-        if (pending.store_0) |next| self.store_0.* = next;
+    store_0: *State,
+    allocator: std.mem.Allocator,
+    owners: [][]const u8,
+    members: [][]const u8,
+    names: [][]const u8,
+    completed: u64 = 0,
+    owned_names: bool = false,
+    pub fn commit(self: *StoreHost, pending: anytype) Error!void {
+        const next = pending.store_0 orelse return;
+
+        const target = switch (next.column) {
+            .Owners => self.owners,
+            .Members => self.members,
+            .Names => self.names,
+        };
+
+        if (next.own) {
+            var copied: usize = 0;
+
+            errdefer for (target[0..copied]) |text| self.allocator.free(text);
+
+            for (next.source, target) |text, *slot| {
+                slot.* = try self.allocator.dupe(u8, text);
+                copied += 1;
+            }
+
+            switch (next.column) {
+                .Owners, .Members => self.completed += 1,
+                .Names => self.owned_names = true,
+            }
+        } else {
+            @memcpy(target, next.source);
+        }
     }
 };
 
 /// A null labels slice preserves and owns the original names for library admission.
-pub fn append(allocator: std.mem.Allocator, target: *data.Storage, source: data.Table, labels: ?[]const []const u8, own_origins: bool) std.mem.Allocator.Error!void {
+pub fn append(allocator: std.mem.Allocator, target: *data.Storage, source: data.Table, labels: ?[]const []const u8, own_origins: bool) Error!void {
     const count = source.count();
 
     if (count == 0 and source.kinds.len == 0 and source.owners.len == 0 and
@@ -28,58 +58,41 @@ pub fn append(allocator: std.mem.Allocator, target: *data.Storage, source: data.
     try target.members.ensureUnusedCapacity(allocator, source.members.len);
     try target.names.ensureUnusedCapacity(allocator, name_count);
 
-    var owners = target.owners.unusedCapacitySlice()[0..source.owners.len];
-    var members = target.members.unusedCapacitySlice()[0..source.members.len];
-    var names = target.names.unusedCapacitySlice()[0..name_count];
     const origins = data.Table.borrow(std.meta.Child(@FieldType(Input, "source")), source);
-    var state_value: std.meta.Child(StoreState) = .{ .completed = 0 };
-    var state_ptr: StoreState = &state_value;
-    var host: StoreHost = .{ .store_0 = &state_ptr };
+    const state: std.meta.Child(State) = .{ .column = .Owners, .source = &.{}, .own = false };
+    var state_ptr: State = &state;
 
-    const input: Input = .{
-        .allocator = @ptrCast(&allocator),
-        .source = &origins,
-        .names = source.names,
-        .labels = labels,
-        .own_origins = own_origins,
-        .owners_out = @ptrCast(&owners),
-        .members_out = @ptrCast(&members),
-        .names_out = @ptrCast(&names),
+    var host: StoreHost = .{
+        .store_0 = &state_ptr,
+        .allocator = allocator,
+        .owners = target.owners.unusedCapacitySlice()[0..source.owners.len],
+        .members = target.members.unusedCapacitySlice()[0..source.members.len],
+        .names = target.names.unusedCapacitySlice()[0..name_count],
     };
 
+    const input: Input = .{ .source = &origins, .names = source.names, .labels = labels, .own_origins = own_origins };
     var scratch = std.heap.ArenaAllocator.init(allocator);
 
     defer scratch.deinit();
 
     errdefer {
         var empty = std.heap.FixedBufferAllocator.init(&.{});
-        const cleanup = release.executeValue(empty.allocator(), state_ptr.completed) catch unreachable;
+        const cleanup = release.executeValue(empty.allocator(), host.completed) catch unreachable;
 
-        if (cleanup != .None) {
-            for (owners) |owner| allocator.free(owner);
-        }
-
-        if (cleanup == .OwnersAndMembers) {
-            for (members) |member| allocator.free(member);
-        }
+        if (cleanup != .None) for (host.owners) |owner| allocator.free(owner);
+        if (cleanup == .OwnersAndMembers) for (host.members) |member| allocator.free(member);
+        if (host.owned_names) for (host.names) |name| allocator.free(name);
     }
 
-    const bound_names = generated.executeIn(scratch.allocator(), &input, &host) catch |err| switch (@as(anyerror, err)) {
+    generated.executeIn(scratch.allocator(), &input, &host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };
 
-    if (labels != null) @memcpy(names, bound_names);
-
-    if (!own_origins) {
-        @memcpy(owners, source.owners);
-        @memcpy(members, source.members);
-    }
-
     target.ids.appendSliceAssumeCapacity(source.ids);
     target.kinds.appendSliceAssumeCapacity(source.kinds);
 
-    _ = target.owners.addManyAsSliceAssumeCapacity(owners.len);
-    _ = target.members.addManyAsSliceAssumeCapacity(members.len);
-    _ = target.names.addManyAsSliceAssumeCapacity(names.len);
+    _ = target.owners.addManyAsSliceAssumeCapacity(host.owners.len);
+    _ = target.members.addManyAsSliceAssumeCapacity(host.members.len);
+    _ = target.names.addManyAsSliceAssumeCapacity(host.names.len);
 }

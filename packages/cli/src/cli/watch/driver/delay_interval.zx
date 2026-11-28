@@ -1,0 +1,9 @@
+import { poll_delay_ms, retry_delay_ms } from "./const"
+
+export type Input = bool
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return in ? retry_delay_ms : poll_delay_ms
+}

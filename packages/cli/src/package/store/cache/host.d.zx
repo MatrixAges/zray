@@ -3,9 +3,7 @@ export type Cache = opaque
 export declare function cached(cache: Cache, destination: string, hex: string): bool throws { PackageCacheFailure }
 export declare function readBlob(cache: Cache, path: string): u8[]? throws { PackageCacheFailure }
 export declare function download(cache: Cache, source: string, base: string): u8[] throws { PackageCacheFailure }
-export declare function createStaging(cache: Cache, root: string): void throws { PackageCacheFailure }
-export declare function unpack(cache: Cache, bytes: u8[]): void throws { PackageCacheFailure }
-export declare function writeReceipt(cache: Cache, hex: string): void throws { PackageCacheFailure }
+export declare function createStaging(cache: Cache, root: string): string throws { PackageCacheFailure }
+export declare function unpack(cache: Cache, bytes: u8[], hex: string): u8[] throws { PackageCacheFailure }
 export declare function checkStaging(cache: Cache, hex: string): void throws { PackageCacheFailure }
-export declare function closeStaging(cache: Cache): void
 export declare function publishStaging(cache: Cache, destination: string): bool throws { PackageCacheFailure }

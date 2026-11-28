@@ -1,0 +1,12 @@
+<Store name="rx_known_registration" version={1}>
+    <Type from="effect" as="Effect" />
+    <Type from="rehash" as="Buckets" />
+
+    <Object name="effect">
+        <Field name="step" type={Effect.Step} value={Effect.Step.Insert} />
+        <Field name="slot" type={u64?} value={null} />
+        <Field name="tag" type={u8?} value={null} />
+        <Field name="type_id" type={u32?} value={null} />
+        <Field name="buckets" type={Buckets.Output?} value={null} />
+    </Object>
+</Store>

@@ -10,14 +10,13 @@ const Edges = @import("traversal/view.zig").Columns;
 pub const Binding = @import("../artifact/binding/abi.zig").Binding;
 const Input = std.meta.Child(@FieldType(Binding, "dependencies"));
 const Walk = std.meta.Child(@FieldType(Input, "walk"));
-const Views = std.meta.Child(@FieldType(Input, "views"));
 const Checks = std.meta.Child(@FieldType(Walk, "checks"));
 const Imports = std.meta.Child(@FieldType(Walk, "imports"));
 const Tables = std.meta.Child(@typeInfo(@FieldType(Walk, "providers")).optional.child);
 const Bindings = std.meta.Child(@FieldType(Checks, "imports"));
 const Aliases = std.meta.Child(@FieldType(Walk, "aliases"));
 const ConstantView = std.meta.Child(@FieldType(Walk, "constants"));
-const Signatures = std.meta.Child(@typeInfo(@FieldType(Views, "linked_shape")).optional.child);
+const Signatures = std.meta.Child(@FieldType(Checks, "linked"));
 const Ownership = ir.SymbolTable.Ownership;
 const Export = ir.Export;
 const alias_fields = .{ .names = "name", .ids = "type_id" };
@@ -27,7 +26,6 @@ pub const View = struct {
     input: Input,
     checks: Checks,
     walk: Walk,
-    views: Views,
     imports: Imports,
     import_columns: BindingColumns,
     member_columns: BindingColumns,
@@ -37,8 +35,6 @@ pub const View = struct {
     constants: ConstantView,
     alias_columns: memory.ReadFields(alias_fields),
     aliases: Aliases,
-    linked_slots: [@typeInfo(Signatures).@"struct".field_names.len]*anyopaque,
-    linked_columns: memory.ColumnSet,
     linked: Signatures,
     edge_columns: Edges,
     edges: std.meta.Child(@FieldType(Imports, "edges")),
@@ -58,8 +54,9 @@ pub const View = struct {
         self.constants = self.constant_columns.view(ConstantView);
         self.alias_columns = memory.borrowReadFields(alias_fields, module.type_imports);
         self.aliases = self.alias_columns.bind(Aliases);
-        self.linked_slots = memory.bindColumnSet(Signatures, false, &builder.functions);
-        self.linked_columns = &self.linked_slots;
+
+        self.refreshLinked(&builder.functions);
+
         self.edge_columns = Edges.borrow(dependencies, targets);
         self.edges = self.edge_columns.view(@FieldType(View, "edges"));
         self.dependency_columns = memory.borrowReadFields(import_fields, dependencies);
@@ -77,12 +74,6 @@ pub const View = struct {
             .functions = &.{},
         };
 
-        self.views = .{
-            .linked_columns = @ptrCast(&self.linked_columns),
-            .linked_view = @ptrCast(&self.linked),
-            .linked_shape = null,
-        };
-
         self.walk = .{
             .checks = &self.checks,
             .aliases = &self.aliases,
@@ -93,7 +84,17 @@ pub const View = struct {
             .intrinsic_name = @import("../../intrinsic.zig").specifier,
         };
 
-        self.input = .{ .walk = &self.walk, .views = &self.views };
+        self.input = .{ .walk = &self.walk };
+    }
+    pub fn refreshLinked(self: *View, functions: *const ir.FunctionStorage) void {
+        const source = functions.view();
+
+        self.linked = .{
+            .files = source.files,
+            .input_types = source.input_types,
+            .output_types = source.output_types,
+            .ownership = std.mem.sliceAsBytes(source.ownership),
+        };
     }
 };
 

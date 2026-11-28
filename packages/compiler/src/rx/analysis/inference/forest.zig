@@ -4,7 +4,7 @@ const enabled = @import("rx_options").generated_graph;
 
 /// Parent compression changes the cache without changing the equivalence relation.
 pub fn root(parents_arg: []u32, id: Id) Id {
-    var parents = parents_arg;
+    const parents = parents_arg;
     const index = @backingInt(id);
     const first = parents[index];
 
@@ -13,8 +13,8 @@ pub fn root(parents_arg: []u32, id: Id) Id {
 
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    const result = @import("generated_rx_forest_root").executeValue(empty.allocator(), &.{
-        .parents = @ptrCast(&parents),
+    const result = @import("generated_rx_forest_root").executeValue(empty.allocator(), .{
+        .parents = parents,
         .value = index,
     }) catch unreachable;
 

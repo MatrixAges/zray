@@ -1,7 +1,10 @@
 <Module>
     <Type from="model" as="Validation" />
+    <Type from="../../solve/replay_effect" as="Effect" />
 
     <Args in={Validation.Iteration} out={Validation.Iteration} />
+
+    <Store from="../../solve/replay" as="replay" />
 
     <Call
         fn="scan"
@@ -39,7 +42,13 @@
             }}
         />
 
-        <Call fn="host.refreshAssignmentTypes" in={$in.request.frame} />
+        <Call
+            fn="../../solve/stage_replay"
+            in={{
+                step: Effect.Step.RefreshAssignmentTypes
+            }}
+            setter={[$store.replay.effect]}
+        />
 
         <Return
             value={{

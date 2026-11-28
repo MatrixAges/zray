@@ -1,8 +1,17 @@
-export type Copy = {
-    columns: u8[][],
-    owned_text?: string[]
+export type Text = {
+    values: string[],
+    borrowed: bool
 }
 
-export type Input = Copy & {
-    counts: u64[]
+export type Values = {
+    booleans: bool[],
+    enumerations: u32[],
+    errors: u32[],
+    floats: f64[],
+    integers: u64[],
+    negative_integers: u64[]
+}
+
+export type Input = Values & {
+    strings: Text
 }

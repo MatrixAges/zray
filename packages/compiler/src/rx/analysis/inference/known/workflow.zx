@@ -1,8 +1,6 @@
-import type { KnownRegistration } from "rx_project_host"
 import type { Input, Output, Registry } from "./model"
 
 export type Request = Input.Pick("members", "types", "type_id", "remaining", "end") & {
-    frame: KnownRegistration,
     view: Registry
 }
 

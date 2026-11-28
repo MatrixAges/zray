@@ -1,0 +1,7 @@
+<Store name="linked_signature_rows" version={1}>
+    <Type from="prepare" as="Signature" />
+
+    <Object name="pending">
+        <Field name="row" type={Signature.Output?} value={null} />
+    </Object>
+</Store>

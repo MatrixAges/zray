@@ -1,0 +1,7 @@
+<Store name="rx_mixed_opening" version={1}>
+    <Type from="model" as="Opening" />
+
+    <Object name="command">
+        <Field name="step" type={Opening.Step} value={Opening.Step.Types} />
+    </Object>
+</Store>

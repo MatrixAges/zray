@@ -1,6 +1,5 @@
 const std = @import("std");
 const rules = @import("pkgs_source");
-const Lock = @import("lock.zig");
 
 pub const Specifier = union(enum) {
     external,
@@ -16,10 +15,10 @@ pub fn parse(name: []const u8, text: []const u8) Specifier {
     return switch (spec.kind) {
         .External => .external,
         .Invalid => .invalid,
-        .Path => .{ .path = text[@intCast(spec.body)..] },
+        .Path => .{ .path = spec.path.? },
         .Alias, .Name => .{ .named = .{
-            .name = if (spec.kind == .Alias) text[@intCast(spec.body)..@intCast(spec.range - 1)] else name,
-            .range = if (spec.constrained) text[@intCast(spec.range)..] else null,
+            .name = spec.alias orelse name,
+            .range = spec.range,
         } },
     };
 }
@@ -38,26 +37,7 @@ pub fn checkOwner(spec: Specifier, owner: []const u8) !void {
     }
 }
 
-pub fn matches(spec: Specifier, owner: []const u8, target: Lock.Package) !bool {
-    switch (spec) {
-        .external, .invalid => unreachable,
-        .path => |path| {
-            var empty = std.heap.FixedBufferAllocator.init(&.{});
-
-            return rules.same_path.executeIn(empty.allocator(), &.{ .owner = owner, .path = path, .target = target.source.workspace }) catch unreachable;
-        },
-        .named => |named| {
-            if (!std.mem.eql(u8, named.name, target.name)) return false;
-
-            if (named.range) |range| {
-                if (!try @import("version.zig").accepts(range, target.version)) return error.LockVersionMismatch;
-            }
-
-            return true;
-        },
-    }
-}
-
 pub const Members = @import("workspace/selection.zig").Members;
 pub const find = @import("workspace/selection.zig").find;
+pub const matches = @import("workspace/selection.zig").matches;
 pub const manifest = @import("workspace/manifest.zig");

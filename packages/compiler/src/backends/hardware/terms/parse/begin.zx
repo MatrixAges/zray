@@ -1,17 +1,16 @@
 import bytes from "std:bytes"
-import host from "hardware_graph_host"
 
 import { maximum_source_bytes } from "../../const"
 
 export type Input = string
 
-export type Output = u8[]
+export type Output = u8[]?
 
 export default function (in: Input): Output {
     const source = bytes.fromText(in)
 
     if (source.length > maximum_source_bytes) {
-        host.rejectHardwareTerm()
+        return null
     }
 
     return source

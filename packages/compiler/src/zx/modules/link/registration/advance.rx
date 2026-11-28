@@ -5,7 +5,13 @@
 
     <Store from="rows" as="rows" />
 
-    <Call fn="request" in={$in} />
+    <Call
+        fn="request"
+        in={{
+            traversal: $in,
+            base: $store.rows.pending.base
+        }}
+    />
 
     <Call module="../../../analysis/semantic/merging/register" />
 
@@ -13,6 +19,7 @@
         <Call
             fn="commit"
             in={{
+                base: $store.rows.pending.base,
                 row: $in.source.order[$in.position],
                 mapping: $ctx.register.mapping,
                 publication: $ctx.register.publication

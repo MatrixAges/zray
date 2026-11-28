@@ -1,11 +1,12 @@
 import integers from "std:integer"
 import {
-    appendAstAccessRows,
+    appendExpressionRows, AstPayloadOwnership,
     astExpressionCount
 } from "ast_rows"
 import { max_u32 } from "core/const"
 import { requireAllocation } from "memory"
 
+import accessColumns from "../../../ast/rows/access_columns"
 import { ExpressionsKind } from "../../../printer/model/expressions"
 
 import type { AstAccessRows, AstWriter } from "ast_rows"
@@ -78,7 +79,17 @@ export default function (in: Input): Output {
         }
     })
 
-    appendAstAccessRows(writer, emitted.rows, [])
+    const columns = accessColumns({
+        rows: emitted.rows,
+        arguments: []
+    })
+
+    appendExpressionRows(
+        writer,
+        columns.rows,
+        columns.forms,
+        AstPayloadOwnership.Borrowed
+    )
 
     return emitted.root
 }

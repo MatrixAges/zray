@@ -2,8 +2,3 @@ export type DiagnosticBundle = {
     words: u32[],
     strings: u8[]
 }
-
-export declare function readDiagnostics(allocator, body: string): DiagnosticBundle throws {
-    BackendDiagnosticsTooComplex, EndOfStream, IndexOutOfBounds, IntegerOverflow,
-    InvalidBackendProtocol, OutOfMemory, Overflow
-}

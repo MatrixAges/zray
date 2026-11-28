@@ -3,10 +3,10 @@
 
     <Args in={Cache.Diagnostics} out={Cache.Diagnostics} />
 
-    <If on={$in.messages[$in.row] != null}>
-        <Call fn="host.fromText" in={$in.messages[$in.row] ?? ""} />
+    <Call fn="diagnostic" in={$in.messages[$in.row]} />
 
-        <Call fn="host.writeStderr" />
+    <If on={$ctx.diagnostic != null}>
+        <Call fn="host.writeStderr" in={$ctx.diagnostic} />
     </If>
 
     <Return

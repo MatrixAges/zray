@@ -1,7 +1,5 @@
-import type { U32Buffer } from "memory"
-import type { ConstraintRound, ProjectionGraph, ProjectionSpans } from "rx_project_host"
 import type { Graph } from "../../optional/model"
-import type { Diagnostic } from "../../projections/site"
+import type { Diagnostic, SpanSource } from "../../projections/site"
 import type { Session as Resolver } from "../../resolve/model"
 import type { Edges } from "../model"
 
@@ -13,7 +11,7 @@ export enum Action {
 
 export type Columns = Edges & {
     graph: Graph,
-    parents: U32Buffer
+    parents: u32[]
 }
 
 export type Cursor = {
@@ -30,10 +28,8 @@ export type Result = Cursor.Pick("index", "source_type") & {
 }
 
 export type Request = {
-    frame: ConstraintRound,
     resolver: Resolver,
-    owner: ProjectionGraph,
-    spans: ProjectionSpans,
+    spans: SpanSource,
     columns: Columns
 }
 

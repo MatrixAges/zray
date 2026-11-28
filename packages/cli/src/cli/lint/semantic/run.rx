@@ -1,22 +1,37 @@
 <Module>
     <Type from="../model" as="Lint" />
 
-    <Args in={Lint.SemanticInput} out={Lint.SemanticOutcome} />
+    <Args in={Lint.SemanticInput} out={Lint.SemanticResult} />
 
-    <Call fn="../is_manifest" in={$in.input_path} />
+    <Call fn="../is_manifest" in={$in.configuration.input_path} />
 
-    <If on={$ctx.is_manifest}>
-        <Call fn="../index.checkSemanticManifest" in={$in.host} />
+    <Call
+        module="configuration"
+        in={{
+            manifest: $ctx.is_manifest,
+            request: $in.configuration
+        }}
+    />
 
-        <If on={!$ctx.checkSemanticManifest}>
-            <Return value={Lint.SemanticOutcome.Invalid} />
+    <If on={$ctx.configuration != null}>
+        <If on={!$ctx.configuration.valid}>
+            <Return
+                value={{
+                    outcome: Lint.SemanticOutcome.Invalid,
+                    configuration: $ctx.configuration
+                }}
+            />
         </If>
 
         <Else>
-            <Call fn="../is_source" in={$in.input_path} />
+            <Call fn="../is_source" in={$in.configuration.input_path} />
 
             <If on={!$ctx.is_source}>
-                <Return value={Lint.SemanticOutcome.InvalidInput} />
+                <Return
+                    value={{
+                        outcome: Lint.SemanticOutcome.InvalidInput
+                    }}
+                />
             </If>
         </Else>
     </If>
@@ -39,8 +54,18 @@
             }}
         />
 
-        <Return value={$ctx.loaded} />
+        <Return
+            value={{
+                outcome: $ctx.loaded,
+                configuration: $ctx.configuration
+            }}
+        />
     </If>
 
-    <Return value={Lint.SemanticOutcome.Invalid} />
+    <Return
+        value={{
+            outcome: Lint.SemanticOutcome.Invalid,
+            configuration: $ctx.configuration
+        }}
+    />
 </Module>

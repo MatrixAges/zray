@@ -1,9 +1,7 @@
-import type { AssignmentApplication } from "rx_project_host"
 import type { ClassLookup } from "../model"
 import type { Cursor, View } from "./merge"
 
 export type Request = {
-    frame: AssignmentApplication,
     view: View,
     classes: ClassLookup
 }

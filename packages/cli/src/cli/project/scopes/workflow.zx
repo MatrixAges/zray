@@ -1,7 +1,7 @@
 import type { Compiled, Request } from "compiler_rules/compiled/identity/aliases/model"
 import type { Rows } from "compiler_rules/project/target/select"
 import type { ReadColumn, TextColumn } from "memory"
-import type { NativeScopeLoad, ScopeWindow } from "native_scope_host"
+import type { Admission, NativeScopeLoad, ScopeWindow } from "native_scope_host"
 import type { Publication, Settings } from "./model"
 import type { Modules } from "./rules/admission/model"
 import type { Registry } from "./rules/naming/model"
@@ -20,6 +20,7 @@ export type Input = {
     frame: NativeScopeLoad,
     count: u64,
     row: u64,
+    status: Admission,
     workspace: Workspace
 }
 
@@ -40,6 +41,7 @@ export type Traversal = {
     binding: Binding,
     sources: ModuleSources,
     row: u64,
+    status: Admission,
     aliases: Request
 }
 
@@ -51,12 +53,14 @@ export type InterfacePaths = {
 export type InterfaceRead = {
     window: ScopeWindow,
     interfaces: InterfacePaths,
-    row: u64
+    row: u64,
+    status: Admission
 }
 
 export type BindingWalk = {
     binding: Binding,
-    index: u64
+    index: u64,
+    status: Admission
 }
 
 export type DeclarationRow = {

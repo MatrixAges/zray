@@ -1,4 +1,4 @@
-import type { TextColumn, WriteColumn } from "memory"
+import type { TextColumn } from "memory"
 import type { ReadColumn as WordColumn } from "memory/columns"
 import type { Mapping } from "../../../artifact/remapping/model"
 
@@ -6,12 +6,6 @@ export type Source = {
     identity: TextColumn,
     function: WordColumn,
     schema_version: WordColumn
-}
-
-export type Target = {
-    identity: WriteColumn,
-    function: WriteColumn,
-    schema_version: WriteColumn
 }
 
 export type Input = {

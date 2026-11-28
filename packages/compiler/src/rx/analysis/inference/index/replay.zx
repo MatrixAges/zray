@@ -1,7 +1,7 @@
 import integers from "std:integer"
 import { scalar_u8 } from "core/type_table/const"
 
-import representative from "../forest/root"
+import representative from "../forest/borrowed_root"
 import knownNode from "../known/find"
 import index from "../sequences/index_plan"
 import { IndexRoute } from "../sequences/model"

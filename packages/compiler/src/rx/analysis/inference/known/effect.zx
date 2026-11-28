@@ -1,0 +1,16 @@
+import type { Output as Buckets } from "./rehash"
+
+export enum Step {
+    Overflow,
+    Insert,
+    Replace,
+    Reject
+}
+
+export type Command = {
+    step: Step,
+    slot?: u64,
+    tag?: u8,
+    type_id?: u32,
+    buckets?: Buckets
+}

@@ -1,5 +1,6 @@
 <Module>
     <Type from="workflow" as="Model" />
+    <Type from="index" as="Host" />
 
     <Args in={Model.InterfaceRead} out={Model.InterfaceRead} />
 
@@ -7,13 +8,14 @@
 
     <Call fn="rules/admission/interface" />
 
-    <Call
-        fn="index.requireNativeScopeAdmission"
-        in={[
-            $in.window.frame,
-            $ctx.interface
-        ]}
-    />
+    <If on={$ctx.interface != Host.Admission.Valid}>
+        <Return
+            value={{
+                ...$in,
+                status: $ctx.interface
+            }}
+        />
+    </If>
 
     <Call
         fn="index.readNativeScopeInterface"

@@ -1,11 +1,9 @@
 import integers from "std:integer"
 import { kind_optional } from "core/type_table/const"
-import memory from "memory"
 
 import representative from "../../forest/borrowed_root"
 import { Kind } from "../../unification/model"
 
-import type { U32Buffer } from "memory"
 import type { Graph } from "../../optional/model"
 import type { ClassLookup } from "../model"
 
@@ -13,7 +11,7 @@ export type Input = {
     graph: Graph,
     allowed: u16?[],
     classes: ClassLookup,
-    parents: U32Buffer,
+    parents: u32[],
     index: u64
 }
 
@@ -24,7 +22,7 @@ export default function (in: Input): Output {
 
     const node = integers.narrow(index)
 
-    if (memory.readU32(parents, index) != node) {
+    if (parents[index] != node) {
         const root = representative({
             parents,
             value: node

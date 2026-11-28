@@ -1,6 +1,6 @@
 import integers from "std:integer"
 
-import representative from "../../inference/forest/root"
+import representative from "../../inference/forest/borrowed_root"
 import referenced from "./referenced"
 
 import type { Cursor } from "./model"

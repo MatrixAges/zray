@@ -1,10 +1,15 @@
-import type { ColumnLengths, ReadColumn } from "memory"
+import type { ReadColumn } from "memory"
 import type { Cursor, Plan, SavedReturn } from "./model"
 import type { Rows as ResultRows } from "./select_result"
 
+export type Lengths = {
+    bindings: u64,
+    facts: u64
+}
+
 export type Request = Plan & {
     cursor: Cursor,
-    lengths: ColumnLengths,
+    lengths: Lengths,
     labels: ReadColumn,
     fallback: u8,
     returns?: SavedReturn,

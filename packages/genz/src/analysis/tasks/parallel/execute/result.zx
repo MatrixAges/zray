@@ -12,5 +12,9 @@ export type Input = {
 export type Output = u32
 
 export default function (in: Input): Output {
-    return in.construct ? host.finishObject(in.frame, in.type_id, in.value) : in.value
+    if (in.construct) {
+        return host.constructValue(in.frame, in.type_id, in.value, null)
+    }
+
+    return in.value
 }

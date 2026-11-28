@@ -4,50 +4,16 @@ export declare function allocateTextSlots(
     shape: TextSlots?
 ): TextSlots?
 
-export declare function allocateOptionalTextSlots(
-    allocator: Allocator,
-    count: u64,
-    shape: OptionalTextSlots?
-): OptionalTextSlots?
-
 export declare function writeTextSlot(
     target: TextSlots,
     index: u64,
     value: string
 ): void
 
-export declare function writeOptionalTextSlot(
-    target: OptionalTextSlots,
-    index: u64,
-    value: string?
-): void
-
 export declare function borrowTextSlots(target: TextSlots, count: u64): string[]
-
-export declare function borrowOptionalTextSlots(
-    target: OptionalTextSlots,
-    count: u64
-): string?[]
-
-export declare function stringBufferSlots(
-    source: StringBuffer,
-    shape: TextSlots?
-): TextSlots
 
 export declare function duplicateText(allocator: Allocator, source: string): string?
 
 export declare function freeOwnedText(allocator: Allocator, text: string): void
 
 export declare function freeTextSlots(allocator: Allocator, slots: string[]): void
-
-export declare function freeOptionalTextSlots(allocator: Allocator, slots: string?[]): void
-
-export declare function requireTextSlots(value: TextSlots?): TextSlots throws { OutOfMemory }
-
-export declare function requireOptionalTextSlots(
-    value: OptionalTextSlots?
-): OptionalTextSlots throws { OutOfMemory }
-
-export declare function checkTextSlotCount(expected: u64, length: u64): void throws {
-    IndexOutOfBounds
-}

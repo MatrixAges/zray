@@ -24,7 +24,7 @@ export {
     verifyFpgaProgram,
     lowerFpgaProgram,
     renderFpgaProgram,
-    publishFpgaProgram,
+    encodeFpgaManifest,
     Dependencies,
     Status
 } from "compilation_host"

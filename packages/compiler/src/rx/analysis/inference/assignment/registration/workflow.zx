@@ -1,14 +1,13 @@
-import type { AssignmentRegistration } from "rx_project_host"
 import type { Endpoints, Series } from "./model"
 
 export type Storage = {
     keys: u64[],
     buckets: u32[],
-    capacity: u64
+    capacity: u64,
+    parents: u32[]
 }
 
 export type Request = {
-    frame: AssignmentRegistration,
     storage: Storage,
     position: u64
 }
@@ -23,7 +22,7 @@ export type SingleCursor = {
 }
 
 export type Batch =
-    Request & Series.Pick("parents", "values", "targets", "repeated", "known")
+    Request & Series.Pick("values", "targets", "repeated", "known")
 
 export type BatchCursor = {
     request: Batch,

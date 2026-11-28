@@ -1,4 +1,4 @@
-import representative from "../forest/root"
+import representative from "../forest/borrowed_root"
 import requiresReplay from "./requires_replay"
 
 import type { Columns } from "../fields/shape"

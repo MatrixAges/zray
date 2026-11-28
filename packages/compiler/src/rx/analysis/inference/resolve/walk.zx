@@ -1,7 +1,7 @@
 import integers from "std:integer"
 import { max_nesting_depth } from "core/const"
 
-import representative from "../forest/root"
+import representative from "../forest/borrowed_root"
 import numericDefault from "../scalar/default"
 import { Kind } from "../unification/model"
 import { frame_width } from "./const"

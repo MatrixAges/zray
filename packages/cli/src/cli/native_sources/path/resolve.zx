@@ -1,0 +1,53 @@
+import path from "std:path"
+import { pathParent, resolvePathFrom } from "lexical_path"
+
+import { Issue } from "./model"
+import reference from "./reference"
+import relative from "./relative"
+
+import type { RelativeInput, Resolution as Output } from "./model"
+
+export type Input = RelativeInput & {
+    current_path?: string
+}
+
+export default function (in: Input): Output {
+    const { root, separator } = in
+
+    const spelling = in.path
+
+    if (!reference({
+        path: spelling,
+        absolute: path.isAbsolute(spelling)
+    })) {
+        return {
+            path: spelling,
+            issue: Issue.InvalidPath
+        }
+    }
+
+    const parent = match {
+        in.current_path != null => pathParent(in.current_path),
+        _ => root
+    }
+
+    if (parent == null) {
+        return {
+            path: spelling,
+            issue: Issue.InvalidPath
+        }
+    }
+
+    const absolute = resolvePathFrom(parent, spelling)
+
+    const contained = relative({
+        root,
+        path: absolute,
+        separator
+    })
+
+    return {
+        path: absolute,
+        issue: contained.issue
+    }
+}

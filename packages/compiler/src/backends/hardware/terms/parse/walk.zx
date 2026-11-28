@@ -1,4 +1,3 @@
-import host from "hardware_graph_host"
 
 import { maximum_depth } from "../../const"
 import { Form } from "../model"
@@ -6,13 +5,15 @@ import read from "../read"
 import apply from "./application"
 import literal from "./literal"
 
-import type { Parsed as Output, Read as Input } from "./model"
+import type { Parsed, Read as Input } from "./model"
+
+export type Output = Parsed?
 
 export default function walk(in: Input): Output {
     const { graph, variables, expression, source, offset, depth } = in
 
     if (depth >= maximum_depth) {
-        host.rejectHardwareTerm()
+        return null
     }
 
     const head = read({
@@ -23,7 +24,7 @@ export default function walk(in: Input): Output {
     const { form, arity } = head
 
     if (form == Form.Invalid) {
-        host.rejectHardwareTerm()
+        return null
     }
 
     if (arity == 0) {
@@ -34,6 +35,10 @@ export default function walk(in: Input): Output {
             origin: in.origin,
             head
         })
+
+        if (term == null) {
+            return null
+        }
 
         return {
             ...term,
@@ -47,7 +52,11 @@ export default function walk(in: Input): Output {
         depth: depth + 1
     })
 
-    const second: Output? = match arity >= 2 {
+    if (first == null) {
+        return null
+    }
+
+    const second: Output = match arity >= 2 {
         true => walk({
             ...in,
             graph: first.graph,
@@ -57,9 +66,13 @@ export default function walk(in: Input): Output {
         _ => null
     }
 
+    if (arity >= 2 && second == null) {
+        return null
+    }
+
     const after_second = second ?? first
 
-    const third: Output? = match arity == 3 {
+    const third: Output = match arity == 3 {
         true => walk({
             ...in,
             graph: after_second.graph,
@@ -67,6 +80,10 @@ export default function walk(in: Input): Output {
             depth: depth + 1
         }),
         _ => null
+    }
+
+    if (arity == 3 && third == null) {
+        return null
     }
 
     const after_args = third ?? after_second

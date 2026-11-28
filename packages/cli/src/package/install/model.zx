@@ -1,4 +1,5 @@
 import type { Catalog, InstallIO, Release } from "installation_host"
+import type { TextColumn } from "memory"
 
 export enum Status {
     Installed,
@@ -9,6 +10,13 @@ export enum Status {
     PackageInstallationTooLarge
 }
 
+export type LockedArchives = {
+    names: TextColumn,
+    versions: TextColumn,
+    sources: TextColumn,
+    digests: TextColumn
+}
+
 export type Input = {
     session: InstallIO,
     members: u64,
@@ -17,6 +25,7 @@ export type Input = {
     root: string,
     has_lock: bool,
     locked_workspace: string?[],
+    locked_archives: LockedArchives,
     reuse: bool,
     frozen: bool
 }
@@ -51,11 +60,13 @@ export type ArchiveOutcome = {
 export type Replay = {
     session: InstallIO,
     locked_workspace: string?[],
+    locked_archives: LockedArchives,
     root: string
 }
 
 export type Publication = {
     session: InstallIO,
+    root: string,
     reuse: bool,
     maximum_bytes: u64,
     paths: string[]

@@ -1,5 +1,4 @@
 const toolchain = @import("cli_host").toolchain;
-pub const resolveExecutable = toolchain.workflow.resolveExecutable;
 pub const lockCache = toolchain.workflow.lockCache;
 pub const openCache = toolchain.workflow.openCache;
 pub const marker = toolchain.workflow.marker;

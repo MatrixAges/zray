@@ -18,3 +18,7 @@ export type Scan = {
     directory: string,
     root: string
 }
+
+export type Cursor = Scan & {
+    status: Status
+}

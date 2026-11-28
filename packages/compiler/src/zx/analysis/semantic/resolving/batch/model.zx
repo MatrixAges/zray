@@ -1,12 +1,10 @@
 import type { Table } from "core/type_table/model"
-import type { NamedRowViewBuffer, ReadColumn } from "memory"
 import type { Aliases, Cache, Diagnostic, State } from "../model"
 import type { Indexed } from "../source/model"
 
 export type Grouping = {
     owners: u64[],
-    imports: ReadColumn,
-    rows: NamedRowViewBuffer
+    aliases: Aliases[]
 }
 
 export type Store = {

@@ -1,0 +1,12 @@
+import type { Lengths } from "./workflow"
+
+export type Input = {
+    lengths: Lengths,
+    facts: bool
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return in.facts ? in.lengths.facts : in.lengths.bindings
+}

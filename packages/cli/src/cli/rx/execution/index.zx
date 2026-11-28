@@ -13,7 +13,6 @@ export {
     resolveRxToolchain,
     resolveRxNativeProject,
     runRxBackend,
-    resolveGatewayOwner,
     collectGatewayDocuments,
     analyzeGatewayDocument,
     analyzeGatewayServices,

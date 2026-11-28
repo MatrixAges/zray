@@ -6,6 +6,7 @@ const generated = @import("rx_options").generated_graph;
 const NonNull = @import("../non_null/host.zig");
 const ObjectClosure = @import("../object_closure.zig");
 const Projections = @import("../projections/frame.zig");
+const Known = @import("../known.zig");
 const Objects = @import("../object_closure/replay.zig");
 const Input = @import("../../project/workflow/solve/abi.zig").Solve;
 const Resolve = @import("../resolve/host.zig");
@@ -31,7 +32,6 @@ pub const Frame = struct {
         scope.active = self.workspace.allocator();
 
         self.input = .{
-            .frame = @ptrCast(self),
             .bindings = &self.bindings.view,
             .non_null = &self.non_null.view,
             .lengths = &self.projections.lengths,
@@ -57,71 +57,52 @@ pub const Frame = struct {
         self.closure.deinit();
     }
 
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
+    pub fn replay(self: *Frame, effect: anytype, reply: anytype) zx.Error!void {
+        const graph = self.graph;
+
+        switch (effect.step) {
+            .ReadRevision => reply.revision = graph.revision,
+            .RefreshLengths => self.projections.bindLengths(graph),
+            .RefreshIndexes => self.projections.bindIndexes(graph),
+            .MarkIndexResolved => graph.pending.indexes.items(.resolved)[@intCast(effect.row.?)] = true,
+            .RefreshSequences => self.projections.bindSequences(graph),
+            .RefreshObjects => self.objects.bind(graph, &self.closure, self.scope),
+            .RefreshAssignments => self.assignments.bind(graph),
+            .RefreshValidation => {
+                self.resolution.bind(graph, self.resolver, self.scope);
+                self.assignments.bindValidation(graph, &self.resolution.view);
+            },
+            .RefreshAssignmentTypes => self.assignments.topology.bindTypes(graph),
+            .RegisterAssignmentPayload => {
+                const span = graph.nodes.items(.span)[effect.left.?];
+                const result = try Known.registerPayload(graph, effect.right.?, effect.budget.?, span);
+
+                self.assignments.refresh();
+
+                reply.id = @backingInt(result.node);
+                reply.remaining = result.remaining;
+            },
+            .ReserveAssignmentOptional => {
+                const span = graph.nodes.items(.span)[effect.left.?];
+                const count = std.math.cast(usize, effect.budget.?) orelse return error.OutOfMemory;
+
+                reply.id = @backingInt(try graph.addContainers(@fromBackingInt(effect.right.?), .optional, count, span));
+            },
+            .MergeAssignmentClass => {
+                const index: u32 = @intCast(effect.row.?);
+
+                try graph.unify(@fromBackingInt(index), @fromBackingInt(effect.right.?), graph.nodes.items(.span)[index]);
+
+                self.assignments.refresh();
+            },
+            .RejectAssignmentDepth => return graph.reporter.fail(.unsupported, graph.nodes.items(.span)[effect.left.?], "type inference nesting exceeds 256 levels"),
+            .UnifyBinding => try self.bindings.unify(@intCast(effect.row.?), effect.right.?),
+            .RefreshBindings => self.bindings.bind(graph),
+            .RejectBinding => return self.bindings.reject(effect.diagnostic.?),
+            .MergeNonNull => try self.non_null.merge(@intCast(effect.row.?), effect.left.?, effect.right.?),
+            .RefreshNonNull => self.non_null.bind(graph),
+            .ReserveNonNull => reply.id = try self.non_null.reserve(@intCast(effect.row.?), effect.right.?),
+            .RegisterNonNull => reply.id = try self.non_null.register(@intCast(effect.row.?), effect.right.?),
+        }
     }
 };
-
-pub fn solveRevision(handle: *anyopaque) u64 {
-    return Frame.borrow(handle).graph.revision;
-}
-
-pub fn refreshSolverBindings(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
-
-    frame.bindings.bind(frame.graph);
-}
-
-pub fn refreshSolverNonNull(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
-
-    frame.non_null.bind(frame.graph);
-}
-
-pub fn refreshSolverLengths(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
-
-    frame.projections.bindLengths(frame.graph, handle);
-}
-
-pub fn refreshSolverIndexes(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
-
-    frame.projections.bindIndexes(frame.graph, handle);
-}
-
-pub fn markSolverIndexResolved(handle: *anyopaque, row: u64) void {
-    Frame.borrow(handle).graph.pending.indexes.items(.resolved)[@intCast(row)] = true;
-}
-
-pub fn refreshSolverSequences(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
-
-    frame.projections.bindSequences(frame.graph, handle);
-}
-
-pub fn refreshSolverObjects(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
-
-    frame.objects.bind(frame.graph, &frame.closure, frame.scope);
-}
-
-pub fn refreshSolverAssignments(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
-
-    // The generated solver keeps its loop state in this workspace until release().
-    frame.assignments.bind(frame.graph, &frame.workspace);
-}
-
-pub fn refreshSolverValidation(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
-
-    frame.resolution.bind(frame.graph, frame.resolver, frame.scope);
-    frame.assignments.bindValidation(frame.graph, handle, &frame.resolution.view);
-}
-
-pub fn refreshAssignmentTypes(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
-
-    frame.assignments.topology.bindTypes(frame.graph);
-}

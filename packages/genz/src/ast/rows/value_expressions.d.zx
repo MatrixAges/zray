@@ -1,2 +1,34 @@
-export declare function appendAstFieldAddresses(writer: AstWriter, rows: AstFieldAddressRows): void
+export type AstCapture = {
+    name: u8[],
+    label: u8[],
+    failure: u32
+}
+
+export type AstOrigin = {
+    expression_base: u32,
+    statement_base: u32,
+    serial: u64,
+    capture?: AstCapture
+}
+
+export declare function readAstOrigin(allocator, writer: AstWriter): AstOrigin
+    throws { OutOfMemory }
+
+export declare function appendExpressionRows(
+    writer: AstWriter,
+    rows: ExpressionRows,
+    forms: ExpressionForms?,
+    ownership: AstPayloadOwnership
+): void throws { OutOfMemory }
+
+export declare function appendAstLiteralRows(
+    writer: AstWriter,
+    rows: AstLiteralRows,
+    arguments: u32[][]
+): void throws { OutOfMemory }
+
+export declare function retainAstIds(writer: AstWriter, ids: u32[]): u32[]
+    throws { OutOfMemory }
+
+export declare function appendAstObjectFields(writer: AstWriter, rows: AstObjectFields): void
     throws { OutOfMemory }

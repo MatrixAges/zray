@@ -1,10 +1,13 @@
 import type { ListColumn } from "memory"
-import type { RowBuffer, WriteColumn } from "memory/columns"
 import type { Row as ConstantRow } from "../../../artifact/surface/constants"
 import type { Constants, Initializers, Members } from "../../model"
 
 export enum Kind {
     Name,
+    AllocateExports,
+    AllocateTypes,
+    AllocateMembers,
+    Alias,
     Header,
     Type,
     Member,
@@ -21,6 +24,8 @@ export type Pending = {
     output?: u32,
     intrinsic?: u8,
     version?: u32,
+    count?: u64,
+    source?: u64,
     constants?: ConstantRow[]
 }
 
@@ -32,9 +37,7 @@ export type List = {
 export type Types = List & {
     ids: ListColumn,
     output: u64,
-    mapping: u32[],
-    column: WriteColumn,
-    buffer: RowBuffer
+    mapping: u32[]
 }
 
 export type TypeStep = Types.Pick("names", "ids", "row", "mapping") & {
@@ -47,12 +50,10 @@ export type MemberList = {
     row: u64,
     output: u64,
     mapping: u32[],
-    first: u64,
-    column: WriteColumn,
-    buffer: RowBuffer
+    first: u64
 }
 
-export type MemberStep = MemberList.Omit("output", "column", "buffer") & {
+export type MemberStep = MemberList.Omit("output") & {
     count: u64,
     index: u64
 }

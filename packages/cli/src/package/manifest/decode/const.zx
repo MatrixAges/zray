@@ -1,5 +1,7 @@
 export const mapping_size: u64 = 2
 
+export const version_fields: u64 = 3
+
 export const bad_mapping: string = "expected a YAML mapping"
 
 export const bad_sequence: string = "expected a sequence"

@@ -1,0 +1,66 @@
+import integers from "std:integer"
+import {
+    ascii_digit_first,
+    ascii_digit_last,
+    ascii_underscore,
+    decimal_radix
+} from "core/const"
+
+export type Input = {
+    text: string,
+    start: u64,
+    end: u64,
+    limit: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { text, start, end, limit } = in
+
+    if (start == end) {
+        return false
+    }
+
+    const leading_zero = end - start > 1 && text[start] == ascii_digit_first
+    const leading_separator = text[start] == ascii_underscore
+    const trailing_separator = text[end - 1] == ascii_underscore
+
+    const invalid = leading_zero || leading_separator || trailing_separator
+
+    if (invalid) {
+        return false
+    }
+
+    const cutoff = limit / decimal_radix
+    const remainder = limit % decimal_radix
+
+    return loop({
+        offset: start,
+        value: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.offset < end,
+        next: state => {
+            const byte = text[state.offset]
+
+            if (byte != ascii_underscore) {
+                if (byte < ascii_digit_first || byte > ascii_digit_last) {
+                    state.valid = false
+                } else {
+                    const digit = integers.widenByte(byte - ascii_digit_first)
+                    const overflow = state.value == cutoff && digit > remainder
+
+                    if (state.value > cutoff || overflow) {
+                        state.valid = false
+                    } else {
+                        state.value = state.value * decimal_radix + digit
+                    }
+                }
+            }
+
+            state.offset += 1
+        },
+        return: state => state.valid
+    })
+}

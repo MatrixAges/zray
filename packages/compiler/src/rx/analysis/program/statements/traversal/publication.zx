@@ -15,7 +15,8 @@ export enum Step {
     AppendTail,
     LinkInitializers,
     AppendEntry,
-    EmitCall
+    EmitCall,
+    RejectBlock
 }
 
 export type Command = {

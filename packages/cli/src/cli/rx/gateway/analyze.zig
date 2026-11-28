@@ -32,8 +32,6 @@ pub const Result = struct {
 const State = struct {
     allocator: std.mem.Allocator,
     options: *const Options,
-    root: []const u8 = undefined,
-    owner: []const u8 = undefined,
     loaded: ?collection.Result = null,
     gateway: ?gateway.Result = null,
     services: ?services.Result = null,
@@ -68,33 +66,26 @@ pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
     const outcome = @import("cli_source").analyze_gateway_application.executeIn(allocator, &.{
         .analysis = @ptrCast(&reference),
         .has_library = options.loaded.config.library != null,
+        .root = options.loaded.project.root_dir,
+        .entry = options.loaded.project.entry,
     }) catch |err| return state.failure.unwrap(err);
 
     return switch (outcome) {
         .Valid => state.take(),
         .Invalid => null,
         .SourceRequired => error.GatewaySourceRequired,
+        .OutsideProject => error.RxEntryOutsideProject,
     };
 }
 
-pub fn resolveGatewayOwner(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-    const project = &self.options.loaded.project;
-    const allocator = self.allocator;
-    self.root = std.fs.path.resolve(allocator, &.{project.root_dir}) catch |err| return self.failure.save(err);
-    self.owner = std.fs.path.relative(allocator, self.root, null, self.root, project.entry) catch |err| return self.failure.save(err);
-
-    if (collection.outside(self.owner)) return self.failure.save(error.RxEntryOutsideProject);
-}
-
-pub fn collectGatewayDocuments(handle: *const anyopaque) Error!bool {
+pub fn collectGatewayDocuments(handle: *const anyopaque, root: []const u8, owner: []const u8) Error!bool {
     const self = State.get(handle);
     const options = self.options;
 
     self.loaded = collection.load(self.allocator, .{
         .io = options.io,
-        .root = self.root,
-        .entry = self.owner,
+        .root = root,
+        .entry = owner,
         .writer = options.writer,
         .inputs = options.inputs,
         .project = options.loaded.project,

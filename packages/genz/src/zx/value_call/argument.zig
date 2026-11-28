@@ -4,8 +4,6 @@ const ir = zx.ir;
 const node = @import("../../node.zig");
 const Sequence = @import("../../node/blocks.zig").Sequence;
 const Lower = @import("../lower.zig");
-const aggregate = @import("../aggregate.zig");
-const conversion = @import("../state_value/conversion.zig");
 const evaluation = @import("../expressions/evaluate.zig");
 const generated = @import("genz_options").generated_analysis;
 const Error = Lower.Error;
@@ -56,6 +54,8 @@ pub fn borrow(self: *Lower, body: anytype, id: ir.ExprId) Error!node.ExpressionI
         .type_id = expressions.types[row],
         .operand = operand,
         .items = items,
+        .state_active = self.state_active,
+        .queries = zx.columns.slice(@FieldType(Input, "queries"), self.state_plan.queries),
     };
 
     return evaluation.invokeWith(self, entry, &input);
@@ -66,20 +66,6 @@ pub fn lowerBorrowedOperand(writer: *anyopaque, sequence: *anyopaque, id: u32) E
     const body: *Sequence = @ptrCast(@alignCast(sequence));
 
     return @backingInt(try borrow(self, body, @fromBackingInt(id)));
-}
-
-pub fn lowerExistingBorrowedOperand(writer: *anyopaque, sequence: *anyopaque, raw: u32) Error!u32 {
-    const self = evaluation.borrow(writer);
-    const body: *Sequence = @ptrCast(@alignCast(sequence));
-    const id: ir.ExprId = @fromBackingInt(raw);
-    const value = try self.expr(id);
-    const type_id = self.program.expression(id).type_id;
-
-    if (!self.state_active or !self.state_plan.represented(self.program, type_id)) return @backingInt(value);
-
-    const bound = try aggregate.bind(self, body, value);
-
-    return @backingInt(try conversion.convert(self, body, type_id, bound, .borrow));
 }
 
 pub fn emitBorrowedCall(writer: *anyopaque, sequence: *anyopaque, id: u32, value: u32) Error!u32 {

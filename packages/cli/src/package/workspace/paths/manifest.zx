@@ -1,0 +1,14 @@
+import { resolvePathParts } from "lexical_path"
+
+import { manifest_name } from "../const"
+
+export type Input = string
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return resolvePathParts([
+        in,
+        manifest_name
+    ])
+}

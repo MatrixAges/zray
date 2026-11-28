@@ -8,6 +8,8 @@
             module="installed/read"
             in={$in.pick([
                 "graph",
+                "member_paths",
+                "member_count",
                 "root"
             ])}
         />
@@ -34,10 +36,10 @@
         <Else>
             <Call
                 module="workspace/read"
-                in={$in.pick([
-                    "graph",
-                    "root",
-                    "counts"
+                in={$in.omit([
+                    "external",
+                    "missing_path",
+                    "missing_name"
                 ])}
             />
 

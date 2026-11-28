@@ -1,15 +1,10 @@
-import { functionView, typeView } from "core/column_set"
 import { refreshRowReads } from "core/row_buffer"
 
-import type { ColumnSet, ColumnView, RowGrowth } from "memory/columns"
+import type { RowGrowth } from "memory/columns"
 import type { Context, Program } from "../../../ir/canonical/validation/model"
 
 export type Views = {
-    context: Context.Omit("table", "functions"),
-    type_storage: ColumnSet,
-    type_view: ColumnView,
-    function_storage: ColumnSet,
-    function_view: ColumnView,
+    context: Context,
     constants?: RowGrowth
 }
 
@@ -22,28 +17,11 @@ export type Input = Views
 export type Output = Context
 
 export default function (in: Input): Output {
-    const {
-        context,
-        constants,
-        type_storage,
-        type_view,
-        function_storage,
-        function_view
-    } = in
+    const { context, constants } = in
 
     if (constants != null) {
         refreshRowReads(constants)
     }
 
-    return {
-        ...context,
-        table: typeView({
-            storage: type_storage,
-            view: type_view
-        }),
-        functions: functionView({
-            storage: function_storage,
-            view: function_view
-        })
-    }
+    return context
 }

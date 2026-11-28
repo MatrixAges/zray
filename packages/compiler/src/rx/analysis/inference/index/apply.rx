@@ -1,20 +1,26 @@
 <Module>
     <Type from="workflow" as="Indexes" />
+    <Type from="../projections/effect" as="ProjectionEffect" />
 
     <Args in={Indexes.Application} out={bool} />
+
+    <Store from="../projections/publication" as="projection" />
 
     <Call fn="effect" in={$in} />
 
     <If on={$ctx.effect.message != null}>
         <Call
-            fn="../projections/host.applyProjectionDiagnostic"
-            in={[
-                $in.site.graph,
-                $ctx.effect.error_spans,
-                $in.site.row,
-                $ctx.effect.message,
-                false
-            ]}
+            fn="../projections/stage"
+            in={{
+                projection_step: ProjectionEffect.Step.Reject,
+                site: {
+                    spans: $ctx.effect.error_spans,
+                    row: $in.site.row
+                },
+                message: $ctx.effect.message,
+                unsupported: false
+            }}
+            setter={[$store.projection.effect]}
         />
 
         <Return value={true} />
@@ -22,38 +28,49 @@
 
     <If on={$ctx.effect.declared}>
         <Call
-            fn="../projections/host.registerProjectionType"
-            in={[
-                $in.site.graph,
-                $in.site.spans,
-                $in.site.row,
-                $ctx.effect.value
-            ]}
+            fn="../projections/stage"
+            in={{
+                projection_step: ProjectionEffect.Step.RegisterType,
+                site: {
+                    spans: $in.site.spans,
+                    row: $in.site.row
+                },
+                left: $ctx.effect.value
+            }}
+            setter={[$store.projection.effect]}
         />
 
+        <Call fn="../projections/read_id" in={$store.projection.effect} />
+
         <Call
-            fn="../projections/host.mergeProjection"
-            in={[
-                $in.site.graph,
-                $in.site.spans,
-                $in.site.row,
-                $ctx.registerProjectionType,
-                $in.value
-            ]}
+            fn="../projections/stage"
+            in={{
+                projection_step: ProjectionEffect.Step.Merge,
+                site: {
+                    spans: $in.site.spans,
+                    row: $in.site.row
+                },
+                left: $ctx.read_id,
+                right: $in.value
+            }}
+            setter={[$store.projection.effect]}
         />
 
         <Return value={true} />
     </If>
 
     <Call
-        fn="../projections/host.mergeProjection"
-        in={[
-            $in.site.graph,
-            $in.site.spans,
-            $in.site.row,
-            $ctx.effect.value,
-            $in.value
-        ]}
+        fn="../projections/stage"
+        in={{
+            projection_step: ProjectionEffect.Step.Merge,
+            site: {
+                spans: $in.site.spans,
+                row: $in.site.row
+            },
+            left: $ctx.effect.value,
+            right: $in.value
+        }}
+        setter={[$store.projection.effect]}
     />
 
     <Return value={true} />

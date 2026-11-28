@@ -1,0 +1,75 @@
+import bytes from "std:bytes"
+import { ascii_dot, ascii_minus, ascii_plus } from "core/ascii/const"
+
+import { version_fields } from "../const"
+import identifiers from "./identifiers"
+import number from "./number"
+
+export type Input = {
+    text: string,
+    limit: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    const { text, limit } = in
+
+    const source = bytes.fromText(text)
+    const build = bytes.indexOfScalar(source, 0, ascii_plus) ?? text.length
+    const dash = bytes.indexOfScalar(source, 0, ascii_minus) ?? text.length
+    const pre = dash < build ? dash : build
+
+    const core = loop({
+        start: 0,
+        parts: 0,
+        valid: true
+    }, {
+        while: state => state.valid && state.start <= pre,
+        next: state => {
+            const dot = bytes.indexOfScalar(source, state.start, ascii_dot) ?? pre
+            const end = dot < pre ? dot : pre
+            const has_room = state.parts < version_fields
+
+            state.valid = has_room && number({
+                text,
+                start: state.start,
+                end,
+                limit
+            })
+            state.parts += 1
+            state.start = end + 1
+        },
+        return: state => state.valid && state.parts == version_fields
+    })
+
+    if (!core) {
+        return false
+    }
+
+    if (pre < build) {
+        const valid_pre = identifiers({
+            text,
+            start: pre + 1,
+            end: build,
+            limit,
+            prerelease: true
+        })
+
+        if (!valid_pre) {
+            return false
+        }
+    }
+
+    if (build == text.length) {
+        return true
+    }
+
+    return identifiers({
+        text,
+        start: build + 1,
+        end: text.length,
+        limit,
+        prerelease: false
+    })
+}

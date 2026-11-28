@@ -1,15 +1,20 @@
 import type { Bindings } from "core/type_table/nominal"
-import type { Allocator, StringBuffer } from "memory"
 
 export type Input = {
-    allocator: Allocator,
     source: Bindings,
     names: string[],
     labels?: string[],
-    own_origins: bool,
-    owners_out: StringBuffer,
-    members_out: StringBuffer,
-    names_out: StringBuffer
+    own_origins: bool
 }
 
-export type Names = string[]
+export enum Column {
+    Owners,
+    Members,
+    Names
+}
+
+export type Publication = {
+    column: Column,
+    source: string[],
+    own: bool
+}

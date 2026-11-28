@@ -38,10 +38,3 @@ export declare function publishAstScopedRows(
     starts: u32[],
     counts: u32[]
 ): u64 throws { OutOfMemory }
-
-export declare function appendAstWhileLoop(
-    writer: AstWriter,
-    condition: u32,
-    start: u32,
-    count: u32
-): void throws { OutOfMemory }

@@ -1,7 +1,10 @@
 <Module>
     <Type from="workflow" as="Indexes" />
+    <Type from="../projections/effect" as="ProjectionEffect" />
 
     <Args in={Indexes.Replay} out={bool} />
+
+    <Store from="../projections/publication" as="projection" />
 
     <Call
         fn="../projections/scan"
@@ -17,24 +20,32 @@
     </If>
 
     <Call
-        fn="../projections/host.requireProjectionList"
-        in={[
-            $in.owner,
-            $in.spans,
-            $ctx.scan ?? 0,
-            $in.targets[$ctx.scan ?? 0]
-        ]}
+        fn="../projections/stage"
+        in={{
+            projection_step: ProjectionEffect.Step.RequireList,
+            site: {
+                spans: $in.spans,
+                row: $ctx.scan ?? 0
+            },
+            left: $in.targets[$ctx.scan ?? 0]
+        }}
+        setter={[$store.projection.effect]}
     />
 
+    <Call fn="../projections/read_id" in={$store.projection.effect} />
+
     <Call
-        fn="../projections/host.mergeProjection"
-        in={[
-            $in.owner,
-            $in.spans,
-            $ctx.scan ?? 0,
-            $ctx.requireProjectionList,
-            $in.values[$ctx.scan ?? 0]
-        ]}
+        fn="../projections/stage"
+        in={{
+            projection_step: ProjectionEffect.Step.Merge,
+            site: {
+                spans: $in.spans,
+                row: $ctx.scan ?? 0
+            },
+            left: $ctx.read_id,
+            right: $in.values[$ctx.scan ?? 0]
+        }}
+        setter={[$store.projection.effect]}
     />
 
     <Return value={true} />

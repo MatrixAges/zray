@@ -10,6 +10,7 @@ const PortPublication = @import("../../constraints/ports/publish.zig");
 const PortBatch = @import("rx_execution_abi").layouts.@"zig:rx_project_host".PortBatch;
 const Collection = @import("../../constraints/collection.zig");
 const CollectionHost = @import("../../constraints/collection/host.zig");
+const Projection = @import("../../../inference/projections/publish.zig");
 const Inference = @import("../../../inference/solve/host.zig").Frame;
 const Signatures = @import("../../signatures.zig");
 const SignatureHost = @import("../../signatures/host.zig");
@@ -84,11 +85,13 @@ pub fn run(derivation: *Derivation) Error!void {
 
         const FlowSlot = comptime abi.slot("flow_step");
         const ReplaySlot = comptime abi.slot("step");
+        const ProjectionSlot = comptime abi.slot("projection_step");
         const ObjectSlot = comptime abi.slot("object_step");
         const CollectionSlot = comptime abi.slot("collection_step");
         const ResolveSlot = comptime abi.slot("resolve_step");
         const Flow = std.meta.Child(abi.Store(FlowSlot));
         const Replay = std.meta.Child(abi.Store(ReplaySlot));
+        const Projected = std.meta.Child(abi.Store(ProjectionSlot));
         const Object = std.meta.Child(abi.Store(ObjectSlot));
         const Collected = std.meta.Child(abi.Store(CollectionSlot));
         const Resolution = std.meta.Child(abi.Store(ResolveSlot));
@@ -99,7 +102,8 @@ pub fn run(derivation: *Derivation) Error!void {
             .signatures = null,
         };
 
-        var replay_snapshot = execution.snapshot(Replay, .{ .step = .RefreshBindings, .id = 0 });
+        var replay_snapshot = execution.snapshot(Replay, .{ .step = .RefreshBindings, .id = 0, .revision = 0, .remaining = 0 });
+        var projection_snapshot = execution.snapshot(Projected, .{ .projection_step = .Merge, .id = 0 });
         var object_snapshot = execution.snapshot(Object, .{ .object_step = .FinishRow, .id = 0, .ready = false });
 
         var collection_snapshot = execution.snapshot(Collected, .{
@@ -116,6 +120,7 @@ pub fn run(derivation: *Derivation) Error!void {
         const resolution_snapshot = execution.snapshot(Resolution, .{ .resolve_step = .Record });
         var flow: abi.Store(FlowSlot) = &flow_snapshot;
         var replay: abi.Store(ReplaySlot) = &replay_snapshot;
+        var projection: abi.Store(ProjectionSlot) = &projection_snapshot;
         var object: abi.Store(ObjectSlot) = &object_snapshot;
         var collection: abi.Store(CollectionSlot) = &collection_snapshot;
         var resolution: abi.Store(ResolveSlot) = &resolution_snapshot;
@@ -123,6 +128,7 @@ pub fn run(derivation: *Derivation) Error!void {
         const Host = struct {
             state: *State,
             replay_snapshot: *Replay,
+            projection_snapshot: *Projected,
             object_snapshot: *Object,
             collection_snapshot: *Collected,
             store_0: *abi.Store("store_0") = undefined,
@@ -130,6 +136,7 @@ pub fn run(derivation: *Derivation) Error!void {
             store_2: *abi.Store("store_2") = undefined,
             store_3: *abi.Store("store_3") = undefined,
             store_4: *abi.Store("store_4") = undefined,
+            store_5: *abi.Store("store_5") = undefined,
             pub fn commit(host: *@This(), pending: abi.entry.zx_pending) Error!void {
                 const work = host.state;
                 const current = work.stages;
@@ -149,30 +156,22 @@ pub fn run(derivation: *Derivation) Error!void {
                 if (@field(pending, ObjectSlot)) |effect| try frame.objects.commit(effect, host.object_snapshot);
                 if (@field(pending, CollectionSlot)) |effect| try current.collection.commit(effect, host.collection_snapshot);
                 if (@field(pending, ResolveSlot)) |effect| try @import("../../../inference/resolve/host.zig").commit(&frame.resolution, effect);
-
-                const effect = @field(pending, ReplaySlot) orelse return;
-
-                switch (effect.step) {
-                    .UnifyBinding => try frame.bindings.unify(@intCast(effect.row.?), effect.right.?),
-                    .RefreshBindings => frame.bindings.refresh(),
-                    .RejectBinding => return frame.bindings.reject(effect.diagnostic.?),
-                    .MergeNonNull => try frame.non_null.merge(@intCast(effect.row.?), effect.left.?, effect.right.?),
-                    .RefreshNonNull => frame.non_null.refresh(),
-                    .ReserveNonNull => host.replay_snapshot.id = try frame.non_null.reserve(@intCast(effect.row.?), effect.right.?),
-                    .RegisterNonNull => host.replay_snapshot.id = try frame.non_null.register(@intCast(effect.row.?), effect.right.?),
-                }
+                if (@field(pending, ProjectionSlot)) |effect| try Projection.commit(frame.graph, null, effect, host.projection_snapshot);
+                if (@field(pending, ReplaySlot)) |effect| try frame.replay(effect, host.replay_snapshot);
             }
         };
 
         var host: Host = .{
             .state = &state,
             .replay_snapshot = &replay_snapshot,
+            .projection_snapshot = &projection_snapshot,
             .object_snapshot = &object_snapshot,
             .collection_snapshot = &collection_snapshot,
         };
 
         @field(host, FlowSlot) = &flow;
         @field(host, ReplaySlot) = &replay;
+        @field(host, ProjectionSlot) = &projection;
         @field(host, ObjectSlot) = &object;
         @field(host, CollectionSlot) = &collection;
         @field(host, ResolveSlot) = &resolution;

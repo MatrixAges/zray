@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Hardware" />
 
-    <Args in={Hardware.Definitions} out={Hardware.Definitions} />
+    <Args in={Hardware.Definitions} out={Hardware.Definitions?} />
 
     <Loop on={$in.running}>
         <Call
@@ -10,10 +10,15 @@
                 ...$in,
                 row: 0,
                 origin_file: null,
+                valid: true,
                 running: $in.rows.names.length != 0
             }}
         />
     </Loop>
+
+    <If on={!$ctx.next_definition.valid}>
+        <Return value={null} />
+    </If>
 
     <Return
         value={$ctx.next_definition.pick([

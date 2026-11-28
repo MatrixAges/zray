@@ -62,24 +62,40 @@
     <Call fn="index.adoptBackend" in={$in.watch} />
 
     <Call
-        fn="report_diagnostic"
+        fn="diagnostic_key"
         in={{
-            watch: $in.watch,
-            normalize: $ctx.compileTurn == Driver.Status.BackendFailed,
-            diagnostics: $store.watch_state.diagnostics
+            diagnostic: $ctx.compileTurn.diagnostic,
+            normalize: $ctx.compileTurn.status == Driver.Status.BackendFailed,
+            windows: $in.windows,
+            previous: $store.watch_state.diagnostics
         }}
-        setter={[$store.watch_state.diagnostics]}
     />
+
+    <If on={$ctx.diagnostic_key != null}>
+        <Call
+            fn="index.writeWatchDiagnostic"
+            in={[
+                $in.watch,
+                $ctx.compileTurn.diagnostic,
+                $ctx.diagnostic_key
+            ]}
+        />
+
+        <Call
+            fn="record_diagnostic"
+            setter={[$store.watch_state.diagnostics]}
+        />
+    </If>
 
     <Call
         module="commit"
         in={{
             watch: $in.watch,
-            status: $ctx.compileTurn
+            status: $ctx.compileTurn.status
         }}
     />
 
-    <If on={$ctx.compileTurn == Driver.Status.Success}>
+    <If on={$ctx.compileTurn.status == Driver.Status.Success}>
         <Call fn="notice_prefix" in={Driver.Notice.Built} />
 
         <Call
@@ -116,7 +132,7 @@
         value={{
             ...$in,
             running: true,
-            status: $ctx.compileTurn
+            status: $ctx.compileTurn.status
         }}
     />
 </Module>

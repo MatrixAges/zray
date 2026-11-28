@@ -1,0 +1,14 @@
+<Module>
+    <Type from="../model" as="Lint" />
+    <Type from="../../configuration/model" as="Config" />
+
+    <Args in={Lint.SemanticConfiguration} out={Config.Result?} />
+
+    <If on={$in.manifest}>
+        <Call module="../../configuration/run" in={$in.request} />
+
+        <Return value={$ctx.run} />
+    </If>
+
+    <Return value={null} />
+</Module>

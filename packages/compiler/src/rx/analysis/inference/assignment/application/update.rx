@@ -1,14 +1,24 @@
 <Module>
     <Type from="round" as="Assignments" />
+    <Type from="../../solve/replay_effect" as="Effect" />
 
     <Args in={Assignments.Request} out={Assignments.Update} />
 
-    <Call fn="host.assignmentRevision" in={$in.frame} />
+    <Store from="../../solve/replay" as="replay" />
+
+    <Call
+        fn="../../solve/stage_replay"
+        in={{
+            step: Effect.Step.ReadRevision
+        }}
+        setter={[$store.replay.effect]}
+    />
+
+    <Call fn="../../solve/read_revision" in={$store.replay.effect} />
 
     <Call
         module="../classes/create"
         in={$in.pick([
-            "frame",
             "view",
             "nodes",
             "rows"
@@ -18,7 +28,6 @@
     <Call
         module="propagate"
         in={{
-            frame: $in.frame,
             view: $in.view,
             classes: $ctx.create.pick([
                 "groups",
@@ -27,7 +36,7 @@
         }}
     />
 
-    <If on={$ctx.propagate != $ctx.assignmentRevision}>
+    <If on={$ctx.propagate != $ctx.read_revision}>
         <Return
             value={{
                 changed: true,

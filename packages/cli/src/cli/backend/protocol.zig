@@ -1,4 +1,5 @@
 const std = @import("std");
+const Memory = @import("memory/maps");
 const builtin = @import("builtin");
 const Message = std.zig.Server.Message;
 pub const Input = struct { prefix: Message.PathPrefix, path: []const u8 };
@@ -41,15 +42,19 @@ pub fn decode(allocator: std.mem.Allocator, stdout: []const u8, stderr: []const 
 
 const source = @import("cli_source");
 const frame_constants = source.frame_constants.@"zx.constants";
-pub const diagnostics = @import("error_bundle.zig");
+const diagnostic_constants = source.diagnostic_constants.@"zx.constants";
 
 pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @This(),
-    diagnostics,
     process,
 }).resolve;
 
 comptime {
+    checkLayout(std.zig.ErrorBundle.ErrorMessageList, &.{ "len", "start", "compile_log_text" }, diagnostic_constants.root_words);
+    checkLayout(std.zig.ErrorBundle.ErrorMessage, &.{ "msg", "count", "src_loc", "notes_len" }, diagnostic_constants.message_words);
+    checkLayout(std.zig.ErrorBundle.SourceLocation, &.{ "src_path", "line", "column", "span_start", "span_main", "span_end", "source_line", "reference_trace_len" }, diagnostic_constants.source_words);
+    checkLayout(std.zig.ErrorBundle.ReferenceTrace, &.{ "decl_name", "src_loc" }, diagnostic_constants.trace_words);
+
     if (@sizeOf(Message.Header) != frame_constants.frame_header_size or
         @sizeOf(Message.ErrorBundle) != frame_constants.error_bundle_header_size or
         @sizeOf(u32) != frame_constants.word_size or
@@ -71,6 +76,16 @@ comptime {
     }
 }
 
+fn checkLayout(comptime T: type, comptime names: []const []const u8, comptime width: u64) void {
+    const fields = @typeInfo(T).@"struct".field_names;
+
+    if (fields.len != width or fields.len != names.len) @compileError("Unexpected Zig diagnostic record width");
+
+    inline for (fields, names) |actual, expected| {
+        if (!std.mem.eql(u8, actual, expected)) @compileError("Unexpected Zig diagnostic record field order");
+    }
+}
+
 pub fn decodeFrames(allocator: std.mem.Allocator, stdout: []const u8, termination: std.process.Child.Term, mode: Mode) !Result {
     var scratch = std.heap.ArenaAllocator.init(allocator);
 
@@ -81,9 +96,12 @@ pub fn decodeFrames(allocator: std.mem.Allocator, stdout: []const u8, terminatio
     errdefer arena.deinit();
 
     const owned = arena.allocator();
+    var metrics: Memory.U64U32Map = .empty;
+    const table = &metrics;
 
     const outcome = try source.decode.executeIn(scratch.allocator(), &.{
         .bytes = stdout,
+        .metrics = @ptrCast(&table),
         .version = builtin.zig_version_string,
         .config_size = @sizeOf(Message.Config),
         .digest_size = std.Build.Cache.bin_digest_len,
@@ -93,6 +111,7 @@ pub fn decodeFrames(allocator: std.mem.Allocator, stdout: []const u8, terminatio
 
     switch (outcome.status) {
         .InvalidBackendProtocol => return error.InvalidBackendProtocol,
+        .BackendDiagnosticsTooComplex => return error.BackendDiagnosticsTooComplex,
         .BackendVersionMismatch => return error.BackendVersionMismatch,
         .IncompleteBackendResponse => return error.IncompleteBackendResponse,
         .Success, .SuccessWithInputs, .BackendFailed => {},

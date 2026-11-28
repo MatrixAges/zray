@@ -1,13 +1,11 @@
-import type { ConstraintRound, ProjectionGraph, ProjectionSpans } from "rx_project_host"
+import type { SpanSource } from "../projections/site"
 import type { Site } from "../projections/site"
 import type { IndexInput } from "../sequences/model"
 import type { EffectInput, Input } from "./model"
 
 export type Replay = Input.Omit("start") & {
-    frame: ConstraintRound,
-    owner: ProjectionGraph,
-    spans: ProjectionSpans,
-    index_spans: ProjectionSpans
+    spans: SpanSource,
+    index_spans: SpanSource
 }
 
 export type Cursor = {
@@ -17,13 +15,13 @@ export type Cursor = {
 
 export type Application = EffectInput & {
     site: Site,
-    index_spans: ProjectionSpans,
+    index_spans: SpanSource,
     value: u32
 }
 
 export type Immediate = IndexInput & {
     site: Site,
-    index_spans: ProjectionSpans,
+    index_spans: SpanSource,
     target: u32,
     value: u32
 }

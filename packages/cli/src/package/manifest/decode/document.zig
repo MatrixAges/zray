@@ -58,9 +58,3 @@ fn items(input: *const c.yaml_node_t) ?[]const u32 {
 pub fn packageName(value: []const u8) bool {
     return @import("pkgs").validName(value);
 }
-
-pub fn semanticVersion(value: []const u8) bool {
-    _ = std.SemanticVersion.parse(value) catch return false;
-
-    return true;
-}

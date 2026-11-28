@@ -1,2 +1,0 @@
-export declare function installMixedSignatures(state: MixedState): void
-    throws { OutOfMemory }

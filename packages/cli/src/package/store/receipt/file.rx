@@ -12,8 +12,6 @@
     />
 
     <If on={$ctx.openTreeFile != null && $ctx.openTreeFile != $in.executable}>
-        <Call fn="index.closeTreeFile" in={$in.receipt} />
-
         <Return value={null} />
     </If>
 
@@ -24,8 +22,6 @@
             $in.remaining
         ]}
     />
-
-    <Call fn="index.closeTreeFile" in={$in.receipt} />
 
     <If on={$ctx.hashTreeFile != null}>
         <If on={$ctx.hashTreeFile.digest == $in.expected}>

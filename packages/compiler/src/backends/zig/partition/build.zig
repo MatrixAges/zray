@@ -5,7 +5,6 @@ const Scanning = @import("workers.zig");
 const parallel = @import("../output/parallel.zig");
 pub const File = generation.placement.File;
 const available = generation.groups.available and generation.layout.available;
-const native = if (available) @import("output_execution_abi").layouts.@"zig:output_host" else struct {};
 
 /// Groups public entry closures into separately compiled units.
 pub fn plan(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocator, temporary: std.mem.Allocator, functions: []const File, columns: generation.layout.FunctionFiles, top: []const File, count: u32) ![]File {
@@ -16,7 +15,7 @@ pub fn plan(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocat
 
     defer arenas.deinit();
 
-    const workers: BodyScan = .{ .arenas = arenas, .files = functions, .scanner = &scanner };
+    const scanned = Scanning.run(temporary, arenas, functions, &scanner) catch |err| return @as(generation.Scanning.Error, @errorCast(err));
     const entry = @import("generated_bootstrap_partition");
     const Input = std.meta.Child(entry.Input);
     const Support = std.meta.Child(@FieldType(Input, "support"));
@@ -25,7 +24,9 @@ pub fn plan(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocat
     const sources = zx.memory.borrowTextColumn("source", top);
 
     const input: Input = .{
-        .workers = @ptrCast(&workers),
+        .callees = scanned.callees,
+        .variants = scanned.variants,
+        .inline_names = scanned.inline_names,
         .files = &.{ .paths = columns.paths, .bodies = @ptrCast(&bodies) },
         .support = &.{
             .sources = @ptrCast(&sources),
@@ -59,20 +60,4 @@ pub fn plan(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocat
     });
 
     return publication.files;
-}
-
-const BodyScan = struct {
-    arenas: parallel.Arenas,
-    files: []const File,
-    scanner: *const generation.Scanning,
-};
-
-pub fn scanPartitionBodies(allocator: std.mem.Allocator, capability: *const anyopaque) generation.Scanning.Error!*const native.PartitionBodyColumns {
-    const workers: *const BodyScan = @ptrCast(@alignCast(capability));
-    const scanned = Scanning.run(allocator, workers.arenas, workers.files, workers.scanner) catch |err| return @errorCast(err);
-    const result = try allocator.create(native.PartitionBodyColumns);
-
-    result.* = .{ .callees = scanned.callees, .variants = scanned.variants, .inline_names = scanned.inline_names };
-
-    return result;
 }

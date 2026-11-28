@@ -83,12 +83,6 @@ fn resolve(io: std.Io, result: *Result, original: workspace.Request, captured: ?
 
     const host = @import("graph/host.zig");
     const location = pkgs.workspace.manifest.inspect(discovered.packages);
-    const counts: []u64 = if (location.found) &.{} else try allocator.alloc(u64, discovered.packages.len);
-
-    for (discovered.packages[0..counts.len], counts) |member, *count| {
-        count.* = member.manifest.dependencies.len + member.manifest.dev_dependencies.len;
-    }
-
     const missing = if (location.found) &discovered.packages[@intCast(location.row)] else null;
 
     const missing_name = if (missing) |member| label: {
@@ -109,14 +103,22 @@ fn resolve(io: std.Io, result: *Result, original: workspace.Request, captured: ?
     };
 
     const reference = &context;
+    const member_paths = memory.borrowTextColumn("path", discovered.packages);
+    const declarations = pkgs.workspace.manifest.Manifests.borrow(&.{"manifest"}, discovered.packages);
 
     const outcome = @import("cli_source").graph_load.executeIn(allocator, &.{
         .graph = @ptrCast(&reference),
+        .member_paths = @ptrCast(&member_paths),
+        .member_count = discovered.packages.len,
         .root = result.root,
         .external = location.found,
         .missing_path = if (missing) |member| member.path else "",
         .missing_name = missing_name,
-        .counts = counts,
+        .declarations = &.{
+            .names = @ptrCast(&declarations.names),
+            .production = @ptrCast(&declarations.production_names),
+            .development = @ptrCast(&declarations.development_names),
+        },
     }) catch |err| switch (err) {
         error.PackageGraphHostFailure => return failure.?,
         else => return err,

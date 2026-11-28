@@ -1,7 +1,7 @@
 <Module>
     <Type from="../model" as="Project" />
 
-    <Args in={Project.Read} out={Project.Result} />
+    <Args in={Project.Installed} out={Project.Result} />
 
     <Call
         fn="../effects.openLock"
@@ -39,7 +39,7 @@
                 <Call
                     module="loaded"
                     in={{
-                        graph: $in.graph,
+                        ...$in.omit(["root"]),
                         mapping: $ctx.openMapping
                     }}
                 />

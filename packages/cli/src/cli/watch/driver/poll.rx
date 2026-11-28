@@ -3,11 +3,13 @@
 
     <Args in={Driver.Poll} out={Driver.Poll} />
 
+    <Call fn="delay_interval" in={false} />
+
     <Call
         fn="index.delay"
         in={[
             $in.watch,
-            Driver.Delay.Poll
+            $ctx.delay_interval
         ]}
     />
 

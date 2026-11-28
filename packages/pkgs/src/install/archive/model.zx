@@ -13,15 +13,15 @@ export type Identity = {
     version: string
 }
 
-export type Table = {
-    digests: TextColumn,
-    buckets: u32[]
+export type CacheUpdate = {
+    buckets: u32[],
+    indexed: u64
 }
 
-export type Input = Identity & Table & {
+export type Input = Identity & {
     names: TextColumn,
     versions: TextColumn,
-    indexed: u64,
+    digests: TextColumn,
     digest: string,
     archive: string,
     first: u64,
@@ -31,6 +31,5 @@ export type Input = Identity & Table & {
 
 export type Result = {
     action: Action,
-    row: u64,
-    buckets?: u32[]
+    row: u64
 }

@@ -30,7 +30,7 @@ pub fn create(allocator: std.mem.Allocator, comptime kind: Kind, name: []const u
     return pack(allocator, name, if (kind == .Public) "public_" else "zxc_store_initial_", &hex);
 }
 
-fn pack(allocator: std.mem.Allocator, name: []const u8, prefix: []const u8, digest: []const u8) std.mem.Allocator.Error!Self {
+pub fn pack(allocator: std.mem.Allocator, name: []const u8, prefix: []const u8, digest: []const u8) std.mem.Allocator.Error!Self {
     const data = try std.mem.concat(allocator, u8, &.{ prefix, digest, name });
     const end = data.len - name.len;
 

@@ -36,7 +36,6 @@ pub fn lower(self: *Lower, statements: ir.Block, index: usize) Lower.Error!node.
 
     const input: Input = .{
         .writer = @ptrCast(self),
-        .frame = @ptrCast(self),
         .control = &control,
         .values = &values,
         .function_modes = zx.columns.slice(@FieldType(Input, "function_modes"), self.program.functions.store_modes),
@@ -45,5 +44,15 @@ pub fn lower(self: *Lower, statements: ir.Block, index: usize) Lower.Error!node.
         .index = index,
     };
 
-    return publication.executeSpan(self, entry, &input);
+    var scratch = std.heap.ArenaAllocator.init(self.workspace);
+    var buffer: [std.heap.page_size_min]u8 = undefined;
+    var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
+
+    defer scratch.deinit();
+
+    const begin = (entry.executeIn(memory.allocator(), &input) catch |err| return publication.failure(err)) orelse return .{};
+
+    self.uses_context = true;
+
+    return publication.unpackSpan(begin);
 }

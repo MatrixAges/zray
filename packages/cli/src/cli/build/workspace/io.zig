@@ -1,9 +1,5 @@
 const std = @import("std");
 
-pub fn quoteJsonString(allocator: std.mem.Allocator, value: []const u8) std.mem.Allocator.Error![]const u8 {
-    return std.json.Stringify.valueAlloc(allocator, value, .{});
-}
-
 pub const DirectoryWriter = struct {
     io: std.Io,
     directory: std.Io.Dir = .cwd(),

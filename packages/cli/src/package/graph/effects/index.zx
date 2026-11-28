@@ -1,6 +1,5 @@
 export {
     assembleWorkspace,
-    matchWorkspaceMember,
     canonical,
     openLock,
     openMapping,

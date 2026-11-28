@@ -53,15 +53,19 @@
 
         <Case value={Route.Output.Existing}>
             <Call
-                fn="index.lowerExistingBorrowedOperand"
-                in={[
-                    $in.writer,
-                    $in.sequence,
-                    $in.id
-                ]}
+                fn="existing"
+                in={$in.pick([
+                    "lowering",
+                    "writer",
+                    "sequence",
+                    "id",
+                    "type_id",
+                    "state_active",
+                    "queries"
+                ])}
             />
 
-            <Return value={$ctx.lowerExistingBorrowedOperand} />
+            <Return value={$ctx.existing} />
         </Case>
     </Switch>
 </Module>

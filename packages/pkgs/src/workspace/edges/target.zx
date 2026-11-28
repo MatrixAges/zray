@@ -30,8 +30,7 @@ export default function (in: Input): Output {
             ...in.pick([
                 "name",
                 "owner",
-                "root",
-                "requirement"
+                "root"
             ]),
             spec
         }),

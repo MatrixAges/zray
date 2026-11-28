@@ -1,6 +1,6 @@
 import find from "compiler_rules/compiled/identity/declaration"
 import own from "compiler_rules/compiled/identity/own_declaration"
-import { Admission, requireNativeScopeAdmission } from "native_scope_host"
+import { Admission } from "native_scope_host"
 
 import type { Binding } from "../../workflow"
 
@@ -9,11 +9,14 @@ export type Input = {
     requested: string
 }
 
-export type Output = string?
+export type Output = {
+    status: Admission,
+    identity?: string
+}
 
 export default function (in: Input): Output {
     const { binding, requested } = in
-    const { library, window } = binding
+    const { library } = binding
 
     const found = find({
         modules: library.modules,
@@ -21,23 +24,25 @@ export default function (in: Input): Output {
     })
 
     if (found.conflict) {
-        requireNativeScopeAdmission(
-            window.frame,
-            Admission.ConflictingNativeAbiAlias
-        )
+        return {
+            status: Admission.ConflictingNativeAbiAlias
+        }
     }
 
     const identity = found.identity
 
     if (identity == null) {
-        requireNativeScopeAdmission(window.frame, Admission.UnknownNativeAbiAlias)
-
-        return null
+        return {
+            status: Admission.UnknownNativeAbiAlias
+        }
     }
 
-    return own({
-        instance: library.instance,
-        value: identity,
-        shared: found.shared
-    })
+    return {
+        status: Admission.Valid,
+        identity: own({
+            instance: library.instance,
+            value: identity,
+            shared: found.shared
+        })
+    }
 }

@@ -7,6 +7,7 @@ Shared operational, architecture, governance, verification, and response rules f
 ## 1. Execution Mode & Anti-Hang Safety Redlines
 
 - **Full-Delegation Mode**: You are authorized and expected to execute tasks end-to-end autonomously — code edits, debugging/reproducers, `zig build`, `bootstrap-stage`, single/full package tests (`zig build test`, `test-verification`), 3-stage self-compilation, cold benchmarks, governance audits, artifact cleanup, and wave documentation updates.
+- **Bold Full-Subsystem Sweep Discipline**: Maximize safe end-to-end migration volume across your entire declared `--owns` scope in one pass — sweep all addressable handles, `.d.zx` decls, `opaque` wrappers, and hand-written Zig business logic boldly rather than stopping after 1–3 files. Cross-track integration issues are fixed rapidly in the solo closeout pass.
 - **Parallel vs. Solo Heavy-Build Gate**:
     - **During parallel waves (2–6 concurrent slots)**: ONLY edit code inside your `--owns` scope and run fast narrow static checks (`zig ast-check`, per-file `zxc fmt "$f" --check`, per-file `zxc lint "$f"`, `git diff --check`). **NEVER** run full `zig build`, `bootstrap-stage`, `zig build test`, `test-verification`, 3-stage bootstraps, or benchmarks concurrently while other workers are active.
     - **Solo (single active slot, after all parallel workers finish)**: Full builds, full test suites, 3-stage bootstraps, cold benchmarks, and full-wave closeouts are allowed ONLY when running solo in an uncontended slot.
@@ -29,9 +30,7 @@ Shared operational, architecture, governance, verification, and response rules f
     - No `import ... from "zig:*"` in self-hosted RX/ZX source (use `std:*` or pure ZX).
     - No new side-effecting `void` ZX functions mutating external state via `mutable_opaque` / `*_host` / `memory.write*` (return pure values, or commit via RX `setter={[$store.*]}`).
 - **Protected Directories (Do Not Touch Unless Explicitly Authorized)**:
-    - `packages/compiler/src/rx/analysis/inference/optional/`
-    - `packages/compiler/src/rx/analysis/inference/assignment/`
-    - `packages/genz/src/analysis/uniqueness/atomic/` (`AtomicRows` / `memory.loadAtomicCell` / `Metadata`)
+    - `packages/genz/src/analysis/uniqueness/atomic/` (`AtomicRows` / `memory.loadAtomicCell` / `Metadata` — never introduce `storeAtomicCell` or write escapes)
 - **ZX & RX Rules & Common Repo Gotchas**:
     - `zxc fmt "$f" --check` and `zxc lint "$f"` accept **ONE file path per invocation** (passing multiple paths prints usage and exits `0`); always loop per file and skip `docs/`.
     - **Zig 0.17 type reflection**: `std.meta.fields` is deprecated and `Type.Struct` has `.field_names` (not `.fields`); use `inline for (@typeInfo(T).@"struct".field_names) |name| { const FT = @FieldType(T, name); ... }`.

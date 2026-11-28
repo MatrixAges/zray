@@ -1,4 +1,5 @@
 import resolve from "./boundary/resolve"
+import separation from "./boundary/separation"
 
 import type { BoundaryItem, Edit, Span } from "../source/model"
 
@@ -21,16 +22,23 @@ export default function (in: Input): Output {
         next: state => {
             const item = in.boundaries[state.index]
 
-            const edit = resolve({
+            const separate = separation({
                 source: in.source,
-                comments: in.comments,
-                left: item.left,
-                right: item.right,
-                separate: item.separate
+                item
             })
 
-            if (edit != null) {
-                state.edits = state.edits.push(edit)[0]
+            if (separate != null) {
+                const edit = resolve({
+                    source: in.source,
+                    comments: in.comments,
+                    left: item.left,
+                    right: item.right,
+                    separate
+                })
+
+                if (edit != null) {
+                    state.edits = state.edits.push(edit)[0]
+                }
             }
 
             state.index += 1

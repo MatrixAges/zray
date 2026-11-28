@@ -12,25 +12,3 @@ export declare function resolvePathFrom(
     root: string,
     path: string
 ): string throws { OutOfMemory } concurrent
-
-export declare function resolvePortablePath(
-    allocator,
-    base: string,
-    directory: string,
-    path: string
-): string throws { OutOfMemory } concurrent
-
-export declare function resolvePathSuffix(
-    allocator,
-    base: string,
-    spelling: string,
-    suffix: string
-): string throws { OutOfMemory } concurrent
-
-export declare function resolvePathJoined(
-    allocator,
-    base: string,
-    directory: string,
-    leaf: string,
-    prefix: u64
-): string throws { OutOfMemory, WriteFailed } concurrent

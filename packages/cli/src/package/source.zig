@@ -2,7 +2,6 @@ const std = @import("std");
 const compiler = @import("compiler");
 const Inputs = @import("watch_inputs").Inputs;
 const rules = @import("cli_source");
-const constants = rules.workspace_constants.@"zx.constants";
 const effects = @import("../cli/sources/effects.zig");
 const Error = effects.Error;
 
@@ -47,9 +46,8 @@ pub fn physicalSource(handle: *const anyopaque, path: []const u8) Error![]const 
     return std.Io.Dir.cwd().realPathFileAlloc(self.io, path, self.allocator) catch |err| return self.failure.save(err);
 }
 
-pub fn hasPackageManifest(handle: *const anyopaque, directory: []const u8) Error!bool {
+pub fn hasPackageManifest(handle: *const anyopaque, path: []const u8) Error!bool {
     const self = State.get(handle);
-    const path = std.fs.path.join(self.allocator, &.{ directory, constants.manifest_name }) catch |err| return self.failure.save(err);
 
     if (self.inputs) |observed| observed.add(self.io, path) catch |err| return self.failure.save(err);
 

@@ -11,7 +11,6 @@
         fn="../object_closure/selection"
         in={{
             ...$in.request.view.selections.omit([
-                "owner",
                 "spans"
             ]),
             final: $in.request.final,

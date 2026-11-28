@@ -44,6 +44,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
         .watch = @ptrCast(&handle),
         .cache = options.cache,
         .run_application = options.run,
+        .windows = @import("builtin").os.tag == .windows,
         .input_path = options.input,
         .output_path = options.output.?,
     }, &host) catch |err| return if (err == error.WatchFailure) state.failure.? else err;

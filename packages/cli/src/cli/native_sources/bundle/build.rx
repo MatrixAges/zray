@@ -45,7 +45,19 @@
         }}
     />
 
-    <If on={!$ctx.check_output}>
+    <If on={$ctx.check_output.issue != null}>
+        <Return
+            value={{
+                status: Bundle.Status.InvalidResource,
+                issue: $ctx.check_output.issue,
+                dynamic_resources: false,
+                c_imports: false,
+                files: []
+            }}
+        />
+    </If>
+
+    <If on={!$ctx.check_output.valid}>
         <Return
             value={{
                 status: Bundle.Status.OutputOverlap,
@@ -63,9 +75,22 @@
             root: $ctx.locations.root,
             entry_path: $ctx.locations.entry,
             bundle_files: $in.bundle_files,
-            header: $in.header
+            header: $in.header,
+            separator: $in.separator
         }}
     />
+
+    <If on={$ctx.discover.issue != null}>
+        <Return
+            value={{
+                status: Bundle.Status.InvalidResource,
+                issue: $ctx.discover.issue,
+                dynamic_resources: false,
+                c_imports: false,
+                files: []
+            }}
+        />
+    </If>
 
     <If on={!$ctx.discover.valid}>
         <Return

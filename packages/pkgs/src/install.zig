@@ -91,7 +91,7 @@ pub const Dependencies = struct {
                 break :done null;
             },
             .Archive => pending: {
-                self.cursor = next.cursor - 1;
+                self.cursor = next.cursor;
 
                 break :pending .{
                     .name = self.rows.items[@intCast(self.cursor)].name,
@@ -111,6 +111,30 @@ pub const Dependencies = struct {
 };
 
 pub const Archives = struct {
+    const Rule = rules.install_archive;
+    const State = std.meta.Child(@FieldType(Rule.zx_pending, "store_0"));
+
+    const StoreHost = struct {
+        store_0: *State,
+        archive: *Archives,
+        pub fn commit(self: *StoreHost, pending: anytype) std.mem.Allocator.Error!void {
+            const next = pending.store_0 orelse return;
+            const archive = self.archive;
+            const retained = archive.buckets;
+            const updated = next.buckets;
+
+            if (retained.ptr != updated.ptr or retained.len != updated.len) {
+                if (retained.len == updated.len) {
+                    @memcpy(retained, updated);
+                } else {
+                    archive.buckets = try archive.allocator.dupe(u32, updated);
+                    archive.allocator.free(retained);
+                }
+            }
+
+            archive.indexed = @intCast(next.indexed);
+        }
+    };
     allocator: std.mem.Allocator,
     buckets: []u32 = &.{},
     indexed: usize = 0,
@@ -132,13 +156,14 @@ pub const Archives = struct {
 
         var buffer: [2048]u8 = undefined;
         var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+        const state: std.meta.Child(State) = .{ .buckets = self.buckets, .indexed = self.indexed };
+        var state_ptr: State = &state;
+        var host: StoreHost = .{ .store_0 = &state_ptr, .archive = self };
 
-        const selected = rules.install_archive.executeValue(scratch.allocator(), &.{
+        const selected = Rule.executeIn(scratch.allocator(), &.{
             .names = @ptrCast(&names),
             .versions = @ptrCast(&versions),
             .digests = @ptrCast(&digests),
-            .buckets = self.buckets,
-            .indexed = self.indexed,
             .first = first,
             .count = archives.len,
             .maximum = Lock.maximum_packages,
@@ -146,24 +171,10 @@ pub const Archives = struct {
             .name = name,
             .version = release.version,
             .archive = release.archive,
-        }) catch |err| switch (err) {
+        }, &host) catch |err| switch (err) {
             error.OutOfMemory => return error.OutOfMemory,
             else => unreachable,
         };
-
-        if (selected.buckets) |updated| {
-            if (updated.len == self.buckets.len) {
-                @memcpy(self.buckets, updated);
-            } else {
-                const next = try self.allocator.dupe(u32, updated);
-
-                self.allocator.free(self.buckets);
-
-                self.buckets = next;
-            }
-        }
-
-        self.indexed = archives.len;
 
         return switch (selected.action) {
             .Existing => .{ .existing = @intCast(selected.row) },

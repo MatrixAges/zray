@@ -27,6 +27,7 @@
         in={{
             collection: $in.collection,
             root: $in.root,
+            separator: $in.separator,
             canonical_root: $in.canonical_root,
             has_bundle: $in.has_bundle,
             path: $ctx.next_queued.path,

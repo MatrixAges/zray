@@ -1,6 +1,5 @@
 <Module>
     <Type from="model" as="Calls" />
-    <Type from="../host" as="Host" />
     <Type from="../model" as="Model" />
     <Type from="../operation" as="Operation" />
 
@@ -9,11 +8,11 @@
     <Store from="../operations" as="operations" />
 
     <Call
-        fn="../host.readLengthSlot"
-        in={[
-            $in.lengths,
-            0
-        ]}
+        fn="../scope_length"
+        in={{
+            lengths: $in.lengths,
+            facts: false
+        }}
     />
 
     <Task name="prepare_flow_call" out={$ctx.read_flag}>
@@ -67,7 +66,7 @@
                 row: $ctx.select_result.row,
                 visible: $ctx.select_result.visible,
                 next: $ctx.select_result.next,
-                bindings: $ctx.readLengthSlot
+                bindings: $ctx.scope_length
             }}
             setter={[$store.operations.effect]}
         />
@@ -94,7 +93,7 @@
                         index:
                             $in.cursor.target_first +
                             ($in.row - $in.cursor.target_start),
-                        kind: Host.FlowKind.Call,
+                        kind: Operation.FlowKind.Call,
                         first: $ctx.task.register_flow_call
                     }}
                 />

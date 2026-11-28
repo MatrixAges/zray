@@ -1,7 +1,3 @@
-export declare function quoteJsonString(allocator, value: string): string throws {
-    OutOfMemory
-} concurrent
-
 export declare function compareFile(
     io,
     path: string,

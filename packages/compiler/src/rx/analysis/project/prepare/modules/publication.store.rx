@@ -1,0 +1,8 @@
+<Store name="rx_module_preparation" version={1}>
+    <Type from="model" as="Preparation" />
+
+    <Object name="command">
+        <Field name="step" type={Preparation.Step} value={Preparation.Step.Begin} />
+        <Field name="row" type={u64} value={0} />
+    </Object>
+</Store>

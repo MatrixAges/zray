@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Hardware" />
 
-    <Args in={Hardware.Input} out={Hardware.Output} />
+    <Args in={Hardware.Input} out={Hardware.Output?} />
 
     <Call
         fn="reserve"
@@ -11,7 +11,7 @@
         ])}
     />
 
-    <Loop on={$in.row < $in.inputs}>
+    <Loop on={$in.valid && $in.row < $in.inputs}>
         <Call
             module="next_input"
             in={{
@@ -21,11 +21,16 @@
                     "types"
                 ]),
                 row: 0,
+                valid: true,
                 ports: [],
                 nodes: []
             }}
         />
     </Loop>
+
+    <If on={!$ctx.next_input.valid}>
+        <Return value={null} />
+    </If>
 
     <Call
         fn="../inputs"
@@ -48,36 +53,48 @@
         }}
     />
 
-    <Call
-        module="outputs"
-        in={{
-            ...$ctx.definitions.pick([
-                "graph",
-                "variables"
-            ]),
-            types: $in.types,
-            type_id: $in.output_type,
-            value: $in.output,
-            value_layout: $in.value_layout,
-            path: $in.output_path
-        }}
-    />
+    <If on={$ctx.definitions != null}>
+        <Call
+            module="outputs"
+            in={{
+                ...$ctx.definitions.pick([
+                    "graph",
+                    "variables"
+                ]),
+                types: $in.types,
+                type_id: $in.output_type,
+                value: $in.output,
+                value_layout: $in.value_layout,
+                path: $in.output_path
+            }}
+        />
 
-    <Call
-        module="safety"
-        in={{
-            graph: $ctx.outputs.graph,
-            variables: $ctx.definitions.variables,
-            expression: $in.safety
-        }}
-    />
+        <If on={$ctx.outputs != null}>
+            <Call
+                module="safety"
+                in={{
+                    graph: $ctx.outputs.graph,
+                    variables: $ctx.definitions.variables,
+                    expression: $in.safety
+                }}
+            />
 
-    <Return
-        value={{
-            nodes: $ctx.safety.graph.nodes,
-            safe: $ctx.safety.node,
-            inputs: $ctx.next_input.ports,
-            outputs: $ctx.outputs.ports
-        }}
-    />
+            <If on={$ctx.safety != null}>
+                <Return
+                    value={{
+                        nodes: $ctx.safety.graph.nodes,
+                        safe: $ctx.safety.node,
+                        inputs: $ctx.next_input.ports,
+                        outputs: $ctx.outputs.ports
+                    }}
+                />
+            </If>
+
+            <Return value={null} />
+        </If>
+
+        <Return value={null} />
+    </If>
+
+    <Return value={null} />
 </Module>

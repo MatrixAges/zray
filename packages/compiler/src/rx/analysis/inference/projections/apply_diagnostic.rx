@@ -1,18 +1,24 @@
 <Module>
     <Type from="site" as="Projection" />
+    <Type from="effect" as="ProjectionEffect" />
 
-    <Args in={Projection.Publication} out={void} />
+    <Args in={Projection.Diagnostic?} out={void} />
 
-    <If on={$in.diagnostic != null}>
+    <Store from="publication" as="projection" />
+
+    <If on={$in != null}>
         <Call
-            fn="host.applyProjectionDiagnostic"
-            in={[
-                $in.graph,
-                $in.diagnostic.spans,
-                $in.diagnostic.row,
-                $in.diagnostic.message,
-                $in.diagnostic.unsupported
-            ]}
+            fn="stage"
+            in={{
+                projection_step: ProjectionEffect.Step.Reject,
+                site: {
+                    spans: $in.spans,
+                    row: $in.row
+                },
+                message: $in.message,
+                unsupported: $in.unsupported
+            }}
+            setter={[$store.projection.effect]}
         />
     </If>
 </Module>

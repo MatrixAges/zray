@@ -1,4 +1,5 @@
 import type { Context } from "native_resource_host"
+import type { Issue } from "../path/model"
 
 export type Queue = {
     paths: string[],
@@ -65,7 +66,8 @@ export type PromoteSeenInput = {
 
 export type Root = {
     collection: Context,
-    root: string
+    root: string,
+    separator: u8
 }
 
 export type Scope = Root & {
@@ -74,6 +76,7 @@ export type Scope = Root & {
 
 export type SeedBundleStep = Scope & {
     bundle_files: string[],
+    issue?: Issue,
     index: u64,
     running: bool
 }
@@ -83,6 +86,7 @@ export type EnqueueRefsStep = Root & {
     relative: string,
     ref_paths: string[],
     ref_sources: bool[],
+    issue?: Issue,
     index: u64,
     running: bool
 }
@@ -112,7 +116,8 @@ export type Scan = {
 }
 
 export type Decision = Flags & {
-    valid: bool
+    valid: bool,
+    issue?: Issue
 }
 
 export type Discovery = Root & {

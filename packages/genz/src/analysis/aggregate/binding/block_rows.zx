@@ -1,6 +1,8 @@
+import emptyExpressions from "../../../ast/expressions/empty"
+import emptyForms from "../../../ast/expressions/forms/empty"
 import { ExpressionsKind } from "../../../printer/model/expressions"
 
-import type { AstBlockRows, AstConditionalRows } from "ast_rows"
+import type { ExpressionForms, ExpressionRows } from "ast_rows"
 import type { Guard, Plan } from "./model"
 
 export type Input = {
@@ -10,14 +12,15 @@ export type Input = {
 }
 
 export type Output = {
-    block: AstBlockRows,
-    conditionals?: AstConditionalRows
+    block: ExpressionRows,
+    conditionals?: ExpressionForms
 }
 
 export default function (in: Input): Output {
     const { plan, name, guard } = in
 
-    const block: AstBlockRows = {
+    const block: ExpressionRows = {
+        ...emptyExpressions({}),
         tags: [ExpressionsKind.Block],
         offsets: [0],
         block_label: [name],
@@ -45,6 +48,7 @@ export default function (in: Input): Output {
             ]
         },
         conditionals: {
+            ...emptyForms({}),
             conditional_condition: [guard.condition],
             conditional_yes: [guard.yes],
             conditional_no: [guard.no],

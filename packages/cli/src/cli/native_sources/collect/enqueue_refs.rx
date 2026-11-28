@@ -6,20 +6,30 @@
     <Store from="state" as="collection" />
 
     <Call
-        fn="../index.resolveReference"
-        in={[
-            $in.collection,
-            $in.root,
-            $in.current_path,
-            $in.ref_paths[$in.index]
-        ]}
+        fn="../path/resolve"
+        in={{
+            root: $in.root,
+            current_path: $in.current_path,
+            path: $in.ref_paths[$in.index],
+            separator: $in.separator
+        }}
     />
+
+    <If on={$ctx.resolve.issue != null}>
+        <Return
+            value={{
+                ...$in,
+                issue: $ctx.resolve.issue,
+                running: false
+            }}
+        />
+    </If>
 
     <Call
         fn="enqueue_one"
         in={{
             queue: $store.collection.queue,
-            path: $ctx.resolveReference,
+            path: $ctx.resolve.path,
             source: $in.ref_sources[$in.index],
             from_present: true,
             from_path: $in.relative

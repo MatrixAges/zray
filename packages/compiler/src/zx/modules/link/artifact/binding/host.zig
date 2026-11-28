@@ -1,7 +1,6 @@
 const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
-const memory = zx.memory;
 const Builder = @import("../../build.zig");
 const Edges = @import("../../dependencies/traversal/view.zig").Columns;
 const admission = @import("../admission/host.zig");
@@ -14,9 +13,8 @@ const Control = std.meta.Child(@typeInfo(@FieldType(Body, "control")).optional.c
 const Header = std.meta.Child(@typeInfo(@FieldType(Body, "body")).optional.child);
 const Input = std.meta.Child(@typeInfo(@FieldType(Binding, "signatures")).optional.child);
 const Providers = std.meta.Child(@FieldType(Input, "providers"));
-const Native = std.meta.Child(@FieldType(Input, "native"));
-const Modules = std.meta.Child(@typeInfo(@FieldType(Native, "shape")).optional.child);
-const Linked = std.meta.Child(@typeInfo(@FieldType(Input, "linked_shape")).optional.child);
+const Modules = std.meta.Child(@FieldType(Input, "modules"));
+const Linked = std.meta.Child(@FieldType(Input, "linked"));
 const Destination = std.meta.Child(@FieldType(Input, "destination"));
 const Request = std.meta.Child(@typeInfo(@FieldType(Binding, "source")).optional.child);
 const Source = std.meta.Child(@FieldType(Request, "source"));
@@ -48,7 +46,9 @@ pub const Window = struct {
         for (registration) |index| {
             self.view.borrow(builder, @intCast(index), &self.providers, &self.target.input);
 
-            const bound = abi.bind.executeIn(self.scratch.allocator(), &self.view.input, &self.view.native_view) catch |err| switch (@as(anyerror, err)) {
+            var host: Host = .{ .view = &self.view, .builder = builder };
+
+            const bound = abi.bind.executeIn(self.scratch.allocator(), &self.view.input, &host) catch |err| switch (@as(anyerror, err)) {
                 error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
                 else => return error.InvalidModule,
             };
@@ -113,7 +113,6 @@ const View = struct {
             self.native_binding = .{
                 .plan = zx.columns.pointer(@FieldType(NativeBinding, "plan"), self.native_view.input.plan.?),
                 .publication = zx.columns.pointer(@FieldType(NativeBinding, "publication"), self.native_view.input.publication),
-                .snapshot = @ptrCast(&self.native_view.base),
             };
         }
 
@@ -166,7 +165,7 @@ const View = struct {
             .control = if (module.function != null) &self.control else null,
         };
 
-        if (module.functions.count() != 0) self.signatures.init(builder, index, self, providers, target);
+        if (module.functions.count() != 0) self.signatures.init(builder, index, self, providers);
 
         self.dependency_view.init(builder, index, providers);
 
@@ -186,52 +185,95 @@ const SignatureView = struct {
     edge_columns: Edges,
     edges: std.meta.Child(@FieldType(Input, "edges")),
     providers: Providers,
-    native_slots: [@typeInfo(Modules).@"struct".field_names.len]*anyopaque,
-    native_columns: memory.ColumnSet,
     modules: Modules,
-    native: Native,
-    read_slots: [@typeInfo(Linked).@"struct".field_names.len]*anyopaque,
-    readable: memory.ColumnSet,
-    snapshot: Linked,
+    linked: Linked,
     registry: std.meta.Child(@FieldType(Input, "registry")),
-    fn init(self: *SignatureView, builder: *Builder, index: usize, view: *View, providers: *const dependencies.Providers, destination: *const Destination) void {
+    fn init(self: *SignatureView, builder: *Builder, index: usize, view: *View, providers: *const dependencies.Providers) void {
         const module = &builder.modules[index];
 
         self.edge_columns = Edges.borrow(module.dependencies, builder.plan.sources(index));
         self.edges = self.edge_columns.view(@FieldType(SignatureView, "edges"));
         self.providers = providers.signature(Providers, builder.plan.paths);
-        self.native_slots = memory.bindColumnSet(Modules, false, &builder.native_modules);
-        self.native_columns = &self.native_slots;
 
-        self.native = .{
-            .storage = @ptrCast(&self.native_columns),
-            .shape = null,
-            .snapshot = @ptrCast(&self.modules),
-        };
+        self.refreshModules(&builder.native_modules);
+        self.refreshLinked(&builder.functions);
 
-        self.read_slots = memory.bindColumnSet(Linked, false, &builder.functions);
-        self.readable = &self.read_slots;
         self.registry = .{ .keys = builder.plan.paths, .buckets = builder.plan.buckets, .values = &.{} };
 
         self.input = .{
             .signatures = view.admission_view.layout.signatures,
             .registry = &self.registry,
-            .native = &self.native,
+            .modules = &self.modules,
+            .linked = &self.linked,
             .types = @ptrCast(builder.type_mappings[index]),
             .edges = &self.edges,
             .providers = &self.providers,
             .functions = @ptrCast(builder.module_functions),
-            .destination = destination,
-            .read_columns = @ptrCast(&self.readable),
-            .snapshot = @ptrCast(&self.snapshot),
-            .linked_shape = null,
-            .empty = &.{
-                .symbols = @ptrCast(&ir.FunctionStorage.empty_symbols),
-                .expressions = @ptrCast(&ir.FunctionStorage.empty_expressions),
-                .contracts = @ptrCast(&ir.FunctionStorage.empty_contracts),
-                .control = @ptrCast((ir.ControlBody{}).control),
-                .stores = @ptrCast(&ir.FunctionStorage.empty_stores),
-            },
         };
     }
+    fn refreshModules(self: *SignatureView, modules: *const ir.NativeModuleStorage) void {
+        self.modules = zx.columns.columns(Modules, modules.view());
+    }
+    fn refreshLinked(self: *SignatureView, functions: *const ir.FunctionStorage) void {
+        self.linked = zx.columns.view(Linked, functions.view());
+    }
 };
+
+const Host = struct {
+    view: *View,
+    builder: *Builder,
+    pub fn commit(self: *Host, pending: anytype) Builder.Error!void {
+        inline for (@typeInfo(@TypeOf(pending)).@"struct".field_names) |name| {
+            if (@field(pending, name)) |publication| {
+                if (comptime @hasField(std.meta.Child(@TypeOf(publication)), "row")) {
+                    try publishSignature(self.builder, publication.row.?);
+
+                    self.view.signatures.refreshLinked(&self.builder.functions);
+                    self.view.dependency_view.refreshLinked(&self.builder.functions);
+                } else {
+                    try self.view.native_view.publish(publication);
+
+                    self.view.signatures.refreshModules(&self.builder.native_modules);
+                }
+            }
+        }
+    }
+};
+
+fn publishSignature(builder: *Builder, row: anytype) Builder.Error!void {
+    const allocator = builder.allocator;
+    const signature = row.function;
+    const flags = row.flags;
+    const portable = signature.external.?;
+    const module: ir.NativeModuleId = @fromBackingInt(signature.ports.native_module.?);
+
+    const external: ir.External = .{
+        .input = if (portable.parameters) |names| .{ .names = names } else null,
+        .module = module,
+        .member = portable.members,
+        .export_name = portable.export_name,
+        .allocator_argument = flags.allocator_argument,
+        .io_argument = flags.io_argument,
+        .process_argument = flags.process_argument,
+        .expand_tuple = flags.expand_tuple,
+        .fallible = flags.fallible,
+        .errors = portable.errors,
+        .concurrent = flags.concurrent,
+    };
+
+    try builder.functions.reserve(allocator, 1);
+
+    const file = try allocator.dupe(u8, signature.file);
+
+    errdefer allocator.free(file);
+
+    const owned = try @import("../../../artifact/materializing/external_host.zig").own(allocator, external, module);
+
+    builder.functions.appendSignatureAssumeCapacity(.{
+        .file_name = file,
+        .input_type = @fromBackingInt(signature.ports.input),
+        .output_type = @fromBackingInt(signature.ports.output),
+        .output_ownership = @fromBackingInt(@intCast(@backingInt(flags.ownership))),
+        .external = owned,
+    });
+}

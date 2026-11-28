@@ -6,12 +6,30 @@
     <Store from="state" as="collection" />
 
     <Call
+        fn="../path/resolve"
+        in={{
+            root: $in.root,
+            path: $in.bundle_files[$in.index],
+            separator: $in.separator
+        }}
+    />
+
+    <If on={$ctx.resolve.issue != null}>
+        <Return
+            value={{
+                ...$in,
+                issue: $ctx.resolve.issue,
+                running: false
+            }}
+        />
+    </If>
+
+    <Call
         fn="../index.readBundle"
         in={[
             $in.collection,
-            $in.root,
             $in.canonical_root,
-            $in.bundle_files[$in.index]
+            $ctx.resolve.path
         ]}
     />
 

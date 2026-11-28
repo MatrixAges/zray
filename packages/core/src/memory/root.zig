@@ -1,11 +1,6 @@
 const std = @import("std");
 pub const ScratchArena = @import("arena.zig");
 pub const ArenaScope = @import("arena_scope.zig");
-const stream = @import("stream.zig");
-pub const takeByte = stream.takeByte;
-pub const takeU32Le = stream.takeU32Le;
-pub const takeU64Le = stream.takeU64Le;
-pub const takeText = stream.takeText;
 pub const AtomicRows = @import("atomic_rows.zig");
 pub const atomicRowsCount = AtomicRows.count;
 pub const atomicRowLength = AtomicRows.rowLength;
@@ -22,39 +17,16 @@ pub const lengthSlotCount = column_length.count;
 pub const readLengthSlot = column_length.read;
 pub const advanceLengthSlot = column_length.advance;
 pub const shrinkLengthSlot = column_length.shrink;
-const column_range = @import("column_range.zig");
-pub const ColumnRanges = column_range.Ranges;
-pub const ColumnRangeGroup = column_range.Group;
-pub const columnRangeSlotCount = column_range.columns;
-pub const columnRangeLength = column_range.length;
-pub const columnRangeCount = column_range.count;
-pub const reserveColumnRange = column_range.reserveOne;
 pub const columnSetSlotCount = column_set.slotCount;
 pub const columnSetFirstLength = column_set.firstLength;
 pub const functionColumnGrowth = column_set.growth;
 pub const nativeColumnGrowth = column_set.growth;
 pub const reserveColumnCell = column_set.reserveCell;
-pub const typeColumnLayout = column_set.viewLayout;
-pub const nominalColumnLayout = column_set.viewLayout;
-pub const moduleColumnLayout = column_set.viewLayout;
-pub const signatureColumnLayout = column_set.viewLayout;
-pub const linkedPortLayout = column_set.viewLayout;
-pub const functionColumnLayout = column_set.viewLayout;
-pub const readColumnCell = column_set.readCell;
-pub const typeColumnView = column_set.viewAt;
-pub const nominalColumnView = column_set.viewAt;
-pub const moduleColumnView = column_set.viewAt;
-pub const signatureColumnView = column_set.viewAt;
-pub const functionColumnView = column_set.viewAt;
 pub const borrowFunctionRecord = column_set.borrowRecord;
-pub const borrowSignatureRecord = column_set.borrowRecord;
-pub const borrowNativeModuleRecord = column_set.borrowRecord;
 pub const borrowFunctionBodyRecord = column_set.borrowRecord;
 pub const borrowFunctionNativeRecord = column_set.borrowRecord;
 pub const emptyFunctionNativeRecord = column_set.zeroRecord;
 pub const functionRowLayout = column_set.rowLayout;
-pub const signatureRowLayout = column_set.rowLayout;
-pub const nativeModuleRowLayout = column_set.rowLayout;
 pub const functionBodyLayout = column_set.projectedLayout;
 pub const functionNativeLayout = column_set.projectedLayout;
 pub const rowCellCount = column_set.rowCellCount;
@@ -62,7 +34,6 @@ pub const writeColumnCell = column_set.writeCell;
 pub const column_transfer = @import("column_transfer.zig");
 pub const borrowTransferGroup = column_transfer.borrowGroup;
 pub const transferColumnCount = column_transfer.countColumns;
-pub const transferSourceLength = column_transfer.sourceLength;
 pub const transferOwnsPayload = column_transfer.ownsPayload;
 pub const transferOwnsTextItems = column_transfer.ownsTextItems;
 pub const transferTextList = column_transfer.textList;
@@ -81,61 +52,21 @@ const text_storage = @import("text_storage.zig");
 pub const duplicateText = text_storage.duplicate;
 pub const freeOwnedText = text_storage.free;
 pub const freeTextSlots = text_storage.free;
-pub const freeOptionalTextSlots = text_storage.free;
-pub const requireTextSlots = text_storage.require;
-pub const requireOptionalTextSlots = text_storage.require;
-pub const checkTextSlotCount = text_storage.checkLength;
 
 pub inline fn allocateTextSlots(resource: *const anyopaque, count: u64, shape: anytype) ?std.meta.Child(@TypeOf(shape)) {
     return text_storage.allocate([]const u8, resource, count, shape);
-}
-
-pub inline fn allocateOptionalTextSlots(resource: *const anyopaque, count: u64, shape: anytype) ?std.meta.Child(@TypeOf(shape)) {
-    return text_storage.allocate(?[]const u8, resource, count, shape);
 }
 
 pub inline fn writeTextSlot(target: *anyopaque, index: u64, value: []const u8) void {
     text_storage.write([]const u8, target, index, value);
 }
 
-pub inline fn writeOptionalTextSlot(target: *anyopaque, index: u64, value: ?[]const u8) void {
-    text_storage.write(?[]const u8, target, index, value);
-}
-
 pub inline fn borrowTextSlots(source: *const anyopaque, count: u64) []const []const u8 {
     return text_storage.borrow([]const u8, source, count);
 }
 
-pub inline fn borrowOptionalTextSlots(source: *const anyopaque, count: u64) []const ?[]const u8 {
-    return text_storage.borrow(?[]const u8, source, count);
-}
-
-pub inline fn stringBufferSlots(source: *anyopaque, shape: anytype) std.meta.Child(@TypeOf(shape)) {
-    const view: *[][]const u8 = @ptrCast(@alignCast(source));
-
-    return @ptrCast(view.ptr);
-}
-
 pub inline fn requireAllocation(success: bool) std.mem.Allocator.Error!void {
     if (!success) return error.OutOfMemory;
-}
-
-pub inline fn stringViews(source: *const anyopaque) []const []const u8 {
-    const view: *const []const []const u8 = @ptrCast(@alignCast(source));
-
-    return view.*;
-}
-
-pub inline fn u8ListViews(source: *const anyopaque) []const []const u8 {
-    const view: *const []const []const u8 = @ptrCast(@alignCast(source));
-
-    return view.*;
-}
-
-pub inline fn u32Views(source: *const anyopaque) []const u32 {
-    const view: *const []const u32 = @ptrCast(@alignCast(source));
-
-    return view.*;
 }
 
 const rows = @import("rows.zig");
@@ -144,8 +75,6 @@ pub const NamedColumns = rows.NamedColumns;
 pub const readNamedColumnName = rows.readNamedColumnName;
 pub const readNamedColumnId = rows.readNamedColumnId;
 pub const borrowNamedRows = rows.borrow;
-pub const bindNamedRowView = rows.bindNamedRowView;
-pub const namedRowsView = rows.namedRowsView;
 pub const TextColumn = rows.TextColumn;
 const references = @import("reference_column.zig");
 pub const borrowReferenceColumn = references.borrow;
@@ -195,9 +124,6 @@ pub const borrowListColumn = rows.borrowList;
 pub const borrowOptionalListColumn = rows.borrowOptionalList;
 pub const borrowNestedListColumn = rows.borrowNestedList;
 pub const borrowSliceColumn = rows.borrowSliceColumn;
-pub const bindSliceColumns = rows.bindSliceColumns;
-pub const sliceColumnCount = rows.sliceColumnCount;
-pub const readSliceCell = rows.readSliceCell;
 pub const ListProjection = rows.ListProjection;
 pub const listProjectionSourceCount = rows.listProjectionSourceCount;
 pub const listProjectionTargetCount = rows.listProjectionTargetCount;
@@ -256,12 +182,9 @@ pub const rowGrowthBase = column.rowGrowthBase;
 pub const rowGrowthBuffer = column.rowGrowthBuffer;
 pub const refreshRowWrite = column.refreshRowWrite;
 pub const refreshRowRead = column.refreshRowRead;
-pub const clearRowStorage = column.clearRowStorage;
 pub const reserveRowStorage = column.reserveRowStorage;
 pub const allocateRowStorage = column.allocateRowStorage;
 pub const rowBufferBytes = column.rowBufferBytes;
-pub const writeRowListCount = column.writeRowListCount;
-pub const copyRow = column.copyRow;
 const scalar_column = @import("scalar.zig");
 pub const Scalar = scalar_column.Value;
 pub const readScalarKind = scalar_column.readKind;
@@ -318,10 +241,6 @@ pub const SourceSpan = struct {
     start: usize,
     end: usize,
 };
-
-pub inline fn readU8(target: *const anyopaque, index: u64) error{IndexOutOfBounds}!u8 {
-    return read(u8, target, index);
-}
 
 pub inline fn readU32(target: *const anyopaque, index: u64) error{IndexOutOfBounds}!u32 {
     return read(u32, target, index);

@@ -1,10 +1,9 @@
-import type { ProjectionGraph, ProjectionSpans } from "rx_project_host"
 import type { Input as Ready } from "../object_closure/selection"
+import type { SpanSource } from "../projections/site"
 import type { Input as Application } from "./application/model"
 
 export type Scan = Ready.Omit("start", "cache", "final") & {
-    owner: ProjectionGraph,
-    spans: ProjectionSpans
+    spans: SpanSource
 }
 
 export type Row = Application.Omit("final")

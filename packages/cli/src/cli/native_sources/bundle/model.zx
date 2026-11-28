@@ -1,5 +1,6 @@
 import type { Discovery, Flags, Root, Seen } from "../collect/model"
 import type { Output as IncludeOutput } from "../include/model"
+import type { Issue } from "../path/model"
 
 export type Input = Discovery.Omit("root") & {
     directory: string,
@@ -7,7 +8,6 @@ export type Input = Discovery.Omit("root") & {
     name: string,
     header_absolute: bool,
     include_paths: string[],
-    separator: u8,
     windows: bool
 }
 
@@ -16,11 +16,13 @@ export enum Status {
     AbsoluteHeader,
     OutputOverlap,
     MissingBundle,
-    IncompleteInclude
+    IncompleteInclude,
+    InvalidResource
 }
 
 export type Output = Flags & {
     status: Status,
+    issue?: Issue,
     files: File[],
     entry?: string,
     includes?: IncludeOutput
@@ -44,11 +46,13 @@ export type FileWalk = {
 export type OutputCheck = Root & {
     bundle_files: string[],
     output: string,
-    physical_output?: string,
-    separator: u8
+    physical_output?: string
 }
 
 export type OutputStep = OutputCheck & {
     index: u64,
-    valid: bool
+    valid: bool,
+    issue?: Issue
 }
+
+export type OutputSafety = OutputStep.Pick("valid", "issue")

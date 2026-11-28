@@ -49,7 +49,36 @@ pub fn receive(allocator: std.mem.Allocator, reader: *std.Io.Reader) !Envelope {
     if (comptime !generated) return seed.receive(allocator, reader);
 
     const rule = @import("generated_resident_receive");
-    const message = try rule.executeValue(allocator, @ptrCast(reader));
+    var identity: [3 * @sizeOf(u64)]u8 = undefined;
+    var options: [@sizeOf(u32)]u8 = undefined;
+
+    try reader.readSliceAll(&identity);
+
+    var fields: [5][]const u8 = undefined;
+    var read: usize = 0;
+
+    errdefer for (fields[0..read]) |field| allocator.free(field);
+
+    for (&fields) |*field| {
+        field.* = try readText(allocator, reader);
+        read += 1;
+    }
+
+    try reader.readSliceAll(&options);
+
+    var scratch: std.heap.ArenaAllocator = .init(allocator);
+
+    defer scratch.deinit();
+
+    const message = try rule.executeValue(scratch.allocator(), &.{
+        .identity = &identity,
+        .options = &options,
+        .path = fields[0],
+        .cwd = fields[1],
+        .manifest = fields[2],
+        .output = fields[3],
+        .cache = fields[4],
+    });
 
     return .{
         .caller = .{ .size = message.size, .mtime_low = message.mtime_low, .mtime_high = message.mtime_high, .path = message.path },
@@ -120,7 +149,19 @@ pub fn reply(allocator: std.mem.Allocator, writer: *std.Io.Writer, status: Statu
 pub fn readSummary(allocator: std.mem.Allocator, reader: *std.Io.Reader) !?[]const u8 {
     if (comptime !generated) return seed.summary(allocator, reader);
 
-    return @import("generated_resident_summary").executeValue(allocator, @ptrCast(reader));
+    var empty = std.heap.FixedBufferAllocator.init(&.{});
+    const code = try reader.takeByte();
+    const frame = try @import("generated_resident_summary").executeValue(empty.allocator(), code);
+
+    if (!frame.known) return null;
+    if (frame.accepted) return try readText(allocator, reader);
+    try reader.discardAll(try reader.takeInt(u32, .little));
+
+    return null;
+}
+
+fn readText(allocator: std.mem.Allocator, reader: *std.Io.Reader) ![]const u8 {
+    return reader.readAlloc(allocator, try reader.takeInt(u32, .little));
 }
 
 pub fn expired(last: u64, now: u64) bool {

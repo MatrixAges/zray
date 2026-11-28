@@ -1,3 +1,4 @@
+import operandColumns from "../../../../ast/rows/operands_columns"
 import {
     ExpressionsBuiltinName,
     ExpressionsKind
@@ -72,14 +73,14 @@ export default function (in: Input): Output {
     }
 
     return {
-        expressions: {
+        expressions: operandColumns({
             tags,
             offsets,
             ...operands,
-            identifier: identifiers.identifier,
+            identifier: identifiers,
             address_of: [bound.root],
             ...fields
-        },
+        }),
         root: bound.root + 1
     }
 }

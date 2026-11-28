@@ -124,14 +124,17 @@ pub fn compile(parent: *Flow, branch: *const Branch, outputs: *frontend.expressi
     if (comptime generated) {
         const entry = @import("generated_rx_compile_parallel_task");
         const Input = std.meta.Child(entry.Input);
-        const result_slots: zx.memory.ColumnLengths = &.{&parent.next_binding};
+        const input: Input = .{ .result_types = @ptrCast(parent.results.types) };
+        const Store = std.meta.Child(@FieldType(entry.zx_pending, "store_0"));
 
-        const input: Input = .{
-            .results = &.{ .cursor = @ptrCast(&result_slots), .types = @ptrCast(parent.results.types) },
+        var snapshot: std.meta.Child(Store) = .{
+            .step = .CompileBody,
+            .row = null,
+            .visible = null,
+            .result_row = 0,
+            .id = 0,
         };
 
-        const Store = std.meta.Child(@FieldType(entry.zx_pending, "store_0"));
-        var snapshot: std.meta.Child(Store) = .{ .step = .CompileBody, .row = null, .visible = null, .id = 0 };
         var store: Store = &snapshot;
 
         const Host = struct {
@@ -143,7 +146,11 @@ pub fn compile(parent: *Flow, branch: *const Branch, outputs: *frontend.expressi
                 const task = host.work;
 
                 switch (effect.step) {
-                    .CompileBody => try compileBody(task),
+                    .CompileBody => {
+                        try compileBody(task);
+
+                        host.snapshot.result_row = task.parent.next_binding;
+                    },
                     .CheckCalls => try checkCalls(task),
                     .Capture => try resolveCaptures(task),
                     .Lower => try lowerProgram(task),

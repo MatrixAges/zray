@@ -20,7 +20,7 @@
 
         <If on={$ctx.parent != null}>
             <Call
-                fn="scan"
+                module="scan"
                 in={{
                     source: $in.source,
                     directory: $ctx.parent,

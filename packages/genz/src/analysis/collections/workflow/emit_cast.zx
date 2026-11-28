@@ -1,5 +1,11 @@
-import { appendAstAccessRows, astExpressionCount, retainAstIds } from "ast_rows"
+import {
+    appendExpressionRows,
+    AstPayloadOwnership,
+    astExpressionCount,
+    retainAstIds
+} from "ast_rows"
 
+import accessColumns from "../../../ast/rows/access_columns"
 import {
     ExpressionsBuiltinName,
     ExpressionsKind
@@ -23,9 +29,8 @@ export default function (in: Input): Output {
         in.value
     ])
 
-    appendAstAccessRows(
-        in.writer,
-        {
+    const columns = accessColumns({
+        rows: {
             tags: [ExpressionsKind.Builtin],
             offsets: [0],
             field_target: [],
@@ -34,7 +39,14 @@ export default function (in: Input): Output {
             optional_unwrap: [],
             builtin_name: [ExpressionsBuiltinName.As]
         },
-        [pair]
+        arguments: [pair]
+    })
+
+    appendExpressionRows(
+        in.writer,
+        columns.rows,
+        columns.forms,
+        AstPayloadOwnership.Borrowed
     )
 
     return base

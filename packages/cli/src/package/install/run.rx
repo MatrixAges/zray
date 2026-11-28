@@ -9,6 +9,7 @@
             in={$in.pick([
                 "session",
                 "locked_workspace",
+                "locked_archives",
                 "root"
             ])}
         />
@@ -18,6 +19,7 @@
             in={{
                 ...$in.pick([
                     "session",
+                    "root",
                     "reuse",
                     "maximum_bytes"
                 ]),
@@ -53,6 +55,7 @@
         in={{
             ...$in.pick([
                 "session",
+                "root",
                 "reuse",
                 "maximum_bytes"
             ]),

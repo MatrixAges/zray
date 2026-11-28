@@ -2,7 +2,7 @@
     <Type from="model" as="Hardware" />
     <Type from="../../terms/parse/model" as="Term" />
 
-    <Args in={Hardware.Safety} out={Term.Term} />
+    <Args in={Hardware.Safety} out={Term.Term?} />
 
     <Call
         module="../../terms/parse/run"
@@ -12,7 +12,11 @@
         }}
     />
 
-    <Call fn="safety_check" />
+    <If on={$ctx.run != null}>
+        <Call fn="safety_check" in={$ctx.run} />
 
-    <Return value={$ctx.safety_check} />
+        <Return value={$ctx.safety_check} />
+    </If>
+
+    <Return value={null} />
 </Module>

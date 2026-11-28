@@ -53,7 +53,7 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
     const rx_project_interface = b.addWriteFiles();
 
     const rx_project_host = rx_project_interface.add("host.d.zx", internal.join(b, b, "src/" ++ rx_project_directory ++ "/host", &.{
-        "types.d.zx", "call_types.d.zx", "project.d.zx", "mixed.d.zx", "history.d.zx", "flow.d.zx", "prepare.d.zx", "body.d.zx", "constraints.d.zx", "objects.d.zx", "projections.d.zx",
+        "types.d.zx", "call_types.d.zx", "project.d.zx",
     }));
 
     const declarations = internal.create(b, core_dependency, manifests.getDirectory(), directories[2], &.{
@@ -110,7 +110,6 @@ pub fn generate(b: *std.Build, optimize: std.builtin.OptimizeMode, stage0: []con
         .{ .path = b.fmt("{s}/verification/host.d.zx", .{directories[0]}), .module = "verification_host", .resolve_members = true },
         .{ .path = b.fmt("{s}/verification/execution/program/host.d.zx", .{directories[0]}), .module = "verification_program_host", .resolve_members = true },
         .{ .path = b.fmt("{s}/verification/publication/host.d.zx", .{directories[0]}), .module = "verification_publication_host", .resolve_members = true },
-        .{ .path = b.fmt("{s}/verification/solver/publication/host.d.zx", .{directories[0]}), .module = "verification_report_host", .resolve_members = true },
         hardware_graph_interface,
         .{ .path = b.fmt("{s}/inputs/generation/request/host.d.zx", .{directories[0]}), .module = "generation_host", .resolve_members = true },
     };

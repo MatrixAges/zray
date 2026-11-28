@@ -105,7 +105,15 @@
         }}
     />
 
-    <Call fn="host.requireBodyBlock" />
+    <If on={!$ctx.finish_block}>
+        <Call
+            fn="stage"
+            in={{
+                step: Publication.Step.RejectBlock
+            }}
+            setter={[$store.publication.effect]}
+        />
+    </If>
 
     <Return
         value={{

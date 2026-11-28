@@ -3,6 +3,26 @@
 
     <Args in={Source.PlanInput} out={Source.Output} />
 
+    <If on={$in.edits != null}>
+        <Call
+            fn="edit_parts"
+            in={{
+                source: $in.source,
+                edits: $in.edits
+            }}
+        />
+
+        <Return
+            value={{
+                has_edits: false,
+                first_start: 0,
+                first_end: 0,
+                formatted: [],
+                parts: $ctx.edit_parts
+            }}
+        />
+    </If>
+
     <Call
         fn="../imports/plan/plan"
         in={$in.pick([

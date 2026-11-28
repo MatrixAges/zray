@@ -1,4 +1,1 @@
-export {
-    materializeBorrowedObject,
-    lowerExistingBorrowedOperand
-} from "ast_rows"
+export { materializeBorrowedObject } from "ast_rows"

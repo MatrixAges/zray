@@ -4,11 +4,13 @@
     <Args in={Driver.Cycle} out={Driver.WaitOutcome} />
 
     <If on={$in.status == Driver.Status.Retry}>
+        <Call fn="delay_interval" in={true} />
+
         <Call
             fn="index.delay"
             in={[
                 $in.watch,
-                Driver.Delay.Retry
+                $ctx.delay_interval
             ]}
         />
 

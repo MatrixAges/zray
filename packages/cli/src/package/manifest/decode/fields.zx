@@ -20,7 +20,8 @@ import type { Diagnostic, Document } from "./value"
 
 export type Input = {
     document: Document,
-    pairs: u32[]
+    pairs: u32[],
+    version_limit: u64
 }
 
 export type State = {
@@ -83,7 +84,10 @@ export default function (in: Input): Output {
                     state.values.name = parsed
                     state.problem = problem
                 case Field.Version:
-                    const [parsed, problem] = version(value)
+                    const [parsed, problem] = version({
+                        ...value,
+                        limit: in.version_limit
+                    })
 
                     state.values.version = parsed
                     state.problem = problem

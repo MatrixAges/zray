@@ -1,14 +1,21 @@
-import type { Copy } from "../literals/model"
+import type { Text } from "../literals/model"
 
 export type Ownership = {
     count: u64,
     copy_tag: u8
 }
 
-export type Input = Copy & {
+export type Columns = {
+    names: Text,
+    types: u32[],
+    span_start: u64[],
+    span_end: u64[]
+}
+
+export type Input = Columns & {
     ownership: Ownership
 }
 
-export type Output = Copy & {
+export type Output = Columns & {
     ownership: u8[]
 }

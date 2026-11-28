@@ -3,7 +3,14 @@ const zx = @import("zx");
 const syntax = zx.syntax.borrow;
 pub const attribute_required = @import("lint_layout").attributeRequired;
 pub const layout = @import("layout/root.zig");
-pub const spacing = @import("spacing.zig");
+
+pub const spacing = struct {
+    pub const Edit = source.Edit;
+    pub const Boundary = @import("source/boundaries.zig").Boundary;
+    pub const collectBody = @import("source/boundaries.zig").collectBody;
+    pub const format = source.formatEdits;
+};
+
 pub const indentation = @import("indentation/root.zig");
 pub const header = zx.syntax.header;
 pub const source = @import("source.zig");

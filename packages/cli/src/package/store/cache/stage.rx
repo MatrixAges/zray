@@ -23,20 +23,23 @@
         ]}
     />
 
+    <Call fn="receipt_path" />
+
     <Call
         fn="index.unpack"
         in={[
             $in.cache,
-            $in.bytes
+            $in.bytes,
+            $in.hex
         ]}
     />
 
     <Call
-        fn="index.writeReceipt"
-        in={[
-            $in.cache,
-            $in.hex
-        ]}
+        module="../../workspace_files/write_bytes"
+        in={{
+            path: $ctx.receipt_path,
+            data: $ctx.unpack
+        }}
     />
 
     <Call
@@ -46,8 +49,6 @@
             $in.hex
         ]}
     />
-
-    <Call fn="index.closeStaging" in={$in.cache} />
 
     <Return value={Cache.Status.Ready} />
 </Module>

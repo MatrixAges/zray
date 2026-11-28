@@ -12,6 +12,16 @@
         ])}
     />
 
+    <If on={!$ctx.next_leaf.valid}>
+        <Return
+            value={{
+                ...$in,
+                running: false,
+                valid: false
+            }}
+        />
+    </If>
+
     <If on={$ctx.next_leaf.leaf != null}>
         <Call
             module="../../terms/parse/run"
@@ -25,31 +35,51 @@
             }}
         />
 
-        <Call
-            fn="../../terms/parse/operand_sort"
-            in={{
-                nodes: $ctx.run.graph.nodes,
-                node: $ctx.run.node
-            }}
-        />
+        <If on={$ctx.run != null}>
+            <Call
+                fn="../../terms/parse/operand_sort"
+                in={{
+                    nodes: $ctx.run.graph.nodes,
+                    node: $ctx.run.node
+                }}
+            />
 
-        <Call
-            fn="write_output"
-            in={{
-                sort: $ctx.operand_sort,
-                leaf: $ctx.next_leaf.leaf,
-                node: $ctx.run.node,
-                ports: $in.ports
-            }}
-        />
+            <Call
+                fn="write_output"
+                in={{
+                    sort: $ctx.operand_sort,
+                    leaf: $ctx.next_leaf.leaf,
+                    node: $ctx.run.node,
+                    ports: $in.ports
+                }}
+            />
+
+            <If on={$ctx.write_output != null}>
+                <Return
+                    value={{
+                        ...$in,
+                        graph: $ctx.run.graph,
+                        stack: $ctx.next_leaf.stack,
+                        ports: $ctx.write_output,
+                        running: $ctx.next_leaf.stack.length != 0
+                    }}
+                />
+            </If>
+
+            <Return
+                value={{
+                    ...$in,
+                    running: false,
+                    valid: false
+                }}
+            />
+        </If>
 
         <Return
             value={{
                 ...$in,
-                graph: $ctx.run.graph,
-                stack: $ctx.next_leaf.stack,
-                ports: $ctx.write_output,
-                running: $ctx.next_leaf.stack.length != 0
+                running: false,
+                valid: false
             }}
         />
     </If>

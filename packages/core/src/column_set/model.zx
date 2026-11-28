@@ -1,6 +1,0 @@
-import type { ColumnSet, ColumnView } from "memory/columns"
-
-export type View = {
-    storage: ColumnSet,
-    view: ColumnView
-}

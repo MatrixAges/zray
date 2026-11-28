@@ -1,0 +1,33 @@
+import {
+    clock_handshake,
+    clock_reset,
+    fault_message,
+    format_version,
+    kernel_name
+} from "./const"
+
+import type { Input as Request, Publication } from "./model"
+
+export type Input = Request.Pick("output", "clocked", "ir_version")
+
+export type Output = Publication
+
+export default function (in: Input): Output {
+    const { output, clocked, ir_version } = in
+
+    return {
+        path: `${output}.json`,
+        notice: `fpga: generated ${output} and port/graph manifest\n`,
+        manifest: {
+            format_version,
+            source_ir_version: ir_version,
+            top: kernel_name,
+            clocked,
+            latency_cycles: clocked ? 1 : 0,
+            initiation_interval: clocked ? 1 : null,
+            handshake: clocked ? clock_handshake : null,
+            reset: clocked ? clock_reset : null,
+            fault: fault_message
+        }
+    }
+}

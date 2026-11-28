@@ -10,7 +10,7 @@
             ...$in.pick([
                 "complete",
                 "existing",
-                "groups",
+                "lengths",
                 "mask",
                 "offsets",
                 "tags"
@@ -45,6 +45,7 @@
             ...$in.omit([
                 "complete",
                 "existing",
+                "lengths",
                 "reserved"
             ]),
             counts: $ctx.validate.counts

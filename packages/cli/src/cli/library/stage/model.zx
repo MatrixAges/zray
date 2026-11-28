@@ -10,6 +10,7 @@ export type Input = {
 
 export type StageFiles = {
     abi_path: string,
+    build_path: string,
     abi: string,
     aliases: Files,
     generated: Files,

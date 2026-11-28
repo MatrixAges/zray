@@ -14,7 +14,11 @@ pub fn read(allocator: std.mem.Allocator, document: *const Document) std.mem.All
     const Node = std.meta.Child(@FieldType(Entry, "node"));
     const nodes = try document.borrowNodes(scratch.allocator(), Node);
 
-    const decoded = rule.executeIn(scratch.allocator(), &.{ .document = nodes, .node = nodes[0] }) catch |err| switch (err) {
+    const decoded = rule.executeIn(scratch.allocator(), &.{
+        .document = nodes,
+        .node = nodes[0],
+        .version_limit = std.math.maxInt(usize),
+    }) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,
     };

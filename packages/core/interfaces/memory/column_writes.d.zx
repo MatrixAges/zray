@@ -14,11 +14,6 @@ export declare function borrowTransferGroup(
 
 export declare function transferColumnCount(group: TransferGroup): u64
 
-export declare function transferSourceLength(
-    group: TransferGroup,
-    column: u64
-): u64?
-
 export declare function transferOwnsPayload(
     group: TransferGroup,
     column: u64

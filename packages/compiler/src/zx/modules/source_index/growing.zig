@@ -59,19 +59,16 @@ pub fn Map(comptime Value: type) type {
             return seedProbe(self.keys.items, self.buckets, path);
         }
         pub fn prepare(self: *Self, allocator: std.mem.Allocator, key: []const u8, slot: usize) std.mem.Allocator.Error!usize {
+            try self.keys.ensureUnusedCapacity(allocator, 1);
+            try self.values.ensureUnusedCapacity(allocator, 1);
+
             if (comptime generated) {
                 const rule = @import("generated_source_index_prepare");
-                var columns: zx.memory.ColumnRangeGroup(2) = .{};
-                _ = columns.bind(&self.keys, 1, false);
-                _ = columns.bind(&self.values, 1, false);
 
                 const input: std.meta.Child(rule.Input) = .{
-                    .resource = @ptrCast(&allocator),
-                    .columns = @ptrCast(columns.freeze().?),
-                    .keys = @ptrCast(&self.keys.items),
+                    .keys = self.keys.items,
                     .key = key,
                     .capacity = self.buckets.len,
-                    .length = self.keys.items.len,
                     .maximum = std.math.maxInt(usize),
                     .slot = slot,
                 };
@@ -98,9 +95,6 @@ pub fn Map(comptime Value: type) type {
 
                 return @intCast(prepared.slot);
             }
-
-            try self.keys.ensureUnusedCapacity(allocator, 1);
-            try self.values.ensureUnusedCapacity(allocator, 1);
 
             const capacity = try seedCapacity(self.keys.items.len + 1, self.buckets.len);
 

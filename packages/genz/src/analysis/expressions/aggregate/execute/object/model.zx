@@ -1,6 +1,5 @@
 import type { AstSequence, AstWriter } from "ast_rows"
 import type { Lowering } from "lowering_host"
-import type { U64Buffer } from "memory"
 
 export type Input = {
     frame: Lowering,
@@ -20,7 +19,7 @@ export type Input = {
     field_indices: u32[],
     fields: u32[],
     field_names: string[],
-    cache_reads: U64Buffer
+    cache_reads: u64[]
 }
 
 export type Observed = {

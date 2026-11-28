@@ -1,8 +1,8 @@
 import { resolvePathParts } from "lexical_path"
 
-import type { Read } from "../model"
+import type { Installed } from "../model"
 
-export type Input = Read & {
+export type Input = Installed & {
     relative: string,
     ordinal: u64
 }

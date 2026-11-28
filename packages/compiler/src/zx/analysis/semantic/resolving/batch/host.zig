@@ -47,12 +47,24 @@ pub fn resolve(arena: *std.heap.ArenaAllocator, request: Request, text: []const 
     const resolved = if (request.resolved) |names| names.view(Cache) else Cache{ .names = &.{}, .ids = &.{} };
     const rows = @import("../host/aliases.zig").borrow(request.aliases);
     const aliases = rows.view(Aliases);
-    var group_rows: []const zx.memory.NamedId = &.{};
 
-    const grouping = if (request.grouping) |group| Group{
-        .owners = group.owners,
-        .imports = @ptrCast(group.imports),
-        .rows = @ptrCast(&group_rows),
+    const grouping: ?Group = if (request.grouping) |group| materialize: {
+        const temporary = arena.allocator();
+        const RowView = @import("../host/aliases.zig").Rows;
+        const views = try temporary.alloc(RowView, group.imports.count);
+        const group_aliases = try temporary.alloc(*const Aliases, views.len);
+        const records = try temporary.alloc(Aliases, views.len);
+
+        for (views, group_aliases, records, 0..) |*view, *alias, *record, index| {
+            const offset = group.imports.offset + index * group.imports.stride;
+            const items = std.mem.bytesToValue([]const zx.memory.NamedId, group.imports.bytes[offset..][0..@sizeOf([]const zx.memory.NamedId)]);
+
+            view.* = .{ .items = items };
+            record.* = view.view(Aliases);
+            alias.* = record;
+        }
+
+        break :materialize .{ .owners = group.owners, .aliases = group_aliases };
     } else null;
 
     const store = if (request.store) |fields| Store{

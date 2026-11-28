@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import frame from "../frame"
 import { Operation } from "../model"
 import resolve from "../run"
@@ -42,16 +40,7 @@ export default function (in: Input): Output {
     const context = match {
         grouping != null && owner != in.owner => {
             ...state.context,
-            aliases: {
-                rows: memory.namedRowsView(grouping.rows, null),
-                row_count: memory.bindNamedRowView(
-                    grouping.imports,
-                    grouping.owners[row],
-                    grouping.rows
-                ),
-                names: [],
-                ids: []
-            }
+            aliases: grouping.aliases[grouping.owners[row]]
         },
         _ => state.context
     }

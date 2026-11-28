@@ -1,12 +1,11 @@
 import { depth_error, recursive_sequence } from "./const"
 import { Route } from "./model"
 
-import type { ProjectionSpans } from "rx_project_host"
-import type { Diagnostic } from "../../projections/site"
+import type { Diagnostic, SpanSource } from "../../projections/site"
 import type { Output as Plan } from "./model"
 
 export type Input = {
-    spans: ProjectionSpans,
+    spans: SpanSource,
     plan: Plan
 }
 

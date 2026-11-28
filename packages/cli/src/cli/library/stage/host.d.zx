@@ -7,7 +7,8 @@ export declare function collectStageInventory(stage: Stage): void throws { Publi
 export declare function writeStageFile(stage: Stage, path: string, source: string): void throws { PublicationFailure }
 export declare function writeStageArtifact(stage: Stage): void throws { PublicationFailure }
 export declare function writeStageManifest(stage: Stage): void throws { PublicationFailure }
-export declare function writeStageBuild(stage: Stage): void throws { PublicationFailure }
+export declare function renderStageBuild(allocator, stage: Stage): string
+    throws { PublicationFailure }
 export declare function writeStageInventory(stage: Stage): void throws { PublicationFailure }
 
 export declare function bindLibraryModule(

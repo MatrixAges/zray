@@ -1,7 +1,10 @@
 <Module>
     <Type from="model" as="Materialization" />
+    <Type from="../../../solve/replay_effect" as="Effect" />
 
     <Args in={Materialization.Request} out={u64} />
+
+    <Store from="../../../solve/replay" as="replay" />
 
     <Loop on={$in.next < $in.request.views.depths.length}>
         <Call
@@ -13,7 +16,15 @@
         />
     </Loop>
 
-    <Call fn="../host.assignmentRevision" in={$in.frame} />
+    <Call
+        fn="../../../solve/stage_replay"
+        in={{
+            step: Effect.Step.ReadRevision
+        }}
+        setter={[$store.replay.effect]}
+    />
 
-    <Return value={$ctx.assignmentRevision} />
+    <Call fn="../../../solve/read_revision" in={$store.replay.effect} />
+
+    <Return value={$ctx.read_revision} />
 </Module>

@@ -5,6 +5,7 @@ const gateway = @import("../rx/gateway/analyze.zig");
 const Compile = @import("../compile.zig");
 const project = @import("../project.zig");
 const model = @import("../../package/manifest/model.zig");
+const configuration = @import("../configuration/root.zig");
 const library = @import("../library/analyze.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
@@ -54,21 +55,23 @@ fn execute(context: Compile.Context) !Compile.Status {
 
     const outcome = @import("cli_source").lint_semantics.executeIn(context.allocator, &.{
         .host = @ptrCast(&reference),
-        .input_path = context.options.input,
-    }) catch |err| return state.failure.unwrap(err);
+        .configuration = &.{
+            .path = context.options.input,
+            .input_path = context.options.input,
+            .explicit_kind = configuration.toLayout(context.options.config_kind),
+            .linting = context.options.linting,
+            .check = context.options.check,
+            .write = context.options.write,
+        },
+    }, context.io) catch |err| return state.failure.unwrap(err);
 
-    return switch (outcome) {
+    if (outcome.configuration) |result| _ = try configuration.report(context, result);
+
+    return switch (outcome.outcome) {
         .Valid => .success,
         .Invalid => .failed,
         .InvalidInput => error.InvalidSemanticInput,
     };
-}
-
-pub fn checkSemanticManifest(handle: *const anyopaque) Error!bool {
-    const self = State.get(handle);
-    const status = @import("../configuration/root.zig").run(self.context.*) catch |err| return self.failure.save(err);
-
-    return status == .success;
 }
 
 pub fn loadSemanticProject(handle: *const anyopaque, manifest: bool) Error!?*const SemanticProject {
