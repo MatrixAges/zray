@@ -5,7 +5,7 @@ const Reuse = @import("../reuse.zig");
 const State = @import("../state.zig");
 const alignment = @import("alignment.zig");
 const compare = @import("frontend").compare_ir;
-const linked = @import("linked.zig");
+const link_columns = @import("link_columns.zig");
 const snapshot = @import("snapshot.zig");
 
 pub fn analyzed(reuse: *Reuse, state: *State, owner: *History.History, index: usize, position: usize) std.mem.Allocator.Error!void {
@@ -20,9 +20,12 @@ pub fn analyzed(reuse: *Reuse, state: *State, owner: *History.History, index: us
     var types: std.meta.Child(@FieldType(Analysis, "alignment")) = undefined;
     var edges_input: std.meta.Child(@FieldType(Analysis, "dependencies")) = undefined;
     var functions_input: std.meta.Child(@FieldType(Analysis, "functions")) = undefined;
-    var comparison_input: std.meta.Child(@FieldType(Analysis, "comparison")) = undefined;
-    const Range = std.meta.Child(@FieldType(@TypeOf(comparison_input), "functions"));
-    var link: linked.Link = undefined;
+    const Comparison = std.meta.Child(@typeInfo(@FieldType(Analysis, "comparison")).optional.child);
+    const Link = std.meta.Child(@FieldType(Comparison, "link"));
+    const Range = std.meta.Child(@FieldType(Comparison, "functions"));
+    var comparison_input: Comparison = undefined;
+    var columns: link_columns.Columns(Link) = undefined;
+    var link: Link = undefined;
     var functions: Range = undefined;
     const prior = if (reuse.aligned) reuse.previous else null;
 
@@ -46,16 +49,18 @@ pub fn analyzed(reuse: *Reuse, state: *State, owner: *History.History, index: us
             .store = state.graph.sources.at(index) == .store,
         };
 
-        link = .{ .earlier = &previous.finished, .current = &state.finished, .row = index };
-        functions = compare.range(Range, &previous.functions, &state.functions, before.functions, @intCast(storage.extent.functions));
-        comparison_input = .{ .link = @ptrCast(&link), .functions = &functions };
+        if (functions_input.linked) {
+            link = columns.bind(&state.finished, &previous.finished, index);
+            functions = compare.range(Range, &previous.functions, &state.functions, before.functions, @intCast(storage.extent.functions));
+            comparison_input = .{ .link = &link, .functions = &functions };
+        }
 
         break :block .{
             .alignment = &types,
             .compiled_dependency = state.graph.modules.items(.compiled_dependency)[index],
             .dependencies = &edges_input,
             .functions = &functions_input,
-            .comparison = &comparison_input,
+            .comparison = if (functions_input.linked) &comparison_input else null,
         };
     } else undefined;
 

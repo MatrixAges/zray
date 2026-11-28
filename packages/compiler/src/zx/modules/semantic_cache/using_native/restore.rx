@@ -14,11 +14,7 @@
             ]}
         />
 
-        <If on={$ctx.restoreCachedNative}>
-            <Call fn="index.admitCachedNative" in={$ctx.lookup} />
-
-            <Return value={true} />
-        </If>
+        <Return value={$ctx.restoreCachedNative} />
     </If>
 
     <Return value={false} />

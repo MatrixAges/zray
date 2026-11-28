@@ -1,0 +1,51 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+import get from "core/integer/wide_index/get"
+import memory from "memory"
+
+import type { Index as Pending } from "core/integer/wide_index/model"
+import type { Index } from "./model"
+
+export type Input = Index & {
+    pending: Pending,
+    entries: u32[],
+    name: string
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { keys, buckets, pending, entries, name } = in
+
+    const mask = buckets.length - 1
+
+    return loop({
+        slot: integers.andBits(bytes.hash(bytes.fromText(name)), mask),
+        done: false
+    }, {
+        while: state => !state.done,
+        next: state => {
+            const position = get({
+                index: pending,
+                key: state.slot
+            })
+
+            const entry = match {
+                position == null => buckets[state.slot],
+                _ => entries[position]
+            }
+
+            const matches = match entry {
+                0 => true,
+                _ => memory.readTextColumn(keys, integers.widen(entry) - 1) == name
+            }
+
+            if (matches) {
+                state.done = true
+            } else {
+                state.slot = integers.andBits(state.slot + 1, mask)
+            }
+        },
+        return: state => state.slot
+    })
+}

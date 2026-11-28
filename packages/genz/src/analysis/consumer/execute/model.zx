@@ -1,14 +1,29 @@
-import type { LoopConsumer } from "lowering_host"
-import type { Input as Facts, Source } from "../decision/model"
+import type { Input as Facts, LoopConsumerFacts, Source } from "../decision/model"
+
+export enum Phase {
+    Initial,
+    AfterSimd,
+    AfterLayout
+}
+
+export enum Decision {
+    None,
+    Simd,
+    Scalar,
+    Layout
+}
 
 export type Input = {
-    frame: LoopConsumer,
-    source: Source
+    source: Source,
+    facts: LoopConsumerFacts,
+    phase: Phase
 }
 
-export type Apply = {
-    frame: LoopConsumer,
-    facts: Facts
+export type Apply = Facts & {
+    fallback_only: bool
 }
 
-export type Output = u32?
+export type Output = {
+    decision: Decision,
+    retry: bool
+}

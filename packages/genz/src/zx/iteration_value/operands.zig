@@ -4,44 +4,27 @@ const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
 const publication = @import("../construction/publication.zig");
 const entry = @import("generated_lower_iteration_elements");
-const Bindings = @import("literals.zig").Bindings;
-pub const Observation = struct { context: *Context, counts: []u64 };
+pub const Output = entry.Output;
 
-const Frame = struct {
-    lowering: *Lower,
-    observation: ?Observation,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-};
-
-pub fn lower(lowering: *Lower, allocator: std.mem.Allocator, bindings: Bindings, operands: []const ir.ExprId, fields: ?[]const u32, observation: ?Observation) Lower.Error![]const u32 {
+pub fn lower(context: *Context, allocator: std.mem.Allocator, operands: []const ir.ExprId, fields: ?[]const u32, observe: bool) Lower.Error!Output {
+    const lowering = context.lowering;
     var origin: publication.OriginBuffer = undefined;
-    var frame: Frame = .{ .lowering = lowering, .observation = observation };
 
     const input: std.meta.Child(entry.Input) = .{
         .frame = @ptrCast(lowering),
         .writer = @ptrCast(lowering),
         .origin = @ptrCast(&origin),
-        .batch = @ptrCast(&frame),
+        .context = @ptrCast(context),
         .operands = @ptrCast(operands),
         .fields = fields,
-        .observe = observation != null,
+        .observe = observe,
     };
 
-    const output = entry.executeIn(allocator, &input) catch |err| return publication.failure(err);
-
-    @memcpy(bindings.names, output.names);
-    @memcpy(bindings.values, output.values);
-    @memcpy(bindings.references, output.references);
-
-    return output.field_values;
+    return entry.executeIn(allocator, &input) catch |err| return publication.failure(err);
 }
 
-pub fn publishIterationOperand(handle: *anyopaque, index: u64, item: u32, reference: u32) Lower.Error!void {
-    const frame = Frame.borrow(handle);
-    const source = frame.observation.?;
-    const context = source.context;
+pub fn observeIterationOperand(handle: *anyopaque, item: u32, reference: u32) Lower.Error!u64 {
+    const context: *Context = @ptrCast(@alignCast(handle));
 
-    source.counts[@intCast(index)] = try context.cache.observe(frame.lowering.allocator, @fromBackingInt(item), @fromBackingInt(reference), null, &context.reads);
+    return context.cache.observe(context.lowering.allocator, @fromBackingInt(item), @fromBackingInt(reference), null, &context.reads);
 }

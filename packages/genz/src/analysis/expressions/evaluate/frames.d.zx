@@ -4,8 +4,6 @@ export type SequenceFrame = mutable_opaque
 
 export type ObjectFrame = mutable_opaque
 
-export type IterationOperands = mutable_opaque
-
 export type ScopeFrame = opaque
 
 export type Lowering = mutable_opaque
@@ -78,8 +76,6 @@ export type AnalysisWork = mutable_opaque
 export type BasisWork = mutable_opaque
 
 export type CollectionFrame = mutable_opaque
-
-export type CollectionConversion = opaque
 
 export type CollectionRows = {
     first: u32,

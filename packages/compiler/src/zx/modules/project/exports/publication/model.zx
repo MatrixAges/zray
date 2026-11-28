@@ -1,4 +1,4 @@
-import type { ReadColumn, TextColumn, U64Buffer } from "memory"
+import type { ReadColumn, TextColumn } from "memory"
 import type { RowBuffer } from "memory/columns"
 import type { Signature } from "../model"
 
@@ -32,12 +32,7 @@ export type Merged = {
     constant_exports: u8[]
 }
 
-export type Workspace = {
-    buckets: U64Buffer
-}
-
 export type Index = {
-    workspace: Workspace,
     exports: Exports,
     merged: Merged,
     members: TextColumn,

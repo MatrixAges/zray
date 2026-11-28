@@ -1,22 +1,18 @@
-import probe from "core/bytes/index/borrowed/probe"
-import memory from "memory"
+import probe from "core/bytes/index/borrowed/probe_slice"
 
 import type { Index } from "./model"
 
-export type Input = {
+export type Input = Index & {
     names: string[],
-    index: Index,
     name: string
 }
 
 export type Output = u64?
 
 export default function (in: Input): Output {
-    const { names, index, name } = in
+    const { names, keys, buckets, name } = in
 
-    const capacity = memory.u32Views(index.buckets).length
-
-    if (capacity == 0) {
+    if (buckets.length == 0) {
         return loop({
             row: 0,
             found: false
@@ -31,10 +27,9 @@ export default function (in: Input): Output {
     }
 
     const result = probe({
-        keys: memory.textColumnView(index.keys, null),
-        buckets: memory.u32View(index.buckets, null),
-        text: name,
-        capacity
+        keys,
+        buckets,
+        text: name
     })
 
     const entry = result.entry

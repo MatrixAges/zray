@@ -55,6 +55,7 @@ pub fn bind(self: *Self, project: *Project) void {
         .function = @ptrCast(&self.function),
         .records = &self.record_rows,
         .cache = &self.cache_rows,
+        .resource = @ptrCast(&project.allocator),
         .backing = @ptrCast(&project.arena.child_allocator),
     };
 }

@@ -1,27 +1,47 @@
-import fixed from "core/bytes/index/fixed"
+import probe from "./probe"
 
-import type { Index as Input, Index as Output } from "./model"
+export type Input = {
+    names: string[],
+    capacity: u64
+}
+
+export type Output = u64[]
 
 export default function (in: Input): Output {
-    if (in.capacity == 0) {
-        return in
+    const { names, capacity } = in
+
+    const empty: u64[] = []
+
+    if (capacity == 0) {
+        return empty
     }
 
+    const buckets = loop(empty, {
+        while: items => items.length < capacity,
+        next: items => {
+            items = items.push(0)[0]
+        }
+    })
+
     return loop({
-        index: 0
+        buckets,
+        row: 0
     }, {
-        while: state => state.index < in.keys.length,
+        while: state => state.row < names.length,
         next: state => {
-            const previous = fixed({
-                keys: in.keys,
-                buckets: in.buckets,
-                capacity: in.capacity,
-                key: in.keys[state.index],
-                insert: state.index
+            const row = state.row
+            const found = probe({
+                names,
+                buckets: state.buckets,
+                name: names[row]
             })
 
-            state.index += 1
+            if (found.position == null) {
+                state.buckets = state.buckets.with(found.slot, row + 1)
+            }
+
+            state.row += 1
         },
-        return: state => in
+        return: state => state.buckets
     })
 }

@@ -1,11 +1,9 @@
 import type { Segments } from "core/bytes/index/segments/model"
-import type { ReadColumn, TextColumn, U64Buffer } from "memory"
+import type { ReadColumn, TextColumn } from "memory"
 import type { ReadColumn as Numeric } from "memory/columns"
 
 export type Input = {
     keys: Segments,
-    buckets: U64Buffer,
-    capacity: u64,
     roots: bool,
     own?: u32,
     ids: ReadColumn,

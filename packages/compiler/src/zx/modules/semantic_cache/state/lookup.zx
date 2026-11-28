@@ -1,12 +1,15 @@
-import host from "project_host"
-
 import version from "./version"
 
-import type { CacheEntries, CacheEntry } from "project_host"
+import type { CacheEntry } from "project_host"
+
+export type Candidate = {
+    entry: CacheEntry,
+    source: u8[],
+    context: u8[]
+}
 
 export type Input = {
-    entries: CacheEntries,
-    path: string,
+    candidate?: Candidate,
     source: u8[],
     context: u8[]
 }
@@ -14,7 +17,7 @@ export type Input = {
 export type Output = CacheEntry?
 
 export default function (in: Input): Output {
-    const candidate = host.openCachedEntry(in.entries, in.path)
+    const { candidate, source, context } = in
 
     if (candidate == null) {
         return null
@@ -22,9 +25,9 @@ export default function (in: Input): Output {
 
     const valid = version({
         cached_source: candidate.source,
-        source: in.source,
+        source,
         cached_context: candidate.context,
-        context: in.context
+        context
     })
 
     return valid ? candidate.entry : null

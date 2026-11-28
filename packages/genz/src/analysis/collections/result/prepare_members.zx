@@ -3,20 +3,21 @@ import integers from "std:integer"
 import { Property } from "../../state/queries/model"
 import query from "../../state/queries/read"
 
-import type { Query } from "../../state/queries/model"
+import type { PrepareCursor } from "./model"
 
-export type Input = {
-    type_id: u32,
-    queries: Query[]
-}
+export type Input = PrepareCursor
 
 export type Output = u32?
 
 export default function (in: Input): Output {
+    const { types, source } = in.preparation
+
+    const type_id = types[in.row]
+
     const represented = query({
-        value: in.queries[integers.widen(in.type_id)],
+        value: source.queries[integers.widen(type_id)],
         property: Property.Represented
     })
 
-    return represented ? in.type_id : null
+    return represented ? type_id : null
 }

@@ -1,0 +1,39 @@
+import probe from "./probe"
+
+import type { Relocation } from "./prepare_model"
+
+export type Input = Relocation.Pick("keys", "capacity")
+
+export type Output = u64[]
+
+export default function (in: Input): Output {
+    const { keys, capacity } = in
+
+    const empty: u64[] = []
+
+    const buckets = loop(empty, {
+        while: items => items.length < capacity,
+        next: items => {
+            items = items.push(0)[0]
+        }
+    })
+
+    return loop({
+        buckets,
+        row: 0
+    }, {
+        while: state => state.row < keys.length,
+        next: state => {
+            const row = state.row
+            const slot = probe({
+                keys,
+                buckets: state.buckets,
+                key: keys[row]
+            })
+
+            state.buckets = state.buckets.with(slot, row + 1)
+            state.row += 1
+        },
+        return: state => state.buckets
+    })
+}

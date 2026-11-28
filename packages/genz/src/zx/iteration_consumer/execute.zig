@@ -3,26 +3,17 @@ const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
-const Api = @import("../expressions/evaluate.zig").Api;
 const Consumer = @import("../iteration_consumer.zig").Consumer;
-const Error = Lower.Error;
+const publication = @import("../construction/publication.zig");
 const entry = @import("generated_lower_loop_consumer");
 const Input = std.meta.Child(entry.Input);
 const Source = std.meta.Child(@FieldType(Input, "source"));
+const Facts = std.meta.Child(@FieldType(Input, "facts"));
+const Cache = std.meta.Child(@FieldType(Facts, "cache"));
+const Phase = @FieldType(Input, "phase");
+const Output = std.meta.Child(entry.Output);
 
-const Frame = struct {
-    lowering: *Lower,
-    selected: Consumer,
-    iteration: ir.ExprId,
-    cache: Api.LoopConsumerCache = undefined,
-    facts: Api.LoopConsumerFacts = undefined,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-};
-
-pub fn lower(self: *Lower, selected: Consumer, iteration: ir.ExprId) Error!?node.ExpressionId {
-    var frame: Frame = .{ .lowering = self, .selected = selected, .iteration = iteration };
+pub fn lower(self: *Lower, selected: Consumer, iteration: ir.ExprId) Lower.Error!?node.ExpressionId {
     const program: *const ir.Program = &self.program;
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Source, "types")), program.types);
 
@@ -34,42 +25,45 @@ pub fn lower(self: *Lower, selected: Consumer, iteration: ir.ExprId) Error!?node
         .result = @backingInt(selected.result),
     };
 
+    var phase: Phase = .Initial;
+
+    while (true) {
+        const output = try decide(self, &source, phase);
+
+        switch (output.decision) {
+            .None => return null,
+            .Simd => {
+                if (try @import("../simd/iteration.zig").lower(self, iteration, selected)) |id| return id;
+
+                phase = .AfterSimd;
+            },
+            .Scalar => return @import("../iteration.zig").consume(self, iteration, .{
+                .symbol = selected.symbol,
+                .result = selected.result,
+                .layout = false,
+            }),
+            .Layout => {
+                const result = try @import("../iteration.zig").consume(self, iteration, selected);
+
+                if (result != null or !output.retry) return result;
+
+                phase = .AfterLayout;
+            },
+        }
+    }
+}
+
+fn decide(self: *const Lower, source: *const Source, phase: Phase) Lower.Error!Output {
+    const cache = self.cache.view(Cache);
+    const facts: Facts = .{ .cache = &cache, .transaction = self.transaction(), .capture = self.capture != null };
+    const input: Input = .{ .source = source, .facts = &facts, .phase = phase };
     var arena = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
 
     defer arena.deinit();
 
-    const input: Input = .{ .frame = @ptrCast(&frame), .source = &source };
-    const result = entry.executeIn(scratch.allocator(), &input) catch |err| return @import("../construction/publication.zig").failure(err);
+    const output = entry.executeIn(scratch.allocator(), &input) catch |err| return publication.failure(err);
 
-    return if (result) |id| @fromBackingInt(id) else null;
-}
-
-pub fn loopConsumerFacts(handle: *anyopaque) *const Api.LoopConsumerFacts {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-
-    frame.cache = self.cache.view(Api.LoopConsumerCache);
-    frame.facts = .{ .cache = &frame.cache, .transaction = self.transaction(), .capture = self.capture != null };
-
-    return &frame.facts;
-}
-
-pub fn consumeVectorLoop(handle: *anyopaque) Error!?u32 {
-    const frame = Frame.borrow(handle);
-    const result = try @import("../simd/iteration.zig").lower(frame.lowering, frame.iteration, frame.selected);
-
-    return if (result) |id| @backingInt(id) else null;
-}
-
-pub fn consumeLoop(handle: *anyopaque, scalar: bool) Error!?u32 {
-    const frame = Frame.borrow(handle);
-    var selected = frame.selected;
-
-    if (scalar) selected.layout = false;
-
-    const result = try @import("../iteration.zig").consume(frame.lowering, frame.iteration, selected);
-
-    return if (result) |id| @backingInt(id) else null;
+    return output.*;
 }

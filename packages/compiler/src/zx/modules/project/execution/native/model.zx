@@ -1,5 +1,5 @@
 import type { Modules } from "core/native_module_table/model"
-import type { ProjectNative, ProjectNativeRegistry } from "project_host"
+import type { ProjectNative } from "project_host"
 import type { Output as Slot } from "../../target/interface/registry_slot"
 
 export type Verification = {
@@ -19,11 +19,11 @@ export type Names = {
 }
 
 export type Registration = {
-    registry: ProjectNativeRegistry,
     modules: Modules,
     names: Names
 }
 
 export type Registered = Slot & {
+    append?: Names,
     verified?: Verification
 }

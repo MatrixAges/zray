@@ -1,4 +1,6 @@
-import { minimum_indexed_fields, minimum_indexed_queries, bucket_ratio } from "./const"
+import fixedCapacity from "core/bytes/index/fixed_capacity"
+
+import { minimum_indexed_fields, minimum_indexed_queries } from "./const"
 
 export type Input = {
     existing: u64,
@@ -14,5 +16,5 @@ export default function (in: Input): Output {
         return 0
     }
 
-    return in.existing * bucket_ratio
+    return fixedCapacity(in.existing)
 }

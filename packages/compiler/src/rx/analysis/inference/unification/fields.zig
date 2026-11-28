@@ -3,8 +3,6 @@ const zx = @import("zx");
 const Graph = @import("../types.zig");
 const align_rule = @import("generated_rx_prepare_field_alignment");
 const Align = std.meta.Child(align_rule.Input);
-const Scan = std.meta.Child(@FieldType(Align, "scan"));
-const Index = std.meta.Child(@FieldType(Scan, "existing"));
 const merge_rule = @import("generated_rx_merge_field_columns");
 const Merge = std.meta.Child(merge_rule.Input);
 pub const missing_message = "the complete input type does not contain a required field";
@@ -15,22 +13,11 @@ pub const Alignment = struct {
     length: usize = 0,
 };
 
-const AlignFrame = struct {
-    allocator: std.mem.Allocator,
-    buckets: []u64 = &.{},
-    index: Index = undefined,
-};
-
 pub fn alignFields(allocator: std.mem.Allocator, existing: []const []const u8, incoming: []const []const u8, closed: bool) std.mem.Allocator.Error!Alignment {
-    var frame: AlignFrame = .{ .allocator = allocator };
-
-    defer allocator.free(frame.buckets);
-
-    frame.index = .{ .names = existing, .keys = existing, .buckets = @ptrCast(&frame.buckets), .capacity = 0 };
-
     const input: Align = .{
-        .frame = @ptrCast(&frame),
-        .scan = &.{ .existing = &frame.index, .incoming = incoming, .closed = closed },
+        .existing = existing,
+        .incoming = incoming,
+        .closed = closed,
     };
 
     var arena = std.heap.ArenaAllocator.init(allocator);
@@ -79,14 +66,6 @@ pub fn publish(buffers: *Graph.Fields.Buffers, allocator: std.mem.Allocator, lef
     }
 
     return next;
-}
-
-pub fn reserveFieldAlignmentIndex(handle: *anyopaque, minimum: u64) std.mem.Allocator.Error!void {
-    const frame: *AlignFrame = @ptrCast(@alignCast(handle));
-    const required = std.math.cast(usize, minimum) orelse return error.OutOfMemory;
-    const capacity = std.math.ceilPowerOfTwo(usize, required) catch return error.OutOfMemory;
-    frame.buckets = try frame.allocator.alloc(u64, capacity);
-    frame.index.capacity = capacity;
 }
 
 fn allocationError(err: anyerror) std.mem.Allocator.Error {

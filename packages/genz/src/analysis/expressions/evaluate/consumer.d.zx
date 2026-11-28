@@ -1,11 +1,3 @@
-export declare function loopConsumerFacts(consumer: LoopConsumer): LoopConsumerFacts
-
-export declare function consumeVectorLoop(consumer: LoopConsumer): u32?
-    throws { OutOfMemory }
-
-export declare function consumeLoop(consumer: LoopConsumer, scalar: bool): u32?
-    throws { OutOfMemory }
-
 export declare function projectLoopPath(
     frame: Lowering,
     row: u32,

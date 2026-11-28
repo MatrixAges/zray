@@ -1,6 +1,6 @@
 import type { Expressions } from "core/expression_table/model"
+import type { State as Cache } from "core/integer/map/model"
 import type { Table } from "core/type_table/model"
-import type { LoopConsumerFacts } from "lowering_host"
 
 export enum Gate {
     None,
@@ -20,6 +20,12 @@ export type Source = {
     symbol: u64,
     value: u32,
     result: u64
+}
+
+export type LoopConsumerFacts = {
+    cache: Cache,
+    transaction: bool,
+    capture: bool
 }
 
 export type Input = Source & LoopConsumerFacts

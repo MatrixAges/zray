@@ -1,17 +1,13 @@
-import capacityFor from "core/bytes/index/fixed_capacity"
-
 import type { Input as Output } from "../model"
 import type { Index as Input } from "./model"
 
 export default function (in: Input): Output {
     const { types, constants } = in.exports
-    const { buckets } = in.workspace
 
     const type_count = in.merged.exports.length / types.stride
     const constant_count = in.merged.constant_exports.length / constants.stride
     const third_start = type_count + constant_count
     const count = third_start + in.member_count
-    const capacity = capacityFor(count)
 
     return {
         keys: {
@@ -22,8 +18,6 @@ export default function (in: Input): Output {
             third_start,
             count
         },
-        buckets,
-        capacity,
         roots: false,
         own: in.entry,
         ids: in.ids,

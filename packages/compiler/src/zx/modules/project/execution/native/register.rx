@@ -13,23 +13,12 @@
     />
 
     <If on={$ctx.register.valid && !$ctx.register.existing && $ctx.register.id != null}>
-        <Call fn="own_names" in={$in.names} />
-
-        <Call
-            fn="publication.appendProjectNativeModule"
-            in={[
-                $in.registry,
-                $ctx.own_names.specifier,
-                $ctx.own_names.identity,
-                $ctx.own_names.import_name
-            ]}
-        />
-
-        <Call fn="invalidate" />
+        <Call fn="invalidate" in={{}} />
 
         <Return
             value={{
                 ...$ctx.register,
+                append: $in.names,
                 verified: $ctx.invalidate
             }}
         />
@@ -38,6 +27,7 @@
     <Return
         value={{
             ...$ctx.register,
+            append: null,
             verified: null
         }}
     />

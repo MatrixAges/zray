@@ -1,18 +1,3 @@
-export type LoopConsumer = mutable_opaque
-
-export type LoopConsumerCache = {
-    count: u64,
-    metadata: u8[],
-    keys: u32[],
-    values: u32[]
-}
-
-export type LoopConsumerFacts = {
-    cache: LoopConsumerCache,
-    transaction: bool,
-    capture: bool
-}
-
 export type LoopFrame = mutable_opaque
 
 export enum LoopParameterLayout {

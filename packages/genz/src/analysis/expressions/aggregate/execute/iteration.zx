@@ -6,36 +6,38 @@ import identifierRows from "../../../aggregate/binding/identifier_rows"
 import reference from "../../../aggregate/binding/reference"
 
 import type { AstOriginBuffer, AstWriter } from "ast_rows"
-import type { IterationOperands, Lowering } from "lowering_host"
+import type { IterationResourceFrame, Lowering } from "lowering_host"
+import type { Bindings } from "../../../iteration/literals/model"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
     origin: AstOriginBuffer,
-    batch: IterationOperands,
+    context: IterationResourceFrame,
     operands: u32[],
     fields?: u32[],
     observe: bool
 }
 
 export type Output = {
-    names: u8[][],
-    values: u32[],
-    references: u32[],
-    field_values: u32[]
+    bindings: Bindings,
+    field_values: u32[],
+    prior: u64[]
 }
 
 export default function (in: Input): Output {
-    const { frame, writer, origin, batch, operands, fields, observe } = in
+    const { frame, writer, origin, context, operands, fields, observe } = in
 
     const empty_names: u8[][] = []
     const empty_u32: u32[] = []
+    const empty_u64: u64[] = []
 
     const bound = loop({
         index: 0,
         names: empty_names,
         values: empty_u32,
-        references: empty_u32
+        references: empty_u32,
+        prior: empty_u64
     }, {
         while: state => state.index < operands.length,
         next: state => {
@@ -57,7 +59,9 @@ export default function (in: Input): Output {
             host.finishGeneratedAst(frame, ref.serial, false)
 
             if (observe) {
-                host.publishIterationOperand(batch, index, item, ref.root)
+                const count = host.observeIterationOperand(context, item, ref.root)
+
+                state.prior = state.prior.push(count)[0]
             }
 
             state.names = state.names.push(name)[0]
@@ -68,7 +72,8 @@ export default function (in: Input): Output {
         return: state => ({
             names: state.names,
             values: state.values,
-            references: state.references
+            references: state.references,
+            prior: state.prior
         })
     })
 
@@ -91,9 +96,8 @@ export default function (in: Input): Output {
     }
 
     return {
-        names: bound.names,
-        values: bound.values,
-        references: bound.references,
-        field_values
+        bindings: bound.omit(["prior"]),
+        field_values,
+        prior: bound.prior
     }
 }

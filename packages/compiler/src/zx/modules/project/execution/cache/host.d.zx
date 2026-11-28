@@ -1,9 +1,5 @@
-export declare function openCachedEntry(entries: CacheEntries, path: string): CachedEntryDigest?
-
 export declare function restoreCachedNative(frame: NativeCacheLoad, entry: CacheEntry): bool
     throws { OutOfMemory }
-
-export declare function admitCachedNative(entry: CacheEntry): void
 
 export declare function buildNativeCacheEntry(frame: NativeCacheLoad): void
     throws { OutOfMemory, InvalidSource }

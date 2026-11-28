@@ -1,0 +1,33 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+
+export type Input = {
+    keys: u8[][],
+    buckets: u64[],
+    key: u8[]
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { keys, buckets, key } = in
+
+    const mask = buckets.length - 1
+
+    return loop({
+        slot: integers.andBits(bytes.hash(key), mask),
+        found: false
+    }, {
+        while: state => !state.found,
+        next: state => {
+            const entry = buckets[state.slot]
+
+            if (entry == 0 || bytes.equals(keys[entry - 1], key)) {
+                state.found = true
+            } else {
+                state.slot = integers.andBits(state.slot + 1, mask)
+            }
+        },
+        return: state => state.slot
+    })
+}

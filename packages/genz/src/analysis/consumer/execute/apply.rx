@@ -5,69 +5,73 @@
 
     <Args in={Execution.Apply} out={Execution.Output} />
 
-    <Call fn="../decision/branch" in={$in.facts} />
+    <If on={!$in.fallback_only}>
+        <Call fn="../decision/branch" in={$in.omit(["fallback_only"])} />
 
-    <If on={$ctx.branch == Consumer.Branch.None}>
-        <Return value={null} />
-    </If>
-
-    <If on={$ctx.branch == Consumer.Branch.Scalar}>
-        <Call
-            fn="../projection"
-            in={$in.facts.pick([
-                "table",
-                "symbol",
-                "result"
-            ])}
-        />
-
-        <If on={$ctx.projection}>
-            <Call
-                fn="host.consumeLoop"
-                in={[
-                    $in.frame,
-                    true
-                ]}
+        <If on={$ctx.branch == Consumer.Branch.None}>
+            <Return
+                value={{
+                    decision: Execution.Decision.None,
+                    retry: false
+                }}
             />
-
-            <Return value={$ctx.consumeLoop} />
         </If>
 
-        <Return value={null} />
-    </If>
+        <If on={$ctx.branch == Consumer.Branch.Scalar}>
+            <Call
+                fn="../projection"
+                in={$in.pick([
+                    "table",
+                    "symbol",
+                    "result"
+                ])}
+            />
 
-    <Call
-        module="../../iteration/result/analyze"
-        in={{
-            ...$in.facts.pick([
-                "types",
-                "table",
-                "symbol",
-                "result",
-                "capture"
-            ]),
-            cached: $in.facts.cache,
-            mode: Result.Mode.Eligible
-        }}
-    />
+            <If on={$ctx.projection}>
+                <Return
+                    value={{
+                        decision: Execution.Decision.Scalar,
+                        retry: false
+                    }}
+                />
+            </If>
 
-    <If on={$ctx.analyze.valid}>
+            <Return
+                value={{
+                    decision: Execution.Decision.None,
+                    retry: false
+                }}
+            />
+        </If>
+
         <Call
-            fn="host.consumeLoop"
-            in={[
-                $in.frame,
-                false
-            ]}
+            module="../../iteration/result/analyze"
+            in={{
+                ...$in.pick([
+                    "types",
+                    "table",
+                    "symbol",
+                    "result",
+                    "capture"
+                ]),
+                cached: $in.cache,
+                mode: Result.Mode.Eligible
+            }}
         />
 
-        <If on={$ctx.consumeLoop != null}>
-            <Return value={$ctx.consumeLoop} />
+        <If on={$ctx.analyze.valid}>
+            <Return
+                value={{
+                    decision: Execution.Decision.Layout,
+                    retry: true
+                }}
+            />
         </If>
     </If>
 
     <Call
         fn="../decision/fallback"
-        in={$in.facts.pick([
+        in={$in.pick([
             "types",
             "table",
             "result"
@@ -77,7 +81,7 @@
     <If on={$ctx.fallback}>
         <Call
             fn="../projection"
-            in={$in.facts.pick([
+            in={$in.pick([
                 "table",
                 "symbol",
                 "result"
@@ -85,17 +89,19 @@
         />
 
         <If on={$ctx.projection}>
-            <Call
-                fn="host.consumeLoop"
-                in={[
-                    $in.frame,
-                    false
-                ]}
+            <Return
+                value={{
+                    decision: Execution.Decision.Layout,
+                    retry: false
+                }}
             />
-
-            <Return value={$ctx.consumeLoop} />
         </If>
     </If>
 
-    <Return value={null} />
+    <Return
+        value={{
+            decision: Execution.Decision.None,
+            retry: false
+        }}
+    />
 </Module>

@@ -1,16 +1,11 @@
-import type { U64Buffer } from "memory"
-
-export type Index = {
-    names: string[],
-    keys: u8[][],
-    buckets: U64Buffer,
-    capacity: u64
-}
-
 export type Input = {
-    existing: Index,
+    existing: string[],
     incoming: string[],
     closed: bool
+}
+
+export type Scan = Input & {
+    capacity: u64
 }
 
 export type Output = {

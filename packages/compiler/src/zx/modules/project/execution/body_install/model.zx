@@ -29,6 +29,7 @@ export type Installation = {
     function: ColumnRecord,
     records: Rows,
     cache: Rows,
+    resource: ColumnAllocator,
     backing: ColumnAllocator
 }
 

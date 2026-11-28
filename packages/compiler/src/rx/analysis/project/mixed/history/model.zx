@@ -1,10 +1,10 @@
 import type { ReadColumn } from "memory"
-import type { HistoryModuleLink } from "rx_project_host"
 import type { ColumnPair } from "../../../../../zx/ir/compare/model"
 import type { Range as ComparedRange } from "../../../../../zx/ir/compare/range"
 import type { Inputs as SourceInputs } from "../../history/model"
 import type { Input as Dependencies } from "./changed"
 import type { Extent } from "./extent"
+import type { Link } from "./link_model"
 import type { Input as Capture } from "./snapshot"
 
 export type Alignment = {
@@ -25,11 +25,11 @@ export type Reanalysis = {
     dependencies: Dependencies,
     compiled_dependency: bool,
     functions: FunctionRange,
-    comparison: Comparison
+    comparison?: Comparison
 }
 
 export type Comparison = {
-    link: HistoryModuleLink,
+    link: Link,
     functions: ComparedRange
 }
 

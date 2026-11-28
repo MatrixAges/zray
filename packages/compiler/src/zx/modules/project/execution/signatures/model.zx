@@ -1,7 +1,7 @@
 import type { ReadColumn } from "memory"
 import type { ProjectSignatures } from "project_host"
 import type { Output as Selection } from "../../exports/model"
-import type { Exports, Merged, Workspace } from "../../exports/publication/model"
+import type { Exports, Merged } from "../../exports/publication/model"
 import type { Declaration, Input as Members } from "../../exports/signatures/model"
 
 export type Batch = {
@@ -12,15 +12,10 @@ export type Batch = {
     paths: string[]
 }
 
-export type Validation = {
-    workspace: Workspace,
-    no_ids: ReadColumn
-}
-
 export type Publication = {
     members: Members,
     exports: Exports,
-    validation: Validation
+    no_ids: ReadColumn
 }
 
 export type Validate = {

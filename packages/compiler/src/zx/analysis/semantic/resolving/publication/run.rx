@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Publication" />
 
-    <Args in={Publication.Names} out={u32[]?} />
+    <Args in={Publication.Names} out={Publication.Output?} />
 
     <If on={$in.cache.names.length == 0}>
         <Return value={null} />
@@ -9,13 +9,32 @@
 
     <Call fn="prepare" in={$in} />
 
-    <Call
-        fn="index_suffix"
-        in={{
-            ...$in,
-            rebuilt: $ctx.prepare
+    <If on={$ctx.prepare == 0}>
+        <Return value={null} />
+    </If>
+
+    <If on={$ctx.prepare != $in.buckets.length}>
+        <Call
+            fn="rebuild"
+            in={{
+                keys: $in.keys,
+                count: $in.first + $in.cache.names.length,
+                capacity: $ctx.prepare
+            }}
+        />
+
+        <Return
+            value={{
+                rebuilt: $ctx.rebuild
+            }}
+        />
+    </If>
+
+    <Call fn="index_suffix" in={$in} />
+
+    <Return
+        value={{
+            changes: $ctx.index_suffix
         }}
     />
-
-    <Return value={$ctx.index_suffix} />
 </Module>

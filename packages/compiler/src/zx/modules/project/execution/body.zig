@@ -50,11 +50,13 @@ pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
 
     if (comptime generated) {
         const entry = @import("generated_project_execute_body");
-        var scratch = std.heap.ArenaAllocator.init(project.arena.child_allocator);
+        var arena = std.heap.ArenaAllocator.init(project.arena.child_allocator);
 
-        defer scratch.deinit();
+        defer arena.deinit();
 
-        body.exports.scratch = scratch.allocator();
+        var buffer: [512]u8 = undefined;
+        var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+
         body.exports.bound = false;
 
         errdefer body.exports.release(project.allocator);
@@ -63,16 +65,21 @@ pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
 
         const cache = project.semantic_cache;
         const usage: zx.memory.ColumnLengths = if (cache) |store| &.{ &store.analyzed, &store.reused } else &.{};
+        const Input = std.meta.Child(entry.Input);
+        const Cache = std.meta.Child(std.meta.Child(@FieldType(Input, "cache")));
+        const Lookup = std.meta.Child(@FieldType(Cache, "lookup"));
+        const Candidate = std.meta.Child(std.meta.Child(@FieldType(Lookup, "candidate")));
+        const cached = if (cache) |store| store.entries.get(unit.path) else null;
+        const candidate = if (cached) |stored| stored.digestView(Candidate) else null;
 
-        const request: std.meta.Child(entry.Input) = .{
+        const request: Input = .{
             .body = @ptrCast(&body),
-            .cache = if (cache) |store| &.{
+            .cache = if (cache != null) &.{
                 .body = @ptrCast(&body),
                 .root = body.entry,
                 .dependency_ready = project.cache_context.dependency_ready,
                 .lookup = &.{
-                    .entries = @ptrCast(&store.entries),
-                    .path = unit.path,
+                    .candidate = if (candidate) |*value| value else null,
                     .source = &frame.parsed.digest,
                     .context = if (body.entry) &project.cache_context.root else &project.cache_context.dependency,
                 },
@@ -82,7 +89,7 @@ pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
             .installation = &body.installation.input,
         };
 
-        const outcome = entry.executeIn(project.allocator, &request, &body) catch |err| return switch (@as(anyerror, err)) {
+        const outcome = entry.executeIn(scratch.allocator(), &request, &body) catch |err| return switch (@as(anyerror, err)) {
             error.IntegerOverflow, error.Overflow => error.OutOfMemory,
             else => errorSet(err),
         };

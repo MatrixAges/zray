@@ -2,7 +2,7 @@ import { empty_verified_prefix } from "./const"
 
 import type { Verification } from "./model"
 
-export type Input = void
+export type Input = {}
 
 export type Output = Verification
 

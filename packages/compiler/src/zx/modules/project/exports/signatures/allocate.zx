@@ -10,7 +10,8 @@ export default function (in: Input): Output {
 
     allocateRows({
         target: in.storage,
-        count
+        count,
+        owner: in.resource
     })
 
     return count

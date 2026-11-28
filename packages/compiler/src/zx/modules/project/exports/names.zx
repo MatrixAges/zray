@@ -1,5 +1,7 @@
-import claim from "core/bytes/index/segments/claim"
+import capacityFor from "core/bytes/index/fixed_capacity"
 import readKey from "core/bytes/index/segments/key"
+
+import probe from "./probe"
 
 import type { Input, Names as Output } from "./model"
 
@@ -8,12 +10,23 @@ export default function (in: Input): Output {
     const duplicate: string? = null
     const default_member: u64? = null
 
-    const { keys, roots, buckets, capacity } = in
+    const { keys, roots } = in
+
+    const capacity = capacityFor(keys.count)
+    const empty: u64[] = []
+
+    const buckets = loop(empty, {
+        while: items => items.length < capacity,
+        next: items => {
+            items = items.push(0)[0]
+        }
+    })
 
     return loop({
         invalid_name,
         duplicate,
         default_member,
+        buckets,
         cursor: 0
     }, {
         while: state => state.invalid_name == null && state.cursor < keys.count,
@@ -28,19 +41,21 @@ export default function (in: Input): Output {
                 state.invalid_name = row
                 state.duplicate = key
             } else {
-                const entered = claim({
+                const found = probe({
                     keys,
-                    buckets,
-                    capacity,
-                    key,
-                    row
+                    buckets: state.buckets,
+                    key
                 })
 
-                if (entered) {
+                if (found.entry != 0) {
                     state.invalid_name = row
                     state.duplicate = key
-                } else if (row >= keys.third_start && key.length == 0) {
-                    state.default_member = row - keys.third_start
+                } else {
+                    state.buckets = state.buckets.with(found.slot, row + 1)
+
+                    if (row >= keys.third_start && key.length == 0) {
+                        state.default_member = row - keys.third_start
+                    }
                 }
             }
 

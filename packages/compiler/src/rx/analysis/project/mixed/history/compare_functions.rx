@@ -3,9 +3,9 @@
 
     <Args in={History.Comparison} out={bool} />
 
-    <Call fn="index.matchHistoryLink" in={$in.link} />
+    <Call module="link" in={$in.link} />
 
-    <If on={!$ctx.matchHistoryLink}>
+    <If on={!$ctx.link}>
         <Return value={false} />
     </If>
 

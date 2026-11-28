@@ -12,8 +12,6 @@ export type ProgramEntry = mutable_opaque
 
 export type ProjectNative = mutable_opaque
 
-export type ProjectNativeRegistry = mutable_opaque
-
 export type ProjectExternalBindings = mutable_opaque
 
 
@@ -89,15 +87,7 @@ export type CacheProbe = {
     row: u64
 }
 
-export type CacheEntries = opaque
-
 export type CacheEntry = mutable_opaque
-
-export type CachedEntryDigest = {
-    entry: CacheEntry,
-    source: u8[],
-    context: u8[]
-}
 
 export type SourceEntry = opaque
 

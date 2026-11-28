@@ -64,6 +64,7 @@ export type Input = {
     forwarded: u8[],
     bindings: Bindings,
     storage: RowBuffer,
+    resource: ColumnAllocator,
     reads: RowGrowth,
     stride: u64,
     names: TextColumn,

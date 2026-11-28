@@ -1,7 +1,0 @@
-import type { FieldAlignment } from "rx_project_host"
-import type { Input as Alignment } from "./model"
-
-export type Align = {
-    frame: FieldAlignment,
-    scan: Alignment
-}

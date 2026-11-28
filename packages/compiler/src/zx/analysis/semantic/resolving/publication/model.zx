@@ -1,22 +1,28 @@
-import type { StringBuffer, TextColumnBuffer, U32Buffer } from "memory"
+import type { TextColumn } from "memory"
 import type { Cache } from "../model"
 
 export type Index = {
-    keys: TextColumnBuffer,
-    buckets: U32Buffer
+    keys: TextColumn,
+    buckets: u32[]
 }
 
-export type Destination = {
-    committed: StringBuffer,
-    index: Index,
+export type Names = Index & {
+    cache: Cache,
     first: u64
 }
 
-export type Names = {
-    cache: Cache,
-    destination: Destination
+export type Rebuild = {
+    keys: TextColumn,
+    count: u64,
+    capacity: u64
 }
 
-export type Suffix = Names & {
-    rebuilt?: u32[]
+export type Changes = {
+    slots: u64[],
+    entries: u32[]
+}
+
+export type Output = {
+    rebuilt?: u32[],
+    changes?: Changes
 }

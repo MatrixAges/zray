@@ -8,7 +8,7 @@ export type Output = Plan?
 export default function (in: Input): Output {
     const { source, merged } = in
     const { types, constants } = source.exports
-    const { members, workspace, ids, entry } = source
+    const { members, ids, entry } = source
 
     const reexport_bytes = types.forwarded.length + constants.forwarded.length +
         members.forwarded.length
@@ -18,7 +18,6 @@ export default function (in: Input): Output {
     }
 
     return prepareIndex({
-        workspace,
         exports: source.exports,
         merged,
         members: members.names,

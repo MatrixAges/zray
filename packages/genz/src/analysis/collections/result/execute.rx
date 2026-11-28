@@ -7,7 +7,11 @@
         <Call
             module="prepare_member"
             in={{
-                ...$in.preparation,
+                writer: $in.writer,
+                origin: $in.origin,
+                capture: $in.source.bases.capture,
+                preparation: $in.preparation,
+                members: [],
                 row: 0,
                 running: $in.preparation.types.length != 0
             }}
@@ -16,10 +20,13 @@
 
     <Call
         fn="refresh_bases"
-        in={$in.pick([
-            "writer",
-            "source"
-        ])}
+        in={{
+            writer: $in.writer,
+            source: {
+                ...$in.source,
+                members: $ctx.prepare_member.members
+            }
+        }}
     />
 
     <Call module="build" />

@@ -51,24 +51,33 @@ pub fn load(self: *Self, allocator: std.mem.Allocator, entry: Native, current: C
     if (comptime @import("parser_options").generated_parser) {
         const generated = @import("generated_semantic_cache_load_native");
         const usage: zx.memory.ColumnLengths = &.{ &self.analyzed, &self.reused };
+        const Input = std.meta.Child(generated.Input);
+        const Lookup = std.meta.Child(@FieldType(Input, "lookup"));
+        const Candidate = std.meta.Child(@FieldType(Lookup, "candidate"));
+        const cached = self.items.get(entry.key());
+        const candidate = if (cached) |stored| stored.digestView(std.meta.Child(Candidate)) else null;
 
-        const input: std.meta.Child(generated.Input) = .{
+        const input: Input = .{
             .frame = @ptrCast(&request),
             .slot = @ptrCast(&request.slot),
             .lookup = &.{
-                .entries = @ptrCast(&self.items),
-                .path = entry.key(),
+                .candidate = if (candidate) |*value| value else null,
                 .source = &request.fingerprint,
                 .context = &empty_context,
             },
             .usage = @ptrCast(&usage),
         };
 
-        var buffer: [256]u8 = undefined;
-        var scratch = std.heap.FixedBufferAllocator.init(&buffer);
-        const plan = generated.executeIn(scratch.allocator(), &input) catch |err| return @import("../project/execution/invoke.zig").errorSet(err);
+        var arena = std.heap.ArenaAllocator.init(current.backing);
 
-        if (plan) |prepared| entries.commitPrepared(&request.slot, prepared);
+        defer arena.deinit();
+
+        var buffer: [256]u8 = undefined;
+        var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+        const outcome = generated.executeIn(scratch.allocator(), &input) catch |err| return @import("../project/execution/invoke.zig").errorSet(err);
+
+        if (outcome.pending) |prepared| entries.commitPrepared(&request.slot, prepared);
+        if (outcome.admitted) cached.?.native_admitted = true;
     } else {
         try seed(&request);
     }
@@ -79,8 +88,7 @@ pub fn load(self: *Self, allocator: std.mem.Allocator, entry: Native, current: C
 fn seed(request: *Request) zx.Error!void {
     if (entries.find(&request.cache.items, request.native.key(), &request.fingerprint, &empty_context)) |cached| {
         if (try restoreCachedNative(request, cached)) {
-            admitCachedNative(cached);
-
+            cached.native_admitted = true;
             request.cache.reused += 1;
 
             return;
@@ -109,11 +117,6 @@ pub fn restoreCachedNative(handle: *anyopaque, candidate: *anyopaque) std.mem.Al
     };
 
     return true;
-}
-
-pub fn admitCachedNative(candidate: *anyopaque) void {
-    const cached: *entries.Entry = @ptrCast(@alignCast(candidate));
-    cached.native_admitted = true;
 }
 
 pub fn buildNativeCacheEntry(handle: *anyopaque) zx.Error!void {

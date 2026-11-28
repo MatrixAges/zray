@@ -1,5 +1,6 @@
 import integers from "std:integer"
-import refresh from "core/bytes/index/borrowed/refresh"
+import { load_denominator, load_numerator } from "core/bytes/index/const"
+import capacityFor from "core/bytes/map/capacity"
 import { max_u32 } from "core/const"
 import memory from "memory"
 
@@ -7,30 +8,20 @@ import { linear_name_limit } from "./const"
 
 import type { Names as Input } from "./model"
 
-export type Output = u32[]?
+export type Output = u64
 
 export default function (in: Input): Output {
-    const { destination, cache } = in
-    const { first, index } = destination
-
-    const required = first + cache.names.length
+    const required = in.first + in.cache.names.length
     const limit = integers.widen(max_u32)
 
     memory.requireAllocation(required <= limit)
 
-    const capacity = memory.u32Views(index.buckets).length
-    const initial: u32[]? = null
+    const capacity = in.buckets.length
 
     return match {
-        required > linear_name_limit => refresh({
-            keys: memory.bindTextView(index.keys, destination.committed, null),
-            buckets: index.buckets,
-            rebuilt: null,
-            count: first,
-            indexed: capacity == 0 ? 0 : first,
-            required,
-            capacity
-        }).buckets,
-        _ => initial
+        required <= linear_name_limit => capacity,
+        required > capacity * load_numerator / load_denominator =>
+            capacityFor(integers.narrow(required)).capacity,
+        _ => capacity
     }
 }

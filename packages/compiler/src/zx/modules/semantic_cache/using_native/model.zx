@@ -1,5 +1,6 @@
 import type { ColumnLengths } from "memory"
 import type { CacheSlot, NativeCacheLoad } from "project_host"
+import type { Output as Commit } from "../slot/commit"
 import type { Input as Lookup } from "../state/lookup"
 
 export type Input = {
@@ -7,4 +8,9 @@ export type Input = {
     slot: CacheSlot,
     lookup: Lookup,
     usage: ColumnLengths
+}
+
+export type Output = {
+    admitted: bool,
+    pending?: Commit
 }

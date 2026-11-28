@@ -18,9 +18,6 @@ type_rows: std.meta.Child(@FieldType(Exports, "types")),
 constant_rows: std.meta.Child(@FieldType(Exports, "constants")),
 member_rows: std.meta.Child(@FieldType(Input, "members")),
 exports: Exports,
-scratch: std.mem.Allocator,
-buckets: []u64,
-workspace: std.meta.Child(@FieldType(Input, "workspace")),
 input: Input,
 bound: bool,
 pub fn bind(self: *Self, program: *const ir.Program, frame: *const project.LoadFrame, entry: ?ir.FunctionId) void {
@@ -35,13 +32,10 @@ pub fn bind(self: *Self, program: *const ir.Program, frame: *const project.LoadF
 
     self.member_rows = self.members.borrow(own, frame.export_functions.items, entry != null);
     self.exports = .{ .types = &self.type_rows, .constants = &self.constant_rows };
-    self.buckets = &.{};
-    self.workspace = .{ .buckets = @ptrCast(&self.buckets) };
 
     self.input = .{
         .exports = &self.exports,
         .members = &self.member_rows,
-        .workspace = &self.workspace,
         .ids = @ptrCast(self.members.column("id")),
         .entry = if (entry) |id| @backingInt(id) else null,
     };
@@ -55,12 +49,6 @@ pub fn commit(self: *Self, allocator: std.mem.Allocator, pending: anytype) std.m
         .Constants => try self.constants.merge(allocator, row.own, row.forwarded),
         .Members => try self.members.merge(allocator, row.own, row.forwarded),
     };
-
-    if (pending.store_1) |index| {
-        self.buckets = try self.scratch.alloc(u64, @intCast(index.capacity));
-
-        @memset(self.buckets, 0);
-    }
 }
 
 pub fn release(self: *const Self, allocator: std.mem.Allocator) void {

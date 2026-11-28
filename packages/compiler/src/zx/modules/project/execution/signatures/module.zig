@@ -13,10 +13,8 @@ const ConstantRows = rows.Rows(zx.ir.Constant, std.meta.Child(@FieldType(Exports
 
 const StoreHost = struct {
     allocator: std.mem.Allocator,
-    temporary: std.mem.Allocator,
     types: *TypeRows,
     constants: *ConstantRows,
-    buckets: *[]u64,
     members: *Members,
     pub fn commit(self: *StoreHost, pending: anytype) std.mem.Allocator.Error!void {
         if (pending.store_0) |row| {
@@ -28,12 +26,6 @@ const StoreHost = struct {
             .Constants => try self.constants.merge(self.allocator, row.own, row.forwarded),
             .Members => unreachable,
         };
-
-        if (pending.store_2) |index| {
-            self.buckets.* = try self.temporary.alloc(u64, @intCast(index.capacity));
-
-            @memset(self.buckets.*, 0);
-        }
     }
 };
 
@@ -62,8 +54,7 @@ const Members = struct {
     fn column(self: *const Members, comptime name: []const u8) *const memory.ReadColumn {
         return &self.columns[std.meta.fieldIndex(Target, name).?];
     }
-
-    fn request(self: *Members, signature: *const Signature.Result, forwarded: []const Signature.Member, bindings: @FieldType(Shape, "bindings"), declaration: @FieldType(Shape, "callable"), facts: @FieldType(Shape, "signature")) Shape {
+    fn request(self: *Members, allocator: *const std.mem.Allocator, signature: *const Signature.Result, forwarded: []const Signature.Member, bindings: @FieldType(Shape, "bindings"), declaration: @FieldType(Shape, "callable"), facts: @FieldType(Shape, "signature")) Shape {
         self.storage.init();
 
         self.reads = .{ .target = &self.storage.buffer, .reads = &self.columns };
@@ -75,6 +66,7 @@ const Members = struct {
             .forwarded = std.mem.sliceAsBytes(forwarded),
             .bindings = bindings,
             .storage = @ptrCast(&self.storage.buffer),
+            .resource = @ptrCast(allocator),
             .reads = @ptrCast(&self.reads),
             .stride = @sizeOf(Signature.Member),
             .names = @ptrCast(self.column("name")),
@@ -90,12 +82,12 @@ pub fn run(state: *project.Project, frame: *project.LoadFrame, unit: *project.Un
     var members: Members = undefined;
     var types: TypeRows = undefined;
     var constants: ConstantRows = undefined;
-    var scratch = std.heap.ArenaAllocator.init(state.arena.child_allocator);
+    var arena = std.heap.ArenaAllocator.init(state.arena.child_allocator);
 
-    defer scratch.deinit();
+    defer arena.deinit();
 
-    const temporary = scratch.allocator();
-    var buckets: []u64 = &.{};
+    var buffer: [512]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
     const native = frame.export_functions.items;
     const bindings = FunctionImport.Readable.borrowRows(native);
     const BindingShape = std.meta.Child(@FieldType(Members.Shape, "bindings"));
@@ -131,39 +123,32 @@ pub fn run(state: *project.Project, frame: *project.LoadFrame, unit: *project.Un
         .intrinsic = @backingInt(Signature.Member.Kind.intrinsic),
     };
 
-    const target = members.request(signature, frame.signature_members.items, &binding_rows, &declaration, &selection);
+    const target = members.request(&allocator, signature, frame.signature_members.items, &binding_rows, &declaration, &selection);
     const type_rows = types.borrow(signature.exports, frame.export_aliases.items, false);
     const constant_rows = constants.borrow(signature.constant_exports, frame.export_constants.items, false);
     const exports: Exports = .{ .types = &type_rows, .constants = &constant_rows };
-    const Validation = std.meta.Child(@FieldType(Input, "validation"));
 
     errdefer allocator.free(members.storage.rows());
     errdefer allocator.free(types.storage.rows());
     errdefer allocator.free(constants.storage.rows());
 
-    const workspace: std.meta.Child(@FieldType(Validation, "workspace")) = .{
-        .buckets = @ptrCast(&buckets),
-    };
-
-    const validation: Validation = .{ .workspace = &workspace, .no_ids = @ptrCast(&no_ids) };
-
     const input: Input = .{
         .members = &target,
         .exports = &exports,
-        .validation = &validation,
+        .no_ids = @ptrCast(&no_ids),
     };
 
     var host: StoreHost = .{
         .allocator = allocator,
-        .temporary = temporary,
         .types = &types,
         .constants = &constants,
-        .buckets = &buckets,
         .members = &members,
     };
 
-    const result = generated.executeIn(allocator, &input, &host) catch |err|
-        return @import("../invoke.zig").errorSet(err);
+    const result = generated.executeIn(scratch.allocator(), &input, &host) catch |err| return switch (@as(anyerror, err)) {
+        error.IntegerOverflow, error.Overflow => error.OutOfMemory,
+        else => @import("../invoke.zig").errorSet(err),
+    };
 
     const effective = result.signature;
 

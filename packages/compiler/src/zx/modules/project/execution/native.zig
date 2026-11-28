@@ -28,27 +28,49 @@ pub fn register(project: *Project, source: []const u8, identity: ?[]const u8, na
     const Input = std.meta.Child(rule.Input);
 
     const input: Input = .{
-        .registry = @ptrCast(project),
         .modules = &zx.columns.columns(std.meta.Child(@FieldType(Input, "modules")), project.native_modules.view()),
         .names = &.{ .specifier = source, .identity = identity, .import_name = name },
     };
 
-    const selected = rule.executeIn(project.allocator, &input) catch |err| return @import("invoke.zig").errorSet(err);
+    var arena = std.heap.ArenaAllocator.init(project.arena.child_allocator);
+
+    defer arena.deinit();
+
+    var buffer: [512]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+    const selected = rule.executeIn(scratch.allocator(), &input) catch |err| return @import("invoke.zig").errorSet(err);
+
+    if (!selected.valid) return project.reporter.fail(.module, span, "native import names must be nonempty UTF-8 strings");
+
+    const id = selected.id orelse return error.OutOfMemory;
+
+    if (selected.append) |names| {
+        const allocator = project.allocator;
+        const specifier = try allocator.dupe(u8, names.specifier);
+
+        errdefer allocator.free(specifier);
+
+        const import_name = try allocator.dupe(u8, names.import_name);
+
+        errdefer allocator.free(import_name);
+
+        const owned_identity = if (names.identity) |value| try allocator.dupe(u8, value) else null;
+
+        errdefer if (owned_identity) |value| allocator.free(value);
+
+        try project.native_modules.append(allocator, .{
+            .specifier = specifier,
+            .identity = owned_identity,
+            .import_name = import_name,
+        });
+    }
 
     if (selected.verified) |reset| {
         project.verified.functions = @intCast(reset.functions);
         project.verified.native = reset.native;
     }
 
-    if (!selected.valid) return project.reporter.fail(.module, span, "native import names must be nonempty UTF-8 strings");
-
-    return @fromBackingInt(selected.id orelse return error.OutOfMemory);
-}
-
-pub fn appendProjectNativeModule(handle: *anyopaque, specifier: []const u8, identity: ?[]const u8, name: []const u8) std.mem.Allocator.Error!void {
-    const project: *Project = @ptrCast(@alignCast(handle));
-
-    try project.native_modules.append(project.allocator, .{ .specifier = specifier, .identity = identity, .import_name = name });
+    return @fromBackingInt(id);
 }
 
 pub fn load(project: *Project, native: *const Native, module: zx.ir.NativeModuleId, span: zx.Span) zx.Error!Loaded.Result {

@@ -1,15 +1,21 @@
 <Module>
     <Type from="model" as="Fields" />
 
-    <Args in={Fields.Input} out={Fields.Output} />
+    <Args in={Fields.Scan} out={Fields.Output} />
 
-    <Call fn="register" in={$in.existing} />
+    <Call
+        fn="register"
+        in={{
+            names: $in.existing,
+            capacity: $in.capacity
+        }}
+    />
 
     <Call
         fn="positions"
         in={{
-            ...$in,
-            existing: $ctx.register
+            ...$in.omit(["capacity"]),
+            buckets: $ctx.register
         }}
     />
 

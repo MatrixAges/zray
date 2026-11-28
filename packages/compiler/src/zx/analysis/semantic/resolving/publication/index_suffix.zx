@@ -1,38 +1,48 @@
-import refresh from "core/bytes/index/borrowed/refresh"
-import memory from "memory"
+import integers from "std:integer"
+import emptyIndex from "core/integer/wide_index/empty"
+import insert from "core/integer/wide_index/insert"
 
-import type { Suffix as Input } from "./model"
+import probe from "./pending_slot"
 
-export type Output = u32[]?
+import type { Changes as Output, Names as Input } from "./model"
 
 export default function (in: Input): Output {
-    const { destination, cache } = in
-    const { index, first } = destination
+    const { keys, buckets, cache, first } = in
 
-    const rebuilt = in.rebuilt
+    const entries: u32[] = []
 
-    const capacity = match {
-        rebuilt != null => rebuilt.length,
-        _ => memory.u32Views(index.buckets).length
-    }
+    return loop({
+        offset: 0,
+        pending: emptyIndex({}),
+        entries
+    }, {
+        while: state => state.offset < cache.names.length,
+        next: state => {
+            const slot = probe({
+                keys,
+                buckets,
+                pending: state.pending,
+                entries: state.entries,
+                name: cache.names[state.offset]
+            })
 
-    if (capacity != 0) {
-        const keys = memory.bindTextView(index.keys, destination.committed, null)
+            const staged = insert({
+                index: state.pending,
+                key: slot
+            })
 
-        const count = first + cache.names.length
+            const entry = integers.narrow(first + state.offset + 1)
 
-        const indexed = refresh({
-            keys,
-            buckets: index.buckets,
-            rebuilt,
-            count,
-            indexed: first,
-            required: count,
-            capacity
+            state.entries = match {
+                staged.found => state.entries.with(staged.position, entry),
+                _ => state.entries.push(entry)[0]
+            }
+            state.pending = staged.index
+            state.offset += 1
+        },
+        return: state => ({
+            slots: state.pending.keys,
+            entries: state.entries
         })
-
-        return indexed.buckets
-    }
-
-    return rebuilt
+    })
 }

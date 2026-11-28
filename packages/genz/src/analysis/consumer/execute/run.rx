@@ -4,51 +4,40 @@
 
     <Args in={Execution.Input} out={Execution.Output} />
 
-    <Call fn="host.loopConsumerFacts" in={$in.frame} />
-
-    <Call
-        fn="../decision/gate"
-        in={{
-            ...$in.source,
-            ...$ctx.loopConsumerFacts
-        }}
-    />
-
-    <If on={$ctx.gate == Consumer.Gate.None}>
-        <Return value={null} />
-    </If>
-
-    <If on={$ctx.gate == Consumer.Gate.Simd}>
-        <Call fn="host.consumeVectorLoop" in={$in.frame} />
-
-        <If on={$ctx.consumeVectorLoop != null}>
-            <Return value={$ctx.consumeVectorLoop} />
-        </If>
-
-        <Call fn="host.refreshLoopConsumerFacts" in={$in.frame} />
-
+    <If on={$in.phase == Execution.Phase.Initial}>
         <Call
-            module="apply"
+            fn="../decision/gate"
             in={{
-                frame: $in.frame,
-                facts: {
-                    ...$in.source,
-                    ...$ctx.refreshLoopConsumerFacts
-                }
+                ...$in.source,
+                ...$in.facts
             }}
         />
 
-        <Return value={$ctx.apply} />
+        <If on={$ctx.gate == Consumer.Gate.None}>
+            <Return
+                value={{
+                    decision: Execution.Decision.None,
+                    retry: false
+                }}
+            />
+        </If>
+
+        <If on={$ctx.gate == Consumer.Gate.Simd}>
+            <Return
+                value={{
+                    decision: Execution.Decision.Simd,
+                    retry: false
+                }}
+            />
+        </If>
     </If>
 
     <Call
         module="apply"
         in={{
-            frame: $in.frame,
-            facts: {
-                ...$in.source,
-                ...$ctx.loopConsumerFacts
-            }
+            ...$in.source,
+            ...$in.facts,
+            fallback_only: $in.phase == Execution.Phase.AfterLayout
         }}
     />
 

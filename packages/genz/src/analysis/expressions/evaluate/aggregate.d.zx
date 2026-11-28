@@ -26,9 +26,8 @@ export declare function finishObject(
     value: u32
 ): u32 throws { OutOfMemory }
 
-export declare function publishIterationOperand(
-    batch: IterationOperands,
-    index: u64,
+export declare function observeIterationOperand(
+    context: IterationResourceFrame,
     item: u32,
     reference: u32
-): void throws { OutOfMemory }
+): u64 throws { OutOfMemory }

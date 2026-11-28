@@ -4,8 +4,6 @@ const memory = zx.memory;
 const publication = @import("generated_type_resolution_publication");
 const lookup = @import("generated_resolved_name_lookup");
 const Input = std.meta.Child(publication.Input);
-const Destination = std.meta.Child(@FieldType(Input, "destination"));
-const Index = std.meta.Child(@FieldType(Destination, "index"));
 pub const Cache = std.meta.Child(@FieldType(Input, "cache"));
 const Self = @This();
 
@@ -30,7 +28,8 @@ fn position(self: *const Self, name: []const u8) ?usize {
 
     const input: InputView = .{
         .names = self.columns.names.items,
-        .index = &.{ .keys = @ptrCast(&keys), .buckets = @ptrCast(&self.buckets) },
+        .keys = @ptrCast(&keys),
+        .buckets = self.buckets,
         .name = name,
     };
 
@@ -73,26 +72,38 @@ pub fn publish(self: *Self, allocator: std.mem.Allocator, cache: *const Cache) s
         self.columns.ids.shrinkRetainingCapacity(first);
     };
 
-    var keys = memory.borrowTextSlice(self.columns.names.items);
-    const index: Index = .{ .keys = @ptrCast(&keys), .buckets = @ptrCast(&self.buckets) };
+    const keys = memory.borrowTextSlice(self.columns.names.items);
 
-    const target: Destination = .{
-        .committed = @ptrCast(&self.columns.names.items),
-        .index = &index,
+    const input: Input = .{
+        .cache = cache,
+        .keys = @ptrCast(&keys),
+        .buckets = self.buckets,
         .first = first,
     };
 
-    const input: Input = .{ .cache = cache, .destination = &target };
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
-    const updated = publication.executeIn(allocator, &input) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        error.IntegerOverflow => return error.OutOfMemory,
+    defer arena.deinit();
+
+    var buffer: [512]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+
+    const updated = (publication.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         else => unreachable,
-    };
+    }) orelse return;
 
-    if (updated) |next| {
-        const copy = try allocator.dupe(u32, next);
+    if (updated.rebuilt) |next| {
+        const owned = try allocator.dupe(u32, next);
 
-        self.buckets = copy;
+        allocator.free(self.buckets);
+
+        self.buckets = owned;
+    }
+
+    if (updated.changes) |changes| {
+        for (changes.slots, changes.entries) |slot, entry| {
+            self.buckets[@intCast(slot)] = entry;
+        }
     }
 }

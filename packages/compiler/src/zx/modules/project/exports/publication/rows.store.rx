@@ -6,8 +6,4 @@
         <Field name="own" type={u8[]} value={[]} />
         <Field name="forwarded" type={u8[]} value={[]} />
     </Object>
-
-    <Object name="index">
-        <Field name="capacity" type={u64} value={0} />
-    </Object>
 </Store>

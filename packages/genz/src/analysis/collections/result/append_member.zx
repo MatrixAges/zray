@@ -1,0 +1,22 @@
+import type { Input as Conversion } from "../../state/conversion/emit/model"
+import type { PrepareCursor } from "./model"
+
+export type Input = {
+    state: PrepareCursor,
+    member?: Conversion
+}
+
+export type Output = PrepareCursor
+
+export default function (in: Input): Output {
+    const { state, member } = in
+
+    const row = state.row + 1
+
+    return {
+        ...state,
+        members: state.members.push(member)[0],
+        row,
+        running: row < state.preparation.types.length
+    }
+}

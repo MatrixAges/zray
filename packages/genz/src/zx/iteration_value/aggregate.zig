@@ -22,32 +22,26 @@ pub fn lower(self: *Context, id: ir.ExprId) Lower.Error!node.ExpressionId {
     const allocator = memory.allocator();
 
     if (expression.value == .tuple) {
-        const bindings = try emitting.Bindings.init(allocator, expression.value.tuple.len);
-        _ = try operands.lower(lowering, allocator, bindings, expression.value.tuple, null, null);
+        const values = try operands.lower(self, allocator, expression.value.tuple, null, false);
 
-        return emitting.lower(self, .{ .mode = .Tuple, .type_id = expression.type_id, .layout = type_expr, .bindings = bindings });
+        return emitting.lower(self, .{ .mode = .Tuple, .type_id = expression.type_id, .layout = type_expr, .bindings = values.bindings });
     }
 
     const object = expression.value.object;
     const saved = try self.cache.snapshot(allocator, object.evaluation);
-    const counts = try allocator.alloc(u64, object.evaluation.len);
-    const bindings = try emitting.Bindings.init(allocator, object.evaluation.len);
 
     defer self.cache.restore(lowering.allocator, object.evaluation, saved);
 
-    const values = try operands.lower(lowering, allocator, bindings, object.evaluation, object.fields.values[0..object.fields.len], .{
-        .context = self,
-        .counts = counts,
-    });
+    const values = try operands.lower(self, allocator, object.evaluation, object.fields.values[0..object.fields.len], true);
 
     return emitting.lower(self, .{
         .mode = .Object,
         .type_id = expression.type_id,
         .layout = type_expr,
-        .bindings = bindings,
+        .bindings = values.bindings,
         .field_indices = object.fields.indices,
-        .field_values = values,
+        .field_values = values.field_values,
         .evaluation = object.evaluation,
-        .prior = counts,
+        .prior = values.prior,
     });
 }

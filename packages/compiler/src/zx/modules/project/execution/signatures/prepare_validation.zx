@@ -10,7 +10,7 @@ export type Output = Plan?
 export default function (in: Input): Output {
     const { publication, merged, member_count } = in
     const { types, constants } = publication.exports
-    const { members, validation } = publication
+    const { members, no_ids } = publication
 
     const own = members.declared ? 1 : 0
 
@@ -26,12 +26,11 @@ export default function (in: Input): Output {
     }
 
     return prepareIndex({
-        workspace: validation.workspace,
         exports: publication.exports,
         merged,
         members: members.names,
         member_count,
-        ids: validation.no_ids,
+        ids: no_ids,
         signature: members.signature
     })
 }

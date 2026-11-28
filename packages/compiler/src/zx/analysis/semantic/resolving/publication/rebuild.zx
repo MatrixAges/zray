@@ -1,0 +1,41 @@
+import integers from "std:integer"
+import probe from "core/bytes/index/borrowed/probe_slice"
+import memory from "memory"
+
+import type { Rebuild as Input } from "./model"
+
+export type Output = u32[]
+
+export default function (in: Input): Output {
+    const { keys, count, capacity } = in
+
+    const empty: u32[] = []
+
+    const buckets = loop(empty, {
+        while: items => items.length < capacity,
+        next: items => {
+            items = items.push(0)[0]
+        }
+    })
+
+    return loop({
+        buckets,
+        row: 0
+    }, {
+        while: state => state.row < count,
+        next: state => {
+            const found = probe({
+                keys,
+                buckets: state.buckets,
+                text: memory.readTextColumn(keys, state.row)
+            })
+
+            state.buckets = state.buckets.with(
+                found.slot,
+                integers.narrow(state.row + 1)
+            )
+            state.row += 1
+        },
+        return: state => state.buckets
+    })
+}

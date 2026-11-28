@@ -19,10 +19,8 @@ pub fn lower(self: *Context, id: ir.TypeId, items: []const ir.ExprId) Lower.Erro
     defer scratch.deinit();
 
     const allocator = memory.allocator();
-    const bindings = try emitting.Bindings.init(allocator, items.len);
-    _ = try operands.lower(lowering, allocator, bindings, items, null, null);
-
+    const values = try operands.lower(self, allocator, items, null, false);
     const layout = try @import("types.zig").get(self, id);
 
-    return emitting.lower(self, .{ .mode = .List, .type_id = id, .layout = layout, .element = element, .bindings = bindings });
+    return emitting.lower(self, .{ .mode = .List, .type_id = id, .layout = layout, .element = element, .bindings = values.bindings });
 }

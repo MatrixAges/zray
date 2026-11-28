@@ -1,34 +1,37 @@
-import bytes from "std:bytes"
-import fixed from "core/bytes/index/fixed"
-
 import find from "../find_field"
+import probe from "./probe"
 
-import type { Input, Output } from "./model"
+import type { Input as Fields, Output } from "./model"
+
+export type Input = Fields & {
+    buckets: u64[]
+}
 
 export default function (in: Input): Output {
-    const index = in.existing
+    const { existing, buckets } = in
+
     const positions: u64[] = []
 
     return loop({
         scanned: 0,
-        length: index.names.length,
+        length: existing.length,
         missing: false,
         positions
     }, {
         while: state => state.scanned < in.incoming.length && !state.missing,
         next: state => {
-            const key = in.incoming[state.scanned]
+            const name = in.incoming[state.scanned]
+
             const position = match {
-                index.capacity == 0 => find({
-                    names: index.names,
-                    name: key
+                buckets.length == 0 => find({
+                    names: existing,
+                    name
                 }),
-                _ => fixed({
-                    keys: index.keys,
-                    buckets: index.buckets,
-                    capacity: index.capacity,
-                    key: bytes.fromText(key)
-                })
+                _ => probe({
+                    names: existing,
+                    buckets,
+                    name
+                }).position
             }
 
             if (position == null && in.closed) {

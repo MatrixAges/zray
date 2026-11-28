@@ -131,9 +131,6 @@ export declare function requireFieldList(frame: FieldAccess): void
 export declare function rejectFieldAccess(frame: FieldAccess, message: string): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function reserveFieldAlignmentIndex(frame: FieldAlignment, minimum: u64): void
-    throws { OutOfMemory }
-
 export declare function prepareStoreInitializer(frame: StoreInitializer, count: u64): void throws { OutOfMemory }
 export declare function evaluateStoreField(
     frame: StoreInitializer,

@@ -62,33 +62,41 @@ pub fn Map(comptime Value: type) type {
             if (comptime generated) {
                 const rule = @import("generated_source_index_prepare");
                 var columns: zx.memory.ColumnRangeGroup(2) = .{};
-                var pending: []u64 = &.{};
                 _ = columns.bind(&self.keys, 1, false);
                 _ = columns.bind(&self.values, 1, false);
-
-                errdefer allocator.free(pending);
 
                 const input: std.meta.Child(rule.Input) = .{
                     .resource = @ptrCast(&allocator),
                     .columns = @ptrCast(columns.freeze().?),
                     .keys = @ptrCast(&self.keys.items),
                     .key = key,
-                    .buckets = @ptrCast(&self.buckets),
-                    .pending = @ptrCast(&pending),
                     .capacity = self.buckets.len,
                     .length = self.keys.items.len,
                     .maximum = std.math.maxInt(usize),
                     .slot = slot,
                 };
 
-                var empty_buffer = std.heap.FixedBufferAllocator.init(&.{});
+                var arena = std.heap.ArenaAllocator.init(allocator);
 
-                const selected = rule.executeIn(empty_buffer.allocator(), &input) catch |err| switch (err) {
-                    error.OutOfMemory => return error.OutOfMemory,
+                defer arena.deinit();
+
+                var buffer: [512]u8 = undefined;
+                var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+
+                const prepared = (rule.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+                    error.OutOfMemory, error.IntegerOverflow => return error.OutOfMemory,
                     else => unreachable,
-                };
+                }) orelse return error.OutOfMemory;
 
-                return @intCast(selected orelse return error.OutOfMemory);
+                if (prepared.buckets) |next| {
+                    const owned = try allocator.dupe(u64, next);
+
+                    allocator.free(self.buckets);
+
+                    self.buckets = owned;
+                }
+
+                return @intCast(prepared.slot);
             }
 
             try self.keys.ensureUnusedCapacity(allocator, 1);

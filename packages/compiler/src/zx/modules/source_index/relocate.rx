@@ -1,41 +1,29 @@
 <Module>
     <Type from="prepare_model" as="Index" />
 
-    <Args in={Index.Buckets} out={void} />
+    <Args in={Index.Relocation} out={Index.Prepared} />
 
     <Call
-        fn="index.allocateU64Buffer"
-        in={[
-            $in.resource,
-            $in.pending,
-            $in.capacity
-        ]}
+        fn="rebuild"
+        in={$in.pick([
+            "keys",
+            "capacity"
+        ])}
     />
 
-    <Call fn="index.clearU64Buffer" in={$in.pending} />
-
     <Call
-        fn="index.rebuild"
+        fn="probe"
         in={{
             keys: $in.keys,
-            buckets: $in.pending,
-            capacity: $in.capacity
+            buckets: $ctx.rebuild,
+            key: $in.key
         }}
     />
 
-    <Call
-        fn="index.swapU64Buffers"
-        in={[
-            $in.buckets,
-            $in.pending
-        ]}
-    />
-
-    <Call
-        fn="index.releaseU64Buffer"
-        in={[
-            $in.resource,
-            $in.pending
-        ]}
+    <Return
+        value={{
+            slot: $ctx.probe,
+            buckets: $ctx.rebuild
+        }}
     />
 </Module>

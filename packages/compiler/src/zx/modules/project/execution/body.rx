@@ -110,7 +110,7 @@
             $in.installation.records.storage,
             $in.installation.records.used,
             1,
-            null
+            $in.installation.resource
         ]}
     />
 

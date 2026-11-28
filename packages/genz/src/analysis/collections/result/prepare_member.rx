@@ -1,30 +1,68 @@
 <Module>
     <Type from="model" as="Flow" />
+    <Type from="../../state/conversion/model" as="Conversion" />
 
     <Args in={Flow.PrepareCursor} out={Flow.PrepareCursor} />
 
+    <Call fn="prepare_members" in={$in} />
+
+    <If on={$ctx.prepare_members != null}>
+        <Call
+            module="../../state/conversion/plan/build"
+            in={{
+                ...$in.preparation.source,
+                root: $ctx.prepare_members,
+                mode: Conversion.Mode.Pointer
+            }}
+        />
+
+        <Call
+            fn="../../state/resources/resolve"
+            in={{
+                ...$in.preparation.resources,
+                plan: $ctx.build
+            }}
+        />
+
+        <Call
+            fn="model.readAstOrigin"
+            in={[
+                $in.writer,
+                $in.origin
+            ]}
+        />
+
+        <Call fn="model.astFieldCount" in={$in.writer} />
+
+        <Call
+            fn="append_member"
+            in={{
+                state: $in,
+                member: {
+                    plan: $ctx.build,
+                    ...$ctx.resolve,
+                    referenced: $in.preparation.resources.referenced,
+                    value: 0,
+                    shared: $in.preparation.shared,
+                    capture: $in.capture,
+                    expression_base: $ctx.readAstOrigin.expression_base,
+                    statement_base: $ctx.readAstOrigin.statement_base,
+                    field_base: $ctx.astFieldCount,
+                    serial: $ctx.readAstOrigin.serial
+                }
+            }}
+        />
+
+        <Return value={$ctx.append_member} />
+    </If>
+
     <Call
-        fn="prepare_members"
+        fn="append_member"
         in={{
-            type_id: $in.types[$in.row],
-            queries: $in.queries
+            state: $in,
+            member: null
         }}
     />
 
-    <Call
-        fn="model.prepareCollectionMember"
-        in={[
-            $in.frame,
-            $in.row,
-            $ctx.prepare_members
-        ]}
-    />
-
-    <Return
-        value={{
-            ...$in,
-            row: $in.row + 1,
-            running: $in.row + 1 < $in.types.length
-        }}
-    />
+    <Return value={$ctx.append_member} />
 </Module>

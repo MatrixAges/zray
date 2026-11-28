@@ -37,8 +37,6 @@ export type ObjectFieldReplay = mutable_opaque
 
 export type FieldAccess = mutable_opaque
 
-export type FieldAlignment = mutable_opaque
-
 export type ObjectConstructionRow = mutable_opaque
 
 export type BindingReplay = mutable_opaque
@@ -208,8 +206,6 @@ export type ImportedCallee = {
 }
 
 export type HistoryParseCache = mutable_opaque
-
-export type HistoryModuleLink = opaque
 
 export enum MixedAction {
     Exhausted,

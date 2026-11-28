@@ -1,10 +1,9 @@
 import type { ReadColumn } from "memory"
-import type { Exports, Merge, Merged, Workspace } from "../../exports/publication/model"
+import type { Exports, Merge, Merged } from "../../exports/publication/model"
 
 export type Input = {
     exports: Exports,
     members: Merge,
-    workspace: Workspace,
     ids: ReadColumn,
     entry?: u32
 }

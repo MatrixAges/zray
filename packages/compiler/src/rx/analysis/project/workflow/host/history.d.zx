@@ -3,5 +3,3 @@ export declare function historyBodyOpening(
     path: string,
     text: string
 ): u64? throws { OutOfMemory }
-
-export declare function matchHistoryLink(link: HistoryModuleLink): bool

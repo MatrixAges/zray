@@ -5,7 +5,7 @@
 
     <Call module="load" in={$in} />
 
-    <Call fn="invalidate" />
+    <Call fn="invalidate" in={{}} />
 
     <Return value={$ctx.invalidate} />
 </Module>

@@ -89,9 +89,6 @@ pub fn invalidRootName(allocator: std.mem.Allocator, roots: anytype) std.mem.All
     const names = memory.borrowTextColumn("name", roots);
     const unused_names = memory.borrowTextColumn("name", empty);
     const ids = memory.borrowOptionalU32Column("id", empty);
-    var buckets = try @import("source_index/fixed.zig").bucketsFor(allocator, roots.len);
-
-    defer allocator.free(buckets);
 
     const keys: std.meta.Child(@FieldType(Input, "keys")) = .{
         .first = @ptrCast(&names),
@@ -104,17 +101,23 @@ pub fn invalidRootName(allocator: std.mem.Allocator, roots: anytype) std.mem.All
 
     const input: Input = .{
         .keys = &keys,
-        .buckets = @ptrCast(&buckets),
-        .capacity = buckets.len,
         .roots = true,
         .own = null,
         .ids = @ptrCast(&ids),
         .signature = null,
     };
 
-    const output = zx.columns.invoke(generated.executeValue, allocator, &input) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
+    var arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer arena.deinit();
+
+    var buffer: [512]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+
+    const output = zx.columns.invoke(generated.executeValue, scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
         error.IndexOutOfBounds => unreachable,
+        else => unreachable,
     };
 
     return if (output.invalid_name) |index| @intCast(index) else null;

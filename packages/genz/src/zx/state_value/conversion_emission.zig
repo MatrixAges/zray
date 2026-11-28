@@ -45,10 +45,6 @@ pub fn lowerWithStorage(self: *Lower, borrow_storage: anytype, body: anytype, id
     return @fromBackingInt(root);
 }
 
-pub fn prepareFor(self: *Lower, temporary: std.mem.Allocator, id: ir.TypeId, value: node.ExpressionId, mode: Mode, capture: ?*const Capture) Lower.Error!Input {
-    return prepareMode(self, temporary, id, value, planningMode(mode), capture);
-}
-
 pub fn prepareMode(self: *Lower, temporary: std.mem.Allocator, id: ir.TypeId, value: node.ExpressionId, mode: PlanningMode, capture: ?*const Capture) Lower.Error!Input {
     return (try prepare(self, temporary, id, value, mode, capture, false)).?;
 }
