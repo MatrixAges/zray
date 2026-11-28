@@ -1,22 +1,19 @@
 export {
-    publishFile,
     prepareBundle,
+    bundlePath,
+    observePhysicalResource,
     openCollection,
     readBundle,
     relativePath,
     resolveReference,
     checkPending,
     readPending,
-    reusePending,
     observePending,
-    addSource,
-    promoteSource,
     selectInclude,
     includeFiles,
     writeInclude,
     scanBuiltins,
     decodeLiteral,
     invalidBuiltin,
-    prepareIncludes,
-    prepareFiles
+    prepareIncludes
 } from "native_resource_host"

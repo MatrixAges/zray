@@ -14,7 +14,7 @@ export default function (in: Input): Output {
     })
 
     if (!yaml.packageName(name)) {
-        yaml.reject(in.document, in.node, bad_name)
+        yaml.reject(in.document.parser, in.node, bad_name)
     }
 
     return name

@@ -16,7 +16,7 @@
     <Call
         fn="arguments"
         in={$in.pick([
-            "frame",
+            "source_type",
             "ast",
             "kind",
             "arguments"
@@ -45,7 +45,11 @@
         <Call
             fn="host.emitCollectionPop"
             in={[
-                $in.frame,
+                $in.ast.writer,
+                $in.ast.sequence,
+                $in.id,
+                $in.source_type,
+                $in.result_type,
                 $in.items,
                 $in.value,
                 $ctx.header,
@@ -60,8 +64,13 @@
     <Call
         module="rows"
         in={{
-            frame: $in.frame,
-            kind: $in.kind,
+            ...$in.pick([
+                "id",
+                "ast",
+                "kind",
+                "source_type",
+                "removed_only"
+            ]),
             rows: {
                 ...$ctx.arguments,
                 items: $in.items,

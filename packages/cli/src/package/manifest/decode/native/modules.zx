@@ -5,6 +5,7 @@ import field from "../../schema/field"
 import { Field, Mapping } from "../../schema/model"
 import { empty_text, mapping_size, unknown_module_field } from "../const"
 import mapping from "../mapping"
+import nodeAt from "../node_at"
 import sequence from "../sequence"
 import string from "../string"
 import strings from "../strings"
@@ -33,7 +34,10 @@ export default function (in: Input): Output {
     }, {
         while: state => state.row < items.length,
         next: state => {
-            const node = yaml.node(document, items[state.row], null)
+            const node = nodeAt({
+                document,
+                id: items[state.row]
+            })
             const pairs = mapping({
                 document,
                 node
@@ -51,15 +55,21 @@ export default function (in: Input): Output {
             const data = loop(initial, {
                 while: pair => pair.index < pairs.length,
                 next: pair => {
-                    const key = yaml.node(document, pairs[pair.index], null)
-                    const item = yaml.node(document, pairs[pair.index + 1], null)
+                    const key = nodeAt({
+                        document,
+                        id: pairs[pair.index]
+                    })
+                    const item = nodeAt({
+                        document,
+                        id: pairs[pair.index + 1]
+                    })
                     const value = {
                         document,
                         node: item
                     }
                     const selected = field({
                         mapping: Mapping.NativeModule,
-                        key: yaml.text(key)
+                        key: key.text
                     })
 
                     switch (selected) {
@@ -87,7 +97,11 @@ export default function (in: Input): Output {
                         case Field.AbiAliases:
                             pair.abi_aliases = aliases(value)
                         default:
-                            yaml.reject(document, key, unknown_module_field)
+                            yaml.reject(
+                                document.parser,
+                                key,
+                                unknown_module_field
+                            )
                     }
 
                     pair.index += mapping_size
@@ -95,11 +109,11 @@ export default function (in: Input): Output {
             })
 
             if (data.name == empty_text) {
-                yaml.reject(document, node, missing_module_name)
+                yaml.reject(document.parser, node, missing_module_name)
             }
 
             if ((data.path == null) == (data.header == null)) {
-                yaml.reject(document, node, missing_module_target)
+                yaml.reject(document.parser, node, missing_module_target)
             }
 
             state.out = state.out.push(data.omit(["index"]))[0]

@@ -1,6 +1,5 @@
 <Module>
     <Type from="workflow" as="Declaration" />
-    <Type from="model" as="Scan" />
 
     <Args in={Declaration.Visit} out={Declaration.Visit} />
 
@@ -16,78 +15,69 @@
         ])}
     />
 
-    <If on={$ctx.find.node == null}>
-        <Return
-            value={{
-                ...$in,
-                next: $ctx.find.next
-            }}
-        />
-    </If>
-
-    <Call
-        fn="edges"
-        in={{
-            reference: $in.references,
-            first: $in.edge
-        }}
-    />
-
-    <If on={$in.kind == Scan.Kind.Store}>
+    <If on={$ctx.find.declaration != null}>
         <Call
-            module="../../store/references/prepare"
+            fn="edges"
             in={{
-                target: $in.target,
-                edge: $ctx.edges,
-                from: $ctx.find.first ?? [],
-                alias: $ctx.find.second,
-                layout: $in.tree.layout,
-                index: $in.namespaces
+                reference: $in.references,
+                first: $in.edge
             }}
         />
+
+        <Call
+            module="select"
+            in={{
+                cursor: $in,
+                hit: $ctx.find.declaration,
+                edge: $ctx.edges
+            }}
+        />
+
+        <If on={$ctx.select.failure != null}>
+            <Return
+                value={{
+                    ...$in,
+                    plan: {
+                        ...$in.plan,
+                        failure: $ctx.select.failure
+                    }
+                }}
+            />
+        </If>
+
+        <If on={$ctx.select.entry != null}>
+            <Call
+                fn="record"
+                in={{
+                    plan: $in.plan,
+                    entry: $ctx.select.entry
+                }}
+            />
+
+            <Return
+                value={{
+                    ...$in,
+                    plan: $ctx.record,
+                    namespaces: $ctx.select.namespaces,
+                    next: $ctx.find.next,
+                    edge: $ctx.edges == null ? $in.edge : $ctx.edges + 1
+                }}
+            />
+        </If>
 
         <Return
             value={{
                 ...$in,
                 next: $ctx.find.next,
-                edge: ($ctx.edges ?? 0) + 1,
-                namespaces: $ctx.prepare
+                edge: $ctx.edges == null ? $in.edge : $ctx.edges + 1
             }}
         />
     </If>
 
-    <Switch on={$in.kind}>
-        <Case value={Scan.Kind.TypeImport}>
-            <Call
-                module="../type_imports/select"
-                in={{
-                    target: $in.target,
-                    from: $ctx.find.first ?? [],
-                    alias: $ctx.find.second,
-                    edge: $ctx.edges,
-                    signatures: $in.signatures
-                }}
-            />
-        </Case>
-
-        <Case value={Scan.Kind.Arguments}>
-            <Call
-                fn="host.publishArgumentDeclaration"
-                in={[
-                    $in.target,
-                    $ctx.find.node ?? [],
-                    $ctx.find.first ?? [],
-                    $ctx.find.second ?? []
-                ]}
-            />
-        </Case>
-    </Switch>
-
     <Return
         value={{
             ...$in,
-            next: $ctx.find.next,
-            edge: $ctx.edges == null ? $in.edge : $ctx.edges + 1
+            next: $ctx.find.next
         }}
     />
 </Module>

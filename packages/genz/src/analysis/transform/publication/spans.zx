@@ -1,0 +1,24 @@
+import type { Input as Publication } from "./model"
+
+export type Input = Publication.Pick("element", "remainder", "outer")
+
+export type Output = {
+    element: u64[],
+    remainder: u64[],
+    outer: u64[]
+}
+
+export default function (in: Input): Output {
+    const { element, remainder, outer } = in
+
+    const middle: u64[] = match {
+        remainder != null => [remainder],
+        _ => []
+    }
+
+    return {
+        element: [element],
+        remainder: middle,
+        outer: [outer]
+    }
+}

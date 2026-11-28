@@ -8,14 +8,14 @@ import type { Input } from "./value"
 export type Output = string
 
 export default function (in: Input): Output {
-    const text = yaml.stringScalar(in.node)
+    const text = in.node.scalar
 
     const diagnostic = check({
         text
     })
 
     if (diagnostic != null) {
-        yaml.reject(in.document, in.node, diagnostic)
+        yaml.reject(in.document.parser, in.node, diagnostic)
     }
 
     return text ?? empty_text

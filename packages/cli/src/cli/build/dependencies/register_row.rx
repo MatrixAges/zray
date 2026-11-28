@@ -1,0 +1,32 @@
+<Module>
+    <Type from="model" as="Backend" />
+
+    <Args in={Backend.RowWalk} out={Backend.RowWalk} />
+
+    <Call
+        fn="rows"
+        in={$in.pick([
+            "batch",
+            "roots",
+            "row",
+            "paths"
+        ])}
+    />
+
+    <Call
+        fn="index.registerPath"
+        in={[
+            $in.dependencies,
+            $ctx.rows.path
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1,
+            new_inputs: $in.new_inputs || $ctx.registerPath,
+            paths: $ctx.rows.paths
+        }}
+    />
+</Module>

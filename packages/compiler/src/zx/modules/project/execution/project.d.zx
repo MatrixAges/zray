@@ -1,28 +1,3 @@
-export declare function initializeAnalysisTypes(
-    publication: AnalysisPublication,
-    borrowed: bool
-): void throws { OutOfMemory }
-
-export declare function appendAnalysisTypes(publication: AnalysisPublication): void
-    throws { OutOfMemory }
-
-export declare function publishAnalysisExports(publication: AnalysisPublication): void
-    throws { OutOfMemory }
-
-export declare function publishAnalysisConstants(publication: AnalysisPublication): void
-    throws { OutOfMemory }
-
-export declare function registerAnalysisBody(entry: AnalysisEntry, split: bool): void
-    throws { OutOfMemory }
-
-export declare function ownAnalysisNatives(entry: AnalysisEntry): void
-    throws { OutOfMemory }
-
-export declare function validateAnalysisPrefix(entry: AnalysisEntry): bool
-    throws { OutOfMemory }
-
-export declare function rejectAnalysisInitializer(entry: AnalysisEntry, message: string): void
-
 export declare function copyProjectTypes(state: ProjectState): void throws { OutOfMemory }
 
 export declare function copyProjectNatives(state: ProjectState): void throws { OutOfMemory }
@@ -93,11 +68,6 @@ export declare function writeProjectModuleRecord(
 
 export declare function moveProjectEntryBody(body: ProjectBody): void
 
-export declare function writeFunctionBody(target: ProgramEntry, body: u8[]): void
-
-export declare function writeForwardedBody(allocator, target: ProgramEntry, body: u8[]): void
-    throws { OutOfMemory }
-
 export declare function validateProjectEntry(entry: ProjectEntry): bool
     throws { OutOfMemory }
 
@@ -105,6 +75,12 @@ export declare function extractProjectCacheArtifact(entry: ProjectEntry, row: u6
     throws { OutOfMemory }
 
 export declare function projectCacheSlot(entry: ProjectEntry, digest: u8[]): CacheInstall
+
+export declare function publishProjectCacheEntry(
+    entry: ProjectEntry,
+    replacement: u64?,
+    bucket: u64
+): void throws { OutOfMemory }
 
 export declare function rejectProjectCacheArtifact(entry: ProjectEntry): void
 
@@ -154,9 +130,6 @@ export declare function bindArtifactWindow(frame: ArtifactLink, first: u64, coun
     MissingNominalOrigin,
     ConflictingInterface
 }
-
-export declare function appendSourceLinkEntry(entry: SourceEntry): void
-    throws { OutOfMemory, InvalidModule }
 
 export declare function appendSourceBody(
     body: SourceBody,

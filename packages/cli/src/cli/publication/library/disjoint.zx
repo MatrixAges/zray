@@ -1,19 +1,19 @@
 import path from "std:path"
 import memory from "memory"
-import host from "publication_host"
+import { relativePathFrom } from "publication_host"
 
 import within from "../../native_sources/path/within"
 
 import type { Input as Request } from "./model"
 
-export type Input = Request.Pick("library", "observed", "separator") & {
+export type Input = Request.Pick("destination", "observed", "separator") & {
     count: u64
 }
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { count, library, observed, separator } = in
+    const { count, destination, observed, separator } = in
 
     return loop({
         index: 0,
@@ -22,7 +22,7 @@ export default function (in: Input): Output {
         while: state => state.disjoint && state.index < count,
         next: state => {
             const observed_path = memory.readTextColumn(observed, state.index)
-            const relative = host.relativeInput(library, observed_path)
+            const relative = relativePathFrom(destination, observed_path)
 
             state.disjoint = !within({
                 path: relative,

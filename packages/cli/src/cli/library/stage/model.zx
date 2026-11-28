@@ -1,4 +1,3 @@
-import type { FileSystem } from "artifact_io"
 import type { Stage } from "library_stage_host"
 import type { Files } from "../../workspace_files/model"
 import type { Preparation } from "../resources/model"
@@ -6,7 +5,6 @@ import type { Preparation } from "../resources/model"
 export type Input = {
     stage: Stage,
     resources: Preparation,
-    fs: FileSystem,
     files: StageFiles
 }
 
@@ -19,7 +17,7 @@ export type StageFiles = {
 }
 
 export type FileGroup = {
-    fs: FileSystem,
+    stage: Stage,
     files: Files
 }
 

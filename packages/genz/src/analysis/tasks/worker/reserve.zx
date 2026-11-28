@@ -1,11 +1,13 @@
 import bytes from "std:bytes"
 
 import constants from "../../../ast/declarations/constants"
+import empty from "../../../ast/expressions/empty"
 import header from "../../../ast/expressions/header"
 import { ExpressionsKind } from "../../../printer/model/expressions"
 import integer from "../../../printer/text/integer"
 import { worker_prefix } from "./const"
 
+import type { ExpressionRows } from "ast_rows"
 import type { Columns as Declarations } from "../../../ast/declarations/model"
 
 export type Input = {
@@ -13,13 +15,8 @@ export type Input = {
     expression_base: u32
 }
 
-export type Expressions = {
-    tags: ExpressionsKind[],
-    offsets: u32[]
-}
-
 export type Output = {
-    expressions: Expressions,
+    expressions: ExpressionRows,
     declarations: Declarations,
     valid: bool
 }
@@ -50,6 +47,7 @@ export default function (in: Input): Output {
 
     return {
         expressions: {
+            ...empty({}),
             tags: value.tags,
             offsets: value.offsets
         },

@@ -53,19 +53,6 @@ pub fn auxiliaryDeclarationCount(writer: *anyopaque) u64 {
     return borrow(writer).task_declarations.count();
 }
 
-pub fn appendAstExpressionHeaders(writer: *anyopaque, tags: []const Ast.ExpressionsKind, offsets: []const u32) Lower.Error!void {
-    const self = borrow(writer);
-    const source = .{ .tags = tags, .offsets = offsets };
-
-    return appendRows(self, &self.builder.nodes.expressions, &source, .BorrowingText);
-}
-
-pub fn appendAstNamespaceRows(writer: *anyopaque, source: *const Ast.NamespaceRows) Lower.Error!void {
-    const self = borrow(writer);
-
-    return appendRows(self, &self.builder.nodes.expressions, source, .BorrowingText);
-}
-
 pub fn appendAstProjectionRows(writer: *anyopaque, source: *const Ast.ProjectionRows) Lower.Error!void {
     const self = borrow(writer);
 
@@ -271,12 +258,6 @@ pub fn appendAstOperandRows(writer: *anyopaque, source: *const Ast.AstOperandRow
     return appendRows(self, &self.builder.nodes.expressions, source, .Borrowed);
 }
 
-pub fn appendAstObjectRows(writer: *anyopaque, source: *const Ast.AstObjectRows) Lower.Error!void {
-    const self = borrow(writer);
-
-    return appendRows(self, &self.builder.nodes.expressions, source, .Borrowed);
-}
-
 pub fn appendAstObjectFields(writer: *anyopaque, source: *const Ast.AstObjectFields) Lower.Error!void {
     const self = borrow(writer);
 
@@ -430,27 +411,11 @@ pub fn takeAstSequence(writer: *anyopaque, handle: *anyopaque) Lower.Error!u64 {
     return packSpan(span);
 }
 
-pub fn joinAstSpans(writer: *anyopaque, first: u64, second: u64) Lower.Error!u64 {
-    const self = borrow(writer);
-    const left: Span = @bitCast(first);
-    const right: Span = @bitCast(second);
-    const block = try blocks.join(self.allocator, self.builder.nodes, &.{ left.start, right.start }, &.{ left.count, right.count });
-
-    return packSpan(block);
-}
-
 pub fn joinAstStatementRows(writer: *anyopaque, starts: []const u32, counts: []const u32) Lower.Error!u32 {
     const self = borrow(writer);
     const block = try blocks.join(self.allocator, self.builder.nodes, starts, counts);
 
     return block.start;
-}
-
-pub fn appendAstSpan(writer: *anyopaque, span: u64) Lower.Error!void {
-    const self = borrow(writer);
-    const part: Span = @bitCast(span);
-
-    return blocks.appendAtTail(self.allocator, self.builder.nodes, .{ .start = part.start, .len = part.count });
 }
 
 pub fn appendAstWhileLoop(writer: *anyopaque, condition: u32, start: u32, count: u32) Lower.Error!void {

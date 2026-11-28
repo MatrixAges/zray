@@ -1,14 +1,31 @@
 import host from "lowering_host"
 
-import type { IterationCallFrame } from "lowering_host"
+import bindOperand from "../../aggregate/execute/bind_operand"
+import finishBlock from "../../aggregate/execute/finish_block"
 
-export type Input = {
-    call: IterationCallFrame,
-    value: u32
-}
+import type { Iteration } from "./model"
+
+export type Input =
+    Iteration.Pick("frame", "context", "writer", "body", "result_type") & {
+        value: u32
+    }
 
 export type Output = u32
 
 export default function (in: Input): Output {
-    return host.convertIterationCall(in.call, in.value)
+    const { frame, context, writer, body, result_type, value } = in
+
+    const bound = bindOperand({
+        frame,
+        writer,
+        sequence: body,
+        value
+    })
+
+    return finishBlock({
+        frame,
+        writer,
+        sequence: body,
+        value: host.convertIterationCall(context, result_type, bound)
+    })
 }

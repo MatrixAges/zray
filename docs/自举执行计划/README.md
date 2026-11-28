@@ -87,4 +87,5 @@ flowchart TD
 ### 单波独立归档（Wave 101+）
 
 - [Wave 101](waves/wave-101.md)（`11b7120d4` · 已完成）
-- [Wave 102](waves/wave-102.md)（已完成）
+- [Wave 102](waves/wave-102.md)（`1df708af1` · 已完成）
+- [Wave 103](waves/wave-103.md)（已完成）

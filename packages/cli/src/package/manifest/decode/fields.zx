@@ -10,17 +10,18 @@ import name from "./name"
 import externals from "./native/externals"
 import interfaces from "./native/interfaces"
 import modules from "./native/modules"
+import nodeAt from "./node_at"
 import path from "./path"
 import strings from "./strings"
 import version from "./version"
 import workspace from "./workspace"
 
-import type { Document } from "manifest_yaml_document"
 import type { Values } from "./model"
+import type { Document } from "./value"
 
 export type Input = {
     document: Document,
-    pairs: i32[]
+    pairs: u32[]
 }
 
 export type State = {
@@ -58,15 +59,21 @@ export default function (in: Input): Output {
     return loop(initial, {
         while: state => state.index < pairs.length,
         next: state => {
-            const key = yaml.node(document, pairs[state.index], null)
-            const item = yaml.node(document, pairs[state.index + 1], null)
+            const key = nodeAt({
+                document,
+                id: pairs[state.index]
+            })
+            const item = nodeAt({
+                document,
+                id: pairs[state.index + 1]
+            })
             const value = {
                 document,
                 node: item
             }
             const selected = field({
                 mapping: Mapping.Manifest,
-                key: yaml.text(key)
+                key: key.text
             })
 
             switch (selected) {
@@ -119,7 +126,7 @@ export default function (in: Input): Output {
                         workspace: false
                     })
                 default:
-                    yaml.reject(document, key, unknown_manifest_field)
+                    yaml.reject(document.parser, key, unknown_manifest_field)
             }
 
             state.index += mapping_size

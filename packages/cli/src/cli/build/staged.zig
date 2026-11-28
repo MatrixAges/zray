@@ -35,14 +35,6 @@ pub fn publish(self: Self, io: std.Io, allocator: std.mem.Allocator, options: Op
     const host = @import("publication_host");
     var failure: host.Failure = .{};
 
-    var publication: host.application = .{
-        .io = io,
-        .allocator = allocator,
-        .failure = &failure,
-        .binary = .{ .source = self.binary, .destination = options.output },
-        .assembly = .{ .source = self.assembly, .destination = options.assembly },
-    };
-
     var directory: host.directory = .{
         .io = io,
         .allocator = allocator,
@@ -53,14 +45,21 @@ pub fn publish(self: Self, io: std.Io, allocator: std.mem.Allocator, options: Op
 
     defer directory.deinit();
 
-    const cursor = &directory;
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
-    const published = source.publish_staged.executeIn(allocator, &.{
-        .publication = @ptrCast(&publication),
+    defer arena.deinit();
+
+    const cursor = &directory;
+    const binary_target = options.output.?;
+
+    const published = source.publish_staged.executeIn(arena.allocator(), &.{
+        .binary_source = self.binary,
+        .binary_target = binary_target,
+        .assembly_source = self.assembly,
+        .assembly_target = options.assembly,
         .directory = @ptrCast(&cursor),
         .primary = std.fs.path.basename(self.binary),
-        .assembly = self.assembly != null,
-    }) catch |err| return failure.unwrap(err);
+    }, io) catch |err| return failure.unwrap(err);
 
     if (!published) return error.UnsupportedBuildArtifact;
 }

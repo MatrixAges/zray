@@ -36,5 +36,10 @@
         ]}
     />
 
-    <Return value={$in} />
+    <Return
+        value={{
+            ...$in,
+            count: $ctx.archive < $in.count ? $in.count : $ctx.archive + 1
+        }}
+    />
 </Module>

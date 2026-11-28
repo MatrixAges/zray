@@ -46,7 +46,7 @@ pub fn borrowedOperandCacheValue(writer: *anyopaque, sequence: *anyopaque, id: u
     return @backingInt(try @import("../state_value/conversion.zig").convert(self, body, type_id, @fromBackingInt(value), .value));
 }
 
-pub fn cacheBorrowedOperand(handle: *anyopaque, id: u32, value: u32) Error!void {
+pub fn cacheLoweredOperand(handle: *anyopaque, id: u32, value: u32) Error!void {
     const self = borrow(handle);
 
     try self.cache.put(self.allocator, @fromBackingInt(id), @fromBackingInt(value));

@@ -1,9 +1,15 @@
 <Module>
     <Type from="model" as="References" />
 
-    <Args in={References.Context} out={References.Result} />
+    <Args in={References.Source} out={References.Result} />
 
-    <Call fn="../index.scanBuiltins" in={$in} />
+    <Call
+        fn="../index.scanBuiltins"
+        in={[
+            $in.collection,
+            $in.content
+        ]}
+    />
 
     <Call fn="read" />
 
@@ -11,7 +17,7 @@
         <Call
             fn="../index.invalidBuiltin"
             in={[
-                $in,
+                $in.collection,
                 $ctx.read.error_kind == References.ErrorKind.InvalidImport
             ]}
         />
@@ -22,7 +28,7 @@
             <Call
                 module="decode_step"
                 in={{
-                    collection: $in,
+                    collection: $in.collection,
                     raw_paths: $ctx.read.paths,
                     raw_sources: $ctx.read.sources,
                     index: 0,

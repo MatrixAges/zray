@@ -4,24 +4,10 @@ const Graph = @import("../graph.zig");
 const execution = @import("../execution/context.zig");
 const workflow = @import("generated_bind_symbolic_definition");
 
-const Frame = struct {
-    graph: *Graph,
-    origin: Graph.Origin,
-    fn borrow(handle: *anyopaque) *@This() {
-        return @ptrCast(@alignCast(handle));
-    }
-};
-
 pub fn bind(graph: *Graph, expression: []const u8, width: u16, origin: Graph.Origin) zx.Error![]const u8 {
-    var frame: Frame = .{
-        .graph = graph,
-        .origin = origin,
-    };
-
     const rows = graph.definitions.slice();
 
     const input: std.meta.Child(workflow.Input) = .{
-        .graph = @ptrCast(&frame),
         .expression = expression,
         .lookup = &.{
             .keys = rows.items(.expression),
@@ -40,6 +26,12 @@ pub fn bind(graph: *Graph, expression: []const u8, width: u16, origin: Graph.Ori
     };
 
     const plan = workflow.executeIn(graph.allocator, &input) catch |err| return execution.failure(err);
+
+    if (plan.failure) |failure| {
+        if (failure.message) |message| return graph.reporter.fail(.unsupported, origin.span, message);
+
+        return error.InvalidSource;
+    }
 
     if (plan.definition) |definition| {
         try graph.definitions.ensureUnusedCapacity(graph.allocator, 1);
@@ -62,15 +54,5 @@ pub fn bind(graph: *Graph, expression: []const u8, width: u16, origin: Graph.Ori
         }
     }
 
-    return plan.name;
-}
-
-pub fn rejectSymbolicDefinition(handle: *anyopaque, message: ?[]const u8) error{InvalidSource}![]const u8 {
-    const frame = Frame.borrow(handle);
-
-    if (message) |text| {
-        return @errorCast(frame.graph.reporter.fail(.unsupported, frame.origin.span, text));
-    }
-
-    return error.InvalidSource;
+    return plan.name.?;
 }

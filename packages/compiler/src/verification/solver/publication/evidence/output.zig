@@ -1,7 +1,5 @@
 const std = @import("std");
 const Program = @import("zx").ir.Program;
-const Source = @import("frontend").project.Source;
-const Binding = @import("../../../conditions.zig").Input;
 const native = @import("output_execution_abi").layouts.@"zig:verification_report_host";
 const Allocating = std.Io.Writer.Allocating;
 const Error = std.mem.Allocator.Error;
@@ -25,14 +23,12 @@ pub fn finish(handle: *anyopaque) Error![]const u8 {
     return self.bytes.written();
 }
 
-pub fn write(allocator: std.mem.Allocator, sources: *const anyopaque, entry: []const u8, version: u32, inputs: *const anyopaque, program_handle: *const anyopaque, fields: []const *const native.EvidenceField) Error![]const u8 {
+pub fn write(allocator: std.mem.Allocator, sources: []const *const native.EvidenceSource, entry: []const u8, version: u32, inputs: []const *const native.EvidenceInput, program_handle: *const anyopaque, fields: []const *const native.EvidenceField) Error![]const u8 {
     var bytes: Allocating = .init(allocator);
 
     defer bytes.deinit();
 
     var output = Self.init(&bytes);
-    const source_rows: *const []const Source = @ptrCast(@alignCast(sources));
-    const input_rows: *const []const Binding = @ptrCast(@alignCast(inputs));
     const program: *const Program = @ptrCast(@alignCast(program_handle));
 
     try begin(&output);
@@ -41,11 +37,11 @@ pub fn write(allocator: std.mem.Allocator, sources: *const anyopaque, entry: []c
         const name = member.name;
 
         switch (member.kind) {
-            .Sources => try output.writeField(name, source_rows),
+            .Sources => try output.writeField(name, sources),
             .Entry => try output.writeField(name, entry),
             .Version => try output.writeField(name, version),
             .Types => try output.writeField(name, &program.types),
-            .Inputs => try output.writeField(name, input_rows),
+            .Inputs => try output.writeField(name, inputs),
             .Program => try output.writeField(name, program),
         }
     }

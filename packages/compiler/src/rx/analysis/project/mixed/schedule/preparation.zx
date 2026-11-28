@@ -14,3 +14,8 @@ export type Started = Selected & {
     workers: u64,
     limit: u64
 }
+
+export type Accepted = {
+    count: u64,
+    last: u64
+}

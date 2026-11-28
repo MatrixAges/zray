@@ -1,8 +1,35 @@
-export type EvidenceSources = opaque
-
-export type EvidenceInputs = opaque
-
 export type EvidenceProgram = opaque
+
+export type EvidenceTemplate = {
+    path: string,
+    source: string
+}
+
+export type EvidenceSpan = {
+    start: u64,
+    end: u64
+}
+
+export type EvidenceOrigin = {
+    expanded: EvidenceSpan,
+    reference: EvidenceSpan,
+    path: string,
+    source: string
+}
+
+export type EvidenceSource = {
+    path: string,
+    source: string,
+    templates: EvidenceTemplate[],
+    original?: string,
+    template_origins: EvidenceOrigin[]
+}
+
+export type EvidenceInput = {
+    symbol: string,
+    path: string,
+    type_id: u32
+}
 
 export enum EvidenceFieldKind {
     Sources,
@@ -20,10 +47,10 @@ export type EvidenceField = {
 
 export declare function writeEvidence(
     allocator,
-    sources: EvidenceSources,
+    sources: EvidenceSource[],
     entry: string,
     version: u32,
-    inputs: EvidenceInputs,
+    inputs: EvidenceInput[],
     program: EvidenceProgram,
     fields: EvidenceField[]
 ): u8[] throws { OutOfMemory }

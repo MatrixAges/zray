@@ -9,6 +9,7 @@
             in={{
                 build: $in.build,
                 types: $in.types,
+                value_layout: $in.value_layout,
                 stack: [{
                     type_id: $in.type_id,
                     value: $in.value,

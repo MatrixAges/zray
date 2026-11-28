@@ -1,38 +1,36 @@
-import host from "backend_input_host"
+import { resolvePathParts } from "lexical_path"
+import memory from "memory"
 
 import { prefix_zig_lib, prefix_local_cache, prefix_global_cache } from "./const"
 
-import type { Input as Request } from "./model"
+import type { RowWalk } from "./model"
 
-export type Input = Request.Pick("dependencies", "roots") & {
-    count: u64,
-    new_inputs: bool
+export type Input = RowWalk.Pick("batch", "roots", "row", "paths")
+
+export type Output = {
+    path: string,
+    paths: string[]
 }
 
-export type Output = bool
-
 export default function (in: Input): Output {
-    const { dependencies, roots, count } = in
+    const { batch, roots, row } = in
 
-    return loop({
-        row: 0,
-        new_inputs: in.new_inputs
-    }, {
-        while: state => state.row < count,
-        next: state => {
-            const prefix = host.prefixAt(dependencies, state.row)
-            const root = match prefix {
-                prefix_zig_lib => roots.library,
-                prefix_local_cache => roots.local,
-                prefix_global_cache => roots.global,
-                _ => roots.cwd
-            }
+    const prefix = memory.readColumnU8(batch.prefixes, row)
 
-            const inserted = host.registerPath(dependencies, state.row, root)
+    const root = match prefix {
+        prefix_zig_lib => roots.library,
+        prefix_local_cache => roots.local,
+        prefix_global_cache => roots.global,
+        _ => roots.cwd
+    }
 
-            state.new_inputs = state.new_inputs || inserted
-            state.row += 1
-        },
-        return: state => state.new_inputs
-    })
+    const path = resolvePathParts([
+        root,
+        memory.readTextColumn(batch.paths, row)
+    ])
+
+    return {
+        path,
+        paths: in.paths.push(path)[0]
+    }
 }

@@ -1,5 +1,3 @@
-export declare function mixedBatchEnd(state: Mixed, batch: u64): u64
-
 export declare function prefetchMixedWindow(state: Mixed, first: u64, end: u64): u64
     throws { OutOfMemory }
 
@@ -84,8 +82,6 @@ export declare function recordMixedCandidate(
 ): void throws { OutOfMemory }
 
 export declare function restoreMixedCandidateDiagnostic(state: MixedPreparation): void
-
-export declare function preparedMixedPositions(state: MixedPreparation): u64[]
 
 export declare function executeMixedWorkers(state: MixedPreparation, participants: u64): void
 

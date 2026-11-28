@@ -29,7 +29,7 @@
         <Call
             fn="index.reject"
             in={[
-                $in.document,
+                $in.document.parser,
                 $in.node,
                 $ctx.check
             ]}

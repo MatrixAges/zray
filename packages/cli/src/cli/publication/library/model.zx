@@ -1,13 +1,14 @@
 import type { TextColumn } from "memory"
-import type { Directory, Library, Verification } from "publication_host"
+import type { Directory, Verification } from "publication_host"
 
 export type Inventory = {
-    library: Library,
-    directory: Directory
+    directory: Directory,
+    destination: string,
+    verification: Verification
 }
 
 export type Input = Inventory & {
-    verification: Verification,
+    managed: string[],
     observed: TextColumn,
     separator: u8
 }

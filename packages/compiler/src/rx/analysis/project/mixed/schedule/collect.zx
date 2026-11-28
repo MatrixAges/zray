@@ -3,24 +3,25 @@ import host from "rx_project_host"
 
 import preview from "./preview"
 
-import type { Request, Started } from "./preparation"
+import type { Accepted, Request, Started } from "./preparation"
 
 export type Input = Request.Pick("selection", "workspace", "capacity") & {
     initial: Started
 }
 
-export type Output = u64[]
+export type Output = Accepted
 
 export default function (in: Input): Output {
     const { selection, workspace, capacity, initial } = in
     const { order, signatures } = selection
     const { limit } = initial
 
-    const collected = loop({
+    return loop({
         cursor: 0,
         scan: initial.next,
         positions: initial.positions,
-        accepted: 0
+        accepted: 0,
+        last: 0
     }, {
         while: stage => stage.accepted < limit && stage.positions.length != 0,
         next: stage => {
@@ -38,6 +39,7 @@ export default function (in: Input): Output {
             if (ready) {
                 host.recordMixedCandidate(workspace, position)
                 stage.accepted += 1
+                stage.last = position
             } else {
                 host.restoreMixedCandidateDiagnostic(workspace)
             }
@@ -56,8 +58,11 @@ export default function (in: Input): Output {
                 stage.scan = more.next
             }
         },
-        return: stage => stage.accepted
+        return: stage => {
+            return {
+                count: stage.accepted,
+                last: stage.last
+            }
+        }
     })
-
-    return host.preparedMixedPositions(workspace)
 }

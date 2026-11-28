@@ -4,13 +4,13 @@
 
     <Args
         in={{
-            scanner: Scan.Input,
+            tokens: Scan.Input,
             source: u8[]
         }}
         out={Positions.Output}
     />
 
-    <Call fn="scan" in={$in.scanner} />
+    <Call fn="scan" in={$in.tokens} />
 
     <Call
         fn="project"

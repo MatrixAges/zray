@@ -1,7 +1,6 @@
 import type { Lookup as Slot } from "core/bytes/index/slot"
 import type { TextColumn } from "memory"
 import type { ReferenceColumn } from "memory/columns"
-import type { ParseWorker } from "project_host"
 
 export type Cache = Slot.Omit("key") & {
     texts: ReferenceColumn,
@@ -19,7 +18,6 @@ export type ClassificationResult = {
 }
 
 export type Batch = {
-    worker: ParseWorker,
     cache: Cache,
     sources: Sources,
     range: Range,
@@ -38,8 +36,19 @@ export type Classification = {
 }
 
 export type Dispatch = ClassificationResult & {
-    worker: ParseWorker,
     sources: Sources,
     range: Range,
     has_output: bool
+}
+
+export type Miss = {
+    source: string,
+    path: string,
+    digest: u8[]
+}
+
+export type Work = {
+    row: u64,
+    hit?: u64,
+    miss?: Miss
 }

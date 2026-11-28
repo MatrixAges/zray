@@ -1,0 +1,9 @@
+<Store name="entry_body_publication" version={1}>
+    <Type from="model" as="Publication" />
+
+    <Object name="state">
+        <Field name="selected" type={Publication.Selected?} value={null} />
+        <Field name="forwarded" type={Publication.Forwarded?} value={null} />
+        <Field name="recursive" type={u32?} value={null} />
+    </Object>
+</Store>

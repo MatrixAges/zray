@@ -10,7 +10,8 @@
             value={{
                 status: Bundle.Status.AbsoluteHeader,
                 dynamic_resources: false,
-                c_imports: false
+                c_imports: false,
+                files: []
             }}
         />
     </If>
@@ -18,10 +19,13 @@
     <Call fn="../index.prepareBundle" in={$in.collection} />
 
     <Call
-        fn="check_output"
+        module="check_output"
         in={{
             collection: $in.collection,
-            bundle_files: $in.bundle_files
+            bundle_files: $in.bundle_files,
+            output: $ctx.prepareBundle.output,
+            physical_output: $ctx.prepareBundle.physical_output,
+            separator: $in.separator
         }}
     />
 
@@ -30,7 +34,8 @@
             value={{
                 status: Bundle.Status.OutputOverlap,
                 dynamic_resources: false,
-                c_imports: false
+                c_imports: false,
+                files: []
             }}
         />
     </If>
@@ -39,7 +44,7 @@
         module="../collect/discover"
         in={{
             collection: $in.collection,
-            entry_path: $ctx.prepareBundle,
+            entry_path: $ctx.prepareBundle.entry,
             bundle_files: $in.bundle_files,
             header: $in.header
         }}
@@ -50,7 +55,8 @@
             value={{
                 status: Bundle.Status.MissingBundle,
                 dynamic_resources: false,
-                c_imports: false
+                c_imports: false,
+                files: []
             }}
         />
     </If>
@@ -73,20 +79,21 @@
             value={{
                 status: Bundle.Status.IncompleteInclude,
                 dynamic_resources: false,
-                c_imports: false
+                c_imports: false,
+                files: []
             }}
         />
     </If>
 
-    <Call fn="../index.prepareFiles" in={$in.collection} />
-
-    <Loop on={$in.index < $in.count}>
+    <Loop on={$in.index < $in.seen.relative_paths.length}>
         <Call
             module="files"
             in={{
-                collection: $in.collection,
-                count: $store.collection.seen.relative_paths.length,
-                index: 0
+                directory: $in.directory,
+                destination: $ctx.prepareIncludes,
+                seen: $store.collection.seen,
+                index: 0,
+                files: []
             }}
         />
     </Loop>
@@ -95,7 +102,8 @@
         value={{
             status: Bundle.Status.Published,
             dynamic_resources: $ctx.discover.dynamic_resources,
-            c_imports: $ctx.discover.c_imports
+            c_imports: $ctx.discover.c_imports,
+            files: $ctx.files.files
         }}
     />
 </Module>

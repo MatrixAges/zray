@@ -43,18 +43,6 @@ pub fn unpack(io: std.Io, allocator: std.mem.Allocator, verified: Verified, dire
 
     errdefer arena.deinit();
 
-    var input: std.Io.Reader = .fixed(unpacked);
-    var names: [std.fs.max_path_bytes]u8 = undefined;
-    var links: [std.fs.max_path_bytes]u8 = undefined;
-    var iterator = std.tar.Iterator.init(&input, .{ .file_name_buffer = &names, .link_name_buffer = &links });
-
-    var state: extraction.State = .{
-        .io = io,
-        .directory = directory,
-        .allocator = arena.allocator(),
-        .iterator = &iterator,
-    };
-
     var store_arena = std.heap.ArenaAllocator.init(allocator);
 
     defer store_arena.deinit();
@@ -73,17 +61,28 @@ pub fn unpack(io: std.Io, allocator: std.mem.Allocator, verified: Verified, dire
     var claimed: StoreState = &claimed_value;
     var host: StoreHost = .{ .store_0 = &claimed };
 
-    const status = rule.execute(&store_arena, @ptrCast(&state), &host) catch |err| switch (err) {
-        error.ArchiveHostFailure => return state.failure.?,
-        else => |failure| return failure,
-    };
+    const result = try rule.execute(&store_arena, &.{
+        .directory = @ptrCast(&directory),
+        .source = unpacked,
+    }, &host, io);
 
-    switch (status) {
+    switch (result.status) {
         .Valid => {},
         inline else => |reason| return @field(anyerror, @tagName(reason)),
     }
 
-    return .{ .arena = arena, .files = try state.files.toOwnedSlice(state.allocator) };
+    const owned = arena.allocator();
+    const files = try owned.alloc(File, result.files.len);
+
+    for (result.files, files) |entry, *file| {
+        file.* = .{
+            .path = try owned.dupe(u8, entry.path),
+            .sha256 = try owned.dupe(u8, entry.sha256),
+            .executable = entry.executable,
+        };
+    }
+
+    return .{ .arena = arena, .files = files };
 }
 
 pub const extraction = @import("archive/extract/storage.zig");

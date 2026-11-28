@@ -40,21 +40,20 @@ export declare function reserveIterationProjection(
     fresh: u64
 ): IterationProjectionStamp throws { OutOfMemory }
 
-export declare function projectIterationResult(frame: IterationResultApplication, id: u32): u32
-    throws { OutOfMemory }
-
-export declare function transferIterationResult(
-    frame: IterationResultApplication,
-    id: u32,
-    value: u32,
-    slot: u64
+export declare function projectIterationResult(
+    frame: Lowering,
+    context: IterationResourceFrame?,
+    consumer: LoopConsumer,
+    state: u32,
+    id: u32
 ): u32 throws { OutOfMemory }
 
-export declare function cacheIterationResult(
-    frame: IterationResultApplication,
+export declare function transferIterationResult(
+    allocator,
+    context: IterationResourceFrame,
     id: u32,
     value: u32
-): void throws { OutOfMemory }
+): IterationTransferResult throws { OutOfMemory }
 
 export declare function materializeElementType(frame: Lowering, list_type: u32): u32
     throws { OutOfMemory }

@@ -1,0 +1,11 @@
+import type { ForwardedBody, FunctionBodyRow } from "memory/columns"
+
+export type Selected = FunctionBodyRow
+
+export type Forwarded = ForwardedBody
+
+export type Update = {
+    selected?: Selected,
+    forwarded?: Forwarded,
+    recursive?: u32
+}

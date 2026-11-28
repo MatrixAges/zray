@@ -23,15 +23,15 @@ pub fn openMapping(handle: *anyopaque) host.Error!?*const MappingView {
 
     const packages = self.locked.lock.packages;
     const is_archive = self.allocator.alloc(bool, packages.len) catch |err| return self.fail(err);
-    const archive_digests = self.allocator.alloc([]const u8, packages.len) catch |err| return self.fail(err);
+    const sources = self.allocator.alloc([]const u8, packages.len) catch |err| return self.fail(err);
 
     for (packages, 0..) |package, index| {
         if (package.source == .archive) {
             is_archive[index] = true;
-            archive_digests[index] = package.source.archive.sha256;
+            sources[index] = package.source.archive.sha256;
         } else {
             is_archive[index] = false;
-            archive_digests[index] = "";
+            sources[index] = package.source.workspace;
         }
     }
 
@@ -41,7 +41,8 @@ pub fn openMapping(handle: *anyopaque) host.Error!?*const MappingView {
         .expected = &self.mapping.expected,
         .paths = self.mapping.value.paths,
         .is_archive = is_archive,
-        .archive_digests = archive_digests,
+        .sources = sources,
+        .root = self.result.root,
     };
 
     return &self.mapping_view;
@@ -84,14 +85,6 @@ pub fn recordInstalledArchive(handle: *anyopaque, index: u64, path: []const u8) 
     const self = host.State.get(handle);
 
     self.installed_packages[@intCast(index)] = .{ .path = path, .manifest = self.archive };
-}
-
-pub fn installedWorkspacePath(handle: *anyopaque, index: u64) host.Error![]const u8 {
-    const self = host.State.get(handle);
-    const relative = self.locked.lock.packages[@intCast(index)].source.workspace;
-    const path = std.fs.path.resolve(self.allocator, &.{ self.result.root, relative }) catch |err| return self.fail(err);
-
-    return canonical(handle, path);
 }
 
 pub fn recordMember(handle: *anyopaque, index: u64, ordinal: u64, path: []const u8) bool {

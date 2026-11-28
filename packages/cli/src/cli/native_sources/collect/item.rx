@@ -42,31 +42,25 @@
         ]}
     />
 
-    <If on={$ctx.visit == Collection.Action.Promote}>
-        <Call
-            fn="../index.reusePending"
-            in={[
-                $in.collection,
-                $ctx.lookup_seen.index
-            ]}
-        />
-
-        <Else>
-            <Call
-                fn="../index.readPending"
-                in={[
-                    $in.collection,
-                    $in.path
-                ]}
-            />
-        </Else>
-    </If>
+    <Call
+        module="load_pending"
+        in={{
+            ...$in.pick([
+                "collection",
+                "path"
+            ]),
+            cached: $store.collection.seen.contents,
+            reuse: $ctx.visit == Collection.Action.Promote,
+            index: $ctx.lookup_seen.index
+        }}
+    />
 
     <Call
         fn="../index.observePending"
         in={[
             $in.collection,
-            $in.path
+            $in.path,
+            $ctx.load_pending
         ]}
     />
 
@@ -80,34 +74,20 @@
             setter={[$store.collection.seen]}
         />
 
-        <Call
-            fn="../index.promoteSource"
-            in={[
-                $in.collection,
-                $ctx.lookup_seen.index
-            ]}
-        />
-
         <Else>
             <Call
                 fn="add_seen"
                 in={{
+                    ...$in.pick([
+                        "source",
+                        "from_present",
+                        "from_path"
+                    ]),
                     seen: $store.collection.seen,
                     relative: $ctx.relativePath,
-                    source: $in.source
+                    content: $ctx.load_pending
                 }}
                 setter={[$store.collection.seen]}
-            />
-
-            <Call
-                fn="../index.addSource"
-                in={[
-                    $in.collection,
-                    $ctx.relativePath,
-                    $in.source,
-                    $in.from_present,
-                    $in.from_path
-                ]}
             />
         </Else>
     </If>
@@ -116,7 +96,13 @@
         <Return value={$in.flags} />
     </If>
 
-    <Call module="../references/read" in={$in.collection} />
+    <Call
+        module="../references/read"
+        in={{
+            collection: $in.collection,
+            content: $ctx.load_pending
+        }}
+    />
 
     <Call
         module="scan"

@@ -46,7 +46,7 @@ pub fn parseInto(allocator: std.mem.Allocator, source: []const u8) !Value {
 
     defer reader.scratch.deinit();
 
-    const data = Decoder.read(allocator, &reader, root) catch |err| {
+    const data = Decoder.read(allocator, &reader) catch |err| {
         if (err == error.OutOfMemory) return err;
 
         const issue = reader.diagnostic.?;

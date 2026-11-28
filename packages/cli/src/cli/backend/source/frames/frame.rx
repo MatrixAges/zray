@@ -1,43 +1,69 @@
 <Module>
     <Type from="model" as="Protocol" />
 
-    <Args in={Protocol.Frame} out={Protocol.Status} />
+    <Args in={Protocol.Frame} out={Protocol.FrameResult} />
 
     <If on={!$in.saw_version && $in.tag != Protocol.Tag.Version}>
-        <Return value={Protocol.Status.InvalidBackendProtocol} />
+        <Return
+            value={{
+                status: Protocol.Status.InvalidBackendProtocol,
+                selection: $in.selection
+            }}
+        />
     </If>
 
     <Switch on={$in.tag}>
         <Case value={Protocol.Tag.Version}>
             <If on={$in.saw_version}>
-                <Return value={Protocol.Status.InvalidBackendProtocol} />
+                <Return
+                    value={{
+                        status: Protocol.Status.InvalidBackendProtocol,
+                        selection: $in.selection
+                    }}
+                />
             </If>
 
             <If on={$in.body != $in.version}>
-                <Return value={Protocol.Status.BackendVersionMismatch} />
+                <Return
+                    value={{
+                        status: Protocol.Status.BackendVersionMismatch,
+                        selection: $in.selection
+                    }}
+                />
             </If>
         </Case>
 
         <Case value={Protocol.Tag.Config}>
             <If on={$in.size != $in.config_size}>
-                <Return value={Protocol.Status.InvalidBackendProtocol} />
+                <Return
+                    value={{
+                        status: Protocol.Status.InvalidBackendProtocol,
+                        selection: $in.selection
+                    }}
+                />
             </If>
         </Case>
 
         <Case value={Protocol.Tag.Inputs}>
             <Call fn="paths" in={$in.body} />
 
-            <If on={$ctx.paths == null}>
-                <Return value={Protocol.Status.InvalidBackendProtocol} />
+            <If on={$ctx.paths != null}>
+                <Return
+                    value={{
+                        status: Protocol.Status.Success,
+                        selection: {
+                            ...$in.selection,
+                            inputs: $ctx.paths
+                        }
+                    }}
+                />
             </If>
 
-            <Call
-                fn="index.commitInputs"
-                in={[
-                    $in.response,
-                    $in.body,
-                    $ctx.paths
-                ]}
+            <Return
+                value={{
+                    status: Protocol.Status.InvalidBackendProtocol,
+                    selection: $in.selection
+                }}
             />
         </Case>
 
@@ -47,21 +73,28 @@
                 in={{
                     body: $in.body,
                     size: $in.digest_size,
-                    seen: $in.saw_digest
+                    seen: $in.selection.digest != null
                 }}
             />
 
-            <If on={$ctx.digest == null}>
-                <Return value={Protocol.Status.InvalidBackendProtocol} />
+            <If on={$ctx.digest != null}>
+                <Return
+                    value={{
+                        status: Protocol.Status.Success,
+                        selection: {
+                            ...$in.selection,
+                            digest: $ctx.digest.bytes,
+                            cached: $ctx.digest.cached
+                        }
+                    }}
+                />
             </If>
 
-            <Call
-                fn="index.commitDigest"
-                in={[
-                    $in.response,
-                    $in.body,
-                    $ctx.digest
-                ]}
+            <Return
+                value={{
+                    status: Protocol.Status.InvalidBackendProtocol,
+                    selection: $in.selection
+                }}
             />
         </Case>
 
@@ -69,22 +102,41 @@
             <Call fn="bundle" in={$in.body} />
 
             <If on={!$ctx.bundle}>
-                <Return value={Protocol.Status.InvalidBackendProtocol} />
+                <Return
+                    value={{
+                        status: Protocol.Status.InvalidBackendProtocol,
+                        selection: $in.selection
+                    }}
+                />
             </If>
 
-            <Call
-                fn="index.commitDiagnostics"
-                in={[
-                    $in.response,
-                    $in.body
-                ]}
+            <Call fn="index.readDiagnostics" in={$in.body} />
+
+            <Return
+                value={{
+                    status: Protocol.Status.Success,
+                    selection: {
+                        ...$in.selection,
+                        diagnostics: $ctx.readDiagnostics
+                    }
+                }}
             />
         </Case>
 
         <Case value={Protocol.Tag.Invalid}>
-            <Return value={Protocol.Status.InvalidBackendProtocol} />
+            <Return
+                value={{
+                    status: Protocol.Status.InvalidBackendProtocol,
+                    selection: $in.selection
+                }}
+            />
         </Case>
     </Switch>
 
-    <Return value={Protocol.Status.Success} />
+    <Return
+        value={{
+            status: Protocol.Status.Success,
+            selection: $in.selection
+        }}
+    />
 </Module>

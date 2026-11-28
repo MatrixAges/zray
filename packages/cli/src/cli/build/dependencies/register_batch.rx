@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Backend" />
+
+    <Args in={Backend.BatchWalk} out={Backend.BatchWalk} />
+
+    <Loop on={$in.row < $in.batch.count}>
+        <Call
+            module="register_row"
+            in={{
+                dependencies: $in.dependencies,
+                roots: $in.roots,
+                batch: $in.batches[$in.index],
+                row: 0,
+                new_inputs: $in.new_inputs,
+                paths: $in.paths
+            }}
+        />
+    </Loop>
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            new_inputs: $ctx.register_row.new_inputs,
+            paths: $ctx.register_row.paths
+        }}
+    />
+</Module>

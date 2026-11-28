@@ -14,7 +14,6 @@
     <Call
         module="write_views"
         in={{
-            fs: $in.fs,
             directory: $ctx.host_directories.node,
             separator: $in.separator,
             files: $in.node
@@ -24,7 +23,6 @@
     <Call
         module="write_views"
         in={{
-            fs: $in.fs,
             directory: $ctx.host_directories.napi,
             separator: $in.separator,
             files: $in.napi

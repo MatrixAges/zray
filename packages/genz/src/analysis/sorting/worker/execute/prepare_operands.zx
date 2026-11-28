@@ -1,9 +1,37 @@
+import integers from "std:integer"
+
 import { comparator_arity } from "../../const"
 
-export type Input = {}
+import type { OperandCursor } from "./model"
 
-export type Output = u64
+export type Input = OperandCursor.Pick("worker", "list_type") & {
+    parameters: u32[],
+    used_symbols: bool[],
+    left: u32,
+    right: u32
+}
+
+export type Output = OperandCursor
 
 export default function (in: Input): Output {
-    return comparator_arity
+    const { worker, parameters, list_type, used_symbols, left, right } = in
+
+    return {
+        worker,
+        list_type,
+        operand_used: [
+            used_symbols[integers.widen(parameters[0])],
+            used_symbols[integers.widen(parameters[1])]
+        ],
+        elements: [],
+        used: [],
+        spans: [],
+        raw: [
+            left,
+            right
+        ],
+        count: comparator_arity,
+        row: 0,
+        running: comparator_arity != 0
+    }
 }

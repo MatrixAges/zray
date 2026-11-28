@@ -1,6 +1,9 @@
-import type { Archive } from "package_extract_host"
+import type { Directory } from "package_extract_host"
 
-export type Input = Archive
+export type Input = {
+    directory: Directory,
+    source: u8[]
+}
 
 export type Claimed = {
     paths: string[]
@@ -28,14 +31,23 @@ export enum Status {
 export type Classified = {
     status: Status,
     action: Action,
+    next: u64,
     path: string,
     executable: bool
 }
 
-export type Step = {
-    archive: Archive,
-    status: Status,
-    running: bool
+export type File = {
+    path: string,
+    sha256: string,
+    executable: bool
 }
 
-export type Output = Status
+export type Output = {
+    status: Status,
+    files: File[]
+}
+
+export type Step = Input & Output & {
+    offset: u64,
+    running: bool
+}

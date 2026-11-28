@@ -1,5 +1,6 @@
 <Module>
     <Type from="model" as="Call" />
+    <Type from="host" as="Host" />
 
     <Args in={Call.Input} out={Call.Outcome} />
 
@@ -13,13 +14,21 @@
         />
     </If>
 
-    <Call fn="host.evaluateSymbolicCallArgument" in={$in.call} />
+    <Call
+        fn="host.evaluateSymbolicOperand"
+        in={[
+            $in.frame,
+            Host.SymbolicOperand.First,
+            $in.argument
+        ]}
+    />
 
     <Call
-        fn="solve"
+        module="solve"
         in={{
-            call: $in.call,
-            argument_safe: $ctx.evaluateSymbolicCallArgument
+            frame: $in.frame,
+            target: $in.target,
+            argument_safe: $ctx.evaluateSymbolicOperand.safe
         }}
     />
 

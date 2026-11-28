@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Toolchain" />
+
+    <Args in={Toolchain.Input} out={Toolchain.Status} />
+
+    <Call
+        fn="hash"
+        in={{
+            archive: $in.standard_archive,
+            expected: $in.standard_digest
+        }}
+    />
+
+    <If on={!$ctx.hash}>
+        <Return value={Toolchain.Status.CorruptBundledToolchain} />
+    </If>
+
+    <Call fn="index.extractStandard" in={$in.toolchain} />
+
+    <Return value={Toolchain.Status.Ready} />
+</Module>

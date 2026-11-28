@@ -51,6 +51,7 @@
             types: $in.types,
             type_id: $in.output_type,
             value: $in.output,
+            value_layout: $in.value_layout,
             path: $in.output_path
         }}
     />

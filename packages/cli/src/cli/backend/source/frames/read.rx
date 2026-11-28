@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Protocol" />
 
-    <Args in={Protocol.Input} out={Protocol.Status} />
+    <Args in={Protocol.Input} out={Protocol.FrameResult} />
 
     <Loop on={$in.running}>
         <Call
@@ -10,8 +10,10 @@
                 ...$in,
                 offset: 0,
                 status: Protocol.Status.Success,
+                selection: {
+                    cached: false
+                },
                 saw_version: false,
-                saw_digest: false,
                 finished: false,
                 running: $in.bytes.length != 0
             }}
@@ -19,15 +21,27 @@
     </Loop>
 
     <If on={$ctx.step.status != Protocol.Status.Success}>
-        <Return value={$ctx.step.status} />
+        <Return
+            value={$ctx.step.pick([
+                "status",
+                "selection"
+            ])}
+        />
     </If>
 
     <If on={!$ctx.step.saw_version || !$ctx.step.finished}>
-        <Return value={Protocol.Status.IncompleteBackendResponse} />
+        <Return
+            value={{
+                status: Protocol.Status.IncompleteBackendResponse,
+                selection: $ctx.step.selection
+            }}
+        />
     </If>
 
     <Return
-        value={$ctx.step.saw_digest ? Protocol.Status.SuccessWithDigest :
-            Protocol.Status.Success}
+        value={$ctx.step.pick([
+            "status",
+            "selection"
+        ])}
     />
 </Module>

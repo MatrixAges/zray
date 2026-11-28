@@ -1,0 +1,15 @@
+import type { Entry, Plan } from "./workflow"
+
+export type Input = {
+    plan: Plan,
+    entry: Entry
+}
+
+export type Output = Plan
+
+export default function (in: Input): Output {
+    return {
+        ...in.plan,
+        entries: in.plan.entries.push(in.entry)[0]
+    }
+}

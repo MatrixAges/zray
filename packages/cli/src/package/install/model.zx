@@ -14,6 +14,7 @@ export type Input = {
     members: u64,
     maximum_edges: u64,
     locked_rows: u64,
+    root: string,
     has_lock: bool,
     reuse: bool,
     frozen: bool
@@ -28,11 +29,12 @@ export type ArchiveSource = {
     source: string
 }
 
-export type Replay = Input.Pick("host", "locked_rows")
+export type Replay = Input.Pick("host", "locked_rows", "root")
 
 export type ReplayPaths = {
     host: Host,
-    is_archive: bool[]
+    workspace: string?[],
+    root: string
 }
 
 export type Publication = Input.Pick("host", "reuse")

@@ -1,7 +1,7 @@
 import type { HardwareBuild, NodeSort } from "hardware_graph_host"
 import type { ReadColumn, TextColumn } from "memory"
-import type { SymbolicValue } from "verification_host"
 import type { Ports } from "../../../../verification/execution/program/model"
+import type { Layout } from "../../../../verification/terms/layout"
 
 export type Sizes = {
     build: HardwareBuild,
@@ -13,7 +13,8 @@ export type OutputTree = {
     build: HardwareBuild,
     types: Ports,
     type_id: u32,
-    value: SymbolicValue,
+    value: u8[],
+    value_layout: Layout,
     path: string
 }
 
@@ -28,7 +29,8 @@ export type Input = Sizes & {
     rows: DefinitionRows,
     output_path: string,
     output_type: u32,
-    output: SymbolicValue,
+    output: u8[],
+    value_layout: Layout,
     safety: string
 }
 
@@ -62,7 +64,7 @@ export type OutputFrame = OutputTree.Pick("type_id", "value", "path") & {
     children?: OutputChildren
 }
 
-export type OutputWalk = OutputTree.Pick("build", "types") & {
+export type OutputWalk = OutputTree.Pick("build", "types", "value_layout") & {
     stack: OutputFrame[],
     output_count: u64,
     running: bool

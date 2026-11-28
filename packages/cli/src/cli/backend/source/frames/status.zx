@@ -1,0 +1,27 @@
+import { root_length } from "../diagnostics/const"
+import { Status } from "./model"
+
+import type { Selection } from "./model"
+
+export type Input = {
+    exited: bool,
+    selection: Selection
+}
+
+export type Output = Status
+
+export default function (in: Input): Output {
+    const { diagnostics, digest, inputs } = in.selection
+
+    if (!in.exited || digest == null) {
+        return Status.BackendFailed
+    }
+
+    if (diagnostics != null && diagnostics.words.length != 0) {
+        if (diagnostics.words[root_length] != 0) {
+            return Status.BackendFailed
+        }
+    }
+
+    return inputs != null ? Status.SuccessWithInputs : Status.Success
+}

@@ -61,7 +61,6 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
         const input: Input = .{
             .entry = @ptrCast(&state),
             .publication = &.{
-                .program = @ptrCast(program),
                 .functions = &functions,
                 .lengths = @ptrCast(&lengths),
                 .linked_count = program.functions.count(),
@@ -90,20 +89,23 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
         const StoreState = std.meta.Child(@FieldType(entry.zx_pending, "store_0"));
 
         const StoreHost = struct {
+            allocator: std.mem.Allocator,
             result: *Analysis.Result,
             store_0: *StoreState,
-            pub fn commit(self: *@This(), pending: anytype) error{}!void {
+            pub fn commit(self: *@This(), pending: anytype) std.mem.Allocator.Error!void {
                 if (pending.store_0) |next| {
+                    try @import("../../entry_body/host.zig").publish(self.allocator, &self.result.value.ir, next);
+
                     self.store_0.* = next;
 
-                    if (next.has_recursive) self.result.entry_function = @fromBackingInt(next.recursive);
+                    if (next.recursive) |id| self.result.entry_function = @fromBackingInt(id);
                 }
             }
         };
 
-        var store_value: std.meta.Child(StoreState) = .{ .has_recursive = false, .recursive = 0 };
+        var store_value: std.meta.Child(StoreState) = .{ .selected = null, .forwarded = null, .recursive = null };
         var store_ptr: StoreState = &store_value;
-        var host: StoreHost = .{ .result = &state.result, .store_0 = &store_ptr };
+        var host: StoreHost = .{ .allocator = project.allocator, .result = &state.result, .store_0 = &store_ptr };
 
         _ = entry.executeIn(project.allocator, &input, &host) catch |err| return switch (err) {
             error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
@@ -204,6 +206,15 @@ pub fn projectCacheSlot(handle: *anyopaque, digest: []const u8) *const ABI.Cache
     slot.install = slot.installView(ABI.CacheInstall, slot.value.?.result.value.path);
 
     return &slot.install;
+}
+
+pub fn publishProjectCacheEntry(handle: *anyopaque, replacement: ?u64, bucket: u64) std.mem.Allocator.Error!void {
+    const entry = Entry.borrow(handle);
+    const slot = &entry.pending.?;
+
+    if (replacement == null) try slot.stage(bucket);
+
+    slot.commit(replacement);
 }
 
 pub fn rejectProjectCacheArtifact(handle: *anyopaque) void {

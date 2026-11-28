@@ -1,5 +1,6 @@
 <Module>
     <Type from="model" as="Observed" />
+    <Type from="../bindings/check" as="Bindings" />
 
     <Args in={Observed.Input} out={Observed.Output} />
 
@@ -7,18 +8,63 @@
         <Return value={Observed.Output.Skipped} />
     </If>
 
-    <Call fn="../index.checkBinary" in={$in.publication} />
+    <Call
+        fn="../index.checkPublishedTarget"
+        in={[
+            $in.verification,
+            $in.binary_target
+        ]}
+    />
 
-    <If on={$in.requested_assembly}>
-        <Call fn="../index.checkAssembly" in={$in.publication} />
+    <If on={$in.assembly_target != null}>
+        <Call
+            fn="../index.checkAssemblyTarget"
+            in={[
+                $in.verification,
+                $in.assembly_target
+            ]}
+        />
 
-        <If on={$ctx.checkBinary == $ctx.checkAssembly}>
+        <If on={$ctx.checkPublishedTarget == $ctx.checkAssemblyTarget}>
             <Return value={Observed.Output.ConflictingPaths} />
         </If>
     </If>
 
-    <If on={$in.bindings}>
-        <Call fn="../index.checkBindings" in={$in.publication} />
+    <If on={$in.bindings != null}>
+        <Call
+            fn="../bindings/check"
+            in={{
+                ...$in.bindings.pick([
+                    "module",
+                    "declaration"
+                ]),
+                assembly: $in.assembly_target
+            }}
+        />
+
+        <If on={$ctx.check == Bindings.Status.ConflictingPaths}>
+            <Return value={Observed.Output.ConflictingPaths} />
+        </If>
+
+        <If on={$ctx.check == Bindings.Status.ForeignFile}>
+            <Return value={Observed.Output.ForeignFile} />
+        </If>
+
+        <Call
+            fn="../index.checkModuleTarget"
+            in={[
+                $in.verification,
+                $in.bindings.module
+            ]}
+        />
+
+        <Call
+            fn="../index.checkDeclarationTarget"
+            in={[
+                $in.verification,
+                $in.bindings.declaration
+            ]}
+        />
     </If>
 
     <Call fn="../index.capture" in={$in.verification} />
@@ -28,16 +74,49 @@
         <Return value={Observed.Output.Skipped} />
     </If>
 
-    <If on={$in.bindings}>
-        <Call fn="../index.writeBindings" in={$in.publication} />
+    <If on={$in.bindings != null}>
+        <Call
+            module="../../workspace_files/write_artifact"
+            in={{
+                path: $in.bindings.module,
+                source: $in.bindings.module_source
+            }}
+        />
+
+        <Call
+            module="../../workspace_files/write_artifact"
+            in={{
+                path: $in.bindings.declaration,
+                source: $in.bindings.declaration_source
+            }}
+        />
     </If>
 
-    <If on={$in.emitted_assembly}>
-        <Call fn="../index.copyAssembly" in={$in.publication} />
+    <If on={$in.assembly_source != null}>
+        <If on={$in.assembly_target != null}>
+            <Call
+                fn="../index.copyPublishedFile"
+                in={[
+                    $in.assembly_source,
+                    $in.assembly_target
+                ]}
+            />
+        </If>
     </If>
 
-    <Call fn="../index.copyBinary" in={$in.publication} />
-    <Call fn="../index.retain" in={$in.verification} />
+    <If on={$in.binary_source != null}>
+        <Call
+            fn="../index.copyPublishedFile"
+            in={[
+                $in.binary_source,
+                $in.binary_target
+            ]}
+        />
 
-    <Return value={Observed.Output.Published} />
+        <Call fn="../index.retain" in={$in.verification} />
+
+        <Return value={Observed.Output.Published} />
+    </If>
+
+    <Return value={Observed.Output.Skipped} />
 </Module>

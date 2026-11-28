@@ -307,10 +307,6 @@ pub fn restoreMixedCandidateDiagnostic(handle: *anyopaque) void {
     Preparation.borrow(handle).restore();
 }
 
-pub fn preparedMixedPositions(handle: *anyopaque) []const u64 {
-    return Preparation.borrow(handle).ahead.items.items(.position);
-}
-
 pub fn executeMixedWorkers(handle: *anyopaque, participants: u64) void {
     const frame = Preparation.borrow(handle);
 

@@ -8,6 +8,7 @@ import {
     unknown_workspace_field
 } from "./const"
 import mapping from "./mapping"
+import nodeAt from "./node_at"
 import strings from "./strings"
 
 import type { Input as Value } from "./value"
@@ -25,7 +26,7 @@ export default function (in: Input): Output {
     })
 
     if (pairs.length == 0) {
-        yaml.reject(document, node, missing_workspace_packages)
+        yaml.reject(document.parser, node, missing_workspace_packages)
     }
 
     const empty: string[] = []
@@ -36,18 +37,24 @@ export default function (in: Input): Output {
     }, {
         while: state => state.index < pairs.length,
         next: state => {
-            const key = yaml.node(document, pairs[state.index], null)
+            const key = nodeAt({
+                document,
+                id: pairs[state.index]
+            })
 
             if (field({
                 mapping: Mapping.Workspace,
-                key: yaml.text(key)
+                key: key.text
             }) != Field.Packages) {
-                yaml.reject(document, key, unknown_workspace_field)
+                yaml.reject(document.parser, key, unknown_workspace_field)
             }
 
             state.packages = strings({
                 document,
-                node: yaml.node(document, pairs[state.index + 1], null),
+                node: nodeAt({
+                    document,
+                    id: pairs[state.index + 1]
+                }),
                 workspace: true
             })
 

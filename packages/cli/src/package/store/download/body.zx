@@ -1,24 +1,28 @@
-import host from "package_download_host"
-
-import { maximum_archive } from "../const"
 import { Status } from "./model"
 
-import type { BodyInput as Input, Output } from "./model"
+import type { ResponseHead } from "package_download_host"
+
+export type Input = {
+    head: ResponseHead,
+    maximum_archive: u64
+}
+
+export type Output = Status
 
 export default function (in: Input): Output {
-    if (!in.head.ok) {
+    const { head, maximum_archive } = in
+
+    if (!head.ok) {
         return Status.PackageDownloadFailed
     }
 
-    if (!in.head.identity) {
+    if (!head.identity) {
         return Status.UnsupportedPackageContentEncoding
     }
 
-    if (in.head.length != null && in.head.length > maximum_archive) {
+    if (head.length != null && head.length > maximum_archive) {
         return Status.PackageArchiveTooLarge
     }
-
-    host.readBody(in.download, maximum_archive)
 
     return Status.Ready
 }

@@ -1,0 +1,7 @@
+<Store name="parse_cache_worker_pending" version={1}>
+    <Type from="model" as="Worker" />
+
+    <Object name="state">
+        <Field name="work" type={Worker.Work[]} value={[]} />
+    </Object>
+</Store>

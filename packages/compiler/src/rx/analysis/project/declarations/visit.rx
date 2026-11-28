@@ -1,9 +1,11 @@
 <Module>
     <Type from="workflow" as="Declaration" />
 
-    <Args in={Declaration.Visit} out={void} />
+    <Args in={Declaration.Visit} out={Declaration.Plan} />
 
-    <Loop on={$in.next < $in.count}>
+    <Loop on={$in.next < $in.count && $in.plan.failure == null}>
         <Call module="step" in={$in} />
     </Loop>
+
+    <Return value={$ctx.step.plan} />
 </Module>

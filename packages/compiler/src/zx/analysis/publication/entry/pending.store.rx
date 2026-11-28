@@ -1,0 +1,11 @@
+<Store name="analysis_entry_publication" version={1}>
+    <Type from="model" as="Entry" />
+
+    <Object name="state">
+        <Field name="split" type={bool?} value={null} />
+        <Field name="own_natives" type={bool?} value={null} />
+        <Field name="check_prefix" type={bool?} value={null} />
+        <Field name="issue" type={string?} value={null} />
+        <Field name="forwarded" type={Entry.Body?} value={null} />
+    </Object>
+</Store>

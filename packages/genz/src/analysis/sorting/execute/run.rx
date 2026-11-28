@@ -24,7 +24,8 @@
     <Call
         fn="index.buildSortComparator"
         in={[
-            $in.frame,
+            $in.lower,
+            $in.id,
             $ctx.materializeElementType,
             $in.errors
         ]}
@@ -64,7 +65,6 @@
     <Call
         fn="bind_target"
         in={$in.pick([
-            "frame",
             "lower",
             "writer",
             "body",

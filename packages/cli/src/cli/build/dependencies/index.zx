@@ -1,1 +1,1 @@
-export { reserve } from "backend_input_host"
+export { registerPath } from "backend_input_host"

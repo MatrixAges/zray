@@ -212,13 +212,6 @@ export type ExpressionExtensions = {
     container_type_declarations_len: u32[]
 }
 
-export type NamespaceRows = {
-    tags: ExpressionsKind[],
-    offsets: u32[],
-    namespace_type_start: u32[],
-    namespace_type_len: u32[]
-}
-
 export type ProjectionRows = {
     tags: ExpressionsKind[],
     offsets: u32[],

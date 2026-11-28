@@ -1,3 +1,5 @@
+import integers from "std:integer"
+import { convertAggregateField, writeCollectionElement } from "ast_rows"
 import { appendAstOperandRows, astExpressionCount, retainAstIds } from "ast_rows"
 import host from "lowering_host"
 
@@ -8,13 +10,14 @@ import { Element, Result } from "../../../aggregate/sequence"
 
 import type { AstSequence, AstWriter } from "ast_rows"
 import type { ExpressionKind } from "core/expression_table/kinds"
-import type { Lowering, SequenceFrame } from "lowering_host"
+import type { Lowering } from "lowering_host"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
     sequence: AstSequence,
-    batch: SequenceFrame,
+    type_id: u32,
+    expression_types: u32[],
     kind: ExpressionKind,
     layout: bool,
     state_active: bool,
@@ -29,7 +32,7 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { frame, writer, sequence, batch, items } = in
+    const { frame, writer, sequence, items } = in
 
     const plan = policy({
         kind: in.kind,
@@ -58,8 +61,14 @@ export default function (in: Input): Output {
 
             const element = match plan.element {
                 Element.Direct => bound,
-                Element.List => host.publishSequenceElement(batch, item, bound, true),
-                _ => host.publishSequenceElement(batch, item, bound, false)
+                Element.List =>
+                    writeCollectionElement(writer, sequence, in.type_id, bound),
+                _ => convertAggregateField(
+                    writer,
+                    sequence,
+                    in.expression_types[integers.widen(item)],
+                    bound
+                )
             }
 
             state.values = state.values.push(element)[0]

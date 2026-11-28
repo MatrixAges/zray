@@ -5,8 +5,9 @@ import { word_radix } from "../../node_headers/block/const"
 import type { Input as Emission } from "../reduce/model"
 
 export type Input = {
-    element: u64,
-    callback: u64
+    start: u32,
+    element: u32,
+    callback: u32
 }
 
 export type Output = Emission.Pick(
@@ -19,12 +20,12 @@ export type Output = Emission.Pick(
 }
 
 export default function (in: Input): Output {
-    const start = in.element / word_radix
-    const count = in.element % word_radix
-    const prefix = in.callback % word_radix
+    const start = integers.widen(in.start)
+    const prefix = integers.widen(in.callback)
+    const count = integers.widen(in.element) + prefix
 
     return {
-        element_start: integers.narrow(start),
+        element_start: in.start,
         element_count: count,
         before_assignment: prefix,
         before: start * word_radix + prefix,

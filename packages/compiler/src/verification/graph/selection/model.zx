@@ -1,0 +1,39 @@
+import type { Table } from "core/type_table/model"
+import type { Layout } from "../../terms/layout"
+
+export type Input = {
+    types: Table,
+    type_id: u32,
+    condition: string,
+    yes: u8[],
+    no: u8[],
+    layout: Layout,
+    destination?: Destination,
+    steps?: Step[]
+}
+
+export type Destination = {
+    parent?: u64,
+    member: u64
+}
+
+export enum Action {
+    Text,
+    Reuse,
+    Allocate
+}
+
+export type Step = {
+    destination: Destination,
+    action: Action,
+    type_id: u32,
+    text?: string,
+    transient?: bool,
+    source?: u8[],
+    count: u64
+}
+
+export type Output = {
+    steps: Step[],
+    valid: bool
+}

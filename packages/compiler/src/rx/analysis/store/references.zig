@@ -80,6 +80,9 @@ const Work = struct {
 
         return &self.definitions[self.sources.at(source).store];
     }
+    pub fn publishDeclaration(self: *Work, row: usize, from: *const rx.ast.Attribute, namespace: []const u8) Declarations.Error!void {
+        try self.publish(self.definition(row), from, namespace);
+    }
     fn publish(self: *Work, item: *const Store.Definition, from: *const rx.ast.Attribute, namespace: []const u8) Declarations.Error!void {
         const published = if (comptime generated)
             try @import("references/publish.zig").append(self.allocator, self.temporary, namespace, item.objects, self.bindings)
@@ -88,7 +91,7 @@ const Work = struct {
 
         if (!published) return self.fail(from.value_location, "Store Object names must be identifiers");
     }
-    fn fail(self: *Work, location: rx.ast.Location, message: []const u8) Declarations.Error {
+    pub fn fail(self: *Work, location: rx.ast.Location, message: []const u8) Declarations.Error {
         const failed = try target.failure(self.allocator, .{ .path = self.owner, .location = location, .code = "capability", .message = message });
 
         self.issue.* = failed.diagnostic;
@@ -96,24 +99,6 @@ const Work = struct {
         return error.InvalidFlow;
     }
 };
-
-fn borrow(handle: *anyopaque) *Work {
-    return @ptrCast(@alignCast(handle));
-}
-
-pub fn storeDeclarationName(handle: *anyopaque, row: ?u64) []const u8 {
-    return borrow(handle).definition(@intCast(row.?)).name;
-}
-
-pub fn publishStoreDeclaration(handle: *anyopaque, row: ?u64, from: []const u8, namespace: []const u8) Declarations.Error!void {
-    const work = borrow(handle);
-
-    try work.publish(work.definition(@intCast(row.?)), Declarations.attribute(from), namespace);
-}
-
-pub fn rejectStoreDeclaration(handle: *anyopaque, at: []const u8, message: []const u8) Declarations.Error!void {
-    return borrow(handle).fail(Declarations.attribute(at).value_location, message);
-}
 
 fn publishSeed(allocator: std.mem.Allocator, storage: std.mem.Allocator, scope: []const u8, objects: []const Store.Object, bindings: *Storage) std.mem.Allocator.Error!bool {
     for (objects) |*object| {

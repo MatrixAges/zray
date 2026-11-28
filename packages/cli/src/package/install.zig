@@ -37,6 +37,7 @@ fn install(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
         .host = @ptrCast(&state),
         .members = state.members.len,
         .maximum_edges = pkgs.Lock.maximum_dependencies,
+        .root = state.root,
         .locked_rows = if (state.previous) |previous| previous.lock.packages.len else 0,
         .has_lock = state.previous != null,
         .reuse = state.reuse,

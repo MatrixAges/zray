@@ -1,3 +1,0 @@
-export { reserveCacheSlot, stageCacheSlot } from "project_host"
-
-export type { CacheInstall, CacheProbe } from "project_host"

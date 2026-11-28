@@ -1,17 +1,19 @@
 <Module>
     <Type from="model" as="Program" />
 
-    <Args in={Program.Entry} out={void} />
+    <Args in={Program.Entry} out={Program.Verification} />
 
     <Call fn="index.ensureSymbolicGraph" in={$in.program} />
 
     <If on={$in.type_only || $in.stores != 0}>
-        <Call
-            fn="index.rejectSymbolicProgram"
-            in={[
-                $in.program,
-                "verification requires an executable pure function without Store capabilities"
-            ]}
+        <Return
+            value={{
+                diagnostic: {
+                    message:
+                        "verification requires an executable pure function without Store capabilities",
+                    unsupported: true
+                }
+            }}
         />
     </If>
 
@@ -28,12 +30,13 @@
     />
 
     <If on={$ctx.walk.diagnostic != null}>
-        <Call
-            fn="index.rejectSymbolicProgram"
-            in={[
-                $in.program,
-                $ctx.walk.diagnostic
-            ]}
+        <Return
+            value={{
+                diagnostic: {
+                    message: $ctx.walk.diagnostic,
+                    unsupported: true
+                }
+            }}
         />
     </If>
 
@@ -53,7 +56,7 @@
         ]}
     />
 
-    <Call fn="index.markSymbolicQueryPrefix" in={$in.program} />
+    <Call fn="index.symbolicQueryPrefix" in={$in.program} />
 
     <Call
         fn="index.runSymbolicProgramBody"
@@ -73,11 +76,12 @@
         />
     </If>
 
-    <Call
-        fn="index.publishSymbolicQuery"
-        in={[
-            $in.program,
-            $ctx.symbolicProgramPreconditions
-        ]}
+    <Return
+        value={{
+            query: {
+                path: $ctx.symbolicProgramPreconditions,
+                prefix: $ctx.symbolicQueryPrefix
+            }
+        }}
     />
 </Module>

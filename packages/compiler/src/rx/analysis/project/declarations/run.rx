@@ -1,7 +1,7 @@
 <Module>
     <Type from="workflow" as="Declaration" />
 
-    <Args in={Declaration.Run} out={void} />
+    <Args in={Declaration.Run} out={Declaration.Plan} />
 
     <Call fn="key" in={$in.kind} />
 
@@ -14,7 +14,13 @@
                 keys: [],
                 values: [],
                 buckets: []
+            },
+            plan: {
+                entries: [],
+                failure: null
             }
         }}
     />
+
+    <Return value={$ctx.visit} />
 </Module>

@@ -1,12 +1,6 @@
-export type Scanner = mutable_opaque
-
-export declare function next(scanner: Scanner): i32 throws {
-    InvalidYamlLayout,
-    OutOfMemory
+export type TokenColumns = {
+    kinds: i32[],
+    starts: u64[],
+    ends: u64[],
+    block_scalars: bool[]
 }
-
-export declare function start(scanner: Scanner): u64
-
-export declare function end(scanner: Scanner): u64
-
-export declare function blockScalar(scanner: Scanner): bool

@@ -1,8 +1,13 @@
 import type { Index as NamespaceIndex } from "core/bytes/index/model"
-import type { DeclarationTarget } from "rx_project_host"
+import type { TextColumn } from "memory"
 import type { Layout } from "../../../syntax/tree/layout"
 
 export type Index = NamespaceIndex
+
+export type Stores = {
+    names: TextColumn,
+    first: u64
+}
 
 export enum Status {
     Accepted,
@@ -31,10 +36,14 @@ export type Binding = Output & {
 }
 
 export type Prepare = {
-    target: DeclarationTarget,
-    edge?: u64,
-    from: u8[],
+    stores: Stores,
+    owner: u64,
     alias?: u8[],
     layout: Layout,
     index: Index
+}
+
+export type Selection = {
+    binding: Binding,
+    message?: string
 }

@@ -1,5 +1,3 @@
-export const stream_end: i32 = 2
-
 export const block_sequence_start: i32 = 7
 
 export const block_mapping_start: i32 = 8

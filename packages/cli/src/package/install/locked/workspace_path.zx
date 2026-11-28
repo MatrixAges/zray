@@ -1,0 +1,21 @@
+import { resolvePathParts } from "lexical_path"
+
+export type Input = {
+    root: string,
+    relative?: string
+}
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const { root, relative } = in
+
+    if (relative == null) {
+        return null
+    }
+
+    return resolvePathParts([
+        root,
+        relative
+    ])
+}

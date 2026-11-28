@@ -10,19 +10,31 @@ pub const Paths = struct { root: []const u8, executable: []const u8, library: []
 pub fn resolve(io: std.Io, allocator: std.mem.Allocator, environment: *const std.process.Environ.Map) !Paths {
     const zig = environment.get(constants.zig_override);
     const windows = builtin.os.tag == .windows;
-    var state: workflow.State = .{ .io = io, .allocator = allocator, .environment = environment, .override = zig };
+    var state: workflow.State = .{ .io = io, .allocator = allocator, .environment = environment };
 
     defer state.deinit();
 
-    const outcome = source.resolve.executeValue(allocator, &.{
+    var scratch = std.heap.ArenaAllocator.init(allocator);
+
+    defer scratch.deinit();
+
+    const outcome = source.resolve.executeIn(scratch.allocator(), &.{
         .toolchain = @ptrCast(&state),
-        .external = zig != null,
+        .override = zig,
         .windows = windows,
         .expected_marker = if (zig != null) bundle.resources_digest else bundle.digest,
         .zip = bundle.zig_format == .zip,
+        .standard_archive = bundle.archive,
+        .standard_digest = bundle.resources_digest,
+        .zig_digest = bundle.zig_digest,
+        .library_suffixes = &.{
+            .official = constants.official_lib,
+            .system = constants.system_lib,
+            .sibling = constants.sibling_lib,
+        },
     }) catch |err| return if (err == error.ToolchainHostFailure) state.failure.? else err;
 
-    switch (outcome) {
+    switch (outcome.status) {
         .Ready => {},
         .IncompleteToolchainCache => return error.IncompleteToolchainCache,
         .ZxcZigLibraryNotFound => return error.ZxcZigLibraryNotFound,
@@ -31,8 +43,8 @@ pub fn resolve(io: std.Io, allocator: std.mem.Allocator, environment: *const std
 
     return .{
         .root = state.root,
-        .executable = if (zig != null) state.executable else try std.fs.path.join(allocator, &.{ state.root, constants.zig_directory, if (windows) constants.windows_zig_executable else constants.zig_directory }),
-        .library = if (zig != null) state.library else try std.fs.path.join(allocator, &.{ state.root, constants.zig_directory, constants.official_lib }),
+        .executable = outcome.executable orelse try std.fs.path.join(allocator, &.{ state.root, constants.zig_directory, if (windows) constants.windows_zig_executable else constants.zig_directory }),
+        .library = outcome.library orelse try std.fs.path.join(allocator, &.{ state.root, constants.zig_directory, constants.official_lib }),
         .standard = try std.fs.path.join(allocator, &.{ state.root, constants.standard_directory }),
     };
 }

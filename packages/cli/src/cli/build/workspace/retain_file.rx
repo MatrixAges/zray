@@ -6,13 +6,6 @@
     <Call fn="retain" in={$in} />
 
     <If on={$ctx.retain}>
-        <Call
-            fn="index.writeAtomic"
-            in={[
-                $in.fs,
-                $in.path,
-                $in.source
-            ]}
-        />
+        <Call module="write_artifact" in={$in} />
     </If>
 </Module>

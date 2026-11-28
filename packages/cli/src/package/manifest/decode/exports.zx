@@ -12,6 +12,7 @@ import {
     mapping_size
 } from "./const"
 import mapping from "./mapping"
+import nodeAt from "./node_at"
 import string from "./string"
 
 import type { Export } from "./model"
@@ -31,7 +32,7 @@ export default function (in: Input): Output {
     const count = pairs.length / mapping_size
 
     if (count == 0) {
-        yaml.reject(document, node, empty_exports)
+        yaml.reject(document.parser, node, empty_exports)
     }
 
     const empty: Export[] = []
@@ -45,16 +46,22 @@ export default function (in: Input): Output {
         next: state => {
             const row = state.row
             const offset = row * mapping_size
-            const key = yaml.node(document, pairs[offset], null)
-            const path = yaml.text(key)
+            const key = nodeAt({
+                document,
+                id: pairs[offset]
+            })
+            const path = key.text
 
             if (!exported(path)) {
-                yaml.reject(document, key, bad_export_key)
+                yaml.reject(document.parser, key, bad_export_key)
             }
 
-            const item = yaml.node(document, pairs[offset + 1], null)
+            const item = nodeAt({
+                document,
+                id: pairs[offset + 1]
+            })
 
-            if (yaml.pairs(item) != null) {
+            if (item.pairs != null) {
                 const module_node = compiled({
                     document,
                     node: item
@@ -80,7 +87,7 @@ export default function (in: Input): Output {
                     text: source,
                     kind: Kind.Relative
                 })) {
-                    yaml.reject(document, item, bad_export_source)
+                    yaml.reject(document.parser, item, bad_export_source)
                 }
 
                 state.rows = state.rows.push({

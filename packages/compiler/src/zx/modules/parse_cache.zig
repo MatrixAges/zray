@@ -396,14 +396,40 @@ const ParseWork = struct {
     staging: []std.heap.ArenaAllocator,
     next: std.atomic.Value(usize) = .init(0),
     failed: std.atomic.Value(bool) = .init(false),
+    const rule = @import("generated_parse_cache_worker");
+    const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
+
+    const Publisher = struct {
+        work: *ParseWork,
+        staged: std.mem.Allocator,
+        scratch: *zx.Arena,
+        store_0: *StoreState,
+        pub fn commit(self: *Publisher, pending: anytype) std.mem.Allocator.Error!void {
+            const next = pending.store_0 orelse return;
+            const work = self.work;
+            const entries = work.cache.entries.values.items;
+
+            for (next.work) |item| {
+                const row: usize = @intCast(item.row);
+
+                if (item.miss) |miss| {
+                    work.results[row] = try stageResult(self.staged, self.scratch, .{ .path = miss.path, .source = miss.source }, miss.digest[0..@sizeOf(Digest)].*);
+                    work.ready[row] = true;
+                } else {
+                    work.output.bind(row, entries[@intCast(item.hit.?)]);
+                }
+            }
+
+            self.store_0.* = next;
+        }
+    };
     fn run(work: *ParseWork, participant: usize) void {
-        const rule = @import("generated_parse_cache_worker");
         const memory = zx.memory;
         var scratch = zx.Arena.init(std.heap.page_allocator);
 
         defer scratch.deinit();
 
-        const worker: ParseWorker = .{ .work = work, .arena = &scratch, .staged = work.staging[participant].allocator() };
+        const staged = work.staging[participant].allocator();
         const entries = &work.cache.entries;
         const cached_text = memory.borrowReferenceColumn("text", entries.values.items);
         const cached_digest = memory.borrowReferenceColumn("digest", entries.values.items);
@@ -435,7 +461,6 @@ const ParseWork = struct {
             const range_view: std.meta.Child(@FieldType(input_type, "range")) = .{ .first = first, .count = @min(width, work.results.len - first) };
 
             const input: input_type = .{
-                .worker = @ptrCast(&worker),
                 .cache = &cache_view,
                 .sources = &sources_view,
                 .range = &range_view,
@@ -446,8 +471,14 @@ const ParseWork = struct {
                 defer _ = batch_arena.reset(.retain_capacity);
                 var batch_buf: [4096]u8 = undefined;
                 var batch_fallback = std.heap.BufferFirstAllocator.init(&batch_buf, batch_arena.allocator());
+                var state: std.meta.Child(StoreState) = .{ .work = &.{} };
+                var state_ptr: StoreState = &state;
+                var publisher: Publisher = .{ .work = work, .staged = staged, .scratch = &scratch, .store_0 = &state_ptr };
 
-                break :ok rule.executeIn(batch_fallback.allocator(), &input) catch unreachable;
+                break :ok rule.executeIn(batch_fallback.allocator(), &input, &publisher) catch |err| switch (@as(anyerror, err)) {
+                    error.OutOfMemory => false,
+                    else => unreachable,
+                };
             };
 
             if (!ok) {
@@ -458,31 +489,6 @@ const ParseWork = struct {
         }
     }
 };
-
-const ParseWorker = struct {
-    work: *ParseWork,
-    arena: *zx.Arena,
-    staged: std.mem.Allocator,
-    fn borrow(handle: *const anyopaque) *const ParseWorker {
-        return @ptrCast(@alignCast(handle));
-    }
-};
-
-pub fn bindParseWorkerHit(handle: *const anyopaque, index: u64, hit: u64) void {
-    const work = ParseWorker.borrow(handle).work;
-
-    work.output.bind(@intCast(index), work.cache.entries.values.items[@intCast(hit)]);
-}
-
-pub fn stageParseWorkerResult(handle: *const anyopaque, index: u64, source: []const u8, path: []const u8, digest: []const u8) bool {
-    const worker = ParseWorker.borrow(handle);
-    const entry = stageResult(worker.staged, worker.arena, .{ .path = path, .source = source }, digest[0..@sizeOf(Digest)].*) catch return false;
-    const row: usize = @intCast(index);
-    worker.work.results[row] = entry;
-    worker.work.ready[row] = true;
-
-    return true;
-}
 
 fn stageResult(staged: std.mem.Allocator, scratch: *zx.Arena, request: Request, digest: Digest) std.mem.Allocator.Error!*Entry {
     const entry = try staged.create(Entry);

@@ -1,4 +1,4 @@
-import type { Directory, Output as Publication } from "publication_host"
+import type { Directory } from "publication_host"
 
 export type Sidecars = {
     directory: Directory,
@@ -6,6 +6,8 @@ export type Sidecars = {
 }
 
 export type Input = Sidecars & {
-    publication: Publication,
-    assembly: bool
+    binary_source: string,
+    binary_target: string,
+    assembly_source?: string,
+    assembly_target?: string
 }

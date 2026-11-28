@@ -63,15 +63,6 @@ fn body(view: ir.FunctionView) Body {
     };
 }
 
-pub fn appendSourceLinkEntry(handle: *const anyopaque) error{ OutOfMemory, InvalidModule }!void {
-    const entry: *const Entry = @ptrCast(@alignCast(handle));
-
-    entry.nodes.appendProgram(entry.storage, entry.program, entry.temporary) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => return error.InvalidModule,
-    };
-}
-
 // The views are used only for pointer and length comparison. The payload stays in its original columns.
 fn columns(table: anytype) []const []const u8 {
     const Table = std.meta.Child(@TypeOf(table));

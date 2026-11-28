@@ -1,1 +1,2 @@
-export { nextDirectoryEntry, hashDirectoryBytes } from "snapshot_host"
+export { sha256 } from "std:crypto"
+export { nextDirectoryEntry } from "snapshot_host"

@@ -5,20 +5,23 @@
 
     <Call fn="scan" in={$in} />
 
-    <Call
-        fn="index.reserve"
-        in={[
-            $in.dependencies,
-            $ctx.scan.count
-        ]}
-    />
-
-    <Call fn="register" in={$in} />
+    <Loop on={$in.index < $in.batches.length}>
+        <Call
+            module="register_batch"
+            in={{
+                ...$in,
+                index: 0,
+                new_inputs: false,
+                paths: []
+            }}
+        />
+    </Loop>
 
     <Return
         value={{
-            complete: $ctx.scan.complete,
-            new_inputs: $ctx.register
+            complete: $ctx.scan,
+            new_inputs: $ctx.register_batch.new_inputs,
+            paths: $ctx.register_batch.paths
         }}
     />
 </Module>

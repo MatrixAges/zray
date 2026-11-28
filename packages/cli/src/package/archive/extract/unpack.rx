@@ -9,12 +9,19 @@
         <Call
             module="step"
             in={{
-                archive: $in,
+                ...$in,
+                offset: 0,
+                files: [],
                 status: Extract.Status.Valid,
                 running: true
             }}
         />
     </Loop>
 
-    <Return value={$ctx.step.status} />
+    <Return
+        value={$ctx.step.pick([
+            "status",
+            "files"
+        ])}
+    />
 </Module>

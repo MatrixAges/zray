@@ -1,5 +1,5 @@
-import type { AstWriter } from "ast_rows"
-import type { Lowering, MatchFrame } from "lowering_host"
+import type { AstSequence, AstWriter } from "ast_rows"
+import type { Lowering } from "lowering_host"
 import type { ColumnLengths } from "memory"
 import type { BinaryExpressions } from "../expressions/evaluate/model"
 import type { Input as PlanInput } from "./model"
@@ -8,7 +8,7 @@ export type Input = PlanInput.Omit("result") & {
     frame: Lowering,
     writer: AstWriter,
     binary_expressions: BinaryExpressions,
-    selection: MatchFrame,
+    body: AstSequence,
     fallback: u32,
     layout: bool,
     positions: ColumnLengths
@@ -16,5 +16,6 @@ export type Input = PlanInput.Omit("result") & {
 
 export type Fallback = Input.Pick("frame", "fallback", "layout")
 
-export { lowerExpression, publishMatchSubject } from "lowering_host"
+export { appendAstBindingRows } from "ast_rows"
+export { cacheLoweredOperand, lowerExpression } from "lowering_host"
 export { requireAllocation } from "memory"

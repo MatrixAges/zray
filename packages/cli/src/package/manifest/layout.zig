@@ -1,24 +1,28 @@
 const std = @import("std");
 const rule = @import("cli_source").manifest_layout;
-const c = @import("yaml.zig").c;
 const Scanner = @import("manifest_yaml_scanner");
 const Field = @import("lint").configuration.yaml.Field;
 
 pub fn collect(allocator: std.mem.Allocator, source: []const u8) ![]const Field {
     _ = try std.unicode.Utf8View.init(source);
 
-    var parser: c.yaml_parser_t = undefined;
+    var scratch = std.heap.ArenaAllocator.init(allocator);
 
-    if (c.yaml_parser_initialize(&parser) == 0) return error.OutOfMemory;
+    defer scratch.deinit();
 
-    defer c.yaml_parser_delete(&parser);
-    c.yaml_parser_set_input_string(&parser, source.ptr, source.len);
+    const temporary = scratch.allocator();
+    const tokens = try Scanner.read(temporary, source);
 
-    var scanner: Scanner = .{ .parser = &parser };
+    const positions = try rule.executeValue(temporary, &.{
+        .tokens = &.{
+            .kinds = tokens.kinds,
+            .starts = tokens.starts,
+            .ends = tokens.ends,
+            .block_scalars = tokens.block_scalars,
+        },
+        .source = source,
+    });
 
-    defer scanner.deinit();
-
-    const positions = try rule.executeValue(allocator, &.{ .scanner = @ptrCast(&scanner), .source = source });
     const fields = try allocator.alloc(Field, positions.len);
 
     for (positions, fields) |position, *field| {

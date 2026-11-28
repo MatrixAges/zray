@@ -1,0 +1,21 @@
+import crypto from "std:crypto"
+import encoding from "std:encoding"
+
+import type { File } from "./model"
+
+export type Output = File[]
+
+export type Input = {
+    files: Output,
+    path: string,
+    content: u8[],
+    executable: bool
+}
+
+export default function (in: Input): Output {
+    return in.files.push({
+        path: in.path,
+        sha256: encoding.encodeHex(crypto.sha256(in.content)),
+        executable: in.executable
+    })[0]
+}

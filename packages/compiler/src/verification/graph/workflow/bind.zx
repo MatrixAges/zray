@@ -1,5 +1,3 @@
-import host from "verification_publication_host"
-
 import commit from "../commit"
 import { definition_limit_message } from "../const"
 import identity from "../identity"
@@ -8,20 +6,24 @@ import { Action } from "../model"
 import type { Bind as Input, Output } from "./model"
 
 export default function (in: Input): Output {
-    const { graph, lookup, names, selected } = in
+    const { lookup, names, selected } = in
 
-    if (selected.action != Action.Append) {
+    if (selected.action == Action.Atom || selected.action == Action.Reuse) {
         const name = match selected.action {
             Action.Atom => in.expression,
-            Action.Reuse => names[selected.position],
-            Action.Limit =>
-                host.rejectSymbolicDefinition(graph, definition_limit_message),
-            _ => host.rejectSymbolicDefinition(graph, null)
+            _ => names[selected.position]
         }
 
         return {
-            name,
-            definition: null
+            name
+        }
+    }
+
+    if (selected.action != Action.Append) {
+        return {
+            failure: {
+                message: selected.action == Action.Limit ? definition_limit_message : null
+            }
         }
     }
 

@@ -1,4 +1,4 @@
-export type Archive = mutable_opaque
+export type Directory = opaque
 
 export enum EntryKind {
     Directory,
@@ -9,15 +9,38 @@ export enum EntryKind {
 export type Entry = {
     name: string,
     kind: EntryKind,
-    executable: bool
+    executable: bool,
+    content: u8[],
+    end: u64
 }
 
-export declare function nextTar(archive: Archive): Entry? throws { ArchiveHostFailure }
-export declare function makeTarDirectory(archive: Archive, path: string): void throws {
-    ArchiveHostFailure
+export declare function nextTar(allocator, source: u8[], offset: u64): Entry? throws {
+    EndOfStream, InvalidCharacter, OutOfMemory, Overflow, PaxInvalidAttributeEnd,
+    PaxNullInKeyword, PaxNullInValue, PaxSizeAttrOverflow, ReadFailed, StreamTooLong,
+    TarHeader, TarHeaderChksum, TarHeadersTooBig, TarInsufficientBuffer,
+    TarNumericValueNegative, TarNumericValueTooBig, TarUnsupportedHeader,
+    UnexpectedEndOfStream
 }
+
+export declare function makeTarDirectory(io, directory: Directory, path: string): void throws {
+    AccessDenied, AntivirusInterference, BadPathName, Canceled, DeviceBusy, DiskQuota,
+    FileBusy, FileLocksUnsupported, FileNotFound, FileTooBig, IsDir, LinkQuotaExceeded,
+    NameTooLong, NetworkNotFound, NoDevice, NoSpaceLeft, NotDir, PathAlreadyExists,
+    PermissionDenied, PipeBusy, ProcessFdQuotaExceeded, ReadOnlyFileSystem, Streaming,
+    SymLinkLoop, SystemFdQuotaExceeded, SystemResources, Unexpected, WouldBlock
+}
+
 export declare function writeTarFile(
-    archive: Archive,
+    io,
+    directory: Directory,
     path: string,
+    content: u8[],
     executable: bool
-): void throws { ArchiveHostFailure }
+): void throws {
+    AccessDenied, AntivirusInterference, BadPathName, BrokenPipe, Canceled, DeviceBusy,
+    DiskQuota, FileBusy, FileLocksUnsupported, FileNotFound, FileTooBig, InputOutput,
+    IsDir, LinkQuotaExceeded, LockViolation, NameTooLong, NetworkNotFound, NoDevice,
+    NoSpaceLeft, NotDir, NotOpenForWriting, PathAlreadyExists, PermissionDenied, PipeBusy,
+    ProcessFdQuotaExceeded, ReadOnlyFileSystem, Streaming, SymLinkLoop, SystemFdQuotaExceeded,
+    SystemResources, Unexpected, WouldBlock
+}

@@ -23,3 +23,18 @@ export type Called = {
     program: SymbolicProgram,
     returns_unit: bool
 }
+
+export type Diagnostic = {
+    message: string,
+    unsupported: bool
+}
+
+export type Query = {
+    prefix: u64,
+    path: string
+}
+
+export type Verification = {
+    diagnostic?: Diagnostic,
+    query?: Query
+}

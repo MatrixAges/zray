@@ -1,0 +1,11 @@
+import type { Output as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.entry_publication.pending = {
+        function_id: in.function
+    }
+}

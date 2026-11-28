@@ -6,6 +6,8 @@ export const content_directory: string = "contents"
 
 export const archive_directory: string = "archives"
 
+export const archive_suffix: string = ".tar.gz"
+
 export const package_directory: string = "package"
 
 export const receipt_file: string = "receipt.json"

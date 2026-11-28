@@ -3,6 +3,7 @@ const builtin = @import("builtin");
 const store = @import("../../store.zig");
 const archive = store.archive;
 const receipt = store.receipt;
+const transfer = @import("../download.zig");
 const constants = store.constants;
 pub const Error = error{PackageCacheFailure};
 
@@ -10,15 +11,12 @@ pub const State = struct {
     io: std.Io,
     allocator: std.mem.Allocator,
     temporary: std.mem.Allocator,
-    source: []const u8,
-    source_base: []const u8,
     root: []const u8,
     destination: []const u8,
     digest: [32]u8,
     hex: []const u8,
-    blob_path: []const u8 = undefined,
-    bytes: ?[]u8 = null,
-    verified: archive.Verified = undefined,
+    bytes: ?[]const u8 = null,
+    downloaded: ?transfer.Downloaded = null,
     staging: ?[]const u8 = null,
     directory: ?std.Io.Dir = null,
     extracted: ?archive.Result = null,
@@ -27,7 +25,12 @@ pub const State = struct {
         self.close();
 
         if (self.staging) |staging| std.Io.Dir.cwd().deleteTree(self.io, staging) catch {};
-        if (self.bytes) |bytes| self.allocator.free(bytes);
+
+        if (self.downloaded) |*payload| {
+            payload.deinit();
+        } else if (self.bytes) |bytes| {
+            self.allocator.free(bytes);
+        }
     }
     fn close(self: *State) void {
         if (self.extracted) |*extracted| extracted.deinit();
@@ -62,30 +65,29 @@ pub fn cached(handle: *anyopaque) Error!bool {
     return true;
 }
 
-pub fn readBlob(handle: *anyopaque) Error!bool {
+pub fn readBlob(handle: *anyopaque, path: []const u8) Error!?[]const u8 {
     const self = State.get(handle);
-    const path = std.fmt.allocPrint(self.temporary, "{s}/{s}/{s}.tar.gz", .{ self.root, constants.archive_directory, self.hex }) catch |err| return self.fail(err);
-
-    self.blob_path = path;
 
     self.bytes = std.Io.Dir.cwd().readFileAlloc(self.io, path, self.allocator, .limited(archive.maximum_archive + 1)) catch |err| switch (err) {
-        error.FileNotFound => return false,
+        error.FileNotFound => return null,
         else => return self.fail(err),
     };
 
-    return true;
+    return self.bytes;
 }
 
-pub fn download(handle: *anyopaque) Error!void {
+pub fn download(handle: *anyopaque, source: []const u8, base: []const u8) Error![]const u8 {
     const self = State.get(handle);
 
-    self.bytes = @import("../download.zig").read(self.io, self.allocator, self.source, self.source_base) catch |err| return self.fail(err);
+    self.downloaded = transfer.read(self.io, self.allocator, source, base) catch |err| return self.fail(err);
+
+    return self.downloaded.?.bytes;
 }
 
-pub fn verifyBlob(handle: *anyopaque) Error!void {
+pub fn verifyBlob(handle: *anyopaque, bytes: []const u8) Error!void {
     const self = State.get(handle);
 
-    self.verified = archive.verify(self.bytes.?, self.digest) catch |err| return self.fail(err);
+    _ = archive.verify(bytes, self.digest) catch |err| return self.fail(err);
 }
 
 pub fn createStaging(handle: *anyopaque) Error!void {
@@ -105,7 +107,7 @@ pub fn createStaging(handle: *anyopaque) Error!void {
     self.staging = staging;
 }
 
-pub fn unpack(handle: *anyopaque) Error!void {
+pub fn unpack(handle: *anyopaque, bytes: []const u8) Error!void {
     const self = State.get(handle);
     const io = self.io;
     const directory = std.Io.Dir.cwd().openDir(io, self.staging.?, .{}) catch |err| return self.fail(err);
@@ -118,7 +120,7 @@ pub fn unpack(handle: *anyopaque) Error!void {
 
     defer package.close(io);
 
-    self.extracted = archive.unpack(io, self.allocator, self.verified, package) catch |err| return self.fail(err);
+    self.extracted = archive.unpack(io, self.allocator, .{ .source = bytes }, package) catch |err| return self.fail(err);
 }
 
 pub fn writeReceipt(handle: *anyopaque) Error!void {
@@ -138,12 +140,6 @@ pub fn checkStaging(handle: *anyopaque) Error!void {
 
 pub fn closeStaging(handle: *anyopaque) void {
     State.get(handle).close();
-}
-
-pub fn publishBlob(handle: *anyopaque) Error!void {
-    const self = State.get(handle);
-
-    write(self.io, self.blob_path, self.bytes.?) catch |err| return self.fail(err);
 }
 
 pub fn publishStaging(handle: *anyopaque) Error!bool {

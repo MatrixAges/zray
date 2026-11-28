@@ -1,6 +1,4 @@
 export type Directory = opaque
-export type Output = mutable_opaque
-export type Library = mutable_opaque
 export type Verification = mutable_opaque
 
 export type ResourceWalk = opaque
@@ -42,8 +40,19 @@ export enum PublicationFileKind {
     Other
 }
 
-export declare function copyAssembly(output: Output): void throws { PublicationFailure }
-export declare function copyBinary(output: Output): void throws { PublicationFailure }
+export declare function relativePathFrom(allocator, base: string, target: string): string
+    throws { OutOfMemory } concurrent
+
+export declare function copyPublishedFile(io, source: string, destination: string): void throws {
+    AccessDenied, AntivirusInterference, BadPathName, BrokenPipe, Canceled,
+    ConnectionResetByPeer, CrossDevice, DeviceBusy, DirNotEmpty, DiskQuota, FileBusy,
+    FileLocksUnsupported, FileNotFound, FileTooBig, HardwareFailure, InputOutput,
+    InvalidFileName, IsDir, LinkQuotaExceeded, LockViolation, NameTooLong, NetworkNotFound,
+    NoDevice, NoSpaceLeft, NotDir, NotOpenForReading, NotOpenForWriting, OperationUnsupported,
+    PathAlreadyExists, PermissionDenied, PipeBusy, ProcessFdQuotaExceeded, ReadOnlyFileSystem,
+    SocketUnconnected, Streaming, SymLinkLoop, SystemFdQuotaExceeded, SystemResources,
+    Unexpected, WouldBlock
+}
 
 export declare function openDirectory(directory: Directory): void throws { PublicationFailure }
 export declare function nextEntry(directory: Directory, name: string): DirectoryEntry
@@ -59,26 +68,22 @@ export declare function removeRetiredFile(directory: Directory, target: string):
 export declare function digestEntry(directory: Directory, path: string): InventoryEntry
     throws { PublicationFailure }
 
-export declare function capture(verification: Verification): void throws { PublicationFailure }
+export declare function capture(verification: Verification): u64 throws { PublicationFailure }
 export declare function verify(verification: Verification): bool throws { PublicationFailure }
 export declare function retain(verification: Verification): void
 
-export declare function checkBinary(output: Output): string throws { PublicationFailure }
-export declare function checkAssembly(output: Output): string throws { PublicationFailure }
-export declare function checkBindings(output: Output): void throws { PublicationFailure }
-export declare function writeBindings(output: Output): void throws { PublicationFailure }
+export declare function checkPublishedTarget(
+    allocator,
+    verification: Verification,
+    path: string
+): string throws { PublicationFailure }
 
-export declare function captureLibraryInputs(library: Library): u64 throws {
-    PublicationFailure
-}
-export declare function relativeInput(library: Library, path: string): string throws {
-    PublicationFailure
-}
-export declare function prepareRetirement(library: Library): string[] throws {
-    PublicationFailure
-}
-export declare function validatePublishedPath(library: Library, path: string): string
-    throws { PublicationFailure }
+export declare function prepareRetirement(
+    allocator,
+    verification: Verification,
+    destination: string,
+    managed: string[]
+): string[] throws { PublicationFailure }
 
 export declare function resolvePublicationPath(
     allocator,

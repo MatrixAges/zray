@@ -34,14 +34,13 @@ pub fn write(request: Request) ![]const inventory.File {
 
     rule.executeIn(request.allocator, &.{
         .stage = @ptrCast(&stage_ref),
-        .fs = @ptrCast(&state.disk),
         .files = &state.files,
         .resources = &.{
             .resources = @ptrCast(&native_ref),
             .setup = &paths.setup,
             .count = request.loaded.config.native_modules.len,
         },
-    }) catch |err| return failure.unwrap(state.disk.unwrap(err));
+    }) catch |err| return failure.unwrap(err);
 
     return state.managed;
 }

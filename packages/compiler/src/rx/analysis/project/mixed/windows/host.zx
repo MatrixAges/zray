@@ -1,6 +1,5 @@
 export {
     MixedAction,
-    mixedBatchEnd,
     prefetchMixedWindow,
     recordMixedBody,
     rejectMixedBody,

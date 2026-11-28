@@ -1,11 +1,12 @@
 import bytes from "std:bytes"
 
-import { word_range } from "../diagnostics/const"
 import { path_prefix_limit } from "./const"
+
+import type { Layout } from "./model"
 
 export type Input = string
 
-export type Output = u64?
+export type Output = Layout?
 
 export default function (in: Input): Output {
     const data = bytes.fromText(in)
@@ -33,9 +34,16 @@ export default function (in: Input): Output {
             }
         },
         return: state => {
-            const layout = state.count * word_range + state.length
+            const layout: Layout? = match {
+                state.valid => {
+                    body: in,
+                    count: state.count,
+                    length: state.length
+                },
+                _ => null
+            }
 
-            return state.valid ? layout : null
+            return layout
         }
     })
 }

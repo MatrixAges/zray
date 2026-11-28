@@ -2,6 +2,7 @@ const std = @import("std");
 const Inputs = @import("watch_inputs").Inputs;
 const inventory = @import("../inventory.zig");
 const effects = @import("../../publication/effects.zig");
+const Verification = @import("../../publication/verification.zig");
 const output = @import("../../watch/output.zig");
 const rule = @import("cli_source").library_retirement_plan;
 const zx = @import("zx");
@@ -26,7 +27,7 @@ const Plan = struct {
     allocator: std.mem.Allocator,
     backing: std.mem.Allocator,
     directory: []const u8,
-    current: []const inventory.File,
+    current: []const []const u8,
     inputs: *Inputs,
     planning: std.heap.ArenaAllocator,
     row: std.heap.ArenaAllocator,
@@ -40,7 +41,13 @@ const Plan = struct {
     hex: [Sha256.digest_length * 2]u8 = undefined,
 };
 
-pub fn retired(io: std.Io, allocator: std.mem.Allocator, backing: std.mem.Allocator, directory: []const u8, current: []const inventory.File, inputs: *Inputs) ![]const []const u8 {
+pub fn prepareRetirement(allocator: std.mem.Allocator, handle: *anyopaque, destination: []const u8, managed: []const []const u8) Error![]const []const u8 {
+    const self = effects.borrow(Verification, handle);
+
+    return retired(self.io, allocator, self.allocator, destination, managed, self.inputs) catch |err| self.failure.save(err);
+}
+
+fn retired(io: std.Io, allocator: std.mem.Allocator, backing: std.mem.Allocator, directory: []const u8, current: []const []const u8, inputs: *Inputs) ![]const []const u8 {
     var plan: Plan = .{
         .io = io,
         .allocator = allocator,
@@ -125,7 +132,7 @@ pub fn reserveTargets(handle: *const anyopaque) Error![]const []const u8 {
     const targets = memory.alloc([]const u8, self.current.len) catch |err| return self.failure.save(err);
 
     for (self.current, 0..) |item, index| {
-        targets[index] = std.fs.path.resolve(memory, &.{ self.directory, item.path }) catch |err| return self.failure.save(err);
+        targets[index] = std.fs.path.resolve(memory, &.{ self.directory, item }) catch |err| return self.failure.save(err);
     }
 
     return targets;

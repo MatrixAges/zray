@@ -1,62 +1,42 @@
 <Module>
     <Type from="model" as="Protocol" />
 
-    <Args in={Protocol.Input} out={Protocol.Status} />
+    <Args in={Protocol.Input} out={Protocol.Output} />
 
     <Call module="read" in={$in} />
 
-    <If
-        on={$ctx.read != Protocol.Status.Success &&
-            $ctx.read != Protocol.Status.SuccessWithDigest}
-    >
-        <Return value={$ctx.read} />
-    </If>
-
-    <Call fn="index.inputLayout" in={$in.response} />
-
-    <Call fn="layout" />
-
-    <If on={$ctx.layout.count != 0}>
-        <Call
-            fn="index.reserveInputs"
-            in={[
-                $in.response,
-                $ctx.layout.count,
-                $ctx.layout.length
-            ]}
+    <If on={$ctx.read.status != Protocol.Status.Success}>
+        <Return
+            value={{
+                status: $ctx.read.status,
+                paths: {
+                    rows: [],
+                    length: 0
+                },
+                cached: false
+            }}
         />
-
-        <Call fn="index.selectedInputBytes" in={$in.response} />
-
-        <Loop on={$in.row < $in.count}>
-            <Call
-                module="input_row"
-                in={{
-                    body: $ctx.selectedInputBytes,
-                    at: 0,
-                    response: $in.response,
-                    count: $ctx.layout.count,
-                    row: 0,
-                    offset: 0
-                }}
-            />
-        </Loop>
     </If>
 
-    <Call fn="index.hasDiagnostics" in={$in.response} />
+    <Call fn="materialize" in={$ctx.read.selection.inputs} />
 
-    <If
-        on={!$in.exited || $ctx.read != Protocol.Status.SuccessWithDigest ||
-            $ctx.hasDiagnostics}
-    >
-        <Return value={Protocol.Status.BackendFailed} />
-    </If>
+    <Call
+        fn="status"
+        in={{
+            exited: $in.exited,
+            selection: $ctx.read.selection
+        }}
+    />
 
-    <Call fn="index.hasInputs" in={$in.response} />
-
-    <If on={$ctx.hasInputs}>
-        <Return value={Protocol.Status.SuccessWithInputs} />
-    </If>
-
-    <Return value={Protocol.Status.Success} />
+    <Return
+        value={{
+            status: $ctx.status,
+            paths: $ctx.materialize,
+            ...$ctx.read.selection.pick([
+                "digest",
+                "cached",
+                "diagnostics"
+            ])
+        }}
+    />
 </Module>

@@ -1,5 +1,5 @@
 import type { ReadColumn } from "memory"
-import type { PortGraph } from "rx_project_host"
+import type { DeclaredPort } from "rx_project_host"
 import type { Input as Declarations } from "../../contracts/ports"
 
 export type Origins = {
@@ -9,22 +9,17 @@ export type Origins = {
 
 export type Request = Declarations.Omit("start") & {
     modules: u64,
-    graph: PortGraph,
     origins: Origins
 }
 
 export type State = {
     request: Request,
-    position: u64,
     start: u64
 }
 
 export type Range = {
     inferred_until: u64,
-    nodes: u64,
-    declared: bool,
-    input: u32,
-    output: u32,
+    declared?: DeclaredPort,
     next_module: u64,
     next: u64
 }

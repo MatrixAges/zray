@@ -1,37 +1,46 @@
 import memory from "memory"
-import host from "project_host"
 
-import type { Dispatch as Input } from "./model"
+import type { Dispatch as Input, Work } from "./model"
 
-export type Output = bool
+export type Output = Work[]
 
 export default function (in: Input): Output {
-    const { worker, sources, hits, digests, range, has_output } = in
+    const { sources, hits, digests, range, has_output } = in
+
+    const pending: Work[] = []
 
     return loop({
         row: 0,
-        success: true
+        pending
     }, {
-        while: state => state.success && state.row < range.count,
+        while: state => state.row < range.count,
         next: state => {
-            const row = state.row
-            const index = range.first + row
-            const hit = hits[row]
+            const offset = state.row
+            const row = range.first + offset
+            const hit = hits[offset]
 
             if (hit == 0) {
-                state.success = host.stageParseWorkerResult(
-                    worker,
-                    index,
-                    memory.readTextColumn(sources.texts, index),
-                    memory.readTextColumn(sources.paths, index),
-                    digests[row]
-                )
+                const work: Work = {
+                    row,
+                    miss: {
+                        source: memory.readTextColumn(sources.texts, row),
+                        path: memory.readTextColumn(sources.paths, row),
+                        digest: digests[offset]
+                    }
+                }
+
+                state.pending = state.pending.push(work)[0]
             } else if (has_output) {
-                host.bindParseWorkerHit(worker, index, hit - 1)
+                const work: Work = {
+                    row,
+                    hit: hit - 1
+                }
+
+                state.pending = state.pending.push(work)[0]
             }
 
             state.row += 1
         },
-        return: state => state.success
+        return: state => state.pending
     })
 }

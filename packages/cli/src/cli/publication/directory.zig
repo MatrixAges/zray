@@ -28,6 +28,10 @@ pub fn deinit(self: *Self) void {
     self.directory.close(self.io);
 }
 
+pub fn copyPublishedFile(io: std.Io, source: []const u8, destination: []const u8) std.Io.Dir.CopyFileError!void {
+    return std.Io.Dir.cwd().copyFile(source, .cwd(), destination, io, .{ .make_path = true });
+}
+
 pub fn openDirectory(handle: *const anyopaque) effects.Error!void {
     return effects.state(Self, handle).open(true);
 }

@@ -7,7 +7,9 @@
         <Call
             fn="host.convertCollectionResult"
             in={[
-                $in.frame,
+                $in.ast.writer,
+                $in.ast.sequence,
+                $in.result_type,
                 $in.result
             ]}
         />

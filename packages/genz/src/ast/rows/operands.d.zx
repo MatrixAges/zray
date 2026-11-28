@@ -1,11 +1,3 @@
-export type AstObjectRows = {
-    tags: ExpressionsKind[],
-    offsets: u32[],
-    object_type_expr: u32?[],
-    object_fields_start: u32[],
-    object_fields_len: u32[]
-}
-
 export type AstOperandRows = {
     tags: ExpressionsKind[],
     offsets: u32[],

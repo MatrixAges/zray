@@ -13,7 +13,8 @@ pub const artifact_name = constants.artifact_name;
 comptime {
     const Prefix = std.zig.Server.Message.PathPrefix;
 
-    if (@backingInt(Prefix.zig_lib) != constants.prefix_zig_lib or
+    if (@typeInfo(Prefix).@"enum".tag_type != u8 or
+        @backingInt(Prefix.zig_lib) != constants.prefix_zig_lib or
         @backingInt(Prefix.local_cache) != constants.prefix_local_cache or
         @backingInt(Prefix.global_cache) != constants.prefix_global_cache)
     {
@@ -42,7 +43,7 @@ input_paths: []const []const u8,
 new_inputs: bool,
 binary: ?[]const u8,
 assembly: ?[]const u8,
-bindings: ?@import("publication_host").application.Bindings = null,
+bindings: ?@import("publication_host").bindings = null,
 pub fn deinit(self: *Self) void {
     self.response.deinit();
 
@@ -55,12 +56,42 @@ pub fn resolve(io: std.Io, response: *Response, cache: Cache, library: []const u
 
 pub fn resolveBatches(io: std.Io, response: *Response, translations: []const Response, cache: Cache, library: []const u8, options: Options, inputs: *Inputs, path_allocator: std.mem.Allocator) !Self {
     const allocator = response.arena.allocator();
-    var context: host.Context = .{ .io = io, .owned = path_allocator, .inputs = inputs, .translations = translations, .response = response };
+    var scratch = std.heap.ArenaAllocator.init(allocator);
 
-    const observation = source.backend_inputs.executeIn(allocator, &.{
+    defer scratch.deinit();
+
+    const temporary = scratch.allocator();
+    const Entry = source.backend_inputs;
+    const Batch = std.meta.Child(std.meta.Child(@FieldType(std.meta.Child(Entry.Input), "batches")));
+    const memory = @import("zx").memory;
+    const batch_count = translations.len + 1;
+    const batches = try temporary.alloc(*const Batch, batch_count);
+    const values = try temporary.alloc(Batch, batch_count);
+    const paths = try temporary.alloc(memory.TextColumn, batch_count);
+    const prefixes = try temporary.alloc(memory.ReadColumn, batch_count);
+
+    for (batches, values, paths, prefixes, 0..) |*batch, *value, *path, *prefix, index| {
+        const current = if (index < translations.len) &translations[index] else response;
+
+        path.* = memory.borrowTextColumn("path", current.inputs);
+        prefix.* = memory.borrowReadColumn(std.zig.Server.Message.PathPrefix, "prefix", current.inputs);
+
+        value.* = .{
+            .paths = @ptrCast(path),
+            .prefixes = @ptrCast(prefix),
+            .count = current.inputs.len,
+            .complete = current.inputs_complete,
+        };
+
+        batch.* = value;
+    }
+
+    var context: host.Context = .{ .io = io, .inputs = inputs };
+
+    const observation = Entry.executeIn(path_allocator, &.{
         .dependencies = @ptrCast(&context),
         .roots = &.{ .cwd = cache.cwd, .local = cache.local, .global = cache.global, .library = library },
-        .batches = translations.len + 1,
+        .batches = batches,
     }) catch |err| return if (err == error.BackendInputFailure) context.failure.? else err;
 
     var binary: ?[]const u8 = null;
@@ -87,24 +118,12 @@ pub fn resolveBatches(io: std.Io, response: *Response, translations: []const Res
 
     result.inputs_complete = observation.complete;
 
-    return .{ .response = result, .input_paths = context.paths, .new_inputs = observation.new_inputs, .binary = binary, .assembly = assembly };
+    return .{ .response = result, .input_paths = observation.paths, .new_inputs = observation.new_inputs, .binary = binary, .assembly = assembly };
 }
 
 pub fn publish(self: *const Self, io: std.Io, allocator: std.mem.Allocator, inputs: *Inputs, options: Options) !bool {
     const host_publication = @import("publication_host");
     var failure: host_publication.Failure = .{};
-
-    var publication: host_publication.application = .{
-        .io = io,
-        .allocator = allocator,
-        .failure = &failure,
-        .inputs = inputs,
-        .binary = .{ .source = self.binary, .destination = options.output },
-        .assembly = .{ .source = self.assembly, .destination = options.assembly },
-        .bindings = self.bindings,
-    };
-
-    defer publication.deinit();
 
     var verification: host_publication.verification = .{
         .io = io,
@@ -116,20 +135,36 @@ pub fn publish(self: *const Self, io: std.Io, allocator: std.mem.Allocator, inpu
 
     defer verification.deinit();
 
-    const result = source.publish_observed.executeIn(allocator, &.{
-        .publication = @ptrCast(&publication),
+    var arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer arena.deinit();
+
+    const Entry = source.publish_observed;
+    const Binding = std.meta.Child(std.meta.Child(@FieldType(std.meta.Child(Entry.Input), "bindings")));
+
+    const bindings: Binding = if (self.bindings) |files| .{
+        .module = files.module_path,
+        .declaration = files.declaration_path,
+        .module_source = files.module_source,
+        .declaration_source = files.declarations,
+    } else undefined;
+
+    const result = Entry.executeIn(arena.allocator(), &.{
+        .binary_source = self.binary,
+        .binary_target = options.output.?,
+        .assembly_source = self.assembly,
+        .assembly_target = options.assembly,
         .verification = @ptrCast(&verification),
         .succeeded = self.response.succeeded,
         .complete = self.response.inputs_complete,
         .new_inputs = self.new_inputs,
-        .requested_assembly = options.assembly != null,
-        .emitted_assembly = self.assembly != null,
-        .bindings = self.bindings != null,
-    }) catch |err| return failure.unwrap(err);
+        .bindings = if (self.bindings != null) &bindings else null,
+    }, io) catch |err| return failure.unwrap(err);
 
     return switch (result) {
         .Skipped => false,
         .ConflictingPaths => error.ConflictingOutputPaths,
+        .ForeignFile => error.NodeBindingWouldOverwriteFile,
         .Published => true,
     };
 }

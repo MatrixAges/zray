@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import { prepareObjectFields } from "ast_rows"
 import { appendAstBindingRows } from "ast_rows"
 import host from "lowering_host"
 import { requireAllocation } from "memory"
@@ -17,7 +18,7 @@ export type Input = ObjectInput
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, writer, sequence, batch } = in
+    const { frame, writer, sequence } = in
 
     const observed = lowerOperands(
         in.pick([
@@ -28,7 +29,7 @@ export default function (in: Input): Output {
         ])
     )
 
-    const updated = host.prepareObjectFields(batch)
+    const updated = prepareObjectFields(writer, sequence, in.id)
 
     const layout = layoutPlan({
         expression: integers.widen(in.id),
@@ -48,7 +49,7 @@ export default function (in: Input): Output {
                 "frame",
                 "writer",
                 "sequence",
-                "batch",
+                "expression_types",
                 "fields",
                 "field_indices",
                 "field_names",

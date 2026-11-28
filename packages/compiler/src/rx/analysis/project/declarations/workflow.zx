@@ -1,6 +1,6 @@
 import type { TextColumn } from "memory"
-import type { DeclarationTarget } from "rx_project_host"
-import type { Index } from "../../store/references/model"
+import type { ReferenceTarget } from "rx_project_host"
+import type { Index, Stores } from "../../store/references/model"
 import type { Tree } from "../prepare/flow/tree"
 import type { Input as Lookup } from "../references/lookup/model"
 import type { Input as References } from "../source_graph/references/next"
@@ -8,34 +8,64 @@ import type { Kind } from "./model"
 
 export type Signatures = Lookup.Omit("owner")
 
+export type Targets = {
+    owners: u64[],
+    kinds: ReferenceTarget[]
+}
+
 export type Run = {
-    target: DeclarationTarget,
     kind: Kind,
     names: TextColumn,
     tree: Tree,
     next: u64,
     count: u64,
     references?: References,
+    targets: Targets,
+    stores?: Stores,
     signatures?: Signatures,
     edge: u64
 }
 
 export type Visit = Run & {
     tag: string,
-    namespaces: Index
+    namespaces: Index,
+    plan: Plan
 }
 
 export type Hit = {
     next: u64,
-    node?: u8[],
-    first?: u8[],
+    declaration?: Found
+}
+
+export type Found = {
+    node: u8[],
+    first: u8[],
     second?: u8[]
 }
 
-export type TypeImport = {
-    target: DeclarationTarget,
-    from: u8[],
-    alias?: u8[],
-    edge?: u64,
-    signatures?: Signatures
+export type Entry = Found & {
+    index?: u64,
+    scope?: string
+}
+
+export type Failure = {
+    at: u8[],
+    message: string
+}
+
+export type Plan = {
+    entries: Entry[],
+    failure?: Failure
+}
+
+export type Selection = {
+    cursor: Visit,
+    hit: Found,
+    edge?: u64
+}
+
+export type Decision = {
+    namespaces: Index,
+    entry?: Entry,
+    failure?: Failure
 }

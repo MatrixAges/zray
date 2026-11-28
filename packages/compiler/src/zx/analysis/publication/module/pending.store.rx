@@ -1,0 +1,7 @@
+<Store name="analysis_module_publication" version={1}>
+    <Type from="model" as="Publication" />
+
+    <Object name="state">
+        <Field name="action" type={Publication.Action?} value={null} />
+    </Object>
+</Store>

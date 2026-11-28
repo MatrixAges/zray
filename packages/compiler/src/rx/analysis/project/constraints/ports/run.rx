@@ -1,16 +1,1 @@
-<Module>
-    <Type from="model" as="Ports" />
-
-    <Args in={Ports.Request} out={void} />
-
-    <Loop on={$in.position < $in.request.modules}>
-        <Call
-            module="range"
-            in={{
-                request: $in,
-                position: 0,
-                start: 0
-            }}
-        />
-    </Loop>
-</Module>
+<Module fn="plan" />

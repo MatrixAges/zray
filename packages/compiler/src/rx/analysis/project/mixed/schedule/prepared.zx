@@ -1,5 +1,7 @@
+import type { Accepted } from "./preparation"
+
 export type Input = {
-    positions: u64[],
+    accepted: Accepted,
     first: u64,
     end: u64,
     workers: u64,
@@ -13,10 +15,10 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const count = in.positions.length
+    const { count, last } = in.accepted
 
     const next = match {
-        count == in.limit => in.positions[count - 1] + 1,
+        count == in.limit => last + 1,
         _ => in.end
     }
 

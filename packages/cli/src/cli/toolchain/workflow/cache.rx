@@ -1,0 +1,43 @@
+<Module>
+    <Type from="model" as="Toolchain" />
+
+    <Args in={Toolchain.Input} out={Toolchain.Status} />
+
+    <Call
+        fn="index.prepareCache"
+        in={[
+            $in.toolchain,
+            $in.override != null
+        ]}
+    />
+
+    <Call
+        fn="index.openCache"
+        in={[
+            $in.toolchain,
+            false
+        ]}
+    />
+
+    <If on={$ctx.openCache}>
+        <Call fn="ready" in={$in} />
+
+        <If on={!$ctx.ready}>
+            <Return value={Toolchain.Status.IncompleteToolchainCache} />
+        </If>
+
+        <Call fn="index.closeDirectory" in={$in.toolchain} />
+
+        <Else>
+            <Call module="extract" in={$in} />
+
+            <If on={$ctx.extract != Toolchain.Status.Ready}>
+                <Return value={$ctx.extract} />
+            </If>
+        </Else>
+    </If>
+
+    <Call fn="index.unlock" in={$in.toolchain} />
+
+    <Return value={Toolchain.Status.Ready} />
+</Module>

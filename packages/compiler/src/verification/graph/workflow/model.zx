@@ -1,8 +1,7 @@
-import type { GraphRegistration } from "verification_publication_host"
+import type { DefinitionFailure } from "verification_publication_host"
 import type { CommitResult, Identity, Lookup, Origin, Selection } from "../model"
 
 export type Input = {
-    graph: GraphRegistration,
     lookup: Lookup,
     origin: Origin,
     expression: string,
@@ -18,6 +17,7 @@ export type Definition = Identity & CommitResult & {
 }
 
 export type Output = {
-    name: string,
-    definition?: Definition
+    name?: string,
+    definition?: Definition,
+    failure?: DefinitionFailure
 }

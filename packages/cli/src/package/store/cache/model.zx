@@ -6,11 +6,27 @@ export enum Status {
     CorruptPackageStore
 }
 
-export type Handle = Cache
-
 export type Input = {
     cache: Cache,
-    offline: bool
+    offline: bool,
+    root: string,
+    hex: string,
+    source: string,
+    base: string
 }
 
 export type Output = Status
+
+export type Archive = Input.Pick("cache", "offline", "source", "base") & {
+    path: string
+}
+
+export type Payload = {
+    bytes?: u8[],
+    downloaded: bool
+}
+
+export type Stage = {
+    cache: Cache,
+    bytes: u8[]
+}

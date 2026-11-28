@@ -1,34 +1,23 @@
 import integers from "std:integer"
-import host from "project_host"
 
 import recursive from "../../../modules/forward_entry/recursive"
 
 import type { Input as Entry } from "./model"
 
-export type Input = Entry
+export type Input = Entry.Pick("calls", "declared", "type_only", "base_count")
 
 export type Output = u32?
 
 export default function (in: Input): Output {
-    const { entry, calls, resolved } = in
+    const { calls } = in
 
     const eligible = in.declared && !in.type_only && calls.length != 0
 
-    const own = match eligible {
+    return match eligible {
         true => recursive({
             calls,
             candidate: integers.narrow(in.base_count)
         }),
         _ => null
     }
-
-    if (own != null) {
-        host.registerAnalysisBody(entry, resolved)
-    }
-
-    if (!resolved && in.native_count != 0) {
-        host.ownAnalysisNatives(entry)
-    }
-
-    return own
 }

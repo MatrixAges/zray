@@ -4,6 +4,18 @@ const Bundle = std.zig.ErrorBundle;
 const source = @import("cli_source");
 const rule = source.validate;
 const layout = source.diagnostic_constants.@"zx.constants";
+const DecodeOutput = std.meta.Child(source.decode.Output);
+const DiagnosticBundle = std.meta.Child(@FieldType(DecodeOutput, "diagnostics"));
+
+const ReadError = error{
+    BackendDiagnosticsTooComplex,
+    EndOfStream,
+    IndexOutOfBounds,
+    IntegerOverflow,
+    InvalidBackendProtocol,
+    OutOfMemory,
+    Overflow,
+};
 
 comptime {
     checkLayout(Bundle.ErrorMessageList, &.{ "len", "start", "compile_log_text" }, layout.root_words);
@@ -41,4 +53,16 @@ pub fn validate(allocator: std.mem.Allocator, bundle: Bundle) !void {
         .InvalidBackendProtocol => return error.InvalidBackendProtocol,
         .BackendDiagnosticsTooComplex => return error.BackendDiagnosticsTooComplex,
     }
+}
+
+pub fn readDiagnostics(allocator: std.mem.Allocator, body: []const u8) ReadError!DiagnosticBundle {
+    const bundle = try std.zig.Server.allocErrorBundle(allocator, body);
+
+    try validate(allocator, bundle);
+
+    const result = try allocator.create(std.meta.Child(DiagnosticBundle));
+
+    result.* = .{ .words = bundle.extra, .strings = bundle.string_bytes };
+
+    return result;
 }

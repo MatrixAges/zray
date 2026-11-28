@@ -6,19 +6,8 @@ const Lower = @import("../lower.zig");
 const rows = @import("../construction/publication.zig");
 const reuse = @import("../scope/reuse.zig");
 const scope = @import("../functions/scope.zig");
-const Api = @import("../expressions/evaluate.zig").Api;
-
-const Frame = struct {
-    lowering: *Lower,
-    captures: []const ir.SymbolId,
-    temporary: std.mem.Allocator,
-    worker: Lower = undefined,
-    names: ?reuse.Names = null,
-    body: Api.TaskWorkerBody = undefined,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-};
+const evaluation = @import("../expressions/evaluate.zig");
+const Api = evaluation.Api;
 
 pub fn lower(self: *Lower, id: ir.ExprId, process: bool) Lower.Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return @import("worker_seed.zig").lower(self, id, process);
@@ -34,20 +23,16 @@ pub fn lower(self: *Lower, id: ir.ExprId, process: bool) Lower.Error!node.Expres
 
     defer scratch.deinit();
 
-    var frame: Frame = .{
-        .lowering = self,
-        .captures = task.captures,
-        .temporary = scratch.allocator(),
-    };
+    var worker = scope.inherit(self, .Task);
 
-    frame.worker = scope.inherit(self, .Task);
+    try scope.reserve(&worker, scratch.allocator(), .Task);
 
-    try scope.reserve(&frame.worker, scratch.allocator(), .Task);
+    const names = try reuse.saveNames(self, task.captures, memory.allocator());
 
-    defer if (frame.names) |names| names.restore(self);
+    defer names.restore(self);
 
     const input: Input = .{
-        .worker = @ptrCast(&frame),
+        .worker = @ptrCast(&worker),
         .lower = @ptrCast(self),
         .writer = @ptrCast(self),
         .captures = view.slice(@FieldType(Input, "captures"), task.captures),
@@ -63,22 +48,18 @@ pub fn lower(self: *Lower, id: ir.ExprId, process: bool) Lower.Error!node.Expres
     return @fromBackingInt(result);
 }
 
-pub fn bindTaskCaptureNames(handle: *anyopaque, first: u32) Lower.Error!void {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-    const saved = try frame.temporary.alloc([]const u8, frame.captures.len);
-    const names = self.builder.nodes.field_columns.fields.name.values.items;
+pub fn bindTaskCaptureNames(frame: *anyopaque, captures: []const u32, first: u32) void {
+    const lowering = evaluation.borrow(frame);
+    const names = lowering.builder.nodes.field_columns.fields.name.values.items;
 
-    frame.names = reuse.bindNames(self, frame.captures, names[first..][0..frame.captures.len], saved);
+    reuse.setNames(lowering, captures, names[first..][0..captures.len]);
 }
 
-pub fn lowerTaskWorker(handle: *anyopaque, id: u32) Lower.Error!*const Api.TaskWorkerBody {
-    const frame = Frame.borrow(handle);
-    const worker = &frame.worker;
-    const value = try worker.expr(@fromBackingInt(id));
+pub fn readWorkerState(allocator: std.mem.Allocator, handle: *anyopaque) Lower.Error!*const Api.WorkerState {
+    const worker = evaluation.borrow(handle);
+    const body = try allocator.create(Api.WorkerState);
 
-    frame.body = .{
-        .value = @backingInt(value),
+    body.* = .{
         .uses_allocator = worker.uses_allocator,
         .uses_io = worker.uses_io,
         .uses_process = worker.uses_process,
@@ -86,9 +67,9 @@ pub fn lowerTaskWorker(handle: *anyopaque, id: u32) Lower.Error!*const Api.TaskW
         .names = worker.names,
     };
 
-    return &frame.body;
+    return body;
 }
 
-pub fn readTaskReferenceBody(handle: *anyopaque) Lower.Error!u64 {
-    return rows.packSpan(try Frame.borrow(handle).worker.referenceBlock());
+pub fn readWorkerReferenceBody(handle: *anyopaque) Lower.Error!u64 {
+    return rows.packSpan(try evaluation.borrow(handle).referenceBlock());
 }

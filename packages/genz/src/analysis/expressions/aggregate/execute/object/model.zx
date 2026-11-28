@@ -1,12 +1,12 @@
 import type { AstSequence, AstWriter } from "ast_rows"
-import type { Lowering, ObjectFrame } from "lowering_host"
+import type { Lowering } from "lowering_host"
 import type { U64Buffer } from "memory"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
     sequence: AstSequence,
-    batch: ObjectFrame,
+    expression_types: u32[],
     id: u32,
     type_id: u32,
     layout_only: bool,

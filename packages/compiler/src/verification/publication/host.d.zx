@@ -1,6 +1,3 @@
-export type GraphRegistration = mutable_opaque
-
-export declare function rejectSymbolicDefinition(
-    graph: GraphRegistration,
-    message: string?
-): string throws { InvalidSource }
+export type DefinitionFailure = {
+    message?: string
+}

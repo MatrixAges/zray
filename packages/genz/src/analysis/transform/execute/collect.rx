@@ -26,14 +26,13 @@
 
     <Call fn="index.readAstOrigin" in={$in.ast.writer} />
 
+    <Call fn="index.initialBases" />
+
     <Call
         module="../collect/prepare"
         in={{
             ...$ctx.prepare_collection,
-            bases: {
-                ...$ctx.readAstOrigin,
-                field_base: 0
-            },
+            bases: $ctx.initialBases,
             source: $in.source
         }}
     />
@@ -117,6 +116,8 @@
     <Call fn="index.elementRange" in={$ctx.elementBlock} />
     <Call fn="index.refreshAstOrigin" in={$in.ast.writer} />
 
+    <Call fn="index.finalBases" />
+
     <Call
         module="../collect/publish"
         in={{
@@ -125,10 +126,7 @@
                 "callback"
             ]),
             ...$ctx.store_collection,
-            bases: {
-                ...$ctx.refreshAstOrigin,
-                field_base: 0
-            },
+            bases: $ctx.finalBases,
             capture: $ctx.bindTransformElement,
             name: $ctx.prepare_collection.name,
             element_start: $ctx.elementRange.start,

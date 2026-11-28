@@ -7,6 +7,9 @@ const Reference = @import("../model.zig").Reference;
 const position = @import("../position.zig");
 const rule = @import("generated_rx_scan_source_graph");
 const Input = std.meta.Child(rule.Input);
+const Scan = std.meta.Child(@FieldType(Input, "scan"));
+const Registry = std.meta.Child(@typeInfo(@FieldType(Scan, "internal")).optional.child);
+const internal_fields = .{ .names = "module", .specifiers = "specifier", .identities = "identity" };
 const Deliveries = @typeInfo(@TypeOf(rule.executeValue(undefined, undefined))).error_union.payload;
 const Delivery = std.meta.Elem(Deliveries);
 const Cursor = rx.dependency_reference.Tree.Cursor;
@@ -29,7 +32,7 @@ pub fn collect(collector: anytype, source: rx.ModuleSource) @TypeOf(collector.*)
     if (indexed != null and indexed.?.len == 0) return;
 
     const discovering = @TypeOf(collector) != *Collector;
-    const options: ?*const project.Options = if (discovering) null else &collector.options;
+    const internal = internalColumns(if (discovering) &.{} else collector.options.internal_modules);
     const packages = zx.memory.borrowTextColumn("specifier", collector.dependencies());
     const allocator = collector.temporary.allocator();
     var cursor: Cursor = .{};
@@ -43,7 +46,7 @@ pub fn collect(collector: anytype, source: rx.ModuleSource) @TypeOf(collector.*)
 
     try execute(collector, &.{
         .scan = &.{
-            .internal = if (options) |value| @ptrCast(value) else null,
+            .internal = if (discovering) null else &internalView(&internal),
             .packages = &.{ .items = @ptrCast(&packages), .length = packages.count },
             .intrinsic = if (indexed == null) project.intrinsic_import else null,
             .discover = discovering,
@@ -76,13 +79,13 @@ pub fn collectZx(collector: anytype, header: anytype) @TypeOf(collector.*).Error
     if (imports.len == 0) return;
 
     const discovering = @TypeOf(collector) != *Collector;
-    const options: ?*const project.Options = if (discovering) null else &collector.options;
+    const internal = internalColumns(if (discovering) &.{} else collector.options.internal_modules);
     const packages = zx.memory.borrowTextColumn("specifier", collector.dependencies());
     const Imports = std.meta.Child(std.meta.Child(@FieldType(Input, "imports")));
 
     try execute(collector, &.{
         .scan = &.{
-            .internal = if (options) |value| @ptrCast(value) else null,
+            .internal = if (discovering) null else &internalView(&internal),
             .packages = &.{ .items = @ptrCast(&packages), .length = packages.count },
             .intrinsic = project.intrinsic_import,
             .discover = discovering,
@@ -139,8 +142,16 @@ fn apply(collector: anytype, delivery: Delivery) @TypeOf(collector.*).Error!void
     };
 }
 
-pub fn sourceGraphInternal(handle: *const anyopaque, specifier: []const u8) ?[]const u8 {
-    const options: *const project.Options = @ptrCast(@alignCast(handle));
+fn internalColumns(rows: []const project.NativeInterface) zx.memory.ReadFields(internal_fields) {
+    return zx.memory.borrowReadFields(internal_fields, rows);
+}
 
-    return if (options.internalModule(specifier)) |entry| entry.key() else null;
+fn internalView(columns: *const zx.memory.ReadFields(internal_fields)) Registry {
+    var registry: Registry = undefined;
+
+    columns.fill(&registry);
+
+    registry.length = columns.count;
+
+    return registry;
 }

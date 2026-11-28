@@ -1,0 +1,13 @@
+import type { Work } from "./model"
+
+export type Input = Work[]
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.pending.state = {
+        work: in
+    }
+}

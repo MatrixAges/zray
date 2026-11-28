@@ -44,9 +44,15 @@ export default function (in: Input): Output {
         kind
     })
 
+    const first = attributes.first
+    const missing: u8[] = []
+
     return {
         next: found.next,
-        node,
-        ...attributes
+        declaration: {
+            node,
+            first: first == null ? missing : first,
+            second: attributes.second
+        }
     }
 }

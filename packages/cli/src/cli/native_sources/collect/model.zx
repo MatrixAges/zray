@@ -10,7 +10,10 @@ export type Queue = {
 export type Seen = {
     relative_paths: string[],
     is_asset: bool[],
-    parsed: bool[]
+    parsed: bool[],
+    contents: string[],
+    from_present: bool[],
+    from_paths: string[]
 }
 
 export type SeenMatch = {
@@ -49,7 +52,10 @@ export type LookupSeenInput = {
 export type AddSeenInput = {
     seen: Seen,
     relative: string,
-    source: bool
+    source: bool,
+    content: string,
+    from_present: bool,
+    from_path: string
 }
 
 export type PromoteSeenInput = {
@@ -125,4 +131,12 @@ export type Step = {
     index: u64,
     flags: Decision,
     running: bool
+}
+
+export type Read = {
+    collection: Context,
+    path: string,
+    cached: string[],
+    reuse: bool,
+    index: u64
 }

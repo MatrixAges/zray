@@ -30,7 +30,7 @@
         <Call
             fn="prepared"
             in={{
-                positions: $ctx.collect,
+                accepted: $ctx.collect,
                 first: $in.selection.start,
                 end: $in.selection.end,
                 workers: $ctx.start.workers,
@@ -49,7 +49,7 @@
             />
 
             <Else>
-                <If on={$ctx.collect.length != 0}>
+                <If on={$ctx.collect.count != 0}>
                     <Call fn="host.clearMixedResults" in={$in.prior.workspace} />
                 </If>
             </Else>

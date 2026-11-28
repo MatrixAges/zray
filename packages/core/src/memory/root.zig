@@ -18,8 +18,6 @@ const column_length = @import("column_length.zig");
 pub const ColumnLengths = column_length.Lengths;
 pub const borrowColumnLengths = column_length.borrow;
 pub const borrowSliceLengths = column_length.borrowSlices;
-pub const borrowFunctionBodyBytes = std.mem.asBytes;
-pub const borrowForwardedBodyBytes = std.mem.asBytes;
 pub const lengthSlotCount = column_length.count;
 pub const readLengthSlot = column_length.read;
 pub const advanceLengthSlot = column_length.advance;
@@ -127,10 +125,6 @@ pub inline fn stringViews(source: *const anyopaque) []const []const u8 {
     const view: *const []const []const u8 = @ptrCast(@alignCast(source));
 
     return view.*;
-}
-
-pub inline fn u32View(source: *anyopaque, shape: anytype) std.meta.Child(@TypeOf(shape)) {
-    return @ptrCast(source);
 }
 
 pub inline fn u8ListViews(source: *const anyopaque) []const []const u8 {

@@ -14,15 +14,12 @@ export declare function ensureSymbolicGraph(program: SymbolicProgram): void
 
 export declare function beginSymbolicCall(program: SymbolicProgram): void
 
-export declare function rejectSymbolicProgram(program: SymbolicProgram, message: string): void
-    throws { InvalidSource }
-
 export declare function symbolicProgramPreconditions(
     program: SymbolicProgram,
     called: bool
 ): string throws { OutOfMemory, InvalidSource }
 
-export declare function markSymbolicQueryPrefix(program: SymbolicProgram): void
+export declare function symbolicQueryPrefix(program: SymbolicProgram): u64
 
 export declare function runSymbolicProgramBody(program: SymbolicProgram, path: string): string
     throws { OutOfMemory, InvalidSource }
@@ -32,12 +29,6 @@ export declare function checkSymbolicUnit(program: SymbolicProgram, path: string
 
 export declare function appendSymbolicUnit(program: SymbolicProgram, path: string): void
     throws { OutOfMemory }
-
-export declare function publishSymbolicQuery(program: SymbolicProgram, path: string): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function rejectSymbolicReturn(program: SymbolicProgram, message: string): void
-    throws { InvalidSource }
 
 export declare function publishSymbolicProgramResult(program: SymbolicProgram): bool
     throws { OutOfMemory, InvalidSource }

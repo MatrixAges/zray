@@ -3,29 +3,23 @@ import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
 import memory from "memory"
 import columns from "memory/columns"
-import host from "verification_host"
 
 import choose from "../../predicate/choose"
+import { Action } from "./model"
 
-import type { Table } from "core/type_table/model"
-import type { SelectionGraph, SymbolicTarget } from "verification_host"
-import type { Layout } from "../../terms/layout"
+import type { Input, Output, Step } from "./model"
 
-export type Input = {
-    graph: SelectionGraph,
-    types: Table,
-    type_id: u32,
-    condition: string,
-    yes: u8[],
-    no: u8[],
-    layout: Layout,
-    result: SymbolicTarget
-}
-
-export type Output = bool
+export type { Input, Output } from "./model"
 
 export default function select(in: Input): Output {
-    const { graph, types, type_id, condition, yes, no, layout, result } = in
+    const { types, type_id, condition, yes, no, layout } = in
+
+    const steps: Step[] = in.steps ?? []
+
+    const destination = in.destination ?? {
+        parent: null,
+        member: 0
+    }
 
     const yes_text = columns.readBorrowedRowOptionalText(yes, layout.text)
     const no_text = columns.readBorrowedRowOptionalText(no, layout.text)
@@ -37,13 +31,28 @@ export default function select(in: Input): Output {
             no: no_text
         })
 
-        host.publishSymbolicText(graph, result, type_id, text)
-
-        return true
+        return {
+            steps: steps.push({
+                destination,
+                action: Action.Text,
+                type_id,
+                text: match {
+                    text == yes_text => yes_text,
+                    text == no_text => no_text,
+                    _ => text
+                },
+                transient: text != yes_text && text != no_text,
+                count: 0
+            })[0],
+            valid: true
+        }
     }
 
     if (yes_text != null || no_text != null) {
-        return false
+        return {
+            steps,
+            valid: false
+        }
     }
 
     const width = layout.width
@@ -52,17 +61,26 @@ export default function select(in: Input): Output {
     const count = left.length / width
 
     if (left.length != right.length) {
-        return false
+        return {
+            steps,
+            valid: false
+        }
     }
 
     if (count == 0 || columns.sameBorrowedBytes(left, right)) {
-        host.reuseSymbolicFields(result, yes)
-
-        return true
+        return {
+            steps: steps.push({
+                destination,
+                action: Action.Reuse,
+                type_id,
+                source: yes,
+                count
+            })[0],
+            valid: true
+        }
     }
 
-    host.reserveSymbolicFields(graph, result, count)
-
+    const parent = steps.length
     const row = integers.widen(type_id)
     const object = kind(types.kinds[row]) == Kind.Object
     const first = integers.widen(types.first[row])
@@ -70,25 +88,40 @@ export default function select(in: Input): Output {
 
     return loop({
         index: 0,
-        valid: true
+        valid: true,
+        steps: steps.push({
+            destination,
+            action: Action.Allocate,
+            type_id,
+            count
+        })[0]
     }, {
         while: state => state.valid && state.index < count,
         next: state => {
             const index = state.index
             const offset = index * width
 
-            state.valid = select({
-                graph,
+            const planned = select({
                 types,
                 type_id: children[first + index],
                 condition,
                 yes: memory.borrowU8Range(left, offset, width),
                 no: memory.borrowU8Range(right, offset, width),
                 layout,
-                result: host.targetSymbolicField(result, index)
+                destination: {
+                    parent,
+                    member: index
+                },
+                steps: state.steps
             })
+
+            state.steps = planned.steps
+            state.valid = planned.valid
             state.index += 1
         },
-        return: state => state.valid
+        return: state => state.pick([
+            "steps",
+            "valid"
+        ])
     })
 }

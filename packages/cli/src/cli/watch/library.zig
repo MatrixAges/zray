@@ -19,13 +19,16 @@ pub fn publish(io: std.Io, backing: std.mem.Allocator, staging: []const u8, outp
 
     defer verification.deinit();
 
-    var library: host.library = .{ .directory = &directory, .verification = &verification, .managed = managed };
+    const managed_paths = try allocator.alloc([]const u8, managed.len);
+
+    for (managed, managed_paths) |file, *path| path.* = file.path;
 
     const status = @import("cli_source").publish_library.executeIn(allocator, &.{
-        .library = @ptrCast(&library),
+        .managed = managed_paths,
+        .destination = destination,
         .directory = @ptrCast(&cursor),
         .verification = @ptrCast(&verification),
-        .observed = @ptrCast(&library.observed),
+        .observed = @ptrCast(&verification.observed),
         .separator = std.fs.path.sep,
     }) catch |err| return failure.unwrap(err);
 

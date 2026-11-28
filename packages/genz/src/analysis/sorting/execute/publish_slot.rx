@@ -34,10 +34,12 @@
     <Call fn="../rows.requireAllocation" in={$ctx.publish.valid} />
 
     <Call
-        fn="../rows.appendAstNamespaceRows"
+        fn="../rows.appendExtendedExpressions"
         in={[
             $in.writer,
-            $ctx.publish.expressions
+            $ctx.publish.expressions,
+            null,
+            $ctx.publish.extensions
         ]}
     />
 

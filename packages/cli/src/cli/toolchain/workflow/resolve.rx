@@ -3,53 +3,56 @@
 
     <Args in={Toolchain.Input} out={Toolchain.Output} />
 
-    <If on={$in.external}>
-        <Call fn="index.resolveExecutable" in={$in.toolchain} />
-    </If>
+    <If on={$in.override != null}>
+        <Call
+            fn="index.resolveExecutable"
+            in={[
+                $in.toolchain,
+                $in.override
+            ]}
+        />
 
-    <Call
-        fn="index.prepareCache"
-        in={[
-            $in.toolchain,
-            $in.external
-        ]}
-    />
+        <Call module="cache" in={$in} />
 
-    <Call
-        fn="index.openCache"
-        in={[
-            $in.toolchain,
-            false
-        ]}
-    />
-
-    <If on={$ctx.openCache}>
-        <Call fn="ready" in={$in} />
-
-        <If on={!$ctx.ready}>
-            <Return value={Toolchain.Status.IncompleteToolchainCache} />
+        <If on={$ctx.cache != Toolchain.Status.Ready}>
+            <Return
+                value={{
+                    status: $ctx.cache
+                }}
+            />
         </If>
 
-        <Call fn="index.closeDirectory" in={$in.toolchain} />
+        <Call
+            module="library"
+            in={{
+                toolchain: $in.toolchain,
+                executable: $ctx.resolveExecutable,
+                suffixes: $in.library_suffixes
+            }}
+        />
 
-        <Else>
-            <Call module="extract" in={$in} />
-
-            <If on={$ctx.extract != Toolchain.Status.Ready}>
-                <Return value={$ctx.extract} />
-            </If>
-        </Else>
-    </If>
-
-    <Call fn="index.unlock" in={$in.toolchain} />
-
-    <If on={$in.external}>
-        <Call fn="library" in={$in.toolchain} />
-
-        <If on={!$ctx.library}>
-            <Return value={Toolchain.Status.ZxcZigLibraryNotFound} />
+        <If on={$ctx.library == null}>
+            <Return
+                value={{
+                    status: Toolchain.Status.ZxcZigLibraryNotFound
+                }}
+            />
         </If>
+
+        <Return
+            value={{
+                status: Toolchain.Status.Ready,
+                executable: $ctx.resolveExecutable,
+                library: $ctx.library
+            }}
+        />
     </If>
 
-    <Return value={Toolchain.Status.Ready} />
+    <Call module="cache" in={$in} />
+
+    <Return
+        value={{
+            status: $ctx.cache
+        }}
+    />
 </Module>

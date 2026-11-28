@@ -9,6 +9,8 @@ const generated = @import("genz_options").generated_analysis;
 const Seed = @import("reuse/seed.zig");
 const entry = @import("generated_scope_reuse");
 const Input = std.meta.Child(entry.Input);
+const names_entry = @import("generated_scope_reuse_names");
+const NamesInput = std.meta.Child(names_entry.Input);
 const Plan = std.meta.Child(std.meta.Child(entry.Output));
 
 const Active = struct {
@@ -73,22 +75,51 @@ pub fn create(lowering: *Lower, scope: ir.ScopeRow, scratch: std.mem.Allocator) 
 
 pub const Names = struct {
     symbols: []const u32,
-    saved: [][]const u8,
+    saved: []const []const u8,
     pub fn restore(self: Names, lowering: *Lower) void {
-        applyNames(lowering, self.symbols, self.saved, &.{}, true);
+        restoreNames(lowering, self);
     }
 };
 
-pub fn bindNames(lowering: *Lower, symbols: []const ir.SymbolId, replacements: []const []const u8, saved: [][]const u8) Names {
-    applyNames(lowering, view.slice([]const u32, symbols), saved, replacements, false);
+pub fn saveNames(lowering: *const Lower, symbols: []const ir.SymbolId, allocator: std.mem.Allocator) Lower.Error!Names {
+    const ids = view.slice([]const u32, symbols);
 
-    return .{ .symbols = view.slice([]const u32, symbols), .saved = saved };
+    if (ids.len == 0) return .{ .symbols = ids, .saved = &.{} };
+
+    const input: NamesInput = .{
+        .symbols = ids,
+        .sources = &.{},
+        .replacements = &.{},
+        .names = lowering.names,
+        .saved = &.{},
+        .action = .Save,
+    };
+
+    const output = names_entry.executeIn(allocator, &input) catch |err| return @import("../construction/publication.zig").failure(err);
+
+    return .{ .symbols = ids, .saved = output.saved };
+}
+
+pub fn setNames(lowering: *Lower, symbols: []const u32, replacements: []const []const u8) void {
+    applyNames(lowering, symbols, &.{}, replacements, null, .Replace);
+}
+
+pub fn bindNames(lowering: *Lower, symbols: []const ir.SymbolId, replacements: []const []const u8, saved: [][]const u8) Names {
+    const ids = view.slice([]const u32, symbols);
+
+    applyNames(lowering, ids, &.{}, replacements, saved, .Bind);
+
+    return .{ .symbols = ids, .saved = saved };
 }
 
 pub fn restore(self: *const Self, lowering: *Lower) void {
     if (!generated) return self.state.restore(lowering);
 
-    applyNames(lowering, self.state.alias_symbols, self.state.saved, &.{}, true);
+    restoreNames(lowering, .{ .symbols = self.state.alias_symbols, .saved = self.state.saved });
+}
+
+fn restoreNames(lowering: *Lower, names: Names) void {
+    applyNames(lowering, names.symbols, names.saved, &.{}, null, .Restore);
 }
 
 pub fn publishSeed(self: *const Self, lowering: *Lower, output: *std.ArrayList(node.Statement), index: usize) Lower.Error!?node.Block {
@@ -97,18 +128,23 @@ pub fn publishSeed(self: *const Self, lowering: *Lower, output: *std.ArrayList(n
     return try lowering.builder.statements(output.items);
 }
 
-fn applyNames(lowering: *Lower, symbols: []const u32, saved: anytype, replacements: []const []const u8, comptime restoring: bool) void {
+fn applyNames(
+    lowering: *Lower,
+    symbols: []const u32,
+    saved: []const []const u8,
+    replacements: []const []const u8,
+    target: ?[][]const u8,
+    action: @FieldType(NamesInput, "action"),
+) void {
     if (symbols.len == 0) return;
 
-    const install = @import("generated_scope_reuse_names");
-
-    const input: std.meta.Child(install.Input) = .{
+    const input: NamesInput = .{
         .symbols = symbols,
         .sources = &.{},
         .replacements = replacements,
         .names = lowering.names,
         .saved = saved,
-        .restore = restoring,
+        .action = action,
     };
 
     var buffer: [1024]u8 = undefined;
@@ -117,13 +153,11 @@ fn applyNames(lowering: *Lower, symbols: []const u32, saved: anytype, replacemen
     defer arena.deinit();
 
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
-    const output = install.executeIn(scratch.allocator(), &input) catch unreachable;
+    const output = names_entry.executeIn(scratch.allocator(), &input) catch unreachable;
 
     for (output.updates) |update| {
         lowering.names[@intCast(update.symbol)] = update.name;
     }
 
-    if (!restoring) {
-        @memcpy(saved, output.saved);
-    }
+    if (target) |destination| @memcpy(destination, output.saved);
 }

@@ -4,12 +4,22 @@
     <Args in={Flow.Rows} out={u32} />
 
     <If on={$in.kind == Flow.CollectionKind.Sort}>
-        <Call fn="host.collectionCompare" in={$in.frame} />
+        <Call
+            fn="host.collectionCompare"
+            in={[
+                $in.ast.lower,
+                $in.source_type
+            ]}
+        />
 
         <Call
             fn="host.emitCollectionRows"
             in={[
-                $in.frame,
+                $in.ast.writer,
+                $in.ast.sequence,
+                $in.id,
+                $in.source_type,
+                $in.removed_only,
                 $in.rows,
                 null,
                 $ctx.collectionCompare
@@ -23,12 +33,22 @@
         on={$in.kind == Flow.CollectionKind.Push ||
             $in.kind == Flow.CollectionKind.Concat}
     >
-        <Call fn="host.collectionMinimum" in={$in.frame} />
+        <Call
+            fn="host.collectionMinimum"
+            in={[
+                $in.ast.lower,
+                $in.id
+            ]}
+        />
 
         <Call
             fn="host.emitCollectionRows"
             in={[
-                $in.frame,
+                $in.ast.writer,
+                $in.ast.sequence,
+                $in.id,
+                $in.source_type,
+                $in.removed_only,
                 $in.rows,
                 $ctx.collectionMinimum,
                 null
@@ -41,7 +61,11 @@
     <Call
         fn="host.emitCollectionRows"
         in={[
-            $in.frame,
+            $in.ast.writer,
+            $in.ast.sequence,
+            $in.id,
+            $in.source_type,
+            $in.removed_only,
             $in.rows,
             null,
             null

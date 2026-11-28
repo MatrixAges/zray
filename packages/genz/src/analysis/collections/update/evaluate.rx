@@ -16,7 +16,6 @@
     <Call
         module="../workflow/bind_target"
         in={{
-            frame: $in.frame,
             ast: $in.ast,
             target: $in.target,
             evaluated: $ctx.lowerExpression,
@@ -67,9 +66,9 @@
     <Call
         fn="convert"
         in={{
-            frame: $in.frame,
             ast: $in.ast,
-            origin: $in.value
+            origin: $in.value,
+            source_type: $in.source_type
         }}
     />
 

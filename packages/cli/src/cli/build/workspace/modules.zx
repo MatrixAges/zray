@@ -1,50 +1,36 @@
 import bytes from "std:bytes"
 import crypto from "std:crypto"
 import encoding from "std:encoding"
-import { writeAtomic } from "artifact_io"
-import memory from "memory"
 
 import { modules_root, zig_extension } from "./const"
-import retain from "./retain"
+import file from "./file"
 
-import type { FileSystem } from "artifact_io"
-import type { Files } from "./model"
+import type { Artifact, ModuleWrite as Input } from "./model"
 
-export type Input = {
-    fs: FileSystem,
-    files: Files
+export type Output = {
+    artifact: Artifact,
+    next: Input
 }
 
-export type Output = string[]
-
 export default function (in: Input): Output {
-    const empty: string[] = []
-
-    return loop({
-        index: 0,
-        paths: empty
-    }, {
-        while: state => state.index < in.files.count,
-        next: state => {
-            const { index } = state
-            const name = memory.readTextColumn(in.files.paths, index)
-            const source = memory.readTextColumn(in.files.sources, index)
-            const digest = encoding.encodeHex(crypto.sha256(bytes.fromText(source)))
-            const path = `${modules_root}/${name}/${digest}${zig_extension}`
-
-            const artifact = {
-                fs: in.fs,
-                path,
-                source
-            }
-
-            if (retain(artifact)) {
-                writeAtomic(artifact.fs, artifact.path, artifact.source)
-            }
-
-            state.paths = state.paths.push(path)[0]
-            state.index += 1
-        },
-        return: state => state.paths
+    const { path: name, source } = file({
+        files: in.files,
+        index: in.index
     })
+
+    const digest = encoding.encodeHex(crypto.sha256(bytes.fromText(source)))
+
+    const path = `${modules_root}/${name}/${digest}${zig_extension}`
+
+    return {
+        artifact: {
+            path,
+            source
+        },
+        next: {
+            ...in,
+            index: in.index + 1,
+            paths: in.paths.push(path)[0]
+        }
+    }
 }

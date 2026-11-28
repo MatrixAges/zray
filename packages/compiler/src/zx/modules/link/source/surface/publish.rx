@@ -3,10 +3,16 @@
 
     <Args in={Surface.Input} out={Surface.Output?} />
 
+    <Store from="../entry/publication" as="entry_publication" />
+
     <Call module="../entry/entry" in={$in.entry} />
 
     <If on={$ctx.entry.append}>
-        <Call fn="host.appendSourceLinkEntry" in={$in.function_storage} />
+        <Call
+            fn="../entry/stage_publication"
+            in={$ctx.entry}
+            setter={[$store.entry_publication.pending]}
+        />
     </If>
 
     <If on={$in.declarations != null}>
@@ -29,7 +35,7 @@
             fn="ports"
             in={{
                 ...$in.ports,
-                entry: $ctx.publish.entry
+                linked_entry: $ctx.entry.append ? null : $ctx.publish.entry
             }}
         />
 

@@ -1,15 +1,15 @@
 <Module>
     <Type from="model" as="Program" />
 
-    <Args in={Program.Entry} out={void} />
+    <Args in={Program.Entry} out={Program.Diagnostic?} />
 
     <If on={$in.type_only || $in.stores != 0}>
-        <Call
-            fn="index.rejectSymbolicProgram"
-            in={[
-                $in.program,
-                "symbolic execution requires a pure executable function without Store capabilities"
-            ]}
+        <Return
+            value={{
+                message:
+                    "symbolic execution requires a pure executable function without Store capabilities",
+                unsupported: true
+            }}
         />
     </If>
 
@@ -26,12 +26,11 @@
     />
 
     <If on={$ctx.walk.diagnostic != null}>
-        <Call
-            fn="index.rejectSymbolicProgram"
-            in={[
-                $in.program,
-                $ctx.walk.diagnostic
-            ]}
+        <Return
+            value={{
+                message: $ctx.walk.diagnostic,
+                unsupported: true
+            }}
         />
     </If>
 
@@ -50,4 +49,6 @@
             returns_unit: $in.returns_unit
         }}
     />
+
+    <Return value={$ctx.call} />
 </Module>

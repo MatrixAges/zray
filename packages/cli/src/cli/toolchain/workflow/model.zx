@@ -1,7 +1,5 @@
 import type { Toolchain } from "toolchain_host"
 
-export type Handle = Toolchain
-
 export enum Status {
     Ready,
     IncompleteToolchainCache,
@@ -9,12 +7,32 @@ export enum Status {
     CorruptBundledToolchain
 }
 
-export type Input = {
-    toolchain: Toolchain,
-    external: bool,
-    windows: bool,
-    expected_marker: string,
-    zip: bool
+export type LibrarySuffixes = {
+    official: string,
+    system: string,
+    sibling: string
 }
 
-export type Output = Status
+export type Input = {
+    toolchain: Toolchain,
+    override?: string,
+    windows: bool,
+    expected_marker: string,
+    zip: bool,
+    standard_archive: u8[],
+    standard_digest: string,
+    zig_digest: string,
+    library_suffixes: LibrarySuffixes
+}
+
+export type Output = {
+    status: Status,
+    executable?: string,
+    library?: string
+}
+
+export type Probe = {
+    toolchain: Toolchain,
+    executable: string,
+    suffixes: LibrarySuffixes
+}

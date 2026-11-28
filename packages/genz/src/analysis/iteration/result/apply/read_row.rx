@@ -6,15 +6,18 @@
     <Call
         fn="model.projectIterationResult"
         in={[
-            $in.frame,
+            $in.lower,
+            $in.context,
+            $in.consumer,
+            $in.state,
             $in.ids[$in.row]
         ]}
     />
 
     <Call
-        fn="model.cacheIterationResult"
+        fn="model.cacheLoweredOperand"
         in={[
-            $in.frame,
+            $in.lower,
             $in.ids[$in.row],
             $ctx.projectIterationResult
         ]}

@@ -1,3 +1,4 @@
+import { resolvePathParts } from "lexical_path"
 import host from "package_graph_host"
 
 import { Status } from "../model"
@@ -21,10 +22,14 @@ export default function (in: Input): Output {
                     host: in.host,
                     row,
                     path: in.mapping.paths[row],
-                    digest: in.mapping.archive_digests[row]
+                    digest: in.mapping.sources[row]
                 })
             } else {
-                const path = host.installedWorkspacePath(in.host, row)
+                const logical = resolvePathParts([
+                    in.mapping.root,
+                    in.mapping.sources[row]
+                ])
+                const path = host.canonical(in.host, logical)
 
                 if (host.recordMember(in.host, row, state.ordinal, path)) {
                     state.ordinal += 1

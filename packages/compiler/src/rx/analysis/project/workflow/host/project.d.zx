@@ -46,7 +46,8 @@ export declare function publishDerivedFrame(state: Derivation): void
 export declare function openFlowPorts(state: Solver): void
     throws { OutOfMemory, InvalidSource }
 
-export declare function releaseFlowDeclarations(state: Solver): void
+export declare function commitFlowPorts(state: Solver, batches: PortBatch[]): void
+    throws { OutOfMemory, InvalidSource }
 
 export declare function openFlowCollection(state: Solver): void
 

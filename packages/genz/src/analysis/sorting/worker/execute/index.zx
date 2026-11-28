@@ -11,5 +11,13 @@ export {
     lowerExpression,
     lowerType,
     readSortOperand,
-    finishSortWorker
+    readWorkerState,
+    readWorkerState as effects,
+    readWorkerReferenceBody
 } from "lowering_host"
+
+export {
+    default as reference,
+    default as leftOperandSpan,
+    default as rightOperandSpan
+} from "../../../tasks/worker/execute/reference"

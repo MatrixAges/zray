@@ -3,16 +3,16 @@ import { EvidenceFieldKind as Kind } from "verification_report_host"
 
 import type {
     EvidenceField,
-    EvidenceInputs,
+    EvidenceInput,
     EvidenceProgram,
-    EvidenceSources
+    EvidenceSource
 } from "verification_report_host"
 
 export type Input = {
-    sources: EvidenceSources,
+    sources: EvidenceSource[],
     entry: string,
     version: u32,
-    inputs: EvidenceInputs,
+    inputs: EvidenceInput[],
     program: EvidenceProgram
 }
 

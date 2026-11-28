@@ -1,0 +1,18 @@
+<Module>
+    <Type from="model" as="Workspace" />
+
+    <Args in={Workspace.Files} out={string[]} />
+
+    <Loop on={$in.index < $in.files.count}>
+        <Call
+            module="write_module"
+            in={{
+                files: $in,
+                index: 0,
+                paths: []
+            }}
+        />
+    </Loop>
+
+    <Return value={$ctx.write_module.paths} />
+</Module>

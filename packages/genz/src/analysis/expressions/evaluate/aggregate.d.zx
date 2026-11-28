@@ -1,24 +1,8 @@
-export declare function publishSequenceElement(
-    batch: SequenceFrame,
-    item: u32,
-    bound: u32,
-    list: bool
-): u32 throws { OutOfMemory }
-
 export declare function publishObjectOperand(
     frame: Lowering,
     item: u32,
     reference: u32
 ): u64 throws { OutOfMemory }
-
-export declare function prepareObjectFields(batch: ObjectFrame): u32?
-    throws { OutOfMemory }
-
-export declare function publishObjectField(
-    batch: ObjectFrame,
-    item: u32,
-    bound: u32
-): u32 throws { OutOfMemory }
 
 export declare function finishObject(
     frame: Lowering,

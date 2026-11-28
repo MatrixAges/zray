@@ -1,12 +1,10 @@
-import scanner from "manifest_yaml_scanner"
-
-import { key, scalar, block_mapping_start, stream_end } from "./const"
+import { key, scalar, block_mapping_start } from "./const"
 import classify from "./token"
 
-import type { Scanner } from "manifest_yaml_scanner"
+import type { TokenColumns } from "manifest_yaml_scanner"
 import type { Token } from "./token"
 
-export type Input = Scanner
+export type Input = TokenColumns
 
 export type Field = {
     start: u64,
@@ -26,12 +24,12 @@ export default function (in: Input): Output {
         start: 0,
         end: 0,
         preserve_trailing: false,
-        token: scanner.next(in),
+        index: 0,
         fields
     }, {
-        while: state => state.token != stream_end,
+        while: state => state.index < in.kinds.length,
         next: state => {
-            const token = state.token
+            const token = in.kinds[state.index]
             const kind = classify(token)
             const root_field = state.root_block && state.depth == 1
             const starts_field = root_field && token == key
@@ -40,8 +38,9 @@ export default function (in: Input): Output {
                 kind == Token.FlowClose
 
             if (state.pending && material) {
-                state.end = scanner.end(in)
-                state.preserve_trailing = token == scalar && scanner.blockScalar(in)
+                state.end = in.ends[state.index]
+                state.preserve_trailing =
+                    token == scalar && in.block_scalars[state.index]
             }
 
             const ends_root = root_field && closing
@@ -60,7 +59,7 @@ export default function (in: Input): Output {
             }
 
             if (starts_field) {
-                const start = scanner.start(in)
+                const start = in.starts[state.index]
 
                 state.pending = true
                 state.start = start
@@ -83,7 +82,7 @@ export default function (in: Input): Output {
                 state.depth -= 1
             }
 
-            state.token = scanner.next(in)
+            state.index += 1
         },
         return: state => state.fields
     })

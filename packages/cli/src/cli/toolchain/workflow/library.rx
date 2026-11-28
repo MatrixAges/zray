@@ -1,0 +1,42 @@
+<Module>
+    <Type from="model" as="Toolchain" />
+
+    <Args in={Toolchain.Probe} out={string?} />
+
+    <Call
+        fn="index.probeLibrary"
+        in={[
+            $in.toolchain,
+            $in.executable,
+            $in.suffixes.official
+        ]}
+    />
+
+    <If on={$ctx.probeLibrary != null}>
+        <Return value={$ctx.probeLibrary} />
+    </If>
+
+    <Call
+        fn="index.probeSystemLibrary"
+        in={[
+            $in.toolchain,
+            $in.executable,
+            $in.suffixes.system
+        ]}
+    />
+
+    <If on={$ctx.probeSystemLibrary != null}>
+        <Return value={$ctx.probeSystemLibrary} />
+    </If>
+
+    <Call
+        fn="index.probeSiblingLibrary"
+        in={[
+            $in.toolchain,
+            $in.executable,
+            $in.suffixes.sibling
+        ]}
+    />
+
+    <Return value={$ctx.probeSiblingLibrary} />
+</Module>

@@ -29,8 +29,17 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
 
     const symbols = zx.memory.borrowTextColumn("symbol", query.inputs);
     const paths = zx.memory.borrowTextColumn("path", query.inputs);
+    const Request = std.meta.Child(proof.Input);
+    const EvidenceInput = std.meta.Child(@FieldType(Request, "evidence"));
 
-    const input: std.meta.Child(proof.Input) = .{
+    const evidence_sources = if (generated.value == .query)
+        try zx.columns.bridge(@FieldType(EvidenceInput, "sources"), allocator, sources)
+    else
+        &.{};
+
+    const evidence_inputs = try bindingRows(@FieldType(EvidenceInput, "inputs"), allocator, query.inputs);
+
+    const input: Request = .{
         .diagnostic = if (generated.value == .diagnostic) generated.value.diagnostic.message else null,
         .output = options.output,
         .solver = options.solver,
@@ -38,10 +47,10 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
         .correctness = query.correctness,
         .bindings = &.{ .symbols = @ptrCast(&symbols), .paths = @ptrCast(&paths), .count = query.inputs.len },
         .evidence = &.{
-            .sources = @ptrCast(&sources),
+            .sources = evidence_sources,
             .entry = entry,
             .version = program.version,
-            .inputs = @ptrCast(&query.inputs),
+            .inputs = evidence_inputs,
             .program = @ptrCast(&program),
         },
     };
@@ -58,4 +67,22 @@ pub fn check(io: std.Io, backing_allocator: std.mem.Allocator, program: zx.ir.Pr
         .InvalidResponse => error.InvalidSolverResponse,
         .Continue => unreachable,
     };
+}
+
+fn bindingRows(comptime Rows: type, allocator: std.mem.Allocator, inputs: []const Conditions.Input) std.mem.Allocator.Error!Rows {
+    const Row = std.meta.Child(std.meta.Elem(Rows));
+    const values = try allocator.alloc(Row, inputs.len);
+    const pointers = try allocator.alloc(*const Row, inputs.len);
+
+    for (inputs, values, pointers) |input, *row, *pointer| {
+        row.* = .{
+            .symbol = input.symbol,
+            .path = input.path,
+            .type_id = @backingInt(input.type_id),
+        };
+
+        pointer.* = row;
+    }
+
+    return pointers;
 }

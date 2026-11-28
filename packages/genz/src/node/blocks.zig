@@ -136,12 +136,6 @@ pub fn tail(allocator: std.mem.Allocator, storage: *Storage, starts: []const u32
         collectSeed(node.Block, allocator, &storage.statements, starts, counts, true);
 }
 
-pub fn appendAtTail(allocator: std.mem.Allocator, storage: *Storage, span: node.Block) std.mem.Allocator.Error!void {
-    if (span.len == 0) return;
-
-    _ = try tail(allocator, storage, &.{span.start}, &.{span.len});
-}
-
 fn collectSource(comptime Span: type, allocator: std.mem.Allocator, rows: anytype, starts: []const u32, counts: []const u32, parts: []const u64, last: u64, at_tail: bool) std.mem.Allocator.Error!Span {
     std.debug.assert(starts.len == counts.len);
 

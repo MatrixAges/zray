@@ -16,7 +16,6 @@
     <Call
         module="retain_file"
         in={{
-            fs: $in.fs,
             path: $ctx.entry.entry,
             source: $in.identity.entry
         }}
@@ -25,7 +24,6 @@
     <Call
         module="retain_file"
         in={{
-            fs: $in.fs,
             path: $ctx.entry.abi,
             source: $in.identity.abi
         }}
@@ -34,7 +32,6 @@
     <Call
         module="write_views"
         in={{
-            fs: $in.fs,
             directory: $ctx.identity,
             separator: $in.separator,
             files: $in.views
@@ -52,7 +49,6 @@
     <Call
         module="retain_file"
         in={{
-            fs: $in.fs,
             path: $ctx.runner.runner,
             source: $in.identity.runner
         }}
@@ -61,24 +57,20 @@
     <Call
         module="retain_file"
         in={{
-            fs: $in.fs,
             path: $ctx.runner.result,
             source: $in.identity.result
         }}
     />
 
     <Call
-        fn="modules"
-        in={{
-            fs: $in.fs,
-            files: $in.modules
-        }}
+        module="write_modules"
+        in={$in.modules}
     />
 
     <Return
         value={{
             directory: $ctx.identity,
-            module_paths: $ctx.modules
+            module_paths: $ctx.write_modules
         }}
     />
 </Module>

@@ -2,13 +2,13 @@ const std = @import("std");
 const host = @import("../host.zig");
 const model = @import("../model.zig");
 
-pub fn beginReplay(handle: *anyopaque, count: u64) host.Error![]const bool {
+pub fn beginReplay(handle: *anyopaque, count: u64) host.Error![]const ?[]const u8 {
     const self = host.State.get(handle);
     const previous = self.previous.?;
-    const is_archive = self.allocator.alloc(bool, @intCast(count)) catch |err| return self.fail(err);
+    const workspace = self.allocator.alloc(?[]const u8, @intCast(count)) catch |err| return self.fail(err);
 
     for (previous.lock.packages, 0..) |package, index| {
-        is_archive[index] = package.source == .archive;
+        workspace[index] = if (package.source == .workspace) package.source.workspace else null;
     }
 
     self.prepared = .{
@@ -17,14 +17,7 @@ pub fn beginReplay(handle: *anyopaque, count: u64) host.Error![]const bool {
         .paths = self.allocator.alloc([]const u8, @intCast(count)) catch |err| return self.fail(err),
     };
 
-    return is_archive;
-}
-
-pub fn workspacePath(handle: *anyopaque, row: u64) host.Error![]const u8 {
-    const self = host.State.get(handle);
-    const relative = self.prepared.lock.packages[@intCast(row)].source.workspace;
-
-    return std.fs.path.resolve(self.allocator, &.{ self.root, relative }) catch |err| self.fail(err);
+    return workspace;
 }
 
 pub fn fetchLocked(handle: *anyopaque, row: u64) host.Error![]const u8 {

@@ -6,7 +6,6 @@
     <Call
         module="target"
         in={$in.pick([
-            "frame",
             "ast",
             "represented",
             "kind",
@@ -37,7 +36,6 @@
     <Call
         module="result"
         in={{
-            frame: $in.frame,
             ast: $in.ast,
             result: $ctx.operation,
             removed_only: $in.removed_only,

@@ -42,11 +42,10 @@ pub fn decode(allocator: std.mem.Allocator, stdout: []const u8, stderr: []const 
 const source = @import("cli_source");
 const frame_constants = source.frame_constants.@"zx.constants";
 pub const diagnostics = @import("error_bundle.zig");
-pub const frames = @import("source/frames/storage.zig");
 
 pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @This(),
-    frames,
+    diagnostics,
     process,
 }).resolve;
 
@@ -73,39 +72,59 @@ comptime {
 }
 
 pub fn decodeFrames(allocator: std.mem.Allocator, stdout: []const u8, termination: std.process.Child.Term, mode: Mode) !Result {
+    var scratch = std.heap.ArenaAllocator.init(allocator);
+
+    defer scratch.deinit();
+
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     errdefer arena.deinit();
 
     const owned = arena.allocator();
-    var context: frames.Context = .{ .owned = owned, .temporary = allocator };
 
-    const outcome = source.decode.executeValue(owned, &.{
-        .response = @ptrCast(&context),
+    const outcome = try source.decode.executeIn(scratch.allocator(), &.{
         .bytes = stdout,
         .version = builtin.zig_version_string,
         .config_size = @sizeOf(Message.Config),
         .digest_size = std.Build.Cache.bin_digest_len,
         .translation = mode == .translation,
         .exited = termination == .exited and termination.exited == 0,
-    }) catch |err| return if (err == error.BackendProtocolFailure) context.failure.? else err;
+    });
 
-    switch (outcome) {
+    switch (outcome.status) {
         .InvalidBackendProtocol => return error.InvalidBackendProtocol,
         .BackendVersionMismatch => return error.BackendVersionMismatch,
         .IncompleteBackendResponse => return error.IncompleteBackendResponse,
         .Success, .SuccessWithInputs, .BackendFailed => {},
-        .SuccessWithDigest => unreachable,
     }
+
+    const rows = outcome.paths.rows;
+    const inputs = try owned.alloc(Input, rows.len);
+    const path_bytes = try owned.alloc(u8, @intCast(outcome.paths.length));
+    var offset: usize = 0;
+
+    for (inputs, rows) |*input, row| {
+        const path = path_bytes[offset..][0..row.path.len];
+
+        @memcpy(path, row.path);
+
+        input.* = .{ .prefix = @fromBackingInt(@intCast(row.kind)), .path = path };
+        offset += path.len;
+    }
+
+    const bundle: std.zig.ErrorBundle = if (outcome.diagnostics) |value| .{
+        .extra = try owned.dupe(u32, value.words),
+        .string_bytes = try owned.dupe(u8, value.strings),
+    } else .empty;
 
     return .{
         .arena = arena,
-        .inputs = context.inputs,
-        .diagnostics = context.diagnostics,
-        .digest = context.digest,
-        .cached = context.cached,
-        .succeeded = outcome != .BackendFailed,
-        .inputs_complete = outcome == .SuccessWithInputs,
+        .inputs = inputs,
+        .diagnostics = bundle,
+        .digest = if (outcome.digest) |digest| digest[0..std.Build.Cache.bin_digest_len].* else null,
+        .cached = outcome.cached,
+        .succeeded = outcome.status != .BackendFailed,
+        .inputs_complete = outcome.status == .SuccessWithInputs,
         .termination = termination,
     };
 }

@@ -19,7 +19,8 @@ export type Mapping = {
     expected: string,
     paths: string[],
     is_archive: bool[],
-    archive_digests: string[]
+    sources: string[],
+    root: string
 }
 
 export type AssemblyOutcome = {
@@ -42,9 +43,6 @@ export declare function readInstalledArchive(
 ): bool throws { PackageGraphHostFailure }
 export declare function recordInstalledArchive(host: Host, row: u64, path: string): void
 
-export declare function installedWorkspacePath(host: Host, row: u64): string throws {
-    PackageGraphHostFailure
-}
 export declare function recordMember(host: Host, row: u64, ordinal: u64, path: string): bool
 
 export declare function reportMissing(host: Host, message: string): void throws {

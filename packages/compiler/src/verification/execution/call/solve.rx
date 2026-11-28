@@ -1,0 +1,45 @@
+<Module>
+    <Type from="model" as="Call" />
+
+    <Args in={Call.Solve} out={Call.Safety} />
+
+    <Call
+        fn="host.findSymbolicCallee"
+        in={[
+            $in.frame,
+            $in.target
+        ]}
+    />
+
+    <If on={$ctx.findSymbolicCallee.safe != null}>
+        <Return
+            value={{
+                argument: $in.argument_safe,
+                callee: $ctx.findSymbolicCallee.safe
+            }}
+        />
+    </If>
+
+    <Call
+        fn="host.evaluateSymbolicCallee"
+        in={[
+            $in.frame,
+            $in.target
+        ]}
+    />
+
+    <Call
+        fn="host.publishSymbolicCallee"
+        in={[
+            $in.frame,
+            $ctx.findSymbolicCallee
+        ]}
+    />
+
+    <Return
+        value={{
+            argument: $in.argument_safe,
+            callee: $ctx.evaluateSymbolicCallee
+        }}
+    />
+</Module>

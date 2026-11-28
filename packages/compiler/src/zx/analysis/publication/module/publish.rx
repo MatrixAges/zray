@@ -3,6 +3,8 @@
 
     <Args in={Publication.Input} out={Publication.Output} />
 
+    <Store from="pending" as="publication" />
+
     <Call
         fn="types"
         in={$in.pick([
@@ -13,15 +15,17 @@
 
     <If on={$ctx.types != null}>
         <Call
-            fn="host.initializeAnalysisTypes"
-            in={[
-                $in.publication,
-                $ctx.types
-            ]}
+            fn="stage"
+            in={$ctx.types}
+            setter={[$store.publication.state]}
         />
     </If>
 
-    <Call fn="host.appendAnalysisTypes" in={$in.publication} />
+    <Call
+        fn="stage"
+        in={Publication.Action.AppendTypes}
+        setter={[$store.publication.state]}
+    />
 
     <If on={$in.borrow_body}>
         <Return
@@ -36,19 +40,18 @@
     <Call module="../body" in={$in.analysis.body} />
 
     <Call
-        fn="description"
-        in={$in.pick([
-            "publication",
-            "file_name"
-        ])}
+        fn="stage"
+        in={Publication.Action.Exports}
+        setter={[$store.publication.state]}
     />
 
+    <Call fn="description" in={$in.file_name} />
+    <Call fn="contract_rows" in={$in.analysis.contracts} />
+
     <Call
-        fn="contract_rows"
-        in={{
-            publication: $in.publication,
-            contracts: $in.analysis.contracts
-        }}
+        fn="stage"
+        in={Publication.Action.Constants}
+        setter={[$store.publication.state]}
     />
 
     <Return

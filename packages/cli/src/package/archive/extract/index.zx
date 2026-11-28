@@ -1,3 +1,1 @@
 export { makeTarDirectory, nextTar, writeTarFile } from "package_extract_host"
-
-export type { Archive, Entry } from "package_extract_host"

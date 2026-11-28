@@ -36,7 +36,7 @@ export default function (in: Input): Output {
                 _ => bound
             }
 
-            host.cacheBorrowedOperand(in.lowering, id, cached)
+            host.cacheLoweredOperand(in.lowering, id, cached)
 
             state.evaluated = state.evaluated.push(bound)[0]
             state.counts = state.counts.push(prior)[0]

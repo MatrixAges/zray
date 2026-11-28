@@ -1,4 +1,5 @@
 <Module>
+    <Type from="../rows" as="AST" />
     <Type from="model" as="Sort" />
 
     <Args in={Sort.Reservation} out={u8[]} />
@@ -16,11 +17,12 @@
     <Call fn="../rows.requireAllocation" in={$ctx.reserve.valid} />
 
     <Call
-        fn="../rows.appendAstExpressionHeaders"
+        fn="../rows.appendExpressionRows"
         in={[
             $in.writer,
-            $ctx.reserve.expressions.tags,
-            $ctx.reserve.expressions.offsets
+            $ctx.reserve.expressions,
+            null,
+            AST.AstPayloadOwnership.BorrowingText
         ]}
     />
 

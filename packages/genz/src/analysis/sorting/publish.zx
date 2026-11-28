@@ -1,11 +1,13 @@
 import integers from "std:integer"
 
 import constants from "../../ast/declarations/constants"
+import empty from "../../ast/expressions/empty"
+import extensions from "../../ast/expressions/empty_extensions"
 import namespace from "../../ast/expressions/namespace"
 import { word_radix } from "../node_headers/block/const"
 
+import type { ExpressionExtensions, ExpressionRows } from "ast_rows"
 import type { Columns as Declarations } from "../../ast/declarations/model"
-import type { Columns as Expressions } from "../../ast/expressions/namespace"
 
 export type Input = {
     name: u8[],
@@ -14,7 +16,8 @@ export type Input = {
 }
 
 export type Output = {
-    expressions: Expressions,
+    expressions: ExpressionRows,
+    extensions: ExpressionExtensions,
     declarations: Declarations,
     valid: bool
 }
@@ -43,7 +46,16 @@ export default function (in: Input): Output {
     })
 
     return {
-        expressions: value.table,
+        expressions: {
+            ...empty({}),
+            tags: value.table.tags,
+            offsets: value.table.offsets
+        },
+        extensions: {
+            ...extensions({}),
+            namespace_type_start: value.table.namespace_type_start,
+            namespace_type_len: value.table.namespace_type_len
+        },
         declarations: declarations.table,
         valid: value.valid && declarations.valid
     }

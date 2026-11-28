@@ -9,31 +9,58 @@
         <Return value={Cache.Status.Ready} />
     </If>
 
-    <Call fn="index.readBlob" in={$in.cache} />
+    <Call
+        fn="blob_path"
+        in={$in.pick([
+            "root",
+            "hex"
+        ])}
+    />
 
-    <If on={!$ctx.readBlob}>
-        <If on={$in.offline}>
-            <Return value={Cache.Status.PackageNotCached} />
+    <Call
+        module="acquire"
+        in={{
+            ...$in.pick([
+                "cache",
+                "offline",
+                "source",
+                "base"
+            ]),
+            path: $ctx.blob_path
+        }}
+    />
+
+    <If on={$ctx.acquire.bytes != null}>
+        <Call
+            module="stage"
+            in={{
+                cache: $in.cache,
+                bytes: $ctx.acquire.bytes
+            }}
+        />
+
+        <If on={$ctx.acquire.downloaded}>
+            <Call
+                fn="index.write"
+                in={[
+                    $ctx.blob_path,
+                    $ctx.acquire.bytes
+                ]}
+            />
         </If>
 
-        <Call fn="index.download" in={$in.cache} />
-    </If>
+        <Call fn="index.publishStaging" in={$in.cache} />
 
-    <Call module="stage" in={$in.cache} />
+        <If on={!$ctx.publishStaging}>
+            <Call fn="index.winnerAvailable" in={$in.cache} />
 
-    <If on={!$ctx.readBlob}>
-        <Call fn="index.publishBlob" in={$in.cache} />
-    </If>
-
-    <Call fn="index.publishStaging" in={$in.cache} />
-
-    <If on={!$ctx.publishStaging}>
-        <Call fn="index.winnerAvailable" in={$in.cache} />
-
-        <If on={!$ctx.winnerAvailable}>
-            <Return value={Cache.Status.CorruptPackageStore} />
+            <If on={!$ctx.winnerAvailable}>
+                <Return value={Cache.Status.CorruptPackageStore} />
+            </If>
         </If>
+
+        <Return value={Cache.Status.Ready} />
     </If>
 
-    <Return value={Cache.Status.Ready} />
+    <Return value={Cache.Status.PackageNotCached} />
 </Module>

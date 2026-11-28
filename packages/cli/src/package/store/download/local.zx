@@ -1,12 +1,14 @@
-import host from "package_download_host"
+import { resolvePathParts } from "lexical_path"
 
-import { maximum_archive } from "../const"
-import { Status } from "./model"
+import type { Input as Download } from "./model"
 
-import type { Handle as Input, Output } from "./model"
+export type Input = Download.Pick("base", "source")
+
+export type Output = string
 
 export default function (in: Input): Output {
-    const length = host.readLocal(in, maximum_archive + 1)
-
-    return length > maximum_archive ? Status.PackageArchiveTooLarge : Status.Ready
+    return resolvePathParts([
+        in.base,
+        in.source
+    ])
 }

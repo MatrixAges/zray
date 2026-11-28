@@ -3,12 +3,9 @@ export {
     beginSymbolicCall,
     checkSymbolicUnit,
     ensureSymbolicGraph,
-    markSymbolicQueryPrefix,
+    symbolicQueryPrefix,
     publishSymbolicParameter,
     publishSymbolicProgramResult,
-    publishSymbolicQuery,
-    rejectSymbolicProgram,
-    rejectSymbolicReturn,
     runSymbolicProgramBody,
     symbolicProgramPreconditions
 } from "verification_program_host"

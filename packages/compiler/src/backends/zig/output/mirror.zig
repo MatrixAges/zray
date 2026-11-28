@@ -149,13 +149,13 @@ const Frame = struct {
         var columns: FileColumns = undefined;
         const view = columns.bind(self.files);
 
-        try parallel.each(self.arenas.?, .{
+        try parallel.eachWrite(self.arenas.?, .{
             .count = changed.len,
             .hash = null,
             .render = null,
             .scan = null,
-            .write = &.{ .target = @ptrCast(&output), .sections = &view, .changed = changed },
-        });
+            .write = &.{ .sections = &view, .changed = changed },
+        }, self.directory);
     }
     fn trimSeed(self: *Frame) !void {
         var scratch = std.heap.ArenaAllocator.init(self.workspace);
@@ -263,14 +263,6 @@ const Writer = struct {
         try self.directory.writeFile(self.io, .{ .sub_path = path, .data = body });
     }
 };
-
-pub fn writeBootstrapFile(handle: *const anyopaque, path: []const u8, body: []const u8) u32 {
-    const output: *const Writer = @ptrCast(@alignCast(handle));
-
-    output.write(path, body) catch |err| return @intFromError(err);
-
-    return 0;
-}
 
 const SeedWriting = struct {
     output: Writer,

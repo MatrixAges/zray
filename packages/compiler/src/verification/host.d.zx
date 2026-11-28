@@ -1,16 +1,8 @@
-export type SelectionGraph = opaque
-
-export type SymbolicValue = opaque
-
-export type SymbolicTarget = mutable_opaque
-
 export type SymbolicSession = mutable_opaque
 
 export type SymbolicBlock = mutable_opaque
 
 export type SymbolicExpression = mutable_opaque
-
-export type SymbolicInvocation = mutable_opaque
 
 export enum SymbolicOperand {
     First,
@@ -34,29 +26,17 @@ export type ClauseTerm = {
     predicate: string
 }
 
-export declare function symbolicText(value: SymbolicValue): string?
+export type CallKey = {
+    target: u32,
+    start: u64,
+    length: u64,
+    digest: u64
+}
 
-export declare function symbolicFieldCount(value: SymbolicValue): u64
-
-export declare function symbolicField(value: SymbolicValue, index: u64): SymbolicValue
-
-export declare function targetSymbolicField(value: SymbolicTarget, index: u64): SymbolicTarget
-
-export declare function reuseSymbolicFields(target: SymbolicTarget, source: u8[]): void
-
-export declare function reserveSymbolicFields(
-    graph: SelectionGraph,
-    target: SymbolicTarget,
-    count: u64
-): void throws { OutOfMemory }
-
-export declare function publishSymbolicText(
-    graph: SelectionGraph,
-    target: SymbolicTarget,
-    type_id: u32,
-    text: string
-): void throws { OutOfMemory, InvalidSource }
-
+export type CallProbe = {
+    safe?: string,
+    key?: CallKey
+}
 
 export declare function evaluateClause(session: SymbolicSession, row: u64): ClauseTerm
     throws { OutOfMemory, InvalidSource }
@@ -123,14 +103,18 @@ export declare function runSymbolicExpressionCall(
     argument: u32
 ): CallSafety throws { OutOfMemory, InvalidSource }
 
-export declare function evaluateSymbolicCallArgument(call: SymbolicInvocation): string
-    throws { OutOfMemory, InvalidSource }
+export declare function findSymbolicCallee(
+    allocator,
+    frame: SymbolicExpression,
+    target: u32
+): CallProbe throws { OutOfMemory }
 
-export declare function findSymbolicCallee(call: SymbolicInvocation): string?
-    throws { OutOfMemory }
+export declare function evaluateSymbolicCallee(
+    frame: SymbolicExpression,
+    target: u32
+): string throws { OutOfMemory, InvalidSource }
 
-export declare function evaluateSymbolicCallee(call: SymbolicInvocation): string
-    throws { OutOfMemory, InvalidSource }
-
-export declare function publishSymbolicCallee(call: SymbolicInvocation): void
-    throws { OutOfMemory }
+export declare function publishSymbolicCallee(
+    frame: SymbolicExpression,
+    probe: CallProbe
+): void throws { OutOfMemory }

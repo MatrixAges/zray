@@ -1,4 +1,5 @@
 import integers from "std:integer"
+import { convertAggregateField } from "ast_rows"
 import host from "lowering_host"
 
 import bindOperand from "../../../../aggregate/execute/bind_operand"
@@ -6,13 +7,13 @@ import borrowedField from "../../../../aggregate/execute/borrowed_field"
 import { Route } from "../../../../aggregate/layout/fields"
 
 import type { AstSequence, AstWriter } from "ast_rows"
-import type { Lowering, ObjectFrame } from "lowering_host"
+import type { Lowering } from "lowering_host"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
     sequence: AstSequence,
-    batch: ObjectFrame,
+    expression_types: u32[],
     fields: u32[],
     field_indices: u32[],
     field_names: string[],
@@ -28,7 +29,7 @@ export default function (in: Input): Output {
         frame,
         writer,
         sequence,
-        batch,
+        expression_types,
         fields,
         field_indices,
         field_names,
@@ -76,7 +77,12 @@ export default function (in: Input): Output {
                     value
                 })
 
-                const pointer = host.publishObjectField(batch, item, bound)
+                const pointer = convertAggregateField(
+                    writer,
+                    sequence,
+                    expression_types[integers.widen(item)],
+                    bound
+                )
 
                 state.values = state.values.push(pointer)[0]
             }

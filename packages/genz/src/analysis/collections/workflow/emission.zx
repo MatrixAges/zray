@@ -1,5 +1,5 @@
+import type { CollectionRows } from "ast_rows"
 import type { CollectionKind } from "core/expression_table/kinds"
-import type { CollectionRows } from "lowering_host"
 import type { Input as Append } from "../append/model"
 import type { Output as Emitted } from "../model"
 

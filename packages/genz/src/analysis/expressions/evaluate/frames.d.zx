@@ -1,9 +1,5 @@
 export type StatementTraversal = opaque
 
-export type SequenceFrame = mutable_opaque
-
-export type ObjectFrame = mutable_opaque
-
 export type Lowering = mutable_opaque
 
 export enum Representation {
@@ -13,10 +9,6 @@ export enum Representation {
 }
 
 export type CallFrame = mutable_opaque
-
-export type IterationCallFrame = mutable_opaque
-
-export type MatchFrame = mutable_opaque
 
 export enum CallArgument {
     Value,
@@ -64,17 +56,3 @@ export enum StoredType {
 export type AnalysisWork = mutable_opaque
 
 export type BasisWork = mutable_opaque
-
-export type CollectionFrame = mutable_opaque
-
-export type CollectionRows = {
-    first: u32,
-    second: u32,
-    third: u32,
-    items: u32,
-    value: u32,
-    header: u32,
-    element: u32,
-    length: u32,
-    unit: u32
-}

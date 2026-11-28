@@ -1,5 +1,6 @@
 <Module>
     <Type from="model" as="Reuse" />
+    <Type from="../names" as="Names" />
 
     <Args in={Reuse.Job} out={Reuse.Output} />
 
@@ -39,7 +40,7 @@
                 symbols: $ctx.plan.alias_symbols,
                 sources: $ctx.plan.alias_sources,
                 replacements: [],
-                restore: false
+                action: Names.Action.Bind
             }}
         />
 

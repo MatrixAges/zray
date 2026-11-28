@@ -17,7 +17,6 @@ const Cursor = struct {
     allocator: std.mem.Allocator,
     iterator: std.Io.Dir.Iterator,
     view: View = undefined,
-    hash: Hash = .init(.{}),
     failure: ?anyerror = null,
     fn fail(self: *Cursor, err: anyerror) storage.Error {
         self.failure = err;
@@ -39,10 +38,9 @@ pub fn digest(io: std.Io, allocator: std.mem.Allocator, path: []const u8, all_en
     const handle = &cursor;
     var collected: StoreState = &.{ .names = &.{}, .tags = &.{} };
     var host: StoreHost = .{ .store_0 = &collected };
+    const hashed = source.execute(&arena, &.{ .directory = @ptrCast(&handle), .all_entries = all_entries }, &host) catch |err| return if (err == error.ObservationFailure) cursor.failure.? else err;
 
-    source.execute(&arena, &.{ .directory = @ptrCast(&handle), .all_entries = all_entries }, &host) catch |err| return if (err == error.ObservationFailure) cursor.failure.? else err;
-
-    return cursor.hash.finalResult();
+    return hashed[0..Hash.digest_length].*;
 }
 
 pub fn nextDirectoryEntry(handle: *const anyopaque) storage.Error!?*const View {
@@ -57,8 +55,4 @@ pub fn nextDirectoryEntry(handle: *const anyopaque) storage.Error!?*const View {
     };
 
     return &self.view;
-}
-
-pub fn hashDirectoryBytes(handle: *const anyopaque, payload: []const u8) void {
-    storage.context(Cursor, handle).hash.update(payload);
 }

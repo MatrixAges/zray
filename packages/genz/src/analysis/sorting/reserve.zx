@@ -1,6 +1,7 @@
 import bytes from "std:bytes"
 
 import constants from "../../ast/declarations/constants"
+import empty from "../../ast/expressions/empty"
 import header from "../../ast/expressions/header"
 import { ExpressionsKind } from "../../printer/model/expressions"
 import integer from "../../printer/text/integer"
@@ -15,7 +16,7 @@ export type Input = {
 }
 
 export type Output = {
-    expressions: ExpressionRows.Pick("tags", "offsets"),
+    expressions: ExpressionRows,
     declarations: Declarations,
     valid: bool
 }
@@ -46,6 +47,7 @@ export default function (in: Input): Output {
 
     return {
         expressions: {
+            ...empty({}),
             tags: value.tags,
             offsets: value.offsets
         },

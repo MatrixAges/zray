@@ -13,6 +13,7 @@ export type LibraryNativeModule = {
 export declare function prepareStageAbi(stage: Stage): void throws { PublicationFailure }
 export declare function prepareStageLayout(stage: Stage): void throws { PublicationFailure }
 export declare function collectStageInventory(stage: Stage): void throws { PublicationFailure }
+export declare function writeStageFile(stage: Stage, path: string, source: string): void throws { PublicationFailure }
 export declare function writeStageArtifact(stage: Stage): void throws { PublicationFailure }
 export declare function writeStageManifest(stage: Stage): void throws { PublicationFailure }
 export declare function writeStageBuild(stage: Stage): void throws { PublicationFailure }

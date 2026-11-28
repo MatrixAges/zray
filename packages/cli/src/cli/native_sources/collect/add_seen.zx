@@ -8,6 +8,9 @@ export default function (in: Input, {
     $store.collection.seen = {
         relative_paths: in.seen.relative_paths.push(in.relative)[0],
         is_asset: in.seen.is_asset.push(!in.source)[0],
-        parsed: in.seen.parsed.push(in.source)[0]
+        parsed: in.seen.parsed.push(in.source)[0],
+        contents: in.seen.contents.push(in.content)[0],
+        from_present: in.seen.from_present.push(in.from_present)[0],
+        from_paths: in.seen.from_paths.push(in.from_path)[0]
     }
 }

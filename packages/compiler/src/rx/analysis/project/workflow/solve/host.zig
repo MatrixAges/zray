@@ -6,7 +6,8 @@ const SourceMap = @import("../../../source_map.zig");
 const Constraints = @import("../../constraints.zig");
 const Contracts = @import("../../contracts.zig");
 const Ports = @import("../../constraints/ports.zig");
-const PortHost = @import("../../constraints/ports/host.zig");
+const PortPublication = @import("../../constraints/ports/publish.zig");
+const PortBatch = @import("rx_execution_abi").layouts.@"zig:rx_project_host".PortBatch;
 const Collection = @import("../../constraints/collection.zig");
 const CollectionHost = @import("../../constraints/collection/host.zig");
 const Inference = @import("../../../inference/solve/host.zig").Frame;
@@ -71,7 +72,7 @@ pub fn run(derivation: *Derivation) Error!void {
 
         const input: abi.Input = .{
             .frame = @ptrCast(&state),
-            .ports = &stages.ports.input,
+            .ports = &stages.ports,
             .collection = &stages.collection.input,
             .solve = &stages.inference.input,
             .signatures = &stages.signatures.input,
@@ -90,7 +91,9 @@ const Stages = struct {
     empty: std.mem.Allocator,
     scope: zx.memory.ArenaScope,
     declarations: zx.Arena,
-    ports: PortHost.Frame = .{},
+    ports: abi.Ports = undefined,
+    port_origins: std.meta.Child(@FieldType(abi.Ports, "origins")) = undefined,
+    port_locations: zx.memory.ReadColumn = undefined,
     body: Collection,
     collection: CollectionHost.Frame = .{},
     collection_scratch: std.heap.ArenaAllocator,
@@ -178,12 +181,22 @@ pub fn openFlowPorts(handle: *anyopaque) Error!void {
     const declared = try Contracts.resolve(stages.declarations.allocator(), &state.graph, modules, state.source_map);
 
     stages.scope.active = stages.declarations.allocator();
+    stages.port_locations = zx.memory.borrowNestedColumn(usize, &.{ "source", "node", "location", "offset" }, modules);
+    stages.port_origins = .{ .ends = state.source_map.ends, .locations = @ptrCast(&stages.port_locations) };
 
-    stages.ports.bind(&state.graph, state.ports, modules, state.source_map, declared);
+    stages.ports = .{
+        .owners = declared.owners,
+        .types = @ptrCast(declared.types),
+        .modules = modules.len,
+        .origins = &stages.port_origins,
+    };
 }
 
-pub fn releaseFlowDeclarations(handle: *anyopaque) void {
-    const stages = borrow(handle).stages;
+pub fn commitFlowPorts(handle: *anyopaque, batches: []const *const PortBatch) Error!void {
+    const state = borrow(handle);
+    const stages = state.stages;
+
+    try PortPublication.apply(&state.graph, state.ports, batches);
 
     stages.scope.active = stages.empty;
 

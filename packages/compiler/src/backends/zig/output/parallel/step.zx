@@ -1,13 +1,12 @@
 import integers from "std:integer"
 import memory from "memory"
-import host from "output_host"
 
 import render from "../../partition/emission/render"
 import scanBatch from "../../partition/scanning/batch"
 import { batch_size } from "../../partition/scanning/const"
 import mark from "../assembly/mark"
 
-import type { Marked, Scanned, Work } from "./model"
+import type { File, Marked, Scanned, Work } from "./model"
 
 export type Input = {
     jobs: Work,
@@ -17,7 +16,8 @@ export type Input = {
 export type Output = {
     code: u32,
     marked?: Marked,
-    scanned?: Scanned
+    scanned?: Scanned,
+    file?: File
 }
 
 export default function (in: Input): Output {
@@ -84,7 +84,10 @@ export default function (in: Input): Output {
     const body = memory.readTextColumn(source.bodies, index)
 
     return {
-        code: host.writeBootstrapFile(write.target, path, body),
-        marked: null
+        code: 0,
+        file: {
+            path,
+            body
+        }
     }
 }

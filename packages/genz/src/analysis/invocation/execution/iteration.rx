@@ -14,10 +14,22 @@
     />
 
     <Call
+        fn="../../aggregate/execute/bind_operand"
+        in={{
+            frame: $in.frame,
+            writer: $in.writer,
+            sequence: $in.body,
+            value: $ctx.lowerExpression
+        }}
+    />
+
+    <Call
         fn="index.openIterationCall"
         in={[
-            $in.call,
-            $ctx.lowerExpression
+            $in.context,
+            $in.operand,
+            $in.operand_type,
+            $ctx.bind_operand
         ]}
     />
 
@@ -35,7 +47,13 @@
         <Call
             fn="convert"
             in={{
-                call: $in.call,
+                ...$in.pick([
+                    "frame",
+                    "context",
+                    "writer",
+                    "body",
+                    "result_type"
+                ]),
                 value: $ctx.lowerCall
             }}
         />
@@ -56,7 +74,13 @@
     <Call
         fn="convert"
         in={{
-            call: $in.call,
+            ...$in.pick([
+                "frame",
+                "context",
+                "writer",
+                "body",
+                "result_type"
+            ]),
             value: $ctx.lowerRegular
         }}
     />

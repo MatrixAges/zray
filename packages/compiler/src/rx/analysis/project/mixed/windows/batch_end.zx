@@ -1,0 +1,11 @@
+import memory from "memory"
+
+import type { Cursor } from "../windows"
+
+export type Input = Cursor.Pick("batch_ends", "batch")
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    return memory.readColumnIndex(in.batch_ends, in.batch)
+}

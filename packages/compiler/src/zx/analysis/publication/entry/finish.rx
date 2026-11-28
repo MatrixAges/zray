@@ -3,37 +3,93 @@
 
     <Args in={Entry.Input} out={u32?} />
 
-    <Call fn="register" in={$in} />
-    <Call fn="validate" in={$in} />
+    <Store from="pending" as="publication" />
 
-    <If on={!$ctx.validate}>
+    <Call
+        fn="register"
+        in={$in.pick([
+            "calls",
+            "declared",
+            "type_only",
+            "base_count"
+        ])}
+    />
+
+    <If on={$ctx.register != null}>
+        <Call
+            fn="stage"
+            in={{
+                split: $in.resolved
+            }}
+            setter={[$store.publication.state]}
+        />
+    </If>
+
+    <If on={!$in.resolved && $in.native_count != 0}>
+        <Call
+            fn="stage"
+            in={{
+                own_natives: true
+            }}
+            setter={[$store.publication.state]}
+        />
+    </If>
+
+    <If on={$in.check_prefix}>
+        <Call
+            fn="stage"
+            in={{
+                check_prefix: true
+            }}
+            setter={[$store.publication.state]}
+        />
+    </If>
+
+    <Call
+        fn="validate"
+        in={$in.pick([
+            "initializer_count",
+            "initializers",
+            "base_count"
+        ])}
+    />
+
+    <If on={$ctx.validate != null}>
+        <Call
+            fn="stage"
+            in={{
+                issue: $ctx.validate
+            }}
+            setter={[$store.publication.state]}
+        />
+
         <Return value={null} />
     </If>
 
-    <If on={!$in.resolved && $ctx.register != null}>
-        <Call
-            fn="../../../modules/forward_entry/recursive_request"
-            in={{
-                symbols: $in.symbols,
-                input_type: $in.input_type,
-                output_type: $in.output_type,
-                function_id: $ctx.register
-            }}
-        />
+    <If on={$ctx.register != null}>
+        <If on={!$in.resolved}>
+            <Call
+                fn="../../../modules/forward_entry/recursive_request"
+                in={{
+                    symbols: $in.symbols,
+                    input_type: $in.input_type,
+                    output_type: $in.output_type,
+                    function_id: $ctx.register
+                }}
+            />
 
-        <Call module="../../../modules/forward_entry/build" />
+            <Call module="../../../modules/forward_entry/build" />
 
-        <Call fn="index.borrowForwardedBodyBytes" />
+            <Call
+                fn="stage"
+                in={{
+                    forwarded: $ctx.build
+                }}
+                setter={[$store.publication.state]}
+            />
 
-        <Call
-            fn="index.writeForwardedBody"
-            in={[
-                $in.program,
-                $ctx.borrowForwardedBodyBytes
-            ]}
-        />
-
-        <Return value={$ctx.register} />
+            <Return value={$ctx.register} />
+        </If>
     </If>
 
     <Return value={null} />

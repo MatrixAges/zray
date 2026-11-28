@@ -1,5 +1,11 @@
 export type InvocationPreparation = mutable_opaque
 
+export enum ReferenceTarget {
+    Source,
+    Compiled,
+    Native
+}
+
 export enum CallRoute {
     Source,
     AuthorizedSource,

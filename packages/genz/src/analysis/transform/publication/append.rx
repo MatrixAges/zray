@@ -6,6 +6,15 @@
     <Call fn="index.requireAllocation" in={$in.valid} />
 
     <Call
+        fn="spans"
+        in={$in.pick([
+            "element",
+            "remainder",
+            "outer"
+        ])}
+    />
+
+    <Call
         fn="index.appendExpressionRows"
         in={[
             $in.writer,
@@ -31,7 +40,7 @@
         fn="index.appendElement"
         in={[
             $in.writer,
-            $in.element
+            $ctx.spans.element
         ]}
     />
 
@@ -50,7 +59,7 @@
             fn="index.appendRemainder"
             in={[
                 $in.writer,
-                $in.remainder
+                $ctx.spans.remainder
             ]}
         />
     </If>
@@ -59,7 +68,7 @@
         fn="index.appendOuter"
         in={[
             $in.writer,
-            $in.outer
+            $ctx.spans.outer
         ]}
     />
 

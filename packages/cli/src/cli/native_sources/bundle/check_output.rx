@@ -1,0 +1,18 @@
+<Module>
+    <Type from="model" as="Bundle" />
+
+    <Args in={Bundle.OutputCheck} out={bool} />
+
+    <Loop on={$in.valid && $in.index < $in.bundle_files.length}>
+        <Call
+            module="check_output_step"
+            in={{
+                ...$in,
+                index: 0,
+                valid: true
+            }}
+        />
+    </Loop>
+
+    <Return value={$ctx.check_output_step.valid} />
+</Module>

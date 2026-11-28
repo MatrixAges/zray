@@ -3,7 +3,6 @@ const Artifact = @import("../artifact/model.zig");
 const codec = @import("codec.zig");
 const generated = @import("parser_options").generated_parser;
 const ABI = @import("project_execution_abi").layouts.@"zig:project_host";
-const Probe = if (generated) ABI.CacheProbe else struct { bucket: u64, row: u64 };
 
 pub const Entry = struct {
     dirty: bool = true,
@@ -69,14 +68,10 @@ pub const Pending = struct {
     value: ?Entry = null,
     added: ?NewSlot = null,
     install: if (generated) ABI.CacheInstall else void = undefined,
-    const NewSlot = struct { entry: *Entry, key: []const u8 };
+    const NewSlot = struct { entry: *Entry, key: []const u8, bucket: usize };
 
-    fn borrow(handle: *anyopaque) *Pending {
-        return @ptrCast(@alignCast(handle));
-    }
-    pub fn installView(self: *Pending, comptime Layout: type, key: []const u8) Layout {
+    pub fn installView(self: *const Pending, comptime Layout: type, key: []const u8) Layout {
         return .{
-            .slot = @ptrCast(self),
             .key = key,
             .keys = self.entries.keys.items,
             .buckets = self.entries.buckets,
@@ -89,69 +84,46 @@ pub const Pending = struct {
             self.allocator.free(added.key);
         }
     }
+
+    pub fn stage(self: *Pending, previous: u64) std.mem.Allocator.Error!void {
+        const path = self.value.?.result.value.path;
+        const bucket = try self.entries.prepare(self.allocator, path, @intCast(previous));
+        const key = try self.allocator.dupe(u8, path);
+
+        errdefer self.allocator.free(key);
+
+        const entry = try self.allocator.create(Entry);
+        self.added = .{ .entry = entry, .key = key, .bucket = bucket };
+    }
+    pub fn commit(self: *Pending, replacement: ?u64) void {
+        if (replacement) |row| {
+            const entry = self.entries.values.items[@intCast(row)];
+
+            entry.result.deinit();
+
+            entry.* = self.value.?;
+        } else {
+            const added = self.added.?;
+
+            added.entry.* = self.value.?;
+
+            self.entries.append(added.bucket, added.key, added.entry);
+
+            self.added = null;
+        }
+
+        self.value = null;
+    }
 };
 
-pub fn reserveCacheSlot(handle: *anyopaque, previous: u64) std.mem.Allocator.Error!u64 {
-    const slot = Pending.borrow(handle);
-    const path = slot.value.?.result.value.path;
-
-    return try slot.entries.prepare(slot.allocator, path, @intCast(previous));
-}
-
-pub fn stageCacheSlot(handle: *anyopaque) std.mem.Allocator.Error!void {
-    const slot = Pending.borrow(handle);
-    const key = try slot.allocator.dupe(u8, slot.value.?.result.value.path);
-
-    errdefer slot.allocator.free(key);
-
-    const entry = try slot.allocator.create(Entry);
-    slot.added = .{ .entry = entry, .key = key };
-}
-
-pub fn appendCacheSlot(handle: *anyopaque, bucket: u64) void {
-    const slot = Pending.borrow(handle);
-    const added = slot.added.?;
-
-    added.entry.* = slot.value.?;
-
-    slot.entries.append(@intCast(bucket), added.key, added.entry);
-
-    slot.value = null;
-    slot.added = null;
-}
-
-pub fn replaceCacheSlot(handle: *anyopaque, row: u64) void {
-    const slot = Pending.borrow(handle);
-    const entry = slot.entries.values.items[@intCast(row)];
-
-    entry.result.deinit();
-
-    entry.* = slot.value.?;
-    slot.value = null;
-}
-
-pub fn prepareSeed(slot: *Pending) std.mem.Allocator.Error!Probe {
+pub fn prepareSeed(slot: *Pending) std.mem.Allocator.Error!?u64 {
     const found = slot.entries.position(slot.value.?.result.value.path);
 
-    if (found.row) |row| return .{ .bucket = found.slot, .row = row + 1 };
+    if (found.row) |row| return row;
 
-    const position = try reserveCacheSlot(slot, found.slot);
+    try slot.stage(found.slot);
 
-    try stageCacheSlot(slot);
-
-    return .{ .bucket = position, .row = 0 };
-}
-
-pub fn commitSeed(slot: *Pending, prepared: Probe) void {
-    if (prepared.row != 0) replaceCacheSlot(slot, prepared.row - 1) else appendCacheSlot(slot, prepared.bucket);
-}
-
-pub fn commitPrepared(slot: *Pending, plan: anytype) void {
-    if (plan.replacement) |row| {
-        replaceCacheSlot(slot, row);
-    } else {
-        appendCacheSlot(slot, plan.bucket);
-    }
+    return null;
 }
 
 fn install(allocator: std.mem.Allocator, entries: *Map, value: Entry) std.mem.Allocator.Error!void {
@@ -174,10 +146,12 @@ fn install(allocator: std.mem.Allocator, entries: *Map, value: Entry) std.mem.Al
             else => unreachable,
         };
 
-        commitPrepared(&slot, plan);
+        if (plan.replacement == null) try slot.stage(plan.bucket);
+
+        slot.commit(plan.replacement);
 
         return;
     }
 
-    commitSeed(&slot, try prepareSeed(&slot));
+    slot.commit(try prepareSeed(&slot));
 }

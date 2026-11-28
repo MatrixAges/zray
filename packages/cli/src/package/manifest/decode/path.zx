@@ -28,7 +28,7 @@ export default function (in: Input): Output {
     })
 
     if (!valid) {
-        yaml.reject(document, node, entry ? bad_entry : bad_library)
+        yaml.reject(document.parser, node, entry ? bad_entry : bad_library)
     }
 
     return value

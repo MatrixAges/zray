@@ -1,6 +1,6 @@
 import {
     appendAstObjectFields,
-    appendAstObjectRows,
+    appendAstOperandRows,
     astExpressionCount,
     astFieldCount
 } from "ast_rows"
@@ -40,7 +40,15 @@ export default function (in: Input): Output {
     })
 
     appendAstObjectFields(writer, fields)
-    appendAstObjectRows(writer, expression)
+
+    appendAstOperandRows(writer, {
+        ...expression,
+        tuple: [],
+        builtin_name: [],
+        builtin_arguments: [],
+        identifier: [],
+        address_of: []
+    })
 
     return base
 }

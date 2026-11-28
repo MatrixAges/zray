@@ -5,6 +5,7 @@ import { Field, Mapping } from "../../schema/model"
 import boolean from "../boolean"
 import { empty_text, mapping_size, unknown_implementation_field } from "../const"
 import mapping from "../mapping"
+import nodeAt from "../node_at"
 import string from "../string"
 import strings from "../strings"
 
@@ -40,15 +41,21 @@ export default function (in: Input): Output {
     const data = loop(initial, {
         while: state => state.index < pairs.length,
         next: state => {
-            const key = yaml.node(document, pairs[state.index], null)
-            const item = yaml.node(document, pairs[state.index + 1], null)
+            const key = nodeAt({
+                document,
+                id: pairs[state.index]
+            })
+            const item = nodeAt({
+                document,
+                id: pairs[state.index + 1]
+            })
             const value = {
                 document,
                 node: item
             }
             const selected = field({
                 mapping: Mapping.Implementation,
-                key: yaml.text(key)
+                key: key.text
             })
 
             switch (selected) {
@@ -74,7 +81,11 @@ export default function (in: Input): Output {
                         workspace: false
                     })
                 default:
-                    yaml.reject(document, key, unknown_implementation_field)
+                    yaml.reject(
+                        document.parser,
+                        key,
+                        unknown_implementation_field
+                    )
             }
 
             state.index += mapping_size

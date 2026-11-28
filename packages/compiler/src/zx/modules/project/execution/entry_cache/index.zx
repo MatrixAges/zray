@@ -3,7 +3,6 @@ export {
     CacheWrite,
     extractProjectCacheArtifact,
     projectCacheSlot,
-    replaceCacheSlot,
-    appendCacheSlot,
+    publishProjectCacheEntry,
     rejectProjectCacheArtifact
 } from "project_host"

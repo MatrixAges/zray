@@ -1,18 +1,27 @@
-import type { Output as Publication, Verification } from "publication_host"
+import type { Verification } from "publication_host"
+
+export type Bindings = {
+    module: string,
+    declaration: string,
+    module_source: string,
+    declaration_source: string
+}
 
 export type Input = {
-    publication: Publication,
     verification: Verification,
     succeeded: bool,
     complete: bool,
     new_inputs: bool,
-    requested_assembly: bool,
-    emitted_assembly: bool,
-    bindings: bool
+    binary_source?: string,
+    binary_target: string,
+    assembly_source?: string,
+    assembly_target?: string,
+    bindings?: Bindings
 }
 
 export enum Output {
     Skipped,
     ConflictingPaths,
+    ForeignFile,
     Published
 }

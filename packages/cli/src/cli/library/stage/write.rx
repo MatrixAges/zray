@@ -11,9 +11,9 @@
     <Call fn="index.writeStageArtifact" in={$in.stage} />
 
     <Call
-        fn="index.writeAtomic"
+        fn="index.writeStageFile"
         in={[
-            $in.fs,
+            $in.stage,
             $in.files.abi_path,
             $in.files.abi
         ]}
@@ -22,7 +22,7 @@
     <Call
         module="write_files"
         in={{
-            fs: $in.fs,
+            stage: $in.stage,
             files: $in.files.aliases
         }}
     />
@@ -30,7 +30,7 @@
     <Call
         module="write_files"
         in={{
-            fs: $in.fs,
+            stage: $in.stage,
             files: $in.files.generated
         }}
     />
@@ -38,7 +38,7 @@
     <Call
         module="write_files"
         in={{
-            fs: $in.fs,
+            stage: $in.stage,
             files: $in.files.public
         }}
     />

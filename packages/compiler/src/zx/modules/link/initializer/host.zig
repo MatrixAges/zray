@@ -114,8 +114,7 @@ fn prepare(types: *Types, temporary: std.mem.Allocator, functions: usize, regist
         .types = &view.bind(TypeRegistration),
         .registry = &.{
             .source = &keys,
-            .buckets = @ptrCast(&registry.buckets),
-            .capacity = registry.buckets.len,
+            .buckets = registry.buckets,
             .identity = initial.identity,
             .version = initial.schema_version,
             .functions = functions,

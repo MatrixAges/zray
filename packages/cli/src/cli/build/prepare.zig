@@ -126,15 +126,13 @@ pub fn retainNodeResources(handle: *const anyopaque, target: NodeTarget) Error!v
     const node_sources = zx.memory.borrowTextColumn("source", node);
     const napi_paths = zx.memory.borrowTextColumn("path", napi);
     const napi_sources = zx.memory.borrowTextColumn("source", napi);
-    var disk: @import("artifact_io").Context = .{ .io = context.io };
 
     source.workspace_host_resources.executeIn(context.allocator, &.{
-        .fs = @ptrCast(&disk),
         .directory = self.workspace.directory,
         .separator = &.{std.fs.path.sep},
         .node = &.{ .count = node.len, .paths = @ptrCast(&node_paths), .sources = @ptrCast(&node_sources) },
         .napi = &.{ .count = napi.len, .paths = @ptrCast(&napi_paths), .sources = @ptrCast(&napi_sources) },
-    }) catch |err| return self.failure.save(disk.unwrap(err));
+    }, context.io) catch |err| return self.failure.save(err);
 }
 
 pub fn releaseBackendSources(handle: *const anyopaque) void {

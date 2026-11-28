@@ -26,7 +26,14 @@ fn initEmptyStore(comptime Pointer: type) std.meta.Child(Pointer) {
         return .{ .paths = &.{}, .sources = &.{}, .from_present = &.{}, .from_paths = &.{} };
     }
 
-    return .{ .relative_paths = &.{}, .is_asset = &.{}, .parsed = &.{} };
+    return .{
+        .relative_paths = &.{},
+        .is_asset = &.{},
+        .parsed = &.{},
+        .contents = &.{},
+        .from_present = &.{},
+        .from_paths = &.{},
+    };
 }
 
 pub const Result = struct {
@@ -60,6 +67,7 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, pr
 
     const input: std.meta.Child(rule.Input) = .{
         .collection = @ptrCast(&context),
+        .directory = directory,
         .bundle_files = options.bundle_files,
         .header = options.header != null,
         .header_absolute = if (options.header) |header| std.fs.path.isAbsolute(header) else false,
@@ -68,7 +76,7 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, pr
         .windows = @import("builtin").os.tag == .windows,
     };
 
-    const raw = rule.execute(&arena, &input, &host) catch |err| return if (err == error.NativeResourceFailure) context.failure.? else err;
+    const raw = rule.execute(&arena, &input, &host, io) catch |err| return if (err == error.NativeResourceFailure) context.failure.? else err;
     const result = if (@typeInfo(@TypeOf(raw)) == .pointer) raw.* else raw;
 
     switch (result.status) {
@@ -79,11 +87,22 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, directory: []const u8, pr
         .IncompleteInclude => return error.IncompleteNativeIncludeBundle,
     }
 
+    const files = try allocator.alloc(File, result.files.len);
+
+    for (result.files, files) |entry, *file| {
+        file.* = .{
+            .path = try allocator.dupe(u8, entry.path),
+            .kind = if (entry.asset) .asset else .zig,
+            .sha256 = try allocator.dupe(u8, entry.sha256),
+            .referenced_from = if (entry.referenced_from) |path| try allocator.dupe(u8, path) else null,
+        };
+    }
+
     return .{
         .entry = if (context.entry) |entry| try std.fs.path.join(allocator, &.{ context.destination, std.fs.path.basename(entry) }) else null,
         .include_paths = context.include_paths,
         .include_relocations = context.relocations.items,
-        .files = context.files,
+        .files = files,
         .dynamic_resources = result.dynamic_resources,
         .c_imports = result.c_imports,
     };

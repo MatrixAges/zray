@@ -1,10 +1,10 @@
 import type { Symbols } from "core/symbol_table/model"
 import type { ReadColumn } from "memory"
-import type { AnalysisEntry, ProgramEntry } from "project_host"
+import type { Forwarded } from "../../../modules/entry_body/publication/model"
+
+export type Body = Forwarded
 
 export type Input = {
-    entry: AnalysisEntry,
-    program: ProgramEntry,
     symbols: Symbols,
     input_type: u32,
     output_type: u32,
@@ -17,4 +17,12 @@ export type Input = {
     check_prefix: bool,
     initializers: ReadColumn,
     initializer_count: u64
+}
+
+export type Update = {
+    split?: bool,
+    own_natives?: bool,
+    check_prefix?: bool,
+    issue?: string,
+    forwarded?: Body
 }

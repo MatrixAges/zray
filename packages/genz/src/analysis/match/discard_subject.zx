@@ -1,0 +1,25 @@
+import { StatementsKind } from "../../printer/model/statements"
+
+import type { BindingRows } from "ast_rows"
+
+export type Input = u32
+
+export type Output = BindingRows
+
+export default function (in: Input): Output {
+    return {
+        tags: [StatementsKind.Discard],
+        offsets: [0],
+        constant_name: [],
+        constant_type_expr: [],
+        constant_value: [],
+        constant_exported: [],
+        variable_name: [],
+        variable_type_expr: [],
+        variable_value: [],
+        variable_exported: [],
+        discard: [in],
+        break_value_label: [],
+        break_value_value: []
+    }
+}

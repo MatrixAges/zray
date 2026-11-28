@@ -1,32 +1,37 @@
 export declare function buildSortComparator(
-    frame: SortFrame,
+    allocator,
+    frame: Lowering,
+    id: u32,
     child: u32,
     errors: u8[][]?
 ): SortComparator throws { OutOfMemory }
 
-export declare function clipSortTarget(frame: SortFrame, target: u32): u32 throws { OutOfMemory }
-
 export declare function bindSortWorkerNames(
-    frame: SortWorkerFrame,
+    frame: Lowering,
+    parameters: u32[],
     names: u8[][]
 ): void
 
-export declare function registerSortParameters(frame: SortWorkerFrame): void
+export declare function registerSortParameters(worker: Lowering, parameters: u32[]): void
     throws { OutOfMemory }
 
-export declare function readSortOperand(frame: SortWorkerFrame, index: u64, raw: u32): void
+export declare function readSortOperand(
+    allocator,
+    worker: Lowering,
+    list_type: u32,
+    value: u32
+): SortOperand throws { OutOfMemory }
+
+export declare function bindTaskCaptureNames(
+    frame: Lowering,
+    captures: u32[],
+    first: u32
+): void
+
+export declare function readWorkerState(allocator, worker: Lowering): WorkerState
     throws { OutOfMemory }
 
-export declare function finishSortWorker(frame: SortWorkerFrame): SortWorkerResult
-    throws { OutOfMemory }
-
-export declare function bindTaskCaptureNames(worker: TaskWorker, first: u32): void
-    throws { OutOfMemory }
-
-export declare function lowerTaskWorker(worker: TaskWorker, body: u32): TaskWorkerBody
-    throws { OutOfMemory }
-
-export declare function readTaskReferenceBody(worker: TaskWorker): u64 throws { OutOfMemory }
+export declare function readWorkerReferenceBody(worker: Lowering): u64 throws { OutOfMemory }
 
 export declare function publishTaskEffects(
     frame: Lowering,

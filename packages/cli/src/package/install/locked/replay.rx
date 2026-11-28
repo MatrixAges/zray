@@ -11,12 +11,13 @@
         ]}
     />
 
-    <Loop on={$in.index < $in.is_archive.length}>
+    <Loop on={$in.index < $in.workspace.length}>
         <Call
             module="paths"
             in={{
                 host: $in.host,
-                is_archive: $ctx.beginReplay,
+                workspace: $ctx.beginReplay,
+                root: $in.root,
                 index: 0
             }}
         />

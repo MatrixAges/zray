@@ -1,24 +1,21 @@
-import host from "backend_input_host"
+import type { Input } from "./model"
 
-import type { Input, Plan as Output } from "./model"
+export type Output = bool
 
 export default function (in: Input): Output {
-    const { dependencies, batches } = in
+    const { batches } = in
 
     return loop({
         index: 0,
-        count: 0,
         complete: true
     }, {
-        while: state => state.index < batches,
+        while: state => state.complete && state.index < batches.length,
         next: state => {
-            state.count += host.selectBatch(dependencies, state.index)
-            state.complete = state.complete && host.completeBatch(dependencies)
+            const batch = batches[state.index]
+
+            state.complete = batch.complete
             state.index += 1
         },
-        return: state => ({
-            count: state.count,
-            complete: state.complete
-        })
+        return: state => state.complete
     })
 }

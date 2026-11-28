@@ -4,13 +4,13 @@ import { bad_sequence } from "./const"
 
 import type { Input } from "./value"
 
-export type Output = i32[]
+export type Output = u32[]
 
 export default function (in: Input): Output {
-    const items = yaml.items(in.node)
+    const items = in.node.items
 
     if (items == null) {
-        yaml.reject(in.document, in.node, bad_sequence)
+        yaml.reject(in.document.parser, in.node, bad_sequence)
 
         return []
     }

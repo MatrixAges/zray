@@ -1,20 +1,15 @@
 import integers from "std:integer"
 import memory from "memory"
-import host from "project_host"
 
 import { missing_initializer } from "./const"
 
 import type { Input as Entry } from "./model"
 
-export type Input = Entry
+export type Input = Entry.Pick("initializer_count", "initializers", "base_count")
 
-export type Output = bool
+export type Output = string?
 
 export default function (in: Input): Output {
-    if (in.check_prefix && !host.validateAnalysisPrefix(in.entry)) {
-        return false
-    }
-
     const { initializer_count, initializers, base_count } = in
 
     const valid = loop({
@@ -31,9 +26,5 @@ export default function (in: Input): Output {
         return: state => state.valid
     })
 
-    if (!valid) {
-        host.rejectAnalysisInitializer(in.entry, missing_initializer)
-    }
-
-    return valid
+    return valid ? null : missing_initializer
 }

@@ -9,11 +9,11 @@
 
     <If on={$in.position == $in.end}>
         <Call
-            fn="host.mixedBatchEnd"
-            in={[
-                $in.state,
-                $in.batch
-            ]}
+            fn="batch_end"
+            in={$in.pick([
+                "batch_ends",
+                "batch"
+            ])}
         />
 
         <Call
@@ -21,14 +21,14 @@
             in={[
                 $in.state,
                 $in.position,
-                $ctx.mixedBatchEnd
+                $ctx.batch_end
             ]}
         />
 
         <Return
             value={{
                 ...$in,
-                end: $ctx.mixedBatchEnd,
+                end: $ctx.batch_end,
                 batch: $in.batch + 1,
                 limit: $in.position + $ctx.prefetchMixedWindow
             }}

@@ -14,17 +14,18 @@ export declare function emitLoweredCall(call: CallFrame, value: u32, store: u32?
 export declare function convertCallResult(call: CallFrame, value: u32): u32
     throws { OutOfMemory }
 
-export declare function openIterationCall(call: IterationCallFrame, value: u32): void
-    throws { OutOfMemory }
+export declare function openIterationCall(
+    context: IterationResourceFrame,
+    operand: u32,
+    operand_type: u32,
+    value: u32
+): void throws { OutOfMemory }
 
-export declare function convertIterationCall(call: IterationCallFrame, value: u32): u32
-    throws { OutOfMemory }
+export declare function convertIterationCall(
+    context: IterationResourceFrame,
+    result_type: u32,
+    value: u32
+): u32 throws { OutOfMemory }
 
 export declare function requestFunction(frame: Lowering, id: u32, regular: bool): void
     throws { OutOfMemory }
-
-export declare function cacheBorrowedOperand(
-    frame: Lowering,
-    id: u32,
-    value: u32
-): void throws { OutOfMemory }

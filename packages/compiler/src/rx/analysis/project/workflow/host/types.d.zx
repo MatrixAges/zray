@@ -55,7 +55,18 @@ export type ProjectionGraph = mutable_opaque
 
 export type ProjectionSpans = opaque
 
-export type PortGraph = mutable_opaque
+export type DeclaredPort = {
+    row: u64,
+    offset: u64,
+    input: u32,
+    output: u32
+}
+
+export type PortBatch = {
+    first: u64,
+    offsets: u64[],
+    declared?: DeclaredPort
+}
 
 export type ConstraintCollection = mutable_opaque
 
@@ -72,14 +83,6 @@ export type ConstraintBody = {
 }
 
 export type FlowTraversal = mutable_opaque
-
-export type DeclarationTarget = mutable_opaque
-
-export enum ReferenceTarget {
-    Source,
-    Compiled,
-    Native
-}
 
 export type ModulePreparation = opaque
 

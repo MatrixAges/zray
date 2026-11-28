@@ -31,6 +31,12 @@ pub fn each(arenas: Arenas, request: Request) !void {
     return spread(arenas, &work, Work.run);
 }
 
+pub fn eachWrite(arenas: Arenas, request: Request, directory: std.Io.Dir) !void {
+    var work: Work = .{ .request = request, .write = .{ .io = arenas.io, .directory = directory } };
+
+    return spread(arenas, &work, Work.run);
+}
+
 pub fn eachHash(arenas: Arenas, request: Request, hash_output: HashOutput) !void {
     var work: Work = .{ .request = request, .hash_output = hash_output };
 
@@ -47,6 +53,7 @@ const Work = struct {
     request: Request,
     hash_output: ?HashOutput = null,
     scan_output: ?Scanning.Columns = null,
+    write: ?struct { io: std.Io, directory: std.Io.Dir } = null,
     next: std.atomic.Value(usize) = .init(0),
     failure: std.atomic.Value(u32) = .init(0),
     fn run(self: *Work, arena: *std.heap.ArenaAllocator) void {
@@ -72,6 +79,16 @@ const Work = struct {
                 self.fail(outcome.code);
 
                 return;
+            }
+
+            if (outcome.file) |file| {
+                const target = self.write.?;
+
+                target.directory.writeFile(target.io, .{ .sub_path = file.path, .data = file.body }) catch |err| {
+                    self.fail(@intFromError(err));
+
+                    return;
+                };
             }
 
             if (self.hash_output) |output| if (outcome.marked) |marked| {

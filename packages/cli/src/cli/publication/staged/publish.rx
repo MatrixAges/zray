@@ -3,8 +3,16 @@
 
     <Args in={Staged.Input} out={bool} />
 
-    <If on={$in.assembly}>
-        <Call fn="../index.copyAssembly" in={$in.publication} />
+    <If on={$in.assembly_source != null}>
+        <If on={$in.assembly_target != null}>
+            <Call
+                fn="../index.copyPublishedFile"
+                in={[
+                    $in.assembly_source,
+                    $in.assembly_target
+                ]}
+            />
+        </If>
     </If>
 
     <Call fn="../index.openDirectory" in={$in.directory} />
@@ -21,7 +29,13 @@
         <Return value={false} />
     </If>
 
-    <Call fn="../index.copyBinary" in={$in.publication} />
+    <Call
+        fn="../index.copyPublishedFile"
+        in={[
+            $in.binary_source,
+            $in.binary_target
+        ]}
+    />
 
     <Return value={true} />
 </Module>

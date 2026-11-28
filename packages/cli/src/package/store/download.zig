@@ -7,16 +7,13 @@ const Error = error{PackageDownloadHostFailure};
 
 const State = struct {
     client: std.http.Client,
-    source: []const u8,
-    base: []const u8,
     request: ?std.http.Client.Request = null,
     response: std.http.Client.Response = undefined,
     head_view: ResponseHead = undefined,
     redirect_buffer: [8192]u8 = undefined,
-    body: ?[]u8 = null,
     failure: ?anyerror = null,
-    fn get(handle: *anyopaque) *State {
-        return @ptrCast(@alignCast(handle));
+    fn get(handle: *const anyopaque) *State {
+        return @as(*const *State, @ptrCast(@alignCast(handle))).*;
     }
     fn fail(self: *State, err: anyerror) Error {
         self.failure = err;
@@ -33,53 +30,58 @@ const State = struct {
             request.deinit();
         }
 
-        if (!accepted) {
-            if (self.body) |body| self.client.allocator.free(body);
-        }
-
         self.client.deinit();
     }
 };
 
-pub fn read(io: std.Io, allocator: std.mem.Allocator, source: []const u8, base: []const u8) ![]u8 {
+pub const Downloaded = struct {
+    arena: std.heap.ArenaAllocator,
+    bytes: []const u8,
+    pub fn deinit(self: *Downloaded) void {
+        self.arena.deinit();
+    }
+};
+
+pub fn read(io: std.Io, allocator: std.mem.Allocator, source: []const u8, base: []const u8) !Downloaded {
     const transport = try @import("pkgs").install.archiveTransport(allocator, source);
-    var state: State = .{ .client = .{ .io = io, .allocator = allocator }, .source = source, .base = base };
+    var state: State = .{ .client = .{ .io = io, .allocator = allocator } };
+    const reader = &state;
     var accepted = false;
 
     defer state.deinit(accepted);
 
-    const result = rule.executeIn(allocator, &.{
-        .download = @ptrCast(&state),
-        .is_local = transport == .Local,
-    }) catch |err| return if (err == error.PackageDownloadHostFailure) state.failure.? else err;
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
-    switch (result) {
+    errdefer arena.deinit();
+
+    const result = rule.executeIn(arena.allocator(), &.{
+        .reader = @ptrCast(&reader),
+        .source = source,
+        .base = base,
+        .is_local = transport == .Local,
+        .maximum_archive = constants.maximum_archive,
+    }, io) catch |err| return if (err == error.PackageDownloadHostFailure) state.failure.? else err;
+
+    switch (result.status) {
         .Ready => accepted = true,
         .PackageArchiveTooLarge => return error.PackageArchiveTooLarge,
         .PackageDownloadFailed => return error.PackageDownloadFailed,
         .UnsupportedPackageContentEncoding => return error.UnsupportedPackageContentEncoding,
     }
 
-    return state.body.?;
+    return .{ .arena = arena, .bytes = result.body.? };
 }
 
-pub fn readLocal(handle: *anyopaque, limit: u64) Error!u64 {
-    const self = State.get(handle);
-    const allocator = self.client.allocator;
-    const path = std.fs.path.resolve(allocator, &.{ self.base, self.source }) catch |err| return self.fail(err);
+pub fn readLocalArchive(allocator: std.mem.Allocator, io: std.Io, path: []const u8, limit: u64) ![]const u8 {
+    if (std.mem.indexOfScalar(u8, path, 0) != null) return error.InvalidPath;
+    if (!std.unicode.utf8ValidateSlice(path)) return error.InvalidUtf8;
 
-    defer allocator.free(path);
-
-    const bytes = std.Io.Dir.cwd().readFileAlloc(self.client.io, path, allocator, .limited(@intCast(limit))) catch |err| return self.fail(err);
-
-    self.body = bytes;
-
-    return bytes.len;
+    return std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited64(limit +| 1));
 }
 
-pub fn receiveHead(handle: *anyopaque) Error!*const ResponseHead {
+pub fn receiveHead(handle: *const anyopaque, url: []const u8) Error!*const ResponseHead {
     const self = State.get(handle);
-    const uri = std.Uri.parse(self.source) catch |err| return self.fail(err);
+    const uri = std.Uri.parse(url) catch |err| return self.fail(err);
 
     self.request = self.client.request(.GET, uri, .{
         .redirect_behavior = @fromBackingInt(constants.maximum_redirects),
@@ -101,9 +103,9 @@ pub fn receiveHead(handle: *anyopaque) Error!*const ResponseHead {
     return &self.head_view;
 }
 
-pub fn readBody(handle: *anyopaque, limit: u64) Error!void {
+pub fn readBody(allocator: std.mem.Allocator, handle: *const anyopaque, limit: u64) Error![]const u8 {
     const self = State.get(handle);
     var buffer: [65536]u8 = undefined;
 
-    self.body = self.response.reader(&buffer).allocRemaining(self.client.allocator, .limited(@intCast(limit))) catch |err| return self.fail(err);
+    return self.response.reader(&buffer).allocRemaining(allocator, .limited(@intCast(limit))) catch |err| self.fail(err);
 }

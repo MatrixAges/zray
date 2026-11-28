@@ -1,7 +1,9 @@
+import type { ReadColumn } from "memory"
 import type { Mixed, MixedAction } from "rx_project_host"
 
 export type Input = {
     state: Mixed,
+    batch_ends: ReadColumn,
     length: u64,
     has_exports: bool,
     retain: bool

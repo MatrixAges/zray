@@ -44,7 +44,6 @@ export declare function readFile(observation: Observation): void throws { Observ
 export declare function nextDirectoryEntry(directory: Directory): DirectoryEntry? throws {
     ObservationFailure
 }
-export declare function hashDirectoryBytes(directory: Directory, payload: u8[]): void
 
 export declare function openRegistration(registration: Registration): Slot throws {
     ObservationFailure

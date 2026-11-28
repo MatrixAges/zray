@@ -68,11 +68,3 @@ pub fn zigArchive(io: std.Io, allocator: std.mem.Allocator) ![]const u8 {
         else => err,
     };
 }
-
-pub fn hashMatches(bytes: []const u8, expected: []const u8) bool {
-    var hash: [32]u8 = undefined;
-
-    std.crypto.hash.sha2.Sha256.hash(bytes, &hash, .{});
-
-    return std.mem.eql(u8, &std.fmt.bytesToHex(hash, .lower), expected);
-}

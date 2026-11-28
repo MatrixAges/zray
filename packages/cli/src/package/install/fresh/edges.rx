@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Fresh" />
 
-    <Args in={Fresh.Edges} out={u64} />
+    <Args in={Fresh.Edges} out={Fresh.EdgeResult} />
 
     <Call
         fn="../effects.beginDependencies"
@@ -30,5 +30,10 @@
         ]}
     />
 
-    <Return value={$ctx.finishDependencies} />
+    <Return
+        value={{
+            consumed: $ctx.finishDependencies,
+            count: $ctx.dependency.count
+        }}
+    />
 </Module>

@@ -3,9 +3,7 @@
 
     <Args in={Fresh.Closure} out={Fresh.Closure} />
 
-    <Call fn="../effects.packageCount" in={$in.host} />
-
-    <If on={$in.owner >= $ctx.packageCount}>
+    <If on={$in.owner >= $in.count}>
         <Return
             value={{
                 ...$in,
@@ -20,7 +18,8 @@
             ...$in.pick([
                 "host",
                 "members",
-                "owner"
+                "owner",
+                "count"
             ]),
             remaining: $in.maximum_edges - $in.consumed
         }}
@@ -30,7 +29,8 @@
         value={{
             ...$in,
             owner: $in.owner + 1,
-            consumed: $in.consumed + $ctx.edges
+            consumed: $in.consumed + $ctx.edges.consumed,
+            count: $ctx.edges.count
         }}
     />
 </Module>

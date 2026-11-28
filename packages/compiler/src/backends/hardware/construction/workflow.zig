@@ -2,6 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const Terms = @import("../terms.zig");
 const ir = @import("../ir.zig");
+const Value = @import("../../../verification/terms.zig").Value;
 const Conditions = @import("../../../verification/conditions.zig");
 const bindings = @import("bindings.zig");
 const source = @import("generated_build_hardware_graph");
@@ -80,7 +81,8 @@ pub fn build(comptime Graph: type, allocator: std.mem.Allocator, scratch: std.me
         },
         .output_path = limits.output_path,
         .output_type = @backingInt(program.output_type),
-        .output = @ptrCast(&frame.model.output.value),
+        .output = std.mem.asBytes(&frame.model.output.value),
+        .value_layout = &Value.layout(std.meta.Child(@FieldType(Input, "value_layout"))),
         .safety = model.output.safe,
     };
 

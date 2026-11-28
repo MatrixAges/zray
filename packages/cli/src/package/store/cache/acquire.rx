@@ -1,0 +1,46 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.Archive} out={Cache.Payload} />
+
+    <Call
+        fn="index.readBlob"
+        in={[
+            $in.cache,
+            $in.path
+        ]}
+    />
+
+    <If on={$ctx.readBlob != null}>
+        <Return
+            value={{
+                bytes: $ctx.readBlob,
+                downloaded: false
+            }}
+        />
+    </If>
+
+    <If on={$in.offline}>
+        <Return
+            value={{
+                downloaded: false
+            }}
+        />
+    </If>
+
+    <Call
+        fn="index.download"
+        in={[
+            $in.cache,
+            $in.source,
+            $in.base
+        ]}
+    />
+
+    <Return
+        value={{
+            bytes: $ctx.download,
+            downloaded: true
+        }}
+    />
+</Module>

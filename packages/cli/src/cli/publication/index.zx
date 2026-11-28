@@ -1,16 +1,16 @@
 export {
     removeRetiredFile,
-    copyAssembly,
-    copyBinary,
+    copyPublishedFile,
     openDirectory,
     capture,
     verify,
     retain,
-    checkBinary,
-    checkAssembly,
-    checkBindings,
-    writeBindings,
-    captureLibraryInputs,
+    checkPublishedTarget,
     prepareRetirement,
     copyStagedFile
+} from "publication_host"
+export {
+    checkPublishedTarget as checkAssemblyTarget,
+    checkPublishedTarget as checkModuleTarget,
+    checkPublishedTarget as checkDeclarationTarget
 } from "publication_host"

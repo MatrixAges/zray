@@ -6,6 +6,12 @@ const storage = @import("storage.zig");
 const State = storage.State;
 const Error = storage.Error;
 
+pub fn writeStageFile(handle: *const anyopaque, path: []const u8, source: []const u8) Error!void {
+    const self = State.get(handle);
+
+    self.disk.writeFile(path, source) catch |err| return self.failure.save(err);
+}
+
 pub fn writeStageArtifact(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
 
@@ -53,7 +59,8 @@ pub fn writeStageBuild(handle: *const anyopaque) Error!void {
     const source = @import("../../library_config.zig").render(allocator, self.config, self.layout.public, self.layout.generated, self.abi.views) catch |err| return self.failure.save(err);
 
     defer allocator.free(source);
-    self.disk.writeFile(constants.build_file, source) catch |err| return self.failure.save(err);
+
+    return writeStageFile(handle, constants.build_file, source);
 }
 
 pub fn writeStageInventory(handle: *const anyopaque) Error!void {

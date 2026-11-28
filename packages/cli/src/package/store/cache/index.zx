@@ -1,3 +1,4 @@
+export { write } from "artifact_io"
 export {
     cached,
     readBlob,
@@ -8,7 +9,6 @@ export {
     writeReceipt,
     checkStaging,
     closeStaging,
-    publishBlob,
     publishStaging
 } from "package_cache_host"
 export { cached as winnerAvailable } from "package_cache_host"

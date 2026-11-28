@@ -1,5 +1,4 @@
 import bytes from "std:bytes"
-import string from "std:string"
 
 import type { AdmitInput as Input } from "./model"
 
@@ -25,7 +24,7 @@ export default function (in: Input, {
     }
 
     $store.seen.claimed = {
-        paths: in.claimed.paths.push(string.copy(in.path))[0]
+        paths: in.claimed.paths.push(in.path)[0]
     }
 
     return true

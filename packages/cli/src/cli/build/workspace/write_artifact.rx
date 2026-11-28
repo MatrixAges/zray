@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="Model" />
+
+    <Args in={Model.Artifact} out={void} />
+
+    <Call fn="index.fromText" in={$in.source} />
+
+    <Call
+        fn="index.write"
+        in={[
+            $in.path,
+            $ctx.fromText
+        ]}
+    />
+</Module>

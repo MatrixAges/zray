@@ -73,9 +73,11 @@ const Transaction = struct {
     fn execute(self: *Transaction) Error!void {
         if (comptime generated) {
             const entry = @import("generated_rx_execute_mixed");
+            const batch_ends = @import("history/columns.zig").words(std.mem.sliceAsBytes(self.derived.dependencies.batch_ends));
 
             const input: std.meta.Child(entry.Input) = .{
                 .state = @ptrCast(self),
+                .batch_ends = @ptrCast(&batch_ends),
                 .length = self.derived.dependencies.order.len,
                 .has_exports = self.exports.len != 0,
                 .retain = self.keep_skipped,
@@ -210,10 +212,6 @@ const Transaction = struct {
 
 fn borrow(handle: *anyopaque) *Transaction {
     return @ptrCast(@alignCast(handle));
-}
-
-pub fn mixedBatchEnd(handle: *anyopaque, batch: u64) u64 {
-    return borrow(handle).derived.dependencies.batch_ends[@intCast(batch)];
 }
 
 pub fn prefetchMixedWindow(handle: *anyopaque, first: u64, end: u64) std.mem.Allocator.Error!u64 {

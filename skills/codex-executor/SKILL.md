@@ -3,7 +3,7 @@ name: codex-executor
 description: >-
     Delegate implementation, refactoring, debugging, or verification tasks to the
     local OpenAI codex-cli executor (running non-interactively with --yolo,
-    gpt-6.2-sol, and high reasoning effort) while Antigravity acts as the
+    gpt-6.2-sol, high reasoning effort, and fast service tier) while Antigravity acts as the
     orchestrator. Supports up to 3 concurrent executor sessions and automatic
     same-topic session reuse. Use when the user asks to invoke local Codex as an
     executor, run codex-cli tasks, schedule up to 3 parallel workers, or iterate
@@ -34,7 +34,7 @@ independent verification, and completion accounting.
 
 ## Defaults & Hard Constraints
 
-- **Default command**: `codex exec --yolo -m gpt-6.2-sol -c 'model_reasoning_effort="high"' --disable sleep_tool --disable goals --disable multi_agent`
+- **Default command**: `codex exec --yolo -m gpt-6.2-sol -c 'model_reasoning_effort="high"' -c 'service_tier="fast"' --disable sleep_tool --disable goals --disable multi_agent`
 - **Wrapper script**: [run_codex.sh](./scripts/run_codex.sh)
 - **Concurrency cap**: max **3 concurrent executor sessions** (`MAX_CONCURRENT=3`),
   enforced via slot/topic/session/ownership `flock` locks.
@@ -123,7 +123,7 @@ S=skills/codex-executor/scripts/run_codex.sh
 "$S" --list-sessions -C /path/to/repo
 "$S" --list-active [--json]
 
-# Run or auto-resume a topic with ownership guard (default gpt-6.2-sol, high)
+# Run or auto-resume a topic with ownership guard (default gpt-6.2-sol, high, fast)
 "$S" -C /path/to/repo -t auth-fix --owns src/auth -p /tmp/brief.md
 
 # Delta resume via stdin

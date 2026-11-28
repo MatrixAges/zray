@@ -1,4 +1,0 @@
-export {
-    commitDeclaredPort,
-    commitInferredPorts
-} from "rx_project_host"

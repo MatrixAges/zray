@@ -1,0 +1,16 @@
+import type { Failure, Found } from "./workflow"
+
+export type Input = Found.Pick("first", "second") & {
+    message: string
+}
+
+export type Output = Failure
+
+export default function (in: Input): Output {
+    const { first, second, message } = in
+
+    return {
+        at: second == null ? first : second,
+        message
+    }
+}

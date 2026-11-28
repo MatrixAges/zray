@@ -1,8 +1,6 @@
 import { napi_directory, node_directory } from "./const"
 
-import type { Workspace } from "./model"
-
-export type Input = Workspace.Omit("fs")
+import type { Paths as Input } from "./model"
 
 export type Output = {
     node: string,

@@ -3,6 +3,8 @@
 
     <Args in={Execution.EntryPublication} out={u64} />
 
+    <Store from="../../entry_body/publication/pending" as="publication" />
+
     <If on={$in.original.type_only && $in.original.own != null}>
         <Call
             fn="entry_selection"
@@ -13,14 +15,12 @@
             }}
         />
 
-        <Call fn="index.borrowFunctionBodyBytes" in={$ctx.entry_selection.body} />
-
         <Call
-            fn="index.writeFunctionBody"
-            in={[
-                $in.program,
-                $ctx.borrowFunctionBodyBytes
-            ]}
+            fn="../../entry_body/publication/stage"
+            in={{
+                selected: $ctx.entry_selection.body
+            }}
+            setter={[$store.publication.state]}
         />
 
         <If on={$ctx.entry_selection.forward != null}>

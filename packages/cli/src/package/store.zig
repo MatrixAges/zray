@@ -37,8 +37,6 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, release: pkgs.Index.Rel
         .io = io,
         .allocator = allocator,
         .temporary = temporary,
-        .source = release.archive,
-        .source_base = source_base,
         .root = root,
         .destination = destination,
         .digest = digest,
@@ -47,10 +45,14 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, release: pkgs.Index.Rel
 
     defer state.deinit();
 
-    const status = @import("cli_source").prepare.executeValue(allocator, &.{
+    const status = @import("cli_source").prepare.executeIn(temporary, &.{
         .cache = @ptrCast(&state),
         .offline = offline,
-    }) catch |err| switch (err) {
+        .root = root,
+        .hex = &hex,
+        .source = release.archive,
+        .base = source_base,
+    }, io) catch |err| switch (err) {
         error.PackageCacheFailure => return state.failure.?,
         else => |failure| return failure,
     };

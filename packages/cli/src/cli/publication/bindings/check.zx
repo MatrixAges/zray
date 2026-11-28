@@ -1,12 +1,9 @@
-import { matchesPrefix } from "artifact_io"
+import { compareFile } from "artifact_io"
 import { resolvePathParts } from "lexical_path"
 
 import { binding_marker } from "../const"
 
-import type { FileSystem } from "artifact_io"
-
 export type Input = {
-    fs: FileSystem,
     module: string,
     declaration: string,
     assembly?: string
@@ -43,7 +40,7 @@ export default function (in: Input): Output {
             if (assembly != null && resolvePathParts([path]) == assembly) {
                 state.status = Status.ConflictingPaths
             } else {
-                const generated = matchesPrefix(in.fs, path, binding_marker)
+                const generated = compareFile(path, binding_marker, true)
 
                 if (generated == false) {
                     state.status = Status.ForeignFile

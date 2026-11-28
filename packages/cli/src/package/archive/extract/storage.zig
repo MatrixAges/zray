@@ -1,76 +1,50 @@
 const std = @import("std");
-const abi = @import("cli_abi");
-const File = @import("../../archive.zig").File;
-const Sha256 = std.crypto.hash.sha2.Sha256;
-const Entry = abi.layouts.@"zig:package_extract_host".Entry;
-pub const Error = error{ArchiveHostFailure};
+const Entry = @import("cli_abi").layouts.@"zig:package_extract_host".Entry;
 
-pub const State = struct {
-    io: std.Io,
-    directory: std.Io.Dir,
-    allocator: std.mem.Allocator,
-    iterator: *std.tar.Iterator,
-    entry: std.tar.Iterator.File = undefined,
-    entry_view: Entry = undefined,
-    files: std.ArrayList(File) = .empty,
-    failure: ?anyerror = null,
-    fn get(handle: *anyopaque) *State {
-        return @ptrCast(@alignCast(handle));
-    }
-    fn fail(self: *State, err: anyerror) Error {
-        self.failure = err;
+pub fn nextTar(allocator: std.mem.Allocator, source: []const u8, offset: u64) !?*const Entry {
+    var input: std.Io.Reader = .fixed(source[@intCast(offset)..]);
+    var names: [std.fs.max_path_bytes]u8 = undefined;
+    var links: [std.fs.max_path_bytes]u8 = undefined;
+    var iterator = std.tar.Iterator.init(&input, .{ .file_name_buffer = &names, .link_name_buffer = &links });
+    const entry = (try iterator.next()) orelse return null;
+    const first = input.seek;
+    const end = first + @as(usize, @intCast(entry.size));
+    const view = try allocator.create(Entry);
 
-        return error.ArchiveHostFailure;
-    }
-};
-
-pub fn nextTar(handle: *anyopaque) Error!?*const Entry {
-    const self = State.get(handle);
-
-    self.entry = (self.iterator.next() catch |err| return self.fail(err)) orelse return null;
-
-    self.entry_view = .{
-        .name = self.entry.name,
-        .kind = switch (self.entry.kind) {
+    view.* = .{
+        .name = try allocator.dupe(u8, entry.name),
+        .kind = switch (entry.kind) {
             .directory => .Directory,
             .file => .File,
             else => .Other,
         },
-        .executable = self.entry.mode & 0o100 != 0,
+        .executable = entry.mode & 0o100 != 0,
+        .content = input.buffer[first..end],
+        .end = offset + end,
     };
 
-    return &self.entry_view;
+    return view;
 }
 
-pub fn makeTarDirectory(handle: *anyopaque, path: []const u8) Error!void {
-    const self = State.get(handle);
+pub fn makeTarDirectory(io: std.Io, handle: *const anyopaque, path: []const u8) std.Io.Dir.CreateDirPathError!void {
+    const directory: *const std.Io.Dir = @ptrCast(@alignCast(handle));
 
-    self.directory.createDirPath(self.io, path) catch |err| return self.fail(err);
+    return directory.createDirPath(io, path);
 }
 
-pub fn writeTarFile(handle: *anyopaque, path: []const u8, executable: bool) Error!void {
-    const self = State.get(handle);
-    const io = self.io;
-    const directory = self.directory;
-    const owned_path = self.allocator.dupe(u8, path) catch |err| return self.fail(err);
+const WriteError = std.Io.Dir.CreateDirPathError || std.Io.File.OpenError || std.Io.File.Writer.Error;
 
-    if (std.fs.path.dirname(owned_path)) |parent| directory.createDirPath(io, parent) catch |err| return self.fail(err);
+pub fn writeTarFile(io: std.Io, handle: *const anyopaque, path: []const u8, content: []const u8, executable: bool) WriteError!void {
+    const directory: *const std.Io.Dir = @ptrCast(@alignCast(handle));
 
-    const file = directory.createFile(io, owned_path, .{ .exclusive = true, .permissions = if (executable) .executable_file else .default_file }) catch |err| return self.fail(err);
+    if (std.fs.path.dirname(path)) |parent| try directory.createDirPath(io, parent);
+
+    const file = try directory.createFile(io, path, .{
+        .exclusive = true,
+        .permissions = if (executable) .executable_file else .default_file,
+    });
 
     defer file.close(io);
 
-    var output_buffer: [65536]u8 = undefined;
-    var hash_buffer: [65536]u8 = undefined;
-    var output = file.writer(io, &output_buffer);
-    var hashed = std.Io.Writer.Hashed(Sha256).initHasher(&output.interface, .init(.{}), &hash_buffer);
-
-    self.iterator.streamRemaining(self.entry, &hashed.writer) catch |err| return self.fail(err);
-    hashed.writer.flush() catch |err| return self.fail(err);
-    output.interface.flush() catch |err| return self.fail(err);
-
-    const hex = std.fmt.bytesToHex(hashed.hasher.finalResult(), .lower);
-    const digest = self.allocator.dupe(u8, &hex) catch |err| return self.fail(err);
-
-    self.files.append(self.allocator, .{ .path = owned_path, .sha256 = digest, .executable = executable }) catch |err| return self.fail(err);
+    try file.writeStreamingAll(io, content);
 }

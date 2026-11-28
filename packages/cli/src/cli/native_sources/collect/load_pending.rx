@@ -1,0 +1,19 @@
+<Module>
+    <Type from="model" as="Collection" />
+
+    <Args in={Collection.Read} out={string} />
+
+    <If on={$in.reuse}>
+        <Return value={$in.cached[$in.index]} />
+    </If>
+
+    <Call
+        fn="../index.readPending"
+        in={[
+            $in.collection,
+            $in.path
+        ]}
+    />
+
+    <Return value={$ctx.readPending} />
+</Module>

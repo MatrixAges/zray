@@ -1,0 +1,13 @@
+import integer from "std:integer"
+
+import type { Node as Output } from "manifest_yaml_document"
+import type { Document } from "./value"
+
+export type Input = {
+    document: Document,
+    id: u32
+}
+
+export default function (in: Input): Output {
+    return in.document.nodes[integer.widen(in.id) - 1]
+}

@@ -1,20 +1,15 @@
 export type Document = mutable_opaque
 
-export type Node = opaque
-
-export declare function node(document: Document, id: i32, shape: Node?): Node
-
-export declare function pairs(node: Node): i32[]?
-
-export declare function items(node: Node): i32[]?
-
-export declare function stringScalar(node: Node): string?
-
-export declare function plain(node: Node): bool
-
-export declare function booleanTag(node: Node): bool
-
-export declare function text(node: Node): string
+export type Node = {
+    pairs?: u32[],
+    items?: u32[],
+    scalar?: string,
+    text: string,
+    plain: bool,
+    boolean_tag: bool,
+    line: u64,
+    column: u64
+}
 
 export declare function prepareKeys(document: Document, count: u64): void throws { OutOfMemory }
 

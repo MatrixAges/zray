@@ -1,0 +1,5 @@
+<Store name="source_entry_publication" version={1}>
+    <Object name="pending">
+        <Field name="function_id" type={u32?} value={null} />
+    </Object>
+</Store>

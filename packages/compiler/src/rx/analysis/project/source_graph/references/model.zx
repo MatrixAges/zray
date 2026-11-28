@@ -1,5 +1,5 @@
-import type { GraphInternalModules } from "rx_graph_host"
 import type { Import } from "../../../../../zx/frontend/parser/imports/model"
+import type { Registry } from "../../../../../zx/modules/semantic_cache/discovery/find"
 import type { Cursor } from "../../../../dependency_graph/reference/tree/model"
 import type { Layout } from "../../../../syntax/tree/layout"
 import type { Input as Route } from "./route/model"
@@ -19,7 +19,7 @@ export type References = {
 }
 
 export type Scan = Route.Pick("packages") & {
-    internal?: GraphInternalModules,
+    internal?: Registry,
     intrinsic?: string,
     discover: bool
 }

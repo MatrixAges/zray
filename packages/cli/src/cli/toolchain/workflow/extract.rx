@@ -1,15 +1,22 @@
 <Module>
     <Type from="model" as="Toolchain" />
 
-    <Args in={Toolchain.Input} out={Toolchain.Output} />
+    <Args in={Toolchain.Input} out={Toolchain.Status} />
 
     <Call fn="index.createStaging" in={$in.toolchain} />
 
-    <If on={!$in.external}>
+    <If on={$in.override == null}>
         <Call fn="index.loadZig" in={$in.toolchain} />
-        <Call fn="index.zigHash" in={$in.toolchain} />
 
-        <If on={!$ctx.zigHash}>
+        <Call
+            fn="hash"
+            in={{
+                archive: $ctx.loadZig,
+                expected: $in.zig_digest
+            }}
+        />
+
+        <If on={!$ctx.hash}>
             <Return value={Toolchain.Status.CorruptBundledToolchain} />
         </If>
 
@@ -24,14 +31,21 @@
         <Call fn="index.renameZig" in={$in.toolchain} />
     </If>
 
-    <Call fn="standard" in={$in.toolchain} />
+    <Call module="standard" in={$in} />
 
     <If on={$ctx.standard != Toolchain.Status.Ready}>
         <Return value={$ctx.standard} />
     </If>
 
     <Call fn="index.closeDirectory" in={$in.toolchain} />
-    <Call fn="index.writeMarker" in={$in.toolchain} />
+
+    <Call
+        fn="index.writeMarker"
+        in={[
+            $in.toolchain,
+            $in.expected_marker
+        ]}
+    />
 
     <Call
         fn="index.openStaging"

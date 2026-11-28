@@ -1,15 +1,21 @@
 import type { Contracts } from "core/contract_table/model"
 import type { Body } from "core/ir/body"
-import type { AnalysisPublication } from "project_host"
 import type { Mode } from "../../analyzer/admission/model"
 import type { ModuleOutput } from "../../analyzer/output"
 
 export type Input = {
     analysis: ModuleOutput,
-    publication: AnalysisPublication,
     mode: Mode,
     borrow_body: bool,
     file_name: string,
+}
+
+export enum Action {
+    InitializeOwned,
+    InitializeBorrowed,
+    AppendTypes,
+    Exports,
+    Constants
 }
 
 export type Output = {

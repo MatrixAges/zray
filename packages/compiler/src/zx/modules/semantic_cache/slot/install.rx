@@ -1,10 +1,10 @@
 <Module>
-    <Type from="host" as="Cache" />
+    <Type from="probe" as="Probe" />
     <Type from="commit" as="Commit" />
 
-    <Args in={Cache.CacheInstall} out={Commit.Output} />
+    <Args in={Probe.Input} out={Commit.Output} />
 
-    <Call module="prepare" in={$in} />
+    <Call fn="probe" in={$in} />
 
     <Call fn="commit" />
 

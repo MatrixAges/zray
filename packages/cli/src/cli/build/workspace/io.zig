@@ -1,21 +1,16 @@
 const std = @import("std");
-const Error = error{ArtifactIoFailure};
 
 pub fn quoteJsonString(allocator: std.mem.Allocator, value: []const u8) std.mem.Allocator.Error![]const u8 {
     return std.json.Stringify.valueAlloc(allocator, value, .{});
 }
 
-pub const Context = struct {
+pub const DirectoryWriter = struct {
     io: std.Io,
     directory: std.Io.Dir = .cwd(),
-    failure: ?anyerror = null,
-    pub fn create(self: Context, path: []const u8) !std.Io.File.Atomic {
+    pub fn create(self: DirectoryWriter, path: []const u8) !std.Io.File.Atomic {
         return self.directory.createFileAtomic(self.io, path, .{ .make_path = true, .replace = true });
     }
-    pub fn unwrap(self: Context, err: anyerror) anyerror {
-        return if (err == error.ArtifactIoFailure) self.failure.? else err;
-    }
-    pub fn writeFile(self: Context, path: []const u8, content: []const u8) !void {
+    pub fn writeFile(self: DirectoryWriter, path: []const u8, content: []const u8) !void {
         var file = try self.create(path);
 
         defer file.deinit(self.io);
@@ -23,41 +18,12 @@ pub const Context = struct {
         try file.file.writeStreamingAll(self.io, content);
         try file.replace(self.io);
     }
-    fn get(handle: *anyopaque) *Context {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
-pub fn matches(handle: *anyopaque, path: []const u8, expected: []const u8) Error!bool {
-    return (try compare(handle, path, expected, false)) orelse false;
-}
-
-pub fn matchesPrefix(handle: *anyopaque, path: []const u8, prefix: []const u8) Error!?bool {
-    return compare(handle, path, prefix, true);
-}
-
-fn compare(handle: *anyopaque, path: []const u8, expected: []const u8, comptime prefix_only: bool) Error!?bool {
-    const context = Context.get(handle);
-
-    return matchesFile(context.directory, context.io, path, expected, prefix_only) catch |err| {
-        context.failure = err;
-
-        return error.ArtifactIoFailure;
-    };
-}
-
-pub fn writeAtomic(handle: *anyopaque, path: []const u8, source: []const u8) Error!void {
-    const context = Context.get(handle);
-
-    context.writeFile(path, source) catch |err| {
-        context.failure = err;
-
-        return error.ArtifactIoFailure;
-    };
-}
-
 pub fn write(io: std.Io, path: []const u8, content: []const u8) !void {
-    const context: Context = .{ .io = io };
+    if (std.mem.indexOfScalar(u8, path, 0) != null) return error.InvalidPath;
+
+    const context: DirectoryWriter = .{ .io = io };
 
     return context.writeFile(path, content);
 }
@@ -78,8 +44,10 @@ pub fn digestFile(io: std.Io, file: std.Io.File) std.Io.File.Reader.Error![32]u8
     }
 }
 
-fn matchesFile(directory: std.Io.Dir, io: std.Io, path: []const u8, expected: []const u8, comptime prefix_only: bool) !?bool {
-    const file = directory.openFile(io, path, .{ .allow_directory = @import("builtin").os.tag != .windows }) catch |err| switch (err) {
+const CompareError = std.Io.File.OpenError || std.Io.File.Reader.Error;
+
+pub fn compareFile(io: std.Io, path: []const u8, expected: []const u8, prefix_only: bool) CompareError!?bool {
+    const file = std.Io.Dir.cwd().openFile(io, path, .{ .allow_directory = @import("builtin").os.tag != .windows }) catch |err| switch (err) {
         error.FileNotFound => return null,
         else => return err,
     };

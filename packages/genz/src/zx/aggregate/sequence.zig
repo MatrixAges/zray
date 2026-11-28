@@ -6,16 +6,6 @@ const Lower = @import("../lower.zig");
 const aggregate = @import("../aggregate.zig");
 const publication = @import("../construction/publication.zig");
 const generated = @import("genz_options").generated_analysis;
-const Sequence = @import("../../node/blocks.zig").Sequence;
-
-const Frame = struct {
-    lowering: *Lower,
-    body: *Sequence,
-    type_id: ir.TypeId,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-};
 
 pub fn lower(self: *Lower, id: ir.ExprId, value: ir.ExpressionRow, items: []const ir.ExprId, layout: bool) Lower.Error!node.ExpressionId {
     if (!generated) return seedLower(self, id, value, items, layout);
@@ -30,7 +20,6 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.ExpressionRow, items: []cons
 
     defer body.deinit();
 
-    var frame: Frame = .{ .lowering = self, .body = &body, .type_id = value.type_id };
     const execute = @import("generated_lower_sequence_elements");
     const Input = std.meta.Child(execute.Input);
     const selected = value.value == .tuple and self.state_active and self.state_plan.selected[@backingInt(value.type_id)];
@@ -39,7 +28,8 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.ExpressionRow, items: []cons
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
         .sequence = @ptrCast(&body),
-        .batch = @ptrCast(&frame),
+        .type_id = @backingInt(value.type_id),
+        .expression_types = self.program.expressions.types,
         .kind = zx.columns.view(@FieldType(Input, "kind"), self.program.expressions.kinds[@backingInt(id)]),
         .layout = layout,
         .state_active = self.state_active,
@@ -72,17 +62,6 @@ pub fn lower(self: *Lower, id: ir.ExprId, value: ir.ExpressionRow, items: []cons
     };
 
     return aggregate.finish(self, &body, result);
-}
-
-pub fn publishSequenceElement(handle: *anyopaque, item: u32, bound: u32, is_list: bool) Lower.Error!u32 {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
-    const expression: node.ExpressionId = @fromBackingInt(bound);
-
-    return @backingInt(if (is_list)
-        try @import("../state_value/elements.zig").write(self, frame.body, frame.type_id, expression)
-    else
-        try @import("../state_value/conversion.zig").convert(self, frame.body, self.program.expression(@fromBackingInt(item)).type_id, expression, .pointer));
 }
 
 fn seedLower(self: *Lower, id: ir.ExprId, value: ir.ExpressionRow, items: []const ir.ExprId, layout: bool) Lower.Error!node.ExpressionId {

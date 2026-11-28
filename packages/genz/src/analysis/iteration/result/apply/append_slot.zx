@@ -1,0 +1,12 @@
+export type Input = {
+    slots: u32[],
+    cached: u32
+}
+
+export type Output = u32[]
+
+export default function (in: Input): Output {
+    const { slots, cached } = in
+
+    return slots.push(cached)[0]
+}

@@ -63,10 +63,6 @@ pub fn seedMember(handle: *anyopaque, index: u64) host.Error!void {
     self.fresh.paths.appendAssumeCapacity(self.physicalPath(path) catch |err| return self.fail(err));
 }
 
-pub fn packageCount(handle: *anyopaque) u64 {
-    return host.State.get(handle).fresh.packages.items.len;
-}
-
 pub fn beginDependencies(handle: *anyopaque, index: u64, local: bool) void {
     const self = host.State.get(handle);
     const row: usize = @intCast(index);

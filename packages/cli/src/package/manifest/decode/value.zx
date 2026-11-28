@@ -1,4 +1,9 @@
-import type { Document, Node } from "manifest_yaml_document"
+import type { Document as Parser, Node } from "manifest_yaml_document"
+
+export type Document = {
+    parser: Parser,
+    nodes: Node[]
+}
 
 export type Input = {
     document: Document,

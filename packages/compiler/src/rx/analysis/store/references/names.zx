@@ -1,0 +1,29 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Prepare } from "./model"
+
+export type Input = Prepare.Omit("index")
+
+export type Output = {
+    explicit?: string,
+    fallback: string
+}
+
+export default function (in: Input): Output {
+    const { alias, layout, stores, owner } = in
+
+    const fallback = memory.readTextColumn(stores.names, owner - stores.first)
+
+    if (alias == null) {
+        return {
+            explicit: null,
+            fallback
+        }
+    }
+
+    return {
+        explicit: columns.readBorrowedRowText(alias, layout.attribute_value),
+        fallback
+    }
+}

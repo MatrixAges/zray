@@ -19,15 +19,24 @@
     <If on={!$ctx.restore}>
         <Call fn="index.buildNativeCacheEntry" in={$in.frame} />
 
-        <Call module="../slot/prepare" in={$in.slot} />
+        <Call module="../slot/install" in={$in.slot} />
+
+        <If on={$ctx.install.replacement == null}>
+            <Call
+                fn="index.stageNativeCacheEntry"
+                in={[
+                    $in.frame,
+                    $ctx.install.bucket
+                ]}
+            />
+        </If>
 
         <Call fn="index.validateNativeCacheEntry" in={$in.frame} />
-        <Call fn="../slot/commit" in={$ctx.prepare} />
 
         <Return
             value={{
                 admitted: false,
-                pending: $ctx.commit
+                pending: $ctx.install
             }}
         />
     </If>

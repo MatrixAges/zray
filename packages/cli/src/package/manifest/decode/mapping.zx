@@ -1,19 +1,20 @@
 import yaml from "manifest_yaml_document"
 
 import { bad_mapping, duplicate_key, mapping_size } from "./const"
+import nodeAt from "./node_at"
 import text from "./text"
 
 import type { Input } from "./value"
 
-export type Output = i32[]
+export type Output = u32[]
 
 export default function (in: Input): Output {
     const { document, node } = in
 
-    const pairs = yaml.pairs(node)
+    const pairs = node.pairs
 
     if (pairs == null) {
-        yaml.reject(document, node, bad_mapping)
+        yaml.reject(document.parser, node, bad_mapping)
 
         return []
     }
@@ -25,25 +26,35 @@ export default function (in: Input): Output {
     if (pairs.length == mapping_size) {
         const validated = text({
             document,
-            node: yaml.node(document, pairs[0], null)
+            node: nodeAt({
+                document,
+                id: pairs[0]
+            })
         })
 
         return pairs
     }
 
-    yaml.prepareKeys(document, pairs.length / mapping_size)
+    yaml.prepareKeys(document.parser, pairs.length / mapping_size)
 
     const checked = loop(0, {
         while: index => index < pairs.length,
         next: index => {
-            const key = yaml.node(document, pairs[index], null)
+            const key = nodeAt({
+                document,
+                id: pairs[index]
+            })
             const value = text({
                 document,
                 node: key
             })
 
-            if (!yaml.claimKey(document, index / mapping_size, value)) {
-                yaml.reject(document, key, duplicate_key)
+            if (!yaml.claimKey(
+                document.parser,
+                index / mapping_size,
+                value
+            )) {
+                yaml.reject(document.parser, key, duplicate_key)
             }
 
             index += mapping_size

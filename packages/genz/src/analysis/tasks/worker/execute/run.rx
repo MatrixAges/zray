@@ -63,18 +63,23 @@
     <Call
         fn="index.bindTaskCaptureNames"
         in={[
-            $in.worker,
+            $in.lower,
+            $in.captures,
             $ctx.prepare.capture_first
         ]}
     />
 
     <Call
-        fn="index.lowerTaskWorker"
+        fn="index.lowerExpression"
         in={[
             $in.worker,
-            $in.body_expr
+            $in.body_expr,
+            false,
+            null
         ]}
     />
+
+    <Call fn="index.readWorkerState" in={$in.worker} />
 
     <Call
         fn="index.lowerType"
@@ -93,11 +98,11 @@
             writer: $in.writer,
             captures: $in.captures,
             process: $in.process,
-            body: $ctx.lowerTaskWorker.omit(["value"])
+            body: $ctx.readWorkerState
         }}
     />
 
-    <Call fn="index.readTaskReferenceBody" in={$in.worker} />
+    <Call fn="index.readWorkerReferenceBody" in={$in.worker} />
 
     <Call fn="reference" />
 
@@ -122,7 +127,7 @@
             writer: $in.writer,
             name: $ctx.reserve_slot,
             slot: $ctx.auxiliaryDeclarationCount,
-            value: $ctx.lowerTaskWorker.value,
+            value: $ctx.lowerExpression,
             output_type: $ctx.lowerType,
             errors: $in.errors,
             parameters_first: $ctx.prepare.first,

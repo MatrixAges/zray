@@ -44,7 +44,11 @@
     <Call
         fn="host.emitCollectionRows"
         in={[
-            $in.frame,
+            $in.ast.writer,
+            $in.ast.sequence,
+            $in.id,
+            $in.source_type,
+            $in.removed_only,
             $ctx.slice_rows,
             null,
             null

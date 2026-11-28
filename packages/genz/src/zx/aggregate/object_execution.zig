@@ -9,34 +9,18 @@ const Error = Lower.Error;
 const Object = @FieldType(@FieldType(ir.ExpressionRow, "value"), "object");
 const entry = @import("generated_lower_object_elements");
 
-const Frame = struct {
-    lowering: *Lower,
-    temporary: std.mem.Allocator,
-    id: ir.ExprId,
-    body: Sequence,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-};
-
 pub fn lower(self: *Lower, temporary: std.mem.Allocator, id: ir.ExprId, source: Object, layout_only: bool) Error!node.ExpressionId {
     const type_id = self.program.expression(id).type_id;
     const field_indices = source.fields.indices[0..source.fields.len];
+    var body = self.builder.statementSequence(temporary);
 
-    var frame: Frame = .{
-        .lowering = self,
-        .temporary = temporary,
-        .id = id,
-        .body = self.builder.statementSequence(temporary),
-    };
-
-    defer frame.body.deinit();
+    defer body.deinit();
 
     const input: std.meta.Child(entry.Input) = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .sequence = @ptrCast(&frame.body),
-        .batch = @ptrCast(&frame),
+        .sequence = @ptrCast(&body),
+        .expression_types = self.program.expressions.types,
         .id = @backingInt(id),
         .type_id = @backingInt(type_id),
         .layout_only = layout_only,
@@ -62,18 +46,19 @@ pub fn publishObjectOperand(frame_handle: *anyopaque, item: u32, reference: u32)
     return self.cache.observe(self.allocator, @fromBackingInt(item), @fromBackingInt(reference), self.cache_reads, null);
 }
 
-pub fn prepareObjectFields(handle: *anyopaque) Error!?u32 {
-    const frame = Frame.borrow(handle);
-    const updated = try @import("../object_update.zig").lower(frame.lowering, frame.temporary, frame.id, &frame.body);
+pub fn prepareObjectFields(allocator: std.mem.Allocator, frame: *anyopaque, body: *anyopaque, id: u32) Error!?u32 {
+    const lowering = evaluation.borrow(frame);
+    const sequence: *Sequence = @ptrCast(@alignCast(body));
+    const updated = try @import("../object_update.zig").lower(lowering, allocator, @fromBackingInt(id), sequence);
 
     return if (updated) |result| @backingInt(result) else null;
 }
 
-pub fn publishObjectField(handle: *anyopaque, item: u32, bound: u32) Error!u32 {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
+pub fn convertAggregateField(frame: *anyopaque, body: *anyopaque, type_id: u32, bound: u32) Error!u32 {
+    const lowering = evaluation.borrow(frame);
+    const sequence: *Sequence = @ptrCast(@alignCast(body));
 
-    return @backingInt(try @import("../state_value/conversion.zig").convert(self, &frame.body, self.program.expression(@fromBackingInt(item)).type_id, @fromBackingInt(bound), .pointer));
+    return @backingInt(try @import("../state_value/conversion.zig").convert(lowering, sequence, @fromBackingInt(type_id), @fromBackingInt(bound), .pointer));
 }
 
 pub fn finishObject(frame_handle: *anyopaque, type_id: u32, value: u32) Error!u32 {

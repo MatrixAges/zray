@@ -7,22 +7,30 @@
         <Call
             fn="model.projectIterationResult"
             in={[
-                $in.frame,
-                $in.result
+                $in.lower,
+                $in.context,
+                $in.consumer,
+                $in.state,
+                $in.consumer.result
             ]}
         />
 
         <Return value={$ctx.projectIterationResult} />
     </If>
 
-    <If on={$in.buffered}>
+    <If on={$in.context != null}>
         <Loop on={$in.running}>
             <Call
                 module="transfer_row"
                 in={{
-                    frame: $in.frame,
-                    plan: $in.plan,
-                    slots: $in.slots,
+                    ...$in.pick([
+                        "lower",
+                        "consumer",
+                        "state",
+                        "plan"
+                    ]),
+                    context: $in.context,
+                    slots: [],
                     row: 0,
                     running: $in.plan.transfers.length != 0
                 }}
@@ -36,7 +44,12 @@
         <Call
             module="read_row"
             in={{
-                frame: $in.frame,
+                ...$in.pick([
+                    "lower",
+                    "consumer",
+                    "state"
+                ]),
+                context: $in.context,
                 ids: $ctx.reads,
                 row: 0,
                 running: $ctx.reads.length != 0
@@ -44,12 +57,12 @@
         />
     </Loop>
 
-    <If on={$in.layout}>
+    <If on={$in.consumer.layout}>
         <Call
             fn="model.lowerValueExpression"
             in={[
                 $in.lower,
-                $in.result
+                $in.consumer.result
             ]}
         />
 
@@ -60,7 +73,7 @@
         fn="model.lowerExpression"
         in={[
             $in.lower,
-            $in.result,
+            $in.consumer.result,
             false,
             null
         ]}

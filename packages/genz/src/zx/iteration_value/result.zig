@@ -5,18 +5,8 @@ const Lower = @import("../lower.zig");
 const consumer = @import("../iteration_consumer.zig");
 const planning = @import("result_plan.zig");
 const Context = @import("root.zig");
-
-const Frame = struct {
-    lowering: *Lower,
-    context: ?*Context,
-    body: ?*Context.Statements,
-    selected: consumer.Consumer,
-    state: node.ExpressionId,
-    slots: []u32,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-};
+const evaluation = @import("../expressions/evaluate.zig");
+const Api = evaluation.Api;
 
 pub fn eligible(lowering: *Lower, selected: consumer.Consumer) Lower.Error!bool {
     if (!@import("genz_options").generated_analysis) return @import("result_seed.zig").eligible(lowering, selected);
@@ -61,31 +51,27 @@ fn materialize(lowering: *Lower, context: ?*Context, body: anytype, selected: co
     std.debug.assert(plan.primitive or plan.valid);
     defer if (!plan.primitive) lowering.cache.removeKeys(plan.projections);
 
+    const previous_body = if (context) |owner| owner.active_body else null;
+
+    if (@TypeOf(body) != void) context.?.active_body = body;
+
+    defer if (context) |owner| {
+        owner.active_body = previous_body;
+    };
+
     const application = @import("generated_apply_iteration_result");
     const Input = std.meta.Child(application.Input);
 
-    const slots: []u32 = if (@TypeOf(body) != void and !plan.primitive and plan.transfer_count != 0)
-        try temporary.alloc(u32, @intCast(plan.transfer_count))
-    else
-        &.{};
-
-    var frame: Frame = .{
-        .lowering = lowering,
-        .context = context,
-        .body = if (@TypeOf(body) == void) null else body,
-        .selected = selected,
-        .state = state,
-        .slots = slots,
-    };
-
     const input: Input = .{
-        .frame = @ptrCast(&frame),
         .lower = @ptrCast(lowering),
         .plan = @import("zx").columns.pointer(@FieldType(Input, "plan"), plan),
-        .slots = @ptrCast(&frame.slots),
-        .result = @backingInt(selected.result),
-        .buffered = @TypeOf(body) != void,
-        .layout = selected.layout,
+        .consumer = &.{
+            .symbol = @backingInt(selected.symbol),
+            .result = @backingInt(selected.result),
+            .layout = selected.layout,
+        },
+        .state = @backingInt(state),
+        .context = if (context) |owner| @ptrCast(owner) else null,
     };
 
     const result = application.executeIn(temporary, &input) catch |err| return @import("../construction/publication.zig").failure(err);
@@ -93,30 +79,31 @@ fn materialize(lowering: *Lower, context: ?*Context, body: anytype, selected: co
     return @fromBackingInt(result);
 }
 
-pub fn projectIterationResult(handle: *anyopaque, raw: u32) Lower.Error!u32 {
-    const frame = Frame.borrow(handle);
+pub fn projectIterationResult(frame: *anyopaque, context_handle: ?*anyopaque, source: *const Api.LoopConsumer, state: u32, raw: u32) Lower.Error!u32 {
+    const lowering = evaluation.borrow(frame);
     const id: ir.ExprId = @fromBackingInt(raw);
 
-    const value = if (frame.context) |context|
-        try @import("projection_emission.zig").lower(context, frame.selected, id, frame.state)
-    else
-        try consumer.read(frame.lowering, frame.selected, id, frame.state);
+    const selected: consumer.Consumer = .{
+        .symbol = @fromBackingInt(source.symbol),
+        .result = @fromBackingInt(source.result),
+        .layout = source.layout,
+    };
 
-    return @backingInt(value);
+    const value: node.ExpressionId = @fromBackingInt(state);
+
+    return @backingInt(if (context_handle) |handle| buffered_value: {
+        const context: *Context = @ptrCast(@alignCast(handle));
+
+        break :buffered_value try @import("projection_emission.zig").lower(context, selected, id, value);
+    } else try consumer.read(lowering, selected, id, value));
 }
 
-pub fn transferIterationResult(handle: *anyopaque, id: u32, value: u32, slot: u64) Lower.Error!u32 {
-    const frame = Frame.borrow(handle);
-    const type_id: ir.TypeId = @fromBackingInt(frame.lowering.program.expressions.types[id]);
-    const moved = try @import("transfer.zig").lower(frame.context.?, frame.body.?, type_id, @fromBackingInt(value));
+pub fn transferIterationResult(allocator: std.mem.Allocator, context_handle: *anyopaque, id: u32, value: u32) Lower.Error!*const Api.IterationTransferResult {
+    const context: *Context = @ptrCast(@alignCast(context_handle));
+    const type_id: ir.TypeId = @fromBackingInt(context.lowering.program.expressions.types[id]);
+    const moved = try @import("transfer.zig").lower(context, context.active_body.?, type_id, @fromBackingInt(value));
+    const result = try allocator.create(Api.IterationTransferResult);
+    result.* = .{ .root = @backingInt(moved.root), .cached = @backingInt(moved.cached) };
 
-    frame.slots[@intCast(slot)] = @backingInt(moved.cached);
-
-    return @backingInt(moved.root);
-}
-
-pub fn cacheIterationResult(handle: *anyopaque, id: u32, value: u32) Lower.Error!void {
-    const lowering = Frame.borrow(handle).lowering;
-
-    return lowering.cache.put(lowering.allocator, @fromBackingInt(id), @fromBackingInt(value));
+    return result;
 }

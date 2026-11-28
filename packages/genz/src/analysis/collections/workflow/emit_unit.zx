@@ -1,5 +1,6 @@
-import { appendAstExpressionHeaders, astExpressionCount } from "ast_rows"
+import { appendExpressionRows, AstPayloadOwnership, astExpressionCount } from "ast_rows"
 
+import empty from "../../../ast/expressions/empty"
 import { ExpressionsKind } from "../../../printer/model/expressions"
 
 import type { AstWriter } from "ast_rows"
@@ -11,7 +12,11 @@ export type Output = u32
 export default function (in: Input): Output {
     const base = astExpressionCount(in)
 
-    appendAstExpressionHeaders(in, [ExpressionsKind.Unit], [0])
+    appendExpressionRows(in, {
+        ...empty({}),
+        tags: [ExpressionsKind.Unit],
+        offsets: [0]
+    }, null, AstPayloadOwnership.BorrowingText)
 
     return base
 }

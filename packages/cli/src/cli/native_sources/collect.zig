@@ -49,37 +49,16 @@ fn checkPhysical(self: *Context, path: []const u8) !void {
     _ = try withinRelativePath(self.allocator, self.canonical_root, canonical);
 }
 
-pub fn readPending(handle: *anyopaque, path: []const u8) Error!void {
+pub fn readPending(handle: *anyopaque, path: []const u8) Error![]const u8 {
     const self = Context.get(handle);
 
-    self.bytes = std.Io.Dir.cwd().readFileAllocOptions(self.io, path, self.allocator, .unlimited, .of(u8), 0) catch |err| return self.fail(err);
+    return std.Io.Dir.cwd().readFileAllocOptions(self.io, path, self.allocator, .unlimited, .of(u8), 0) catch |err| self.fail(err);
 }
 
-pub fn reusePending(handle: *anyopaque, index: u64) void {
+pub fn observePending(handle: *anyopaque, path: []const u8, content: []const u8) Error!void {
     const self = Context.get(handle);
 
-    self.bytes = self.sources.items[@intCast(index)].bytes;
-}
-
-pub fn observePending(handle: *anyopaque, path: []const u8) Error!void {
-    const self = Context.get(handle);
-
-    if (self.inputs) |inputs| inputs.record(self.io, path, self.bytes) catch |err| return self.fail(err);
-}
-
-pub fn addSource(handle: *anyopaque, relative: []const u8, source: bool, from_present: bool, from_path: []const u8) Error!void {
-    const self = Context.get(handle);
-
-    self.sources.append(self.allocator, .{
-        .path = relative,
-        .kind = if (source) .zig else .asset,
-        .bytes = self.bytes,
-        .referenced_from = if (from_present) from_path else null,
-    }) catch |err| return self.fail(err);
-}
-
-pub fn promoteSource(handle: *anyopaque, index: u64) void {
-    Context.get(handle).sources.items[@intCast(index)].kind = .zig;
+    if (self.inputs) |inputs| inputs.record(self.io, path, content) catch |err| return self.fail(err);
 }
 
 pub fn referencedPath(allocator: std.mem.Allocator, root: []const u8, parent: []const u8, path: []const u8) ![]const u8 {

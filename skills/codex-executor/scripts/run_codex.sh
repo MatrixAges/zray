@@ -3,6 +3,7 @@ set -euo pipefail
 
 MODEL="gpt-6.2-sol"
 EFFORT="high"
+SERVICE_TIER="fast"
 MAX_CONCURRENT=3
 WORKDIR="$(pwd)"
 WORKDIR_EXPLICIT=0
@@ -53,6 +54,7 @@ Options:
       --forget-topic <SLUG>   Remove saved session mapping for (workdir, slug)
   -m, --model <MODEL>         Codex model (default: gpt-6.2-sol)
   -e, --effort <EFFORT>       Reasoning effort (default: high)
+      --service-tier <TIER>   Service tier (default: fast)
   -o, --output-file <FILE>    Path to save last agent message
       --events-file <FILE>    Path to save JSONL event stream
       --schema <FILE>         JSON Schema file for --output-schema
@@ -120,6 +122,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     -e|--effort)
       EFFORT="${2:-}"
+      shift 2
+      ;;
+    --service-tier)
+      SERVICE_TIER="${2:-}"
       shift 2
       ;;
     -o|--output-file)
@@ -262,6 +268,7 @@ for slot in range(1, max_concurrent + 1):
                     "session_mode": meta.get("session_mode", ""),
                     "model": meta.get("model", ""),
                     "effort": meta.get("effort", ""),
+                    "service_tier": meta.get("service_tier", ""),
                     "owns": meta.get("owns", []),
                     "started_at": started_at,
                     "elapsed_sec": elapsed_sec,
@@ -641,6 +648,7 @@ COMMON_ARGS=(
   --yolo
   -m "$MODEL"
   -c "model_reasoning_effort=\"$EFFORT\""
+  -c "service_tier=\"$SERVICE_TIER\""
   --disable sleep_tool
   --disable goals
   --disable multi_agent
@@ -688,7 +696,7 @@ if [[ ${#OWNS_PATHS[@]} -gt 0 ]]; then
 fi
 
 set +e
-python3 - "$LOCK_DIR" "$MAX_CONCURRENT" "$WORKDIR" "$TOPIC" "$RESUME_ID" "$SESSION_MODE" "$MODEL" "$EFFORT" "$OWNS_JSON" "$RUN_DIR" "$EFFECTIVE_PROMPT_SRC" "$EVENTS_FILE" "$STDERR_FILE" "$LAST_MSG_FILE" "$SLOT_FILE" "$META_OUT_FILE" "${CMD[@]}" <<'PY'
+python3 - "$LOCK_DIR" "$MAX_CONCURRENT" "$WORKDIR" "$TOPIC" "$RESUME_ID" "$SESSION_MODE" "$MODEL" "$EFFORT" "$SERVICE_TIER" "$OWNS_JSON" "$RUN_DIR" "$EFFECTIVE_PROMPT_SRC" "$EVENTS_FILE" "$STDERR_FILE" "$LAST_MSG_FILE" "$SLOT_FILE" "$META_OUT_FILE" "${CMD[@]}" <<'PY'
 import datetime
 import errno
 import fcntl
@@ -710,6 +718,7 @@ import time
     session_mode,
     model,
     effort,
+    service_tier,
     owns_json,
     run_dir,
     prompt_src,
@@ -865,6 +874,7 @@ with open(dispatch_lock_path, "a+", encoding="utf-8") as dlf:
         "session_mode": session_mode,
         "model": model,
         "effort": effort,
+        "service_tier": service_tier,
         "owns": owns_disp,
         "owns_norm": owns_norm,
         "workdir": workdir,
@@ -950,7 +960,7 @@ if [[ -f "$SLOT_FILE" ]]; then
   SLOT_NUM="$(cat "$SLOT_FILE" 2>/dev/null || true)"
 fi
 
-PARSED_INFO="$(python3 - "$EVENTS_FILE" "$META_OUT_FILE" "$RECEIPT_FILE" "$RC" "$CODEX_VERSION" "$MODEL" "$EFFORT" "$SESSION_MODE" "$TOPIC" "$RESUME_ID" "$WORKDIR" "$RUN_DIR" "$LAST_MSG_FILE" "$STDERR_FILE" <<'PY'
+PARSED_INFO="$(python3 - "$EVENTS_FILE" "$META_OUT_FILE" "$RECEIPT_FILE" "$RC" "$CODEX_VERSION" "$MODEL" "$EFFORT" "$SERVICE_TIER" "$SESSION_MODE" "$TOPIC" "$RESUME_ID" "$WORKDIR" "$RUN_DIR" "$LAST_MSG_FILE" "$STDERR_FILE" <<'PY'
 import datetime
 import json
 import os
@@ -964,6 +974,7 @@ import sys
     codex_version,
     model,
     effort,
+    service_tier,
     session_mode,
     topic,
     resume_id,
@@ -1025,6 +1036,7 @@ receipt = {
     "requested": {
         "model": model,
         "effort": effort,
+        "service_tier": service_tier,
         "disabled_features": ["sleep_tool", "goals", "multi_agent"],
     },
     "started_at": run_meta.get("started_at"),
@@ -1068,7 +1080,7 @@ USAGE_STR="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("usa
 DURATION_SEC="$(python3 -c 'import json,sys; v=json.loads(sys.argv[1]).get("duration_sec"); print("" if v is None else v)' "$PARSED_INFO")"
 
 if [[ -n "$TOPIC" && -n "$PARSED_SESSION_ID" && "$RC" -eq 0 ]]; then
-  python3 - "$SESSION_STORE" "$WORKDIR" "$TOPIC" "$PARSED_SESSION_ID" "$MODEL" "$EFFORT" <<'PY'
+  python3 - "$SESSION_STORE" "$WORKDIR" "$TOPIC" "$PARSED_SESSION_ID" "$MODEL" "$EFFORT" "$SERVICE_TIER" <<'PY'
 import datetime
 import fcntl
 import json
@@ -1076,7 +1088,7 @@ import os
 import sys
 import tempfile
 
-store_path, workdir, topic, sid, model, effort = sys.argv[1:7]
+store_path, workdir, topic, sid, model, effort, service_tier = sys.argv[1:8]
 lock_path = store_path + ".lock"
 os.makedirs(os.path.dirname(store_path), exist_ok=True)
 
@@ -1098,6 +1110,7 @@ with open(lock_path, "a+", encoding="utf-8") as lf:
         "session_id": sid,
         "model": model,
         "effort": effort,
+        "service_tier": service_tier,
         "updated_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
 
@@ -1122,6 +1135,7 @@ fi
 echo "CODEX_VERSION=$CODEX_VERSION"
 echo "MODEL=$MODEL"
 echo "EFFORT=$EFFORT"
+echo "SERVICE_TIER=$SERVICE_TIER"
 if [[ -n "$SLOT_NUM" ]]; then
   echo "SLOT=$SLOT_NUM"
 fi

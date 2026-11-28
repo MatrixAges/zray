@@ -1,8 +1,7 @@
-import yaml from "manifest_yaml_document"
-
 import { mapping_size } from "./const"
 import mapping from "./mapping"
 import name from "./name"
+import nodeAt from "./node_at"
 import string from "./string"
 
 import type { Dependency } from "./model"
@@ -28,11 +27,17 @@ export default function (in: Input): Output {
             const offset = state.row * mapping_size
             const dependency = name({
                 document,
-                node: yaml.node(document, pairs[offset], null)
+                node: nodeAt({
+                    document,
+                    id: pairs[offset]
+                })
             })
             const requirement = string({
                 document,
-                node: yaml.node(document, pairs[offset + 1], null)
+                node: nodeAt({
+                    document,
+                    id: pairs[offset + 1]
+                })
             })
 
             state.items = state.items.push({

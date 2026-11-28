@@ -1,23 +1,24 @@
-import host from "lowering_host"
+import { writeCollectionElement } from "ast_rows"
 
 import operand from "./operand"
 
-import type { CollectionFrame } from "lowering_host"
 import type { Ast } from "../workflow/model"
 
 export type Input = {
-    frame: CollectionFrame,
     ast: Ast,
-    origin: u32
+    origin: u32,
+    source_type: u32
 }
 
 export type Output = u32
 
 export default function (in: Input): Output {
+    const { ast, origin, source_type } = in
+
     const bound = operand({
-        ast: in.ast,
-        origin: in.origin
+        ast,
+        origin
     })
 
-    return host.writeCollectionElement(in.frame, bound)
+    return writeCollectionElement(ast.writer, ast.sequence, source_type, bound)
 }

@@ -4,16 +4,10 @@ export {
     advanceLengthSlot
 } from "memory"
 export {
-    borrowFunctionBodyBytes,
-    borrowForwardedBodyBytes
-} from "memory/columns"
-export {
     openProjectFrame,
     finishProjectFrame,
     closeProjectFrame,
-    validateProjectEntry,
-    writeFunctionBody,
-    writeForwardedBody
+    validateProjectEntry
 } from "project_host"
 export {
     analyzeProjectBody,

@@ -1,1 +1,7 @@
-export { evaluateSymbolicCallArgument } from "verification_host"
+export {
+    evaluateSymbolicOperand,
+    SymbolicOperand,
+    findSymbolicCallee,
+    evaluateSymbolicCallee,
+    publishSymbolicCallee
+} from "verification_host"

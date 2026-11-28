@@ -1,16 +1,26 @@
-export type FileSystem = mutable_opaque
-
 export declare function quoteJsonString(allocator, value: string): string throws {
     OutOfMemory
 } concurrent
 
-export declare function matches(fs: FileSystem, path: string, expected: string): bool throws {
-    ArtifactIoFailure
+export declare function compareFile(
+    io,
+    path: string,
+    expected: string,
+    prefix_only: bool
+): bool? throws {
+    AccessDenied, AntivirusInterference, BadPathName, Canceled, ConnectionResetByPeer,
+    DeviceBusy, FileBusy, FileLocksUnsupported, FileNotFound, FileTooBig, InputOutput, IsDir,
+    LockViolation, NameTooLong, NetworkNotFound, NoDevice, NoSpaceLeft, NotDir,
+    NotOpenForReading, PathAlreadyExists, PermissionDenied, PipeBusy, ProcessFdQuotaExceeded,
+    ReadOnlyFileSystem, SocketUnconnected, Streaming, SymLinkLoop, SystemFdQuotaExceeded,
+    SystemResources, Unexpected, WouldBlock
 }
 
-export declare function matchesPrefix(fs: FileSystem, path: string, prefix: string): bool?
-    throws { ArtifactIoFailure }
-
-export declare function writeAtomic(fs: FileSystem, path: string, source: string): void throws {
-    ArtifactIoFailure
-}
+export declare function write(io, path: string, contents: u8[]): void throws {
+    AccessDenied, AntivirusInterference, BadPathName, BrokenPipe, Canceled, CrossDevice,
+    DeviceBusy, DirNotEmpty, DiskQuota, FileBusy, FileNotFound, FileTooBig,
+    HardwareFailure, InputOutput, InvalidPath, IsDir, LinkQuotaExceeded, LockViolation,
+    NameTooLong, NetworkNotFound, NoDevice, NoSpaceLeft, NotDir, NotOpenForWriting,
+    PermissionDenied, PipeBusy, ProcessFdQuotaExceeded, ReadOnlyFileSystem, SymLinkLoop,
+    SystemFdQuotaExceeded, SystemResources, Unexpected, WouldBlock
+} concurrent

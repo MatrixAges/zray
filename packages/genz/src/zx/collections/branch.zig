@@ -1,16 +1,16 @@
 const std = @import("std");
 const zx = @import("zx");
 const Lower = @import("../lower.zig");
-const Frame = @import("workflow.zig").Frame;
-const Api = @import("../expressions/evaluate.zig").Api;
+const Sequence = @import("../../node/blocks.zig").Sequence;
+const evaluation = @import("../expressions/evaluate.zig");
+const Ast = @import("execution_abi").layouts.@"zig:ast_rows";
 const publication = @import("../construction/publication.zig");
 const entry = @import("generated_emit_collection_rows");
 const Error = Lower.Error;
 
-pub fn collectionCompare(handle: *anyopaque) Error![]const u8 {
-    const frame = Frame.borrow(handle);
-    const self = frame.lower;
-    const child = self.program.typeOf(frame.source_type).list;
+pub fn collectionCompare(frame: *anyopaque, source_type: u32) Error![]const u8 {
+    const self = evaluation.borrow(frame);
+    const child = self.program.typeOf(@fromBackingInt(source_type)).list;
     var found = false;
 
     for (self.comparisons.items) |previous| {
@@ -22,26 +22,39 @@ pub fn collectionCompare(handle: *anyopaque) Error![]const u8 {
     return @import("../comparison.zig").name(self, child);
 }
 
-pub fn collectionMinimum(handle: *anyopaque) Error!?u32 {
-    const frame = Frame.borrow(handle);
-    const context = frame.lower.loop_fields orelse return null;
-    const value = try context.minimum(frame.lower, frame.id) orelse return null;
+pub fn collectionMinimum(frame: *anyopaque, id: u32) Error!?u32 {
+    const lowering = evaluation.borrow(frame);
+    const context = lowering.loop_fields orelse return null;
+    const value = try context.minimum(lowering, @fromBackingInt(id)) orelse return null;
 
     return @backingInt(value);
 }
 
-pub fn emitCollectionRows(handle: *anyopaque, rows: *const Api.CollectionRows, minimum: ?u32, compare: ?[]const u8) Error!u32 {
-    const frame = Frame.borrow(handle);
-    const self = frame.lower;
+pub fn emitCollectionRows(
+    allocator: std.mem.Allocator,
+    frame: *anyopaque,
+    body: *anyopaque,
+    id: u32,
+    source_type: u32,
+    removed_only: bool,
+    rows: *const Ast.CollectionRows,
+    minimum: ?u32,
+    compare: ?[]const u8,
+) Error!u32 {
+    const self = evaluation.borrow(frame);
+    const expression: zx.ir.ExprId = @fromBackingInt(id);
+    const operation = self.program.expression(expression).value.list_operation;
+    const flags = self.plan.get(expression);
+    const list_type: zx.ir.TypeId = @fromBackingInt(source_type);
     const Call = std.meta.Child(entry.Input);
     const Input = std.meta.Child(@FieldType(Call, "rows"));
-    const selected = @import("../state_value/list.zig").selected(self, frame.source_type);
-    const layout = if (selected) try @import("../types.zig").get(self, self.state_types, frame.source_type) else null;
+    const selected = @import("../state_value/list.zig").selected(self, list_type);
+    const layout = if (selected) try @import("../types.zig").get(self, self.state_types, list_type) else null;
     const ast = zx.columns.view(std.meta.Child(@FieldType(Input, "ast")), @import("../state_value/list_emission.zig").borrow(self));
     const bases = @import("../construction/context.zig").snapshot(std.meta.Child(@FieldType(Input, "bases")), self);
 
     const input: Input = .{
-        .kind = @fromBackingInt(@backingInt(frame.operation.?.kind)),
+        .kind = @fromBackingInt(@backingInt(operation.kind)),
         .items = rows.items,
         .value = rows.value,
         .header = rows.header,
@@ -54,13 +67,13 @@ pub fn emitCollectionRows(handle: *anyopaque, rows: *const Api.CollectionRows, m
         .minimum = minimum,
         .compare = compare orelse &.{},
         .selected = selected,
-        .layout = if (layout) |expression| @backingInt(expression) else 0,
-        .in_place = frame.operation.?.flags.in_place,
-        .grow = frame.operation.?.flags.grow,
-        .frontier = frame.operation.?.flags.frontier,
-        .lazy = frame.operation.?.flags.lazy,
-        .retract = frame.operation.?.flags.retract,
-        .removed_only = frame.operation.?.removed_only,
+        .layout = if (layout) |type_expr| @backingInt(type_expr) else 0,
+        .in_place = flags.in_place,
+        .grow = flags.grow,
+        .frontier = flags.frontier,
+        .lazy = flags.lazy,
+        .retract = flags.retract,
+        .removed_only = removed_only,
         .shared = self.shared_types,
         .ast = &ast,
         .bases = &bases,
@@ -69,24 +82,36 @@ pub fn emitCollectionRows(handle: *anyopaque, rows: *const Api.CollectionRows, m
     const call: Call = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .body = @ptrCast(&frame.body),
+        .body = @ptrCast(body),
         .rows = &input,
     };
 
-    return entry.executeIn(frame.temporary, &call) catch |err| return publication.failure(err);
+    return entry.executeIn(allocator, &call) catch |err| return publication.failure(err);
 }
 
-pub fn emitCollectionPop(handle: *anyopaque, items: u32, value: u32, header: u32, element: u32, length: u32) Error!u32 {
-    const frame = Frame.borrow(handle);
+pub fn emitCollectionPop(
+    frame: *anyopaque,
+    body: *anyopaque,
+    id: u32,
+    source_type: u32,
+    result_type: u32,
+    items: u32,
+    value: u32,
+    header: u32,
+    element: u32,
+    length: u32,
+) Error!u32 {
+    const lowering = evaluation.borrow(frame);
+    const sequence: *Sequence = @ptrCast(@alignCast(body));
 
-    return @backingInt(try @import("pop.zig").lower(frame.lower, &frame.body, .{
-        .type_id = frame.source_type,
-        .result_type = frame.operation.?.result_type,
+    return @backingInt(try @import("pop.zig").lower(lowering, sequence, .{
+        .type_id = @fromBackingInt(source_type),
+        .result_type = @fromBackingInt(result_type),
         .items = @fromBackingInt(items),
         .value = @fromBackingInt(value),
         .header = @fromBackingInt(header),
         .element = @fromBackingInt(element),
         .length = @fromBackingInt(length),
-        .retract = frame.operation.?.flags.retract,
+        .retract = lowering.plan.get(@fromBackingInt(id)).retract,
     }));
 }

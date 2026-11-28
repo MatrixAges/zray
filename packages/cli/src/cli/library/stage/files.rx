@@ -12,9 +12,9 @@
     />
 
     <Call
-        fn="index.writeAtomic"
+        fn="index.writeStageFile"
         in={[
-            $in.fs,
+            $in.stage,
             $ctx.file.path,
             $ctx.file.source
         ]}

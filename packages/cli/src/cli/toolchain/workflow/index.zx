@@ -5,13 +5,17 @@ export {
     closeDirectory,
     createStaging,
     loadZig,
-    zigHash,
     extractZip,
     extractTar,
     renameZig,
     extractStandard,
     writeMarker,
     publish,
+    probeLibrary,
     unlock
 } from "toolchain_host"
-export { openCache as openStaging } from "toolchain_host"
+export {
+    openCache as openStaging,
+    probeLibrary as probeSystemLibrary,
+    probeLibrary as probeSiblingLibrary
+} from "toolchain_host"

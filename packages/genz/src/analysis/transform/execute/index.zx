@@ -2,7 +2,7 @@ export {
     appendStatementSequence,
     appendAstBindingRows,
     extendStatementSequence,
-    joinAstSpans,
+    joinAstStatementRows,
     readAstOrigin,
     readAstOrigin as refreshAstOrigin,
     statementSequenceBlock as outerBlock,
@@ -22,6 +22,10 @@ export {
 export { requireAllocation } from "memory"
 
 export {
+    default as reduceElementRange,
+    default as reduceCallbackRange
+} from "../../tasks/worker/execute/reference"
+export {
     default as convertInitial,
     default as convertCallback
 } from "./convert_reduce_value"
@@ -30,3 +34,7 @@ export {
     default as outerRange,
     default as enteredRange
 } from "./span"
+export {
+    default as initialBases,
+    default as finalBases
+} from "./statement_bases"

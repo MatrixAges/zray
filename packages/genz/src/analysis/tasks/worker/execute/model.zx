@@ -1,9 +1,9 @@
 import type { AstWriter } from "ast_rows"
-import type { Lowering, TaskWorker, TaskWorkerBody } from "lowering_host"
+import type { Lowering, WorkerState } from "lowering_host"
 import type { Input as WorkerFinish, Output as Final } from "../finish_model"
 
 export type Input = {
-    worker: TaskWorker,
+    worker: Lowering,
     lower: Lowering,
     writer: AstWriter,
     captures: u32[],
@@ -26,7 +26,7 @@ export type Publication = Reservation & {
 }
 
 export type Discard = Input.Pick("writer", "process", "captures") & {
-    body: TaskWorkerBody.Omit("value")
+    body: WorkerState
 }
 
 export type Finish = WorkerFinish.Omit("declaration_base", "bases") & Reservation & {

@@ -77,7 +77,7 @@ const Work = struct {
 
         try self.publish(index, alias);
     }
-    fn publish(self: *Work, index: usize, alias: *const rx.ast.Attribute) std.mem.Allocator.Error!void {
+    pub fn publish(self: *Work, index: usize, alias: *const rx.ast.Attribute) std.mem.Allocator.Error!void {
         const exports = self.signatures.modules[index].signature.exports;
 
         try self.types.ensureUnusedCapacity(self.allocator, exports.len);
@@ -103,7 +103,7 @@ const Work = struct {
         }
     }
 
-    fn fail(self: *Work, from: *const rx.ast.Attribute, message: []const u8) Declarations.Error {
+    pub fn fail(self: *Work, from: *const rx.ast.Attribute, message: []const u8) Declarations.Error {
         self.issue.* = .{
             .path = try self.allocator.dupe(u8, self.owner),
             .location = from.value_location,
@@ -114,34 +114,6 @@ const Work = struct {
         return error.InvalidFlow;
     }
 };
-
-fn borrow(handle: *anyopaque) *Work {
-    return @ptrCast(@alignCast(handle));
-}
-
-const ReferenceTarget = if (generated) @import("rx_execution_abi").layouts.@"zig:rx_project_host".ReferenceTarget else void;
-
-pub fn typeDeclarationTarget(handle: *anyopaque, row: ?u64) ReferenceTarget {
-    return switch (borrow(handle).references.edges[@intCast(row.?)].target) {
-        .source => .Source,
-        .compiled => .Compiled,
-        .native => .Native,
-    };
-}
-
-pub fn typeDeclarationOwner(handle: *anyopaque, row: ?u64) u64 {
-    const edge = &borrow(handle).references.edges[@intCast(row.?)];
-
-    return if (edge.target == .source) edge.target.source else 0;
-}
-
-pub fn publishTypeDeclaration(handle: *anyopaque, index: ?u64, alias: []const u8) std.mem.Allocator.Error!void {
-    try borrow(handle).publish(@intCast(index.?), Declarations.attribute(alias));
-}
-
-pub fn rejectTypeDeclaration(handle: *anyopaque, at: []const u8, message: []const u8) Declarations.Error!void {
-    return borrow(handle).fail(Declarations.attribute(at), message);
-}
 
 fn valueKind(kind: u8) bool {
     return kind == @backingInt(std.meta.Tag(zx.ir.Type).enumeration);

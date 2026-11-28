@@ -3,8 +3,6 @@ export {
     readAstOrigin,
     astExpressionCount,
     auxiliaryDeclarationCount,
-    appendAstExpressionHeaders,
-    appendAstNamespaceRows,
     appendAuxiliaryRow,
     replaceAuxiliaryRow,
     joinAstDeclarationRows,

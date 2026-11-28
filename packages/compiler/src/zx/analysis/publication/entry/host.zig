@@ -6,15 +6,61 @@ const native_context = @import("../../../modules/native_context.zig");
 const checks = @import("../../../ir/validate.zig");
 const Resolved = @import("../../../modules/resolved.zig");
 const Initializer = @import("../../../modules/compiled.zig").StoreInitializer;
+const rule = @import("generated_analysis_finish_entry");
+const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
 
-const Frame = struct {
+const Publication = struct {
     allocator: std.mem.Allocator,
     program: *ir.Program,
     verified: ?*const ir.FunctionTable,
+    store_0: *StoreState,
     issue: ?zx.Diagnostic = null,
     suffix: ?*const ir.FunctionTable = null,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
+    pub fn commit(self: *Publication, pending: anytype) zx.Error!void {
+        const next = pending.store_0 orelse return;
+
+        if (next.split) |split| try self.register(split);
+
+        if (next.own_natives == true) {
+            self.program.native_modules = try native_context.copy(self.allocator, self.program.native_modules);
+        }
+
+        if (next.check_prefix == true) try self.validatePrefix();
+
+        if (next.issue) |message| {
+            self.issue = .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = message };
+        }
+
+        if (next.forwarded) |body| {
+            try @import("../../../modules/entry_body/host.zig").applyForward(self.allocator, self.program, body);
+        }
+
+        self.store_0.* = next;
+    }
+
+    fn register(self: *Publication, split: bool) std.mem.Allocator.Error!void {
+        const row = try function_body.single(self.allocator, self.program.*);
+
+        if (split) {
+            const tail = try self.allocator.create(ir.FunctionTable);
+
+            tail.* = row;
+            self.suffix = tail;
+        } else {
+            self.program.functions = row;
+        }
+    }
+    fn validatePrefix(self: *Publication) zx.Error!void {
+        var checked = self.program.*;
+        var temporary = std.heap.ArenaAllocator.init(self.allocator);
+
+        defer temporary.deinit();
+
+        if (self.suffix) |suffix| checked.functions = try @import("../../../modules/link/function_table.zig").join(temporary.allocator(), checked.functions, suffix.*);
+
+        self.issue = try checks.validateExtending(temporary.allocator(), checked, self.verified.?.*);
+
+        if (self.issue != null) return error.InvalidSource;
     }
 };
 
@@ -25,21 +71,11 @@ const Output = struct {
 };
 
 pub fn finish(allocator: std.mem.Allocator, program: *ir.Program, resolved: ?*const Resolved.Input, declared: bool, initializers: []const Initializer) std.mem.Allocator.Error!Output {
-    const rule = @import("generated_analysis_finish_entry");
     const column = zx.memory.borrowReadColumn(ir.FunctionId, "function", initializers);
-
-    var frame: Frame = .{
-        .allocator = allocator,
-        .program = program,
-        .verified = if (resolved) |bindings| &bindings.verified_functions else null,
-    };
-
     const Input = std.meta.Child(rule.Input);
     const symbols = zx.columns.borrow(std.meta.Child(@FieldType(Input, "symbols")), @as(*const ir.SymbolTable, &program.symbols));
 
     const input: Input = .{
-        .entry = @ptrCast(&frame),
-        .program = @ptrCast(program),
         .symbols = &symbols,
         .input_type = @backingInt(program.input_type),
         .output_type = @backingInt(program.output_type),
@@ -54,53 +90,32 @@ pub fn finish(allocator: std.mem.Allocator, program: *ir.Program, resolved: ?*co
         .initializer_count = initializers.len,
     };
 
-    const entry = rule.executeIn(allocator, &input) catch |err| switch (@as(anyerror, err)) {
+    var store_value: std.meta.Child(StoreState) = .{
+        .split = null,
+        .own_natives = null,
+        .check_prefix = null,
+        .issue = null,
+        .forwarded = null,
+    };
+
+    var store_ptr: StoreState = &store_value;
+
+    var publication: Publication = .{
+        .allocator = allocator,
+        .program = program,
+        .verified = if (resolved) |bindings| &bindings.verified_functions else null,
+        .store_0 = &store_ptr,
+    };
+
+    const entry = rule.executeIn(allocator, &input, &publication) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
+        error.InvalidSource => null,
         else => unreachable,
     };
 
     return .{
         .entry = if (entry) |id| @fromBackingInt(id) else null,
-        .issue = frame.issue,
-        .suffix = frame.suffix,
+        .issue = publication.issue,
+        .suffix = publication.suffix,
     };
-}
-
-pub fn registerAnalysisBody(handle: *anyopaque, split: bool) std.mem.Allocator.Error!void {
-    const frame = Frame.borrow(handle);
-    const program = frame.program;
-    const row = try function_body.single(frame.allocator, program.*);
-
-    if (split) {
-        const tail = try frame.allocator.create(ir.FunctionTable);
-
-        tail.* = row;
-        frame.suffix = tail;
-    } else {
-        program.functions = row;
-    }
-}
-
-pub fn ownAnalysisNatives(handle: *anyopaque) std.mem.Allocator.Error!void {
-    const frame = Frame.borrow(handle);
-
-    frame.program.native_modules = try native_context.copy(frame.allocator, frame.program.native_modules);
-}
-
-pub fn validateAnalysisPrefix(handle: *anyopaque) std.mem.Allocator.Error!bool {
-    const frame = Frame.borrow(handle);
-    var checked = frame.program.*;
-    var temporary = std.heap.ArenaAllocator.init(frame.allocator);
-
-    defer temporary.deinit();
-
-    if (frame.suffix) |suffix| checked.functions = try @import("../../../modules/link/function_table.zig").join(temporary.allocator(), checked.functions, suffix.*);
-
-    frame.issue = try checks.validateExtending(temporary.allocator(), checked, frame.verified.?.*);
-
-    return frame.issue == null;
-}
-
-pub fn rejectAnalysisInitializer(handle: *anyopaque, message: []const u8) void {
-    Frame.borrow(handle).issue = .{ .code = .contract, .span = .{ .start = 0, .end = 0 }, .message = message };
 }

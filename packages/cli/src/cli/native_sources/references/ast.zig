@@ -5,9 +5,11 @@ const Error = storage.Error;
 const BuiltinLayout = @import("native_resource_abi").layouts.@"zig:native_resource_host".Builtin;
 const Builtin = @import("native_resource_abi").native.@"zig:native_resource_host".Builtin;
 
-pub fn scanBuiltins(handle: *anyopaque) Error![]const Builtin {
+pub fn scanBuiltins(handle: *anyopaque, content: []const u8) Error![]const Builtin {
     const self = Context.get(handle);
-    var tree = std.zig.Ast.parse(self.allocator, self.bytes, .{}) catch |err| return self.fail(err);
+    // readPending owns a zero-terminated buffer and the Store retains its slice.
+    const source = content.ptr[0..content.len :0];
+    var tree = std.zig.Ast.parse(self.allocator, source, .{}) catch |err| return self.fail(err);
 
     defer tree.deinit(self.allocator);
 

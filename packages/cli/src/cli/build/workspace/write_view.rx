@@ -8,7 +8,6 @@
     <Call
         module="retain_file"
         in={{
-            fs: $in.fs,
             ...$ctx.views
         }}
     />

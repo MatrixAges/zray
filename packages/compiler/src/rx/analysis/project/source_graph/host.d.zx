@@ -1,7 +1,5 @@
 export type GraphVisit = mutable_opaque
 
-export type GraphInternalModules = opaque
-
 export declare function openSourceGraphScanner(
     target: GraphVisit,
     paths: string[],
@@ -22,5 +20,3 @@ export declare function publishSourceGraphDependencies(
     owner: u64,
     start: u64
 ): u64[] throws { OutOfMemory }
-
-export declare function sourceGraphInternal(modules: GraphInternalModules, reference: string): string?

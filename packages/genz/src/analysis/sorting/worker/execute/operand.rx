@@ -3,20 +3,34 @@
 
     <Args in={Flow.OperandCursor} out={Flow.OperandCursor} />
 
-    <Call
-        fn="index.readSortOperand"
-        in={[
-            $in.frame,
-            $in.row,
-            $in.raw[$in.row]
-        ]}
-    />
+    <If on={$in.operand_used[$in.row]}>
+        <Call
+            fn="index.readSortOperand"
+            in={[
+                $in.worker,
+                $in.list_type,
+                $in.raw[$in.row]
+            ]}
+        />
 
-    <Return
-        value={{
-            ...$in,
-            row: $in.row + 1,
-            running: $in.row + 1 < $in.count
+        <Call
+            fn="advance_operand"
+            in={{
+                cursor: $in,
+                operand: $ctx.readSortOperand
+            }}
+        />
+
+        <Return value={$ctx.advance_operand} />
+    </If>
+
+    <Call
+        fn="advance_operand"
+        in={{
+            cursor: $in,
+            operand: null
         }}
     />
+
+    <Return value={$ctx.advance_operand} />
 </Module>

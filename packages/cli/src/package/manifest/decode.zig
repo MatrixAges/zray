@@ -1,19 +1,22 @@
 const std = @import("std");
-const c = @import("yaml.zig").c;
 const model = @import("model.zig");
 const compiler = @import("compiler");
 const rule = @import("cli_source").manifest_decode;
 pub const Document = @import("manifest_yaml_document");
 pub const Error = error{ OutOfMemory, InvalidManifest };
 
-pub fn read(allocator: std.mem.Allocator, document: *Document, root: *const c.yaml_node_t) Error!model.Manifest {
+pub fn read(allocator: std.mem.Allocator, document: *Document) Error!model.Manifest {
     var scratch = std.heap.ArenaAllocator.init(allocator);
 
     defer scratch.deinit();
 
-    const data = rule.executeValue(scratch.allocator(), .{
-        .document = @ptrCast(document),
-        .node = @ptrCast(root),
+    const Entry = std.meta.Child(rule.Input);
+    const Node = std.meta.Child(@FieldType(Entry, "node"));
+    const nodes = try document.borrowNodes(scratch.allocator(), Node);
+
+    const data = rule.executeIn(scratch.allocator(), &.{
+        .document = &.{ .parser = @ptrCast(document), .nodes = nodes },
+        .node = nodes[0],
     }) catch |err| switch (err) {
         error.OutOfMemory, error.InvalidManifest => |failure| return failure,
         else => unreachable,

@@ -8,7 +8,6 @@ export type ArchiveLookup = {
 
 export declare function prepareIndex(host: Host): void throws { InstallHostFailure }
 export declare function seedMember(host: Host, row: u64): void throws { InstallHostFailure }
-export declare function packageCount(host: Host): u64
 
 export declare function beginDependencies(host: Host, row: u64, local: bool): void
 export declare function advanceDependency(host: Host, remaining: u64): bool throws {
@@ -27,8 +26,7 @@ export declare function recordArchive(host: Host, source: string, path: string):
 }
 
 export declare function finishFresh(host: Host): void throws { InstallHostFailure }
-export declare function beginReplay(host: Host, count: u64): bool[] throws { InstallHostFailure }
-export declare function workspacePath(host: Host, row: u64): string throws { InstallHostFailure }
+export declare function beginReplay(host: Host, count: u64): string?[] throws { InstallHostFailure }
 export declare function fetchLocked(host: Host, row: u64): string throws { InstallHostFailure }
 export declare function recordLockedPath(host: Host, row: u64, path: string): string throws {
     InstallHostFailure

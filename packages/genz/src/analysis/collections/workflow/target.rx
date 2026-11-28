@@ -16,7 +16,6 @@
     <Call
         module="bind_target"
         in={{
-            frame: $in.frame,
             ast: $in.ast,
             target: $in.target,
             evaluated: $ctx.lowerExpression,

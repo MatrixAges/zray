@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Program" />
 
-    <Args in={Program.Called} out={void} />
+    <Args in={Program.Called} out={Program.Diagnostic?} />
 
     <Call fn="index.ensureSymbolicGraph" in={$in.program} />
     <Call fn="index.beginSymbolicCall" in={$in.program} />
@@ -43,12 +43,13 @@
     <Call fn="index.publishSymbolicProgramResult" in={$in.program} />
 
     <If on={!$ctx.publishSymbolicProgramResult}>
-        <Call
-            fn="index.rejectSymbolicReturn"
-            in={[
-                $in.program,
-                "verified call has no return value"
-            ]}
+        <Return
+            value={{
+                message: "verified call has no return value",
+                unsupported: false
+            }}
         />
     </If>
+
+    <Return value={null} />
 </Module>

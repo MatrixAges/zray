@@ -1,0 +1,104 @@
+<Module>
+    <Type from="workflow" as="Declaration" />
+    <Type from="model" as="Scan" />
+
+    <Args in={Declaration.Selection} out={Declaration.Decision} />
+
+    <If on={$in.cursor.stores != null}>
+        <Call
+            module="../../store/references/prepare"
+            in={{
+                stores: $in.cursor.stores,
+                owner: $in.cursor.targets.owners[$in.edge ?? 0],
+                alias: $in.hit.second,
+                layout: $in.cursor.tree.layout,
+                index: $in.cursor.namespaces
+            }}
+        />
+
+        <If on={$ctx.prepare.message != null}>
+            <Call
+                fn="store_failure"
+                in={{
+                    ...$in.hit.pick([
+                        "first",
+                        "second"
+                    ]),
+                    message: $ctx.prepare.message
+                }}
+            />
+
+            <Return
+                value={{
+                    namespaces: $in.cursor.namespaces,
+                    failure: $ctx.store_failure
+                }}
+            />
+        </If>
+
+        <Return
+            value={{
+                namespaces: $ctx.prepare.binding.index,
+                entry: {
+                    ...$in.hit,
+                    index: $in.edge,
+                    scope: $ctx.prepare.binding.name
+                }
+            }}
+        />
+    </If>
+
+    <If on={$in.cursor.signatures != null}>
+        <Call
+            module="../type_imports/select"
+            in={{
+                targets: $in.cursor.targets,
+                signatures: $in.cursor.signatures,
+                edge: $in.edge ?? 0,
+                has_alias: $in.hit.second != null
+            }}
+        />
+
+        <If on={$ctx.select.message != null}>
+            <Return
+                value={{
+                    namespaces: $in.cursor.namespaces,
+                    failure: {
+                        at: $in.hit.first,
+                        message: $ctx.select.message
+                    }
+                }}
+            />
+        </If>
+
+        <Return
+            value={{
+                namespaces: $in.cursor.namespaces,
+                entry: {
+                    ...$in.hit,
+                    index: $ctx.select.signature,
+                    scope: null
+                }
+            }}
+        />
+    </If>
+
+    <If on={$in.cursor.kind == Scan.Kind.Arguments}>
+        <Return
+            value={{
+                namespaces: $in.cursor.namespaces,
+                entry: {
+                    ...$in.hit,
+                    index: null,
+                    scope: null
+                }
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            namespaces: $in.cursor.namespaces
+        }}
+    />
+</Module>

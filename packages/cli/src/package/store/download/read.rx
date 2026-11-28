@@ -4,20 +4,74 @@
     <Args in={Download.Input} out={Download.Output} />
 
     <If on={$in.is_local}>
-        <Call fn="local" in={$in.download} />
+        <Call
+            fn="local"
+            in={$in.pick([
+                "source",
+                "base"
+            ])}
+        />
 
-        <Return value={$ctx.local} />
+        <Call
+            fn="index.readLocalArchive"
+            in={[
+                $ctx.local,
+                $in.maximum_archive
+            ]}
+        />
+
+        <If on={$ctx.readLocalArchive.length > $in.maximum_archive}>
+            <Return
+                value={{
+                    status: Download.Status.PackageArchiveTooLarge
+                }}
+            />
+        </If>
+
+        <Return
+            value={{
+                status: Download.Status.Ready,
+                body: $ctx.readLocalArchive
+            }}
+        />
     </If>
 
-    <Call fn="index.receiveHead" in={$in.download} />
+    <Call
+        fn="index.receiveHead"
+        in={[
+            $in.reader,
+            $in.source
+        ]}
+    />
 
     <Call
         fn="body"
         in={{
-            download: $in.download,
-            head: $ctx.receiveHead
+            head: $ctx.receiveHead,
+            maximum_archive: $in.maximum_archive
         }}
     />
 
-    <Return value={$ctx.body} />
+    <If on={$ctx.body != Download.Status.Ready}>
+        <Return
+            value={{
+                status: $ctx.body
+            }}
+        />
+    </If>
+
+    <Call
+        fn="index.readBody"
+        in={[
+            $in.reader,
+            $in.maximum_archive
+        ]}
+    />
+
+    <Return
+        value={{
+            status: Download.Status.Ready,
+            body: $ctx.readBody
+        }}
+    />
 </Module>

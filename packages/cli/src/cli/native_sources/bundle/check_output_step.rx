@@ -1,0 +1,67 @@
+<Module>
+    <Type from="model" as="Bundle" />
+
+    <Args in={Bundle.OutputStep} out={Bundle.OutputStep} />
+
+    <Call
+        fn="../index.bundlePath"
+        in={[
+            $in.collection,
+            $in.bundle_files[$in.index]
+        ]}
+    />
+
+    <Task name="logical" out={$ctx.output_within}>
+        <Call
+            fn="output_within"
+            in={{
+                resource: $ctx.bundlePath,
+                output: $in.output,
+                separator: $in.separator
+            }}
+        />
+    </Task>
+
+    <If on={$ctx.task.logical}>
+        <Return
+            value={{
+                ...$in,
+                valid: false
+            }}
+        />
+    </If>
+
+    <If on={$in.physical_output != null}>
+        <Call
+            fn="../index.observePhysicalResource"
+            in={[
+                $in.collection,
+                $ctx.bundlePath
+            ]}
+        />
+
+        <Call
+            fn="output_within"
+            in={{
+                resource: $ctx.observePhysicalResource,
+                output: $in.physical_output,
+                separator: $in.separator
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                index: $in.index + 1,
+                valid: !$ctx.output_within
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1
+        }}
+    />
+</Module>

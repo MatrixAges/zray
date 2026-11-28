@@ -8,8 +8,6 @@ export type ProjectBody = mutable_opaque
 
 export type ProjectEntry = mutable_opaque
 
-export type ProgramEntry = mutable_opaque
-
 export type CompiledImport = mutable_opaque
 
 export type CompiledUnitSize = {
@@ -20,10 +18,6 @@ export type CompiledUnitSize = {
 export type ArtifactLink = mutable_opaque
 
 export type ArtifactExtraction = mutable_opaque
-
-export type AnalysisPublication = mutable_opaque
-
-export type AnalysisEntry = mutable_opaque
 
 export enum CacheWrite {
     Ready,
@@ -57,14 +51,9 @@ export enum ProjectSourceAction {
     Depth
 }
 
-export type ParseWorker = opaque
-
 export type NativeCacheLoad = mutable_opaque
 
-export type CacheSlot = mutable_opaque
-
 export type CacheInstall = {
-    slot: CacheSlot,
     key: u8[],
     keys: u8[][],
     buckets: u64[]
@@ -74,8 +63,6 @@ export type CacheProbe = {
     bucket: u64,
     row: u64
 }
-
-export type SourceEntry = opaque
 
 export type SourceBody = opaque
 

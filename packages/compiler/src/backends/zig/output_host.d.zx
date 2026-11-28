@@ -37,8 +37,6 @@ export type BootstrapMirror = mutable_opaque
 
 export type BootstrapPartitionJobs = opaque
 
-export type BootstrapWriter = opaque
-
 export enum PartitionFile {
     Stub,
     Exports,
@@ -154,12 +152,6 @@ export declare function renderPartitionFile(
     target: BootstrapPartitionJobs,
     row: u64,
     file: PartitionFile
-): u32
-
-export declare function writeBootstrapFile(
-    target: BootstrapWriter,
-    path: string,
-    body: string
 ): u32
 
 export declare function scanPartitionBodies(target: BootstrapPartition): void

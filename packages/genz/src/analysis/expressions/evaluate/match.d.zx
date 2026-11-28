@@ -1,5 +1,5 @@
-export declare function publishMatchSubject(
-    selection: MatchFrame,
-    value: u32,
-    discard: bool
+export declare function cacheLoweredOperand(
+    frame: Lowering,
+    id: u32,
+    value: u32
 ): void throws { OutOfMemory }

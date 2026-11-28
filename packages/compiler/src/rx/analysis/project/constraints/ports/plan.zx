@@ -1,0 +1,44 @@
+import inferred from "./inferred"
+import next from "./next"
+
+import type { PortBatch } from "rx_project_host"
+import type { Request } from "./model"
+
+export type Input = Request
+
+export type Output = PortBatch[]
+
+export default function (in: Input): Output {
+    const batches: PortBatch[] = []
+
+    return loop({
+        position: 0,
+        start: 0,
+        batches
+    }, {
+        while: state => state.position < in.modules,
+        next: state => {
+            const range = next({
+                request: in,
+                start: state.start
+            })
+
+            const offsets = inferred({
+                origins: in.origins,
+                first: state.position,
+                end: range.inferred_until
+            })
+
+            const batch: PortBatch = {
+                first: state.position,
+                offsets,
+                declared: range.declared
+            }
+
+            state.batches = state.batches.push(batch)[0]
+            state.position = range.next_module
+            state.start = range.next
+        },
+        return: state => state.batches
+    })
+}

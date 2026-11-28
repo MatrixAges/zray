@@ -1,0 +1,11 @@
+<Module>
+    <Type from="model" as="Workspace" />
+
+    <Args in={Workspace.ModuleWrite} out={Workspace.ModuleWrite} />
+
+    <Call fn="modules" in={$in} />
+
+    <Call module="retain_file" in={$ctx.modules.artifact} />
+
+    <Return value={$ctx.modules.next} />
+</Module>

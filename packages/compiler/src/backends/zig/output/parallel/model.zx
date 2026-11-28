@@ -1,9 +1,6 @@
 import type { Index } from "core/bytes/index/model"
 import type { ReadColumn, TextColumn } from "memory"
-import type {
-    BootstrapPartitionJobs,
-    BootstrapWriter
-} from "output_host"
+import type { BootstrapPartitionJobs } from "output_host"
 import type { BatchOutput } from "../../partition/scanning/model"
 import type { Sources } from "../assembly/model"
 
@@ -40,8 +37,12 @@ export type Marked = {
 
 export type Write = {
     sections: Sections,
-    changed: u32[],
-    target: BootstrapWriter
+    changed: u32[]
+}
+
+export type File = {
+    path: string,
+    body: string
 }
 
 export type Work = {

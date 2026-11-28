@@ -6,54 +6,63 @@
     <Call
         fn="model.projectIterationResult"
         in={[
-            $in.frame,
+            $in.lower,
+            $in.context,
+            $in.consumer,
+            $in.state,
             $in.plan.transfers[$in.row]
         ]}
     />
 
     <If on={$in.plan.reuse[$in.row]}>
         <Call
-            fn="model.readU32"
+            fn="model.cacheLoweredOperand"
             in={[
-                $in.slots,
-                $in.plan.slots[$in.row]
-            ]}
-        />
-
-        <Call
-            fn="model.cacheIterationResult"
-            in={[
-                $in.frame,
+                $in.lower,
                 $in.plan.transfers[$in.row],
-                $ctx.readU32
+                $in.slots[$in.plan.slots[$in.row]]
             ]}
         />
 
-        <Else>
-            <Call
-                fn="model.transferIterationResult"
-                in={[
-                    $in.frame,
-                    $in.plan.transfers[$in.row],
-                    $ctx.projectIterationResult,
-                    $in.plan.slots[$in.row]
-                ]}
-            />
-
-            <Call
-                fn="model.cacheIterationResult"
-                in={[
-                    $in.frame,
-                    $in.plan.transfers[$in.row],
-                    $ctx.transferIterationResult
-                ]}
-            />
-        </Else>
+        <Return
+            value={{
+                ...$in,
+                row: $in.row + 1,
+                running: $in.row + 1 < $in.plan.transfers.length
+            }}
+        />
     </If>
+
+    <Call
+        fn="model.transferIterationResult"
+        in={[
+            $in.context,
+            $in.plan.transfers[$in.row],
+            $ctx.projectIterationResult
+        ]}
+    />
+
+    <Call
+        fn="model.cacheLoweredOperand"
+        in={[
+            $in.lower,
+            $in.plan.transfers[$in.row],
+            $ctx.transferIterationResult.root
+        ]}
+    />
+
+    <Call
+        fn="append_slot"
+        in={{
+            slots: $in.slots,
+            cached: $ctx.transferIterationResult.cached
+        }}
+    />
 
     <Return
         value={{
             ...$in,
+            slots: $ctx.append_slot,
             row: $in.row + 1,
             running: $in.row + 1 < $in.plan.transfers.length
         }}

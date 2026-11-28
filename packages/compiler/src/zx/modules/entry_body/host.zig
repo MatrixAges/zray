@@ -2,20 +2,10 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const columns = zx.columns;
-const Layout = @import("project_execution_abi").layouts.@"zig:memory/columns";
 
-pub fn writeFunctionBody(target: *anyopaque, bytes: []const u8) void {
-    applyBody(target, bodyView(Layout.FunctionBodyRow, bytes));
-}
-
-pub fn writeForwardedBody(allocator: std.mem.Allocator, target: *anyopaque, bytes: []const u8) std.mem.Allocator.Error!void {
-    try applyForward(allocator, target, bodyView(Layout.ForwardedBody, bytes));
-}
-
-fn bodyView(comptime Body: type, bytes: []const u8) *const Body {
-    std.debug.assert(bytes.len == @sizeOf(Body));
-
-    return @ptrCast(@alignCast(bytes.ptr));
+pub fn publish(allocator: std.mem.Allocator, program: *ir.Program, update: anytype) std.mem.Allocator.Error!void {
+    if (update.selected) |body| applyBody(program, body);
+    if (update.forwarded) |body| try applyForward(allocator, program, body);
 }
 
 pub fn applyBody(target: *anyopaque, body: anytype) void {

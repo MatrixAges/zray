@@ -1,8 +1,6 @@
-import type { CollectionFrame } from "lowering_host"
 import type { Ast } from "../workflow/model"
 
 export type Input = {
-    frame: CollectionFrame,
     ast: Ast,
     represented: bool,
     deferred: bool,

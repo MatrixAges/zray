@@ -1,8 +1,8 @@
-export { writeAtomic } from "artifact_io"
 export {
     prepareStageAbi,
     prepareStageLayout,
     writeStageArtifact,
+    writeStageFile,
     writeStageManifest,
     writeStageBuild,
     collectStageInventory,

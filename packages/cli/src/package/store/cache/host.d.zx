@@ -1,13 +1,12 @@
 export type Cache = mutable_opaque
 
 export declare function cached(cache: Cache): bool throws { PackageCacheFailure }
-export declare function readBlob(cache: Cache): bool throws { PackageCacheFailure }
-export declare function download(cache: Cache): void throws { PackageCacheFailure }
-export declare function verifyBlob(cache: Cache): void throws { PackageCacheFailure }
+export declare function readBlob(cache: Cache, path: string): u8[]? throws { PackageCacheFailure }
+export declare function download(cache: Cache, source: string, base: string): u8[] throws { PackageCacheFailure }
+export declare function verifyBlob(cache: Cache, bytes: u8[]): void throws { PackageCacheFailure }
 export declare function createStaging(cache: Cache): void throws { PackageCacheFailure }
-export declare function unpack(cache: Cache): void throws { PackageCacheFailure }
+export declare function unpack(cache: Cache, bytes: u8[]): void throws { PackageCacheFailure }
 export declare function writeReceipt(cache: Cache): void throws { PackageCacheFailure }
 export declare function checkStaging(cache: Cache): void throws { PackageCacheFailure }
 export declare function closeStaging(cache: Cache): void
-export declare function publishBlob(cache: Cache): void throws { PackageCacheFailure }
 export declare function publishStaging(cache: Cache): bool throws { PackageCacheFailure }

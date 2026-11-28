@@ -3,7 +3,7 @@
 
     <Args in={Execution.EntryForwarding} out={void} />
 
-    <Store from="entry_state" as="entry_state" />
+    <Store from="../../entry_body/publication/pending" as="publication" />
 
     <Call
         fn="entry_forward"
@@ -17,21 +17,12 @@
 
     <Call module="../../forward_entry/build" />
 
-    <Call fn="index.borrowForwardedBodyBytes" />
-
     <Call
-        fn="index.writeForwardedBody"
-        in={[
-            $in.publication.program,
-            $ctx.borrowForwardedBodyBytes
-        ]}
+        fn="../../entry_body/publication/stage"
+        in={{
+            forwarded: $ctx.build,
+            recursive: $in.native ? null : $in.function_id
+        }}
+        setter={[$store.publication.state]}
     />
-
-    <If on={!$in.native}>
-        <Call
-            fn="set_entry_recursive"
-            in={$in.function_id}
-            setter={[$store.entry_state.state]}
-        />
-    </If>
 </Module>

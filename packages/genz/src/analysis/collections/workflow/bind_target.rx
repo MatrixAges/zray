@@ -7,7 +7,9 @@
         <Call
             fn="host.clipCollectionTarget"
             in={[
-                $in.frame,
+                $in.ast.writer,
+                $in.ast.sequence,
+                $in.target,
                 $in.evaluated
             ]}
         />

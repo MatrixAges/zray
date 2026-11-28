@@ -1,0 +1,11 @@
+import { archive_directory, archive_suffix } from "../const"
+
+import type { Input as Cache } from "./model"
+
+export type Input = Cache.Pick("root", "hex")
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return `${in.root}/${archive_directory}/${in.hex}${archive_suffix}`
+}

@@ -1,11 +1,1 @@
-export {
-    inputLayout,
-    selectedInputBytes,
-    reserveInputs,
-    writeInput,
-    commitInputs,
-    commitDigest,
-    commitDiagnostics,
-    hasDiagnostics,
-    hasInputs
-} from "backend_frames"
+export { readDiagnostics } from "backend_frames"

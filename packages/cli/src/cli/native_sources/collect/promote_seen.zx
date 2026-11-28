@@ -25,7 +25,7 @@ export default function (in: Input, {
     })
 
     $store.collection.seen = {
-        relative_paths: in.seen.relative_paths,
+        ...in.seen,
         is_asset: next.is_asset,
         parsed: next.parsed
     }

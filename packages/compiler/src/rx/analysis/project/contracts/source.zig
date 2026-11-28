@@ -58,15 +58,6 @@ const Ports = struct {
     }
 };
 
-pub fn publishArgumentDeclaration(handle: *anyopaque, node: []const u8, first: []const u8, second: []const u8) std.mem.Allocator.Error!void {
-    const ports: *Ports = @ptrCast(@alignCast(handle));
-
-    try ports.append(@ptrCast(@alignCast(node.ptr)), .{
-        .first = Declarations.attribute(first),
-        .second = Declarations.attribute(second),
-    });
-}
-
 fn seed(self: *Self) std.mem.Allocator.Error!void {
     const entries = self.entries.slice();
     const names = try self.allocator.alloc([]const u8, entries.len);

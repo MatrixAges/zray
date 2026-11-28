@@ -28,7 +28,8 @@
     <Call
         fn="index.bindSortWorkerNames"
         in={[
-            $in.frame,
+            $in.lower,
+            $in.parameters,
             [
                 $ctx.prepare.left_name,
                 $ctx.prepare.right_name,
@@ -37,7 +38,13 @@
         ]}
     />
 
-    <Call fn="index.registerSortParameters" in={$in.frame} />
+    <Call
+        fn="index.registerSortParameters"
+        in={[
+            $in.worker,
+            $in.parameters
+        ]}
+    />
 
     <Call
         fn="index.lowerExpression"
@@ -49,22 +56,22 @@
         ]}
     />
 
-    <Call fn="prepare_operands" in={{}} />
+    <Call fn="index.readWorkerState" in={$in.worker} />
+
+    <Call
+        fn="prepare_operands"
+        in={{
+            worker: $in.worker,
+            parameters: $in.parameters,
+            list_type: $in.list_type,
+            used_symbols: $ctx.readWorkerState.used,
+            left: $ctx.prepare.left,
+            right: $ctx.prepare.right
+        }}
+    />
 
     <Loop on={$in.running}>
-        <Call
-            module="operand"
-            in={{
-                frame: $in.frame,
-                raw: [
-                    $ctx.prepare.left,
-                    $ctx.prepare.right
-                ],
-                count: $ctx.prepare_operands,
-                row: 0,
-                running: $ctx.prepare_operands != 0
-            }}
-        />
+        <Call module="operand" />
     </Loop>
 
     <Call
@@ -76,7 +83,22 @@
         ]}
     />
 
-    <Call fn="index.finishSortWorker" in={$in.frame} />
+    <Call fn="index.effects" in={$in.worker} />
+
+    <Call
+        fn="uses_environment"
+        in={{
+            parameters: $in.parameters,
+            used: $ctx.effects.used
+        }}
+    />
+
+    <Call fn="index.readWorkerReferenceBody" in={$in.worker} />
+
+    <Call fn="index.reference" />
+
+    <Call fn="index.leftOperandSpan" in={$ctx.operand.spans[0]} />
+    <Call fn="index.rightOperandSpan" in={$ctx.operand.spans[1]} />
     <Call fn="../../rows.readAstOrigin" in={$in.writer} />
     <Call fn="../../rows.astFieldCount" in={$in.writer} />
     <Call fn="../../rows.astDeclarationCount" in={$in.writer} />
@@ -89,24 +111,15 @@
             output_type: $ctx.lowerType,
             value: $ctx.lowerExpression,
             raw: $ctx.operand.raw,
-            elements: $ctx.finishSortWorker.elements,
-            used: $ctx.finishSortWorker.used,
-            uses_allocator: $ctx.finishSortWorker.uses_allocator,
-            uses_io: $ctx.finishSortWorker.uses_io,
-            uses_process: $ctx.finishSortWorker.uses_process,
-            uses_environment: $ctx.finishSortWorker.uses_environment,
-            references: {
-                start: $ctx.finishSortWorker.references_start,
-                count: $ctx.finishSortWorker.references_count
-            },
-            left: {
-                start: $ctx.finishSortWorker.left_start,
-                count: $ctx.finishSortWorker.left_count
-            },
-            right: {
-                start: $ctx.finishSortWorker.right_start,
-                count: $ctx.finishSortWorker.right_count
-            },
+            elements: $ctx.operand.elements,
+            used: $ctx.operand.used,
+            uses_allocator: $ctx.effects.uses_allocator,
+            uses_io: $ctx.effects.uses_io,
+            uses_process: $ctx.effects.uses_process,
+            uses_environment: $ctx.uses_environment,
+            references: $ctx.reference,
+            left: $ctx.leftOperandSpan,
+            right: $ctx.rightOperandSpan,
             bases: {
                 ...$ctx.readAstOrigin,
                 capture: null,

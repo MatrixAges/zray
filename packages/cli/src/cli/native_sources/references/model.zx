@@ -1,7 +1,10 @@
 import type { Context } from "native_resource_host"
 import type { Flags } from "../collect/model"
 
-export type { Context } from "native_resource_host"
+export type Source = {
+    collection: Context,
+    content: string
+}
 
 export type Input = {
     name: string,

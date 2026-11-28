@@ -1,4 +1,3 @@
-import type { FileSystem } from "artifact_io"
 import type { TextColumn } from "memory"
 
 export type Identity = {
@@ -17,7 +16,6 @@ export type Files = {
 }
 
 export type Workspace = {
-    fs: FileSystem,
     directory: string,
     separator: string
 }
@@ -28,7 +26,6 @@ export type HostResources = Workspace & {
 }
 
 export type Input = {
-    fs: FileSystem,
     separator: string,
     identity: Identity,
     views: Files,
@@ -41,7 +38,6 @@ export type Output = {
 }
 
 export type Artifact = {
-    fs: FileSystem,
     path: string,
     source: string
 }
@@ -64,4 +60,8 @@ export type ColumnRow = {
 export type File = {
     path: string,
     source: string
+}
+
+export type ModuleWrite = ColumnRow & {
+    paths: string[]
 }

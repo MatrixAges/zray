@@ -1,30 +1,5 @@
-export declare function clipCollectionTarget(frame: CollectionFrame, value: u32): u32
+export declare function collectionCompare(frame: Lowering, source_type: u32): u8[]
     throws { OutOfMemory }
 
-export declare function writeCollectionElement(frame: CollectionFrame, value: u32): u32
-    throws { OutOfMemory }
-
-export declare function collectionCompare(frame: CollectionFrame): u8[]
-    throws { OutOfMemory }
-
-export declare function collectionMinimum(frame: CollectionFrame): u32?
-    throws { OutOfMemory }
-
-export declare function emitCollectionRows(
-    frame: CollectionFrame,
-    rows: CollectionRows,
-    minimum: u32?,
-    compare: u8[]?
-): u32 throws { OutOfMemory }
-
-export declare function emitCollectionPop(
-    frame: CollectionFrame,
-    items: u32,
-    value: u32,
-    header: u32,
-    element: u32,
-    length: u32
-): u32 throws { OutOfMemory }
-
-export declare function convertCollectionResult(frame: CollectionFrame, result: u32): u32
+export declare function collectionMinimum(frame: Lowering, id: u32): u32?
     throws { OutOfMemory }

@@ -77,20 +77,31 @@
         ]}
     />
 
+    <Call fn="index.reduceElementRange" />
+
+    <Call fn="index.reduceCallbackRange" in={$ctx.callbackBlock} />
+
     <Call
-        fn="index.joinAstSpans"
+        fn="index.joinAstStatementRows"
         in={[
             $in.ast.writer,
-            $ctx.elementBlock,
-            $ctx.callbackBlock
+            [
+                $ctx.reduceElementRange.start,
+                $ctx.reduceCallbackRange.start
+            ],
+            [
+                $ctx.reduceElementRange.count,
+                $ctx.reduceCallbackRange.count
+            ]
         ]}
     />
 
     <Call
         fn="split_reduce_spans"
         in={{
-            element: $ctx.joinAstSpans,
-            callback: $ctx.callbackBlock
+            start: $ctx.joinAstStatementRows,
+            element: $ctx.reduceElementRange.count,
+            callback: $ctx.reduceCallbackRange.count
         }}
     />
 

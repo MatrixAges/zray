@@ -45,16 +45,10 @@ export type LoopConsumption = {
 
 export type TransformFrame = mutable_opaque
 
-export type IterationResultApplication = mutable_opaque
-
 export type IterationProjectionStamp = {
     serial: u64,
     history_count: u64
 }
-
-export type SortFrame = mutable_opaque
-
-export type SortWorkerFrame = mutable_opaque
 
 export type SortComparator = {
     declaration: u32,
@@ -62,28 +56,20 @@ export type SortComparator = {
     process: bool
 }
 
-export type SortWorkerResult = {
-    elements: u32[],
-    used: bool[],
-    uses_allocator: bool,
-    uses_io: bool,
-    uses_process: bool,
-    uses_environment: bool,
-    references_start: u32,
-    references_count: u32,
-    left_start: u32,
-    left_count: u32,
-    right_start: u32,
-    right_count: u32
+export type SortOperand = {
+    value: u32,
+    span: u64
 }
 
-export type TaskWorker = mutable_opaque
-
-export type TaskWorkerBody = {
-    value: u32,
+export type WorkerState = {
     uses_allocator: bool,
     uses_io: bool,
     uses_process: bool,
     used: bool[],
     names: u8[][]
+}
+
+export type IterationTransferResult = {
+    root: u32,
+    cached: u32
 }

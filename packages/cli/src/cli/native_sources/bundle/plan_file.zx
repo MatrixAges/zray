@@ -1,0 +1,50 @@
+import bytes from "std:bytes"
+import crypto from "std:crypto"
+import encoding from "std:encoding"
+import path from "std:path"
+
+import type { Artifact } from "../../workspace_files/model"
+import type { File, FileWalk as Input } from "./model"
+
+export type Output = {
+    artifact: Artifact,
+    files: File[]
+}
+
+export default function (in: Input): Output {
+    const { destination, directory, files, index, seen } = in
+
+    const relative = path.join([
+        destination,
+        seen.relative_paths[index]
+    ])
+
+    const source = seen.contents[index]
+    const sha256 = encoding.encodeHex(crypto.sha256(bytes.fromText(source)))
+
+    const referenced_from: string? = match {
+        seen.from_present[index] => path.join([
+            destination,
+            seen.from_paths[index]
+        ]),
+        _ => null
+    }
+
+    const file: File = {
+        path: relative,
+        asset: seen.is_asset[index],
+        sha256,
+        referenced_from
+    }
+
+    return {
+        artifact: {
+            path: path.join([
+                directory,
+                relative
+            ]),
+            source
+        },
+        files: files.push(file)[0]
+    }
+}

@@ -1,6 +1,6 @@
 export type Toolchain = mutable_opaque
 
-export declare function resolveExecutable(toolchain: Toolchain): void throws { ToolchainHostFailure }
+export declare function resolveExecutable(toolchain: Toolchain, path: string): string throws { ToolchainHostFailure }
 export declare function prepareCache(toolchain: Toolchain, resources_only: bool): void throws {
     ToolchainHostFailure
 }
@@ -13,16 +13,14 @@ export declare function regularFile(toolchain: Toolchain, path: string): bool th
 }
 export declare function closeDirectory(toolchain: Toolchain): void
 export declare function createStaging(toolchain: Toolchain): void throws { ToolchainHostFailure }
-export declare function loadZig(toolchain: Toolchain): void throws { ToolchainHostFailure }
-export declare function zigHash(toolchain: Toolchain): bool
+export declare function loadZig(toolchain: Toolchain): u8[] throws { ToolchainHostFailure }
 export declare function extractZip(toolchain: Toolchain): void throws { ToolchainHostFailure }
 export declare function extractTar(toolchain: Toolchain): void throws { ToolchainHostFailure }
 export declare function renameZig(toolchain: Toolchain): void throws { ToolchainHostFailure }
-export declare function standardHash(toolchain: Toolchain): bool
 export declare function extractStandard(toolchain: Toolchain): void throws { ToolchainHostFailure }
-export declare function writeMarker(toolchain: Toolchain): void throws { ToolchainHostFailure }
+export declare function writeMarker(toolchain: Toolchain, digest: string): void throws { ToolchainHostFailure }
 export declare function publish(toolchain: Toolchain): void throws { ToolchainHostFailure }
 export declare function unlock(toolchain: Toolchain): void
-export declare function probeLibrary(toolchain: Toolchain, suffix: string): bool throws {
+export declare function probeLibrary(toolchain: Toolchain, executable: string, suffix: string): string? throws {
     ToolchainHostFailure
 }

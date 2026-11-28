@@ -77,6 +77,18 @@ export type AstOrigin = {
     capture?: AstCapture
 }
 
+export type CollectionRows = {
+    first: u32,
+    second: u32,
+    third: u32,
+    items: u32,
+    value: u32,
+    header: u32,
+    element: u32,
+    length: u32,
+    unit: u32
+}
+
 export declare function readAstOrigin(allocator, writer: AstWriter): AstOrigin
     throws { OutOfMemory }
 
@@ -110,9 +122,6 @@ export declare function retainAstIds(writer: AstWriter, ids: u32[]): u32[]
     throws { OutOfMemory }
 
 export declare function appendAstOperandRows(writer: AstWriter, rows: AstOperandRows): void
-    throws { OutOfMemory }
-
-export declare function appendAstObjectRows(writer: AstWriter, rows: AstObjectRows): void
     throws { OutOfMemory }
 
 export declare function appendAstFieldAddresses(writer: AstWriter, rows: AstFieldAddressRows): void
@@ -161,12 +170,6 @@ export declare function extendStatementSequence(target: AstSequence, suffix: Ast
 export declare function statementSequenceBlock(writer: AstWriter, target: AstSequence): u64
     throws { OutOfMemory }
 
-export declare function joinAstSpans(writer: AstWriter, first: u64, second: u64): u64
-    throws { OutOfMemory }
-
-export declare function appendAstSpan(writer: AstWriter, span: u64): void
-    throws { OutOfMemory }
-
 export declare function astFieldCount(writer: AstWriter): u32
 
 export declare function astDeclarationCount(writer: AstWriter): u32
@@ -197,15 +200,6 @@ export declare function replaceAstIdentifier(writer: AstWriter, index: u64, name
 export declare function astExpressionCount(writer: AstWriter): u32
 
 export declare function auxiliaryDeclarationCount(writer: AstWriter): u64
-
-export declare function appendAstExpressionHeaders(
-    writer: AstWriter,
-    tags: ExpressionsKind[],
-    offsets: u32[]
-): void throws { OutOfMemory }
-
-export declare function appendAstNamespaceRows(writer: AstWriter, rows: NamespaceRows): void
-    throws { OutOfMemory }
 
 export declare function appendAstProjectionRows(writer: AstWriter, rows: ProjectionRows): void
     throws { OutOfMemory }

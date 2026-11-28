@@ -80,7 +80,7 @@ pub fn load(self: *Self, allocator: std.mem.Allocator, entry: Native, current: C
         var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
         const outcome = generated.executeIn(scratch.allocator(), &input) catch |err| return @import("../project/execution/invoke.zig").errorSet(err);
 
-        if (outcome.pending) |prepared| entries.commitPrepared(&request.slot, prepared);
+        if (outcome.pending) |prepared| request.slot.commit(prepared.replacement);
         if (outcome.admitted) cached.?.native_admitted = true;
     } else {
         try seed(&request);
@@ -103,11 +103,11 @@ fn seed(request: *Request) zx.Error!void {
 
     try buildNativeCacheEntry(request);
 
-    const position = try entries.prepareSeed(&request.slot);
+    const replacement = try entries.prepareSeed(&request.slot);
 
     try validateNativeCacheEntry(request);
 
-    entries.commitSeed(&request.slot, position);
+    request.slot.commit(replacement);
 }
 
 pub fn restoreCachedNative(handle: *anyopaque) std.mem.Allocator.Error!bool {
@@ -147,6 +147,10 @@ pub fn validateNativeCacheEntry(handle: *anyopaque) zx.Error!void {
         error.InvalidIr => return request.reporter.fail(.module, request.span, "native declarations produced invalid interface IR"),
         else => return request.reporter.fail(.module, request.span, "native interface artifact could not be mapped into the project"),
     };
+}
+
+pub fn stageNativeCacheEntry(handle: *anyopaque, bucket: u64) std.mem.Allocator.Error!void {
+    try Request.borrow(handle).slot.stage(bucket);
 }
 
 fn digest(allocator: std.mem.Allocator, entry: Native) std.mem.Allocator.Error![32]u8 {

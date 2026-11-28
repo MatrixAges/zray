@@ -42,25 +42,14 @@
                 module="../../../semantic_cache/slot/install"
             />
 
-            <If on={$ctx.install.replacement != null}>
-                <Call
-                    fn="index.replaceCacheSlot"
-                    in={[
-                        $ctx.projectCacheSlot.slot,
-                        $ctx.install.replacement
-                    ]}
-                />
-
-                <Else>
-                    <Call
-                        fn="index.appendCacheSlot"
-                        in={[
-                            $ctx.projectCacheSlot.slot,
-                            $ctx.install.bucket
-                        ]}
-                    />
-                </Else>
-            </If>
+            <Call
+                fn="index.publishProjectCacheEntry"
+                in={[
+                    $in.request.entry,
+                    $ctx.install.replacement,
+                    $ctx.install.bucket
+                ]}
+            />
         </Case>
 
         <Case value={Cache.CacheWrite.MissingOrigin}>

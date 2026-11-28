@@ -1,19 +1,18 @@
+import { writeCollectionElement } from "ast_rows"
 import host from "lowering_host"
 
 import bindOperand from "../../aggregate/execute/bind_operand"
 import { unused_expression } from "./const"
 import { CollectionKind } from "./model"
 
-import type { Arguments, Ast, Input as Request } from "./model"
+import type { Arguments, Input as Request } from "./model"
 
-export type Input = Request.Pick("frame", "kind", "arguments") & {
-    ast: Ast
-}
+export type Input = Request.Pick("ast", "kind", "arguments", "source_type")
 
 export type Output = Arguments
 
 export default function (in: Input): Output {
-    const { frame, ast, kind, arguments } = in
+    const { ast, kind, arguments, source_type } = in
 
     if (kind == CollectionKind.Splice) {
         const start = host.lowerExpression(ast.lower, arguments[0], false, null)
@@ -65,7 +64,13 @@ export default function (in: Input): Output {
         })
 
         const first = match kind {
-            CollectionKind.Push => host.writeCollectionElement(frame, bound),
+            CollectionKind.Push =>
+                writeCollectionElement(
+                    ast.writer,
+                    ast.sequence,
+                    source_type,
+                    bound
+                ),
             _ => host.readListItems(ast.lower, id, bound)
         }
 

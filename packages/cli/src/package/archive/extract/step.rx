@@ -5,7 +5,13 @@
 
     <Store from="seen" as="seen" />
 
-    <Call fn="index.nextTar" in={$in.archive} />
+    <Call
+        fn="index.nextTar"
+        in={[
+            $in.source,
+            $in.offset
+        ]}
+    />
 
     <If on={$ctx.nextTar != null}>
         <Call fn="classify_entry" in={$ctx.nextTar} />
@@ -40,41 +46,65 @@
                 />
             </If>
 
-            <If on={$ctx.classify_entry.action == Extract.Action.Directory}>
-                <Call
-                    fn="index.makeTarDirectory"
-                    in={[
-                        $in.archive,
-                        $ctx.classify_entry.path
-                    ]}
-                />
+            <Switch on={$ctx.classify_entry.action}>
+                <Case value={Extract.Action.Directory}>
+                    <Call
+                        fn="index.makeTarDirectory"
+                        in={[
+                            $in.directory,
+                            $ctx.classify_entry.path
+                        ]}
+                    />
+                </Case>
 
-                <Else>
-                    <If on={$ctx.classify_entry.action == Extract.Action.Unsupported}>
-                        <Return
-                            value={{
-                                ...$in,
-                                status: Extract.Status.UnsupportedPackageTarEntry,
-                                running: false
-                            }}
-                        />
+                <Case value={Extract.Action.Unsupported}>
+                    <Return
+                        value={{
+                            ...$in,
+                            status: Extract.Status.UnsupportedPackageTarEntry,
+                            running: false
+                        }}
+                    />
+                </Case>
 
-                        <Else>
-                            <Call
-                                fn="index.writeTarFile"
-                                in={[
-                                    $in.archive,
-                                    $ctx.classify_entry.path,
-                                    $ctx.classify_entry.executable
-                                ]}
-                            />
-                        </Else>
-                    </If>
-                </Else>
-            </If>
+                <Case value={Extract.Action.File}>
+                    <Call
+                        fn="index.writeTarFile"
+                        in={[
+                            $in.directory,
+                            $ctx.classify_entry.path,
+                            $ctx.nextTar.content,
+                            $ctx.classify_entry.executable
+                        ]}
+                    />
+
+                    <Call
+                        fn="record_file"
+                        in={{
+                            files: $in.files,
+                            path: $ctx.classify_entry.path,
+                            content: $ctx.nextTar.content,
+                            executable: $ctx.classify_entry.executable
+                        }}
+                    />
+
+                    <Return
+                        value={{
+                            ...$in,
+                            offset: $ctx.classify_entry.next,
+                            files: $ctx.record_file
+                        }}
+                    />
+                </Case>
+            </Switch>
         </If>
 
-        <Return value={$in} />
+        <Return
+            value={{
+                ...$in,
+                offset: $ctx.classify_entry.next
+            }}
+        />
     </If>
 
     <Return

@@ -3,6 +3,7 @@ import yaml from "manifest_yaml_document"
 import { Kind } from "../../workspace/paths/model"
 import relative from "../../workspace/paths/relative"
 import { bad_sequence, workspace_path, workspace_sequence } from "./const"
+import nodeAt from "./node_at"
 import string from "./string"
 
 import type { Input as Value } from "./value"
@@ -16,10 +17,14 @@ export type Output = string[]
 export default function (in: Input): Output {
     const { document, node, workspace } = in
 
-    const items = yaml.items(node)
+    const items = node.items
 
     if (items == null) {
-        yaml.reject(document, node, workspace ? workspace_sequence : bad_sequence)
+        yaml.reject(
+            document.parser,
+            node,
+            workspace ? workspace_sequence : bad_sequence
+        )
 
         return []
     }
@@ -32,7 +37,10 @@ export default function (in: Input): Output {
     }, {
         while: state => state.row < items.length,
         next: state => {
-            const item = yaml.node(document, items[state.row], null)
+            const item = nodeAt({
+                document,
+                id: items[state.row]
+            })
             const value = string({
                 document,
                 node: item
@@ -45,7 +53,7 @@ export default function (in: Input): Output {
                 })
 
                 if (!valid) {
-                    yaml.reject(document, item, workspace_path)
+                    yaml.reject(document.parser, item, workspace_path)
                 }
             }
 

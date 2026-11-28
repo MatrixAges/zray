@@ -3,82 +3,52 @@ const zx = @import("zx");
 const Graph = @import("../graph.zig");
 const Value = @import("../terms.zig").Value;
 const entry = @import("generated_select_symbolic_value");
-const native = @import("output_execution_abi").layouts.@"zig:verification_host";
-const Source = native.SymbolicValue;
-const Target = native.SymbolicTarget;
-
-const Frame = struct {
-    graph: *Graph,
-    program: *const zx.ir.Program,
-    span: zx.Span,
-};
 
 pub fn select(graph: *Graph, program: *const zx.ir.Program, type_id: zx.ir.TypeId, condition: []const u8, yes: *const Value, no: *const Value, span: zx.Span) zx.Error!Value {
     const Request = std.meta.Child(entry.Input);
     const types = zx.ir.TypeTable.borrow(std.meta.Child(@FieldType(Request, "types")), program.types);
     const layout = Value.layout(std.meta.Child(@FieldType(Request, "layout")));
-    const frame: Frame = .{ .graph = graph, .program = program, .span = span };
-    var result: Value = undefined;
+    var arena = std.heap.ArenaAllocator.init(graph.allocator);
+    var buffer: [std.heap.page_size_min]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+
+    defer arena.deinit();
+
+    const allocator = scratch.allocator();
 
     const input: Request = .{
-        .graph = @ptrCast(&frame),
         .types = &types,
         .type_id = @backingInt(type_id),
         .condition = condition,
         .yes = std.mem.asBytes(yes),
         .no = std.mem.asBytes(no),
         .layout = &layout,
-        .result = @ptrCast(&result),
+        .destination = null,
+        .steps = null,
     };
 
-    const valid = entry.executeIn(graph.allocator, &input) catch |err| switch (@as(anyerror, err)) {
-        error.InvalidSource => return error.InvalidSource,
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => unreachable,
-    };
+    const plan = zx.columns.invoke(entry.executeIn, allocator, &input) catch |err| return @import("../execution/context.zig").failure(err);
+    const targets = try allocator.alloc(*Value, plan.steps.len);
+    var result: Value = undefined;
 
-    if (!valid) return error.InvalidSource;
+    for (plan.steps, targets) |step, *destination| {
+        const place = step.destination;
+        const target = if (place.parent) |parent| &targets[@intCast(parent)].fields[@intCast(place.member)] else &result;
+
+        target.* = switch (step.action) {
+            .Text => text: {
+                const term = if (step.transient.?) try graph.allocator.dupe(u8, step.text.?) else step.text.?;
+
+                break :text try graph.retain(program.*, @fromBackingInt(step.type_id), .{ .scalar = term }, span);
+            },
+            .Reuse => @as(*const Value, @ptrCast(@alignCast(step.source.?.ptr))).*,
+            .Allocate => .{ .fields = try graph.allocator.alloc(Value, @intCast(step.count)) },
+        };
+
+        destination.* = target;
+    }
+
+    if (!plan.valid) return error.InvalidSource;
 
     return result;
-}
-
-pub fn symbolicText(handle: *const anyopaque) ?[]const u8 {
-    return read(handle).scalar;
-}
-
-pub fn symbolicFieldCount(handle: *const anyopaque) u64 {
-    return read(handle).fields.len;
-}
-
-pub fn symbolicField(handle: *const anyopaque, index: u64) *const Source {
-    return @ptrCast(&read(handle).fields[@intCast(index)]);
-}
-
-pub fn targetSymbolicField(handle: *anyopaque, index: u64) *Target {
-    return @ptrCast(&write(handle).fields[@intCast(index)]);
-}
-
-pub fn reuseSymbolicFields(target: *anyopaque, source: []const u8) void {
-    write(target).* = read(source.ptr).*;
-}
-
-pub fn reserveSymbolicFields(graph: *const anyopaque, target: *anyopaque, count: u64) std.mem.Allocator.Error!void {
-    const frame: *const Frame = @ptrCast(@alignCast(graph));
-    const fields = try frame.graph.allocator.alloc(Value, @intCast(count));
-
-    write(target).* = .{ .fields = fields };
-}
-
-pub fn publishSymbolicText(graph: *const anyopaque, target: *anyopaque, type_id: u32, text: []const u8) zx.Error!void {
-    const frame: *const Frame = @ptrCast(@alignCast(graph));
-
-    write(target).* = try frame.graph.retain(frame.program.*, @fromBackingInt(type_id), .{ .scalar = text }, frame.span);
-}
-
-fn read(handle: *const anyopaque) *const Value {
-    return @ptrCast(@alignCast(handle));
-}
-
-fn write(handle: *anyopaque) *Value {
-    return @ptrCast(@alignCast(handle));
 }

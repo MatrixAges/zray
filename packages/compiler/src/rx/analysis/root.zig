@@ -11,9 +11,6 @@ const callees = @import("project/mixed/callees.zig");
 const imports = @import("project/mixed/imports.zig");
 
 pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
-    @import("project/type_imports.zig"),
-    @import("project/contracts/source.zig"),
-    @import("store/references.zig"),
     @import("project/prepare/invocation/host.zig"),
     @import("project/prepare/modules/host.zig"),
     @This(),
@@ -42,7 +39,6 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("program/statements/traversal/call.zig"),
     @import("program/statements/traversal/host.zig"),
     @import("project/constraints/collection/host.zig"),
-    @import("project/constraints/ports/host.zig"),
     @import("project/flow/traversal/host.zig"),
     @import("condition.zig"),
     @import("project/history/admission.zig"),
@@ -53,7 +49,6 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     @import("project/mixed/rx.zig"),
     @import("project/mixed/state.zig"),
     @import("project/mixed/zx.zig"),
-    @import("project/source_graph/references/scan.zig"),
     @import("project/source_graph/scan.zig"),
     @import("project/workflow/derive/host.zig"),
     @import("project/workflow/infer/host.zig"),

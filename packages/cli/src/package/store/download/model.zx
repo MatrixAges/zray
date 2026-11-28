@@ -1,15 +1,11 @@
-import type { Download, ResponseHead } from "package_download_host"
-
-export type Handle = Download
+import type { ResponseReader } from "package_download_host"
 
 export type Input = {
-    download: Download,
-    is_local: bool
-}
-
-export type BodyInput = {
-    download: Download,
-    head: ResponseHead
+    reader: ResponseReader,
+    source: string,
+    base: string,
+    is_local: bool,
+    maximum_archive: u64
 }
 
 export enum Status {
@@ -19,4 +15,7 @@ export enum Status {
     UnsupportedPackageContentEncoding
 }
 
-export type Output = Status
+export type Output = {
+    status: Status,
+    body?: u8[]
+}

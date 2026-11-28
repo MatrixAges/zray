@@ -3,15 +3,15 @@
 
     <Args in={Library.Input} out={Library.Output} />
 
-    <Call fn="../index.captureLibraryInputs" in={$in.library} />
+    <Call fn="../index.capture" in={$in.verification} />
 
     <Call
         fn="disjoint"
         in={{
-            library: $in.library,
+            destination: $in.destination,
             observed: $in.observed,
             separator: $in.separator,
-            count: $ctx.captureLibraryInputs
+            count: $ctx.capture
         }}
     />
 
@@ -25,14 +25,23 @@
         <Return value={Library.Output.Changed} />
     </If>
 
-    <Call fn="../index.prepareRetirement" in={$in.library} />
+    <Call
+        fn="../index.prepareRetirement"
+        in={[
+            $in.verification,
+            $in.destination,
+            $in.managed
+        ]}
+    />
+
     <Call fn="../index.openDirectory" in={$in.directory} />
 
     <Call
         fn="preflight"
         in={$in.pick([
-            "library",
-            "directory"
+            "directory",
+            "destination",
+            "verification"
         ])}
     />
 

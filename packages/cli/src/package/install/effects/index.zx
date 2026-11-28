@@ -1,12 +1,10 @@
 export {
     seedMember,
     fetchLocked,
-    workspacePath,
     recordLockedPath,
     verifyLockedManifest,
     prepareIndex,
     finishFresh,
-    packageCount,
     beginDependencies,
     advanceDependency,
     acceptArchive,

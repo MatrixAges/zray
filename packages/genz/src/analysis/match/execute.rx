@@ -16,13 +16,36 @@
         />
 
         <Call
-            fn="workflow.publishMatchSubject"
+            fn="../aggregate/execute/bind_operand"
+            in={{
+                frame: $in.frame,
+                writer: $in.writer,
+                sequence: $in.body,
+                value: $ctx.lowerExpression
+            }}
+        />
+
+        <Call
+            fn="workflow.cacheLoweredOperand"
             in={[
-                $in.selection,
-                $ctx.lowerExpression,
-                $in.source.conditions.length == 0
+                $in.frame,
+                $in.source.subject,
+                $ctx.bind_operand
             ]}
         />
+
+        <If on={$in.source.conditions.length == 0}>
+            <Call fn="discard_subject" in={$ctx.bind_operand} />
+
+            <Call
+                fn="workflow.appendAstBindingRows"
+                in={[
+                    $in.writer,
+                    $in.body,
+                    $ctx.discard_subject
+                ]}
+            />
+        </If>
     </If>
 
     <Call

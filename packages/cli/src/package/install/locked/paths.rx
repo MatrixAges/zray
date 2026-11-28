@@ -3,36 +3,27 @@
 
     <Args in={Model.ReplayWalk} out={Model.ReplayWalk} />
 
-    <If on={$in.is_archive[$in.index]}>
-        <Call
-            fn="../effects.fetchLocked"
-            in={[
-                $in.host,
-                $in.index
-            ]}
-        />
+    <Call
+        fn="workspace_path"
+        in={{
+            root: $in.root,
+            relative: $in.workspace[$in.index]
+        }}
+    />
 
+    <If on={$ctx.workspace_path != null}>
         <Call
             fn="../effects.recordLockedPath"
             in={[
                 $in.host,
                 $in.index,
-                $ctx.fetchLocked
-            ]}
-        />
-
-        <Call
-            fn="../effects.verifyLockedManifest"
-            in={[
-                $in.host,
-                $in.index,
-                $ctx.recordLockedPath
+                $ctx.workspace_path
             ]}
         />
 
         <Else>
             <Call
-                fn="../effects.workspacePath"
+                fn="../effects.fetchLocked"
                 in={[
                     $in.host,
                     $in.index
@@ -44,7 +35,16 @@
                 in={[
                     $in.host,
                     $in.index,
-                    $ctx.workspacePath
+                    $ctx.fetchLocked
+                ]}
+            />
+
+            <Call
+                fn="../effects.verifyLockedManifest"
+                in={[
+                    $in.host,
+                    $in.index,
+                    $ctx.recordLockedPath
                 ]}
             />
         </Else>

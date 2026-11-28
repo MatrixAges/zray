@@ -1,0 +1,31 @@
+import type { SortOperand } from "lowering_host"
+import type { OperandCursor } from "./model"
+
+export type Input = {
+    cursor: OperandCursor,
+    operand?: SortOperand
+}
+
+export type Output = OperandCursor
+
+export default function (in: Input): Output {
+    const { cursor, operand } = in
+
+    const value = match {
+        operand != null => operand.value,
+        _ => cursor.raw[cursor.row]
+    }
+
+    const span: u64 = operand != null ? operand.span : 0
+
+    const row = cursor.row + 1
+
+    return {
+        ...cursor,
+        elements: cursor.elements.push(value)[0],
+        used: cursor.used.push(operand != null)[0],
+        spans: cursor.spans.push(span)[0],
+        row,
+        running: row < cursor.count
+    }
+}

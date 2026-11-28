@@ -1,6 +1,6 @@
 import { unused_expression } from "./const"
 
-import type { CollectionRows } from "lowering_host"
+import type { CollectionRows } from "ast_rows"
 
 export type Input = CollectionRows.Omit("first", "second", "third")
 

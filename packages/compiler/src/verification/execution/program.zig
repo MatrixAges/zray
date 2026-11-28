@@ -12,10 +12,7 @@ const native = @import("output_execution_abi").layouts.@"zig:verification_progra
 const Frame = struct {
     conditions: *Conditions,
     result_allocator: std.mem.Allocator = undefined,
-    temporary: std.mem.Allocator = undefined,
     checkpoint: ?zx.Arena.Checkpoint = null,
-    prefix: usize = undefined,
-    query: Conditions.Query = undefined,
     result: terms.Evaluation = undefined,
     fn borrow(handle: *anyopaque) *@This() {
         return @ptrCast(@alignCast(handle));
@@ -28,11 +25,25 @@ const Frame = struct {
 const unit: terms.Value = .{ .fields = &.{} };
 
 pub fn generate(conditions: *Conditions, result: std.mem.Allocator, temporary: std.mem.Allocator) zx.Error!Conditions.Query {
-    var frame: Frame = .{ .conditions = conditions, .result_allocator = result, .temporary = temporary };
+    var frame: Frame = .{ .conditions = conditions, .result_allocator = result };
+    const planned = try runEntry(verify, &frame);
 
-    try runEntry(verify, &frame);
+    if (planned.diagnostic) |diagnostic| return reject(conditions, diagnostic);
 
-    return frame.query;
+    const query = planned.query.?;
+
+    return @import("../query/output.zig").render(
+        result,
+        temporary,
+        conditions.graph.?,
+        @intCast(query.prefix),
+        .{
+            .declarations = conditions.declarations.items,
+            .violations = conditions.violations.items,
+            .precondition = query.path,
+        },
+        conditions.inputs.items,
+    );
 }
 
 pub fn model(conditions: *Conditions, result: std.mem.Allocator) zx.Error!Conditions.Model {
@@ -40,7 +51,7 @@ pub fn model(conditions: *Conditions, result: std.mem.Allocator) zx.Error!Condit
 
     defer frame.release();
 
-    try runEntry(hardware, &frame);
+    if (try runEntry(hardware, &frame)) |diagnostic| return reject(conditions, diagnostic);
 
     return .{
         .inputs = conditions.inputs.items,
@@ -58,7 +69,10 @@ pub fn call(conditions: *Conditions) zx.Error!terms.Evaluation {
     };
 
     defer frame.release();
-    called.executeIn(conditions.allocator, &input) catch |err| return execution.failure(err);
+
+    const diagnostic = called.executeIn(conditions.allocator, &input) catch |err| return execution.failure(err);
+
+    if (diagnostic) |message| return reject(conditions, message);
 
     return frame.result;
 }
@@ -69,7 +83,7 @@ fn returnsUnit(program: *const zx.ir.Program) bool {
     return target == .scalar and target.scalar == .void;
 }
 
-fn runEntry(comptime rule: type, frame: *Frame) zx.Error!void {
+fn runEntry(comptime rule: type, frame: *Frame) zx.Error!rule.Output {
     const conditions = frame.conditions;
     const Input = std.meta.Child(rule.Input);
     const Ports = std.meta.Child(@FieldType(Input, "types"));
@@ -85,7 +99,11 @@ fn runEntry(comptime rule: type, frame: *Frame) zx.Error!void {
         .returns_unit = returnsUnit(&conditions.program),
     };
 
-    rule.executeIn(frame.result_allocator, &request) catch |err| return execution.failure(err);
+    return rule.executeIn(frame.result_allocator, &request) catch |err| return execution.failure(err);
+}
+
+fn reject(conditions: *Conditions, diagnostic: anytype) zx.Error {
+    return conditions.reporter.fail(if (diagnostic.unsupported) .unsupported else .contract, .{ .start = 0, .end = 0 }, diagnostic.message);
 }
 
 pub fn ensureSymbolicGraph(handle: *anyopaque) std.mem.Allocator.Error!void {
@@ -98,20 +116,14 @@ pub fn beginSymbolicCall(handle: *anyopaque) void {
     frame.checkpoint = frame.conditions.scratch.checkpoint();
 }
 
-pub fn rejectSymbolicProgram(handle: *anyopaque, message: []const u8) error{InvalidSource}!void {
-    return @errorCast(Frame.borrow(handle).conditions.reporter.fail(.unsupported, .{ .start = 0, .end = 0 }, message));
-}
-
 pub fn symbolicProgramPreconditions(handle: *anyopaque, is_called: bool) zx.Error![]const u8 {
     const conditions = Frame.borrow(handle).conditions;
 
     return execution.apply(conditions, if (is_called) .Called else .Entry, "true", null);
 }
 
-pub fn markSymbolicQueryPrefix(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
-
-    frame.prefix = frame.conditions.graph.?.definitions.len;
+pub fn symbolicQueryPrefix(handle: *anyopaque) u64 {
+    return Frame.borrow(handle).conditions.graph.?.definitions.len;
 }
 
 pub fn runSymbolicProgramBody(handle: *anyopaque, path: []const u8) zx.Error![]const u8 {
@@ -133,28 +145,6 @@ pub fn appendSymbolicUnit(handle: *anyopaque, path: []const u8) std.mem.Allocato
     const conditions = Frame.borrow(handle).conditions;
 
     try conditions.returns.append(conditions.allocator, .{ .path = path, .value = unit });
-}
-
-pub fn publishSymbolicQuery(handle: *anyopaque, path: []const u8) zx.Error!void {
-    const frame = Frame.borrow(handle);
-    const conditions = frame.conditions;
-
-    frame.query = try @import("../query/output.zig").render(
-        frame.result_allocator,
-        frame.temporary,
-        conditions.graph.?,
-        frame.prefix,
-        .{
-            .declarations = conditions.declarations.items,
-            .violations = conditions.violations.items,
-            .precondition = path,
-        },
-        conditions.inputs.items,
-    );
-}
-
-pub fn rejectSymbolicReturn(handle: *anyopaque, message: []const u8) error{InvalidSource}!void {
-    return @errorCast(Frame.borrow(handle).conditions.reporter.fail(.contract, .{ .start = 0, .end = 0 }, message));
 }
 
 pub fn publishSymbolicProgramResult(handle: *anyopaque) zx.Error!bool {

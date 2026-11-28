@@ -6,7 +6,6 @@ export {
     astStatementCount,
     astDeclarationCount,
     auxiliaryDeclarationCount,
-    appendAstExpressionHeaders,
     appendAuxiliaryRow,
     replaceAuxiliaryRow,
     appendExpressionRows,

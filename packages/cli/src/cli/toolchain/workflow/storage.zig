@@ -9,11 +9,7 @@ pub const State = struct {
     io: std.Io,
     allocator: std.mem.Allocator,
     environment: *const std.process.Environ.Map,
-    override: ?[]const u8,
     root: []const u8 = undefined,
-    executable: []const u8 = undefined,
-    library: []const u8 = undefined,
-    digest: []const u8 = undefined,
     staging: ?[]const u8 = null,
     lock: ?std.Io.File = null,
     directory: ?std.Io.Dir = null,
@@ -53,10 +49,10 @@ pub const State = struct {
     }
 };
 
-pub fn resolveExecutable(handle: *anyopaque) Error!void {
+pub fn resolveExecutable(handle: *anyopaque, path: []const u8) Error![]const u8 {
     const self = State.get(handle);
 
-    self.executable = std.Io.Dir.cwd().realPathFileAlloc(self.io, self.override.?, self.allocator) catch return self.fail(error.ZxcZigNotFound);
+    return std.Io.Dir.cwd().realPathFileAlloc(self.io, path, self.allocator) catch return self.fail(error.ZxcZigNotFound);
 }
 
 pub fn prepareCache(handle: *anyopaque, resources_only: bool) Error!void {
@@ -72,7 +68,6 @@ pub fn prepareCache(handle: *anyopaque, resources_only: bool) Error!void {
     else
         bundle.digest;
 
-    self.digest = if (resources_only) bundle.resources_digest else bundle.digest;
     self.root = std.fs.path.join(allocator, &.{ parent, name }) catch |err| return self.fail(err);
 
     cwd.createDirPath(self.io, parent) catch |err| return self.fail(err);
@@ -133,14 +128,13 @@ pub fn createStaging(handle: *anyopaque) Error!void {
     self.directory = cwd.openDir(self.io, path, .{}) catch |err| return self.fail(err);
 }
 
-pub fn loadZig(handle: *anyopaque) Error!void {
+pub fn loadZig(handle: *anyopaque) Error![]const u8 {
     const self = State.get(handle);
+    const archive = extract.zigArchive(self.io, self.allocator) catch |err| return self.fail(err);
 
-    self.archive = extract.zigArchive(self.io, self.allocator) catch |err| return self.fail(err);
-}
+    self.archive = archive;
 
-pub fn zigHash(handle: *anyopaque) bool {
-    return extract.hashMatches(State.get(handle).archive.?, bundle.zig_digest);
+    return archive;
 }
 
 pub fn extractZip(handle: *anyopaque) Error!void {
@@ -166,21 +160,17 @@ pub fn renameZig(handle: *anyopaque) Error!void {
     self.archive = null;
 }
 
-pub fn standardHash(_: *anyopaque) bool {
-    return extract.hashMatches(bundle.archive, bundle.resources_digest);
-}
-
 pub fn extractStandard(handle: *anyopaque) Error!void {
     const self = State.get(handle);
 
     extract.resources(self.io, self.allocator, self.directory.?) catch |err| return self.fail(err);
 }
 
-pub fn writeMarker(handle: *anyopaque) Error!void {
+pub fn writeMarker(handle: *anyopaque, digest: []const u8) Error!void {
     const self = State.get(handle);
     const path = std.fs.path.join(self.allocator, &.{ self.staging.?, constants.ready_file }) catch |err| return self.fail(err);
 
-    @import("../../artifacts.zig").write(self.io, path, self.digest) catch |err| return self.fail(err);
+    @import("../../artifacts.zig").write(self.io, path, digest) catch |err| return self.fail(err);
 }
 
 pub fn publish(handle: *anyopaque) Error!void {
@@ -196,9 +186,9 @@ pub fn unlock(handle: *anyopaque) void {
     State.get(handle).releaseLock();
 }
 
-pub fn probeLibrary(handle: *anyopaque, suffix: []const u8) Error!bool {
+pub fn probeLibrary(handle: *anyopaque, executable: []const u8, suffix: []const u8) Error!?[]const u8 {
     const self = State.get(handle);
-    const parent = std.fs.path.dirname(self.executable) orelse return false;
+    const parent = std.fs.path.dirname(executable) orelse return null;
     const candidate = std.fs.path.resolve(self.allocator, &.{ parent, suffix }) catch |err| return self.fail(err);
 
     errdefer self.allocator.free(candidate);
@@ -210,10 +200,8 @@ pub fn probeLibrary(handle: *anyopaque, suffix: []const u8) Error!bool {
     std.Io.Dir.cwd().access(self.io, path, .{}) catch {
         self.allocator.free(candidate);
 
-        return false;
+        return null;
     };
 
-    self.library = candidate;
-
-    return true;
+    return candidate;
 }

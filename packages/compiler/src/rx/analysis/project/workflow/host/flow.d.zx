@@ -1,18 +1,3 @@
-export declare function commitInferredPorts(
-    target: PortGraph,
-    first: u64,
-    end: u64,
-    offsets: u64[]
-): void throws { OutOfMemory }
-
-export declare function commitDeclaredPort(
-    target: PortGraph,
-    row: u64,
-    input: u32,
-    output: u32,
-    offset: u64
-): void throws { OutOfMemory, InvalidSource }
-
 export declare function openConstraintModule(state: ConstraintCollection, row: u64): ConstraintModule
 
 export declare function releaseConstraintScope(state: ConstraintCollection): void

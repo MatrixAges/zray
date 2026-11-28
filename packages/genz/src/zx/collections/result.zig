@@ -3,7 +3,7 @@ const zx = @import("zx");
 const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const publication = @import("../construction/publication.zig");
-const Collection = @import("workflow.zig").Frame;
+const Sequence = @import("../../node/blocks.zig").Sequence;
 const entry = @import("generated_collection_result");
 const Input = std.meta.Child(entry.Input);
 const Source = std.meta.Child(@FieldType(Input, "source"));
@@ -11,22 +11,21 @@ const Bases = std.meta.Child(@FieldType(Source, "bases"));
 const Preparation = std.meta.Child(@FieldType(Input, "preparation"));
 const Conversion = std.meta.Child(@FieldType(Preparation, "source"));
 
-pub fn lower(frame: *Collection, value: node.ExpressionId) Lower.Error!node.ExpressionId {
-    const self = frame.lower;
+pub fn lower(self: *Lower, body: *Sequence, result_type: zx.ir.TypeId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: [std.heap.page_size_min]u8 = undefined;
     var memory = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
 
     defer scratch.deinit();
 
-    const types = self.program.typeOf(frame.operation.?.result_type).tuple;
+    const types = self.program.typeOf(result_type).tuple;
     const type_table = zx.ir.TypeTable.borrow(std.meta.Child(@FieldType(Conversion, "types")), self.program.types);
     const bases = @import("../construction/context.zig").snapshot(Bases, self);
 
     const input: Input = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .body = @ptrCast(&frame.body),
+        .body = @ptrCast(body),
         .source = &.{ .value = @backingInt(value), .bases = &bases },
         .preparation = &.{
             .types = types.values[0..types.len],

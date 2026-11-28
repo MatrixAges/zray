@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Digest" />
 
-    <Args in={Digest.Collect} out={void} />
+    <Args in={Digest.Collect} out={u8[]} />
 
     <Store from="entries" as="state" />
 
@@ -24,11 +24,7 @@
         }}
     />
 
-    <Call
-        fn="index.hashDirectoryBytes"
-        in={[
-            $in.directory,
-            $ctx.build_payload
-        ]}
-    />
+    <Call fn="index.sha256" />
+
+    <Return value={$ctx.sha256} />
 </Module>

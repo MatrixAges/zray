@@ -2,7 +2,7 @@ import probe from "../../source_index/probe"
 
 import type { CacheInstall, CacheProbe } from "project_host"
 
-export type Input = CacheInstall.Omit("slot")
+export type Input = CacheInstall
 
 export type Output = CacheProbe
 

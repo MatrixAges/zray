@@ -1,4 +1,4 @@
-export type Download = mutable_opaque
+export type ResponseReader = opaque
 
 export type ResponseHead = {
     ok: bool,
@@ -6,12 +6,21 @@ export type ResponseHead = {
     length?: u64
 }
 
-export declare function readLocal(download: Download, limit: u64): u64 throws {
+export declare function readLocalArchive(allocator, io, path: string, limit: u64): u8[]
+    throws {
+        AccessDenied, AntivirusInterference, BadPathName, Canceled, ConnectionResetByPeer,
+        DeviceBusy, FileBusy, FileLocksUnsupported, FileNotFound, FileTooBig, InputOutput,
+        InvalidPath, InvalidUtf8, IsDir, LockViolation, NameTooLong, NetworkNotFound,
+        NoDevice, NoSpaceLeft, NotDir, NotOpenForReading, OutOfMemory, PathAlreadyExists,
+        PermissionDenied, PipeBusy, ProcessFdQuotaExceeded, ReadOnlyFileSystem,
+        SocketUnconnected, StreamTooLong, SymLinkLoop, SystemFdQuotaExceeded, SystemResources,
+        Unexpected, WouldBlock
+    } concurrent
+
+export declare function receiveHead(reader: ResponseReader, url: string): ResponseHead throws {
     PackageDownloadHostFailure
 }
-export declare function receiveHead(download: Download): ResponseHead throws {
-    PackageDownloadHostFailure
-}
-export declare function readBody(download: Download, limit: u64): void throws {
+
+export declare function readBody(allocator, reader: ResponseReader, limit: u64): u8[] throws {
     PackageDownloadHostFailure
 }

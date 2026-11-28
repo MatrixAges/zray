@@ -44,7 +44,7 @@ pub fn parameters(self: *Lower, value: ir.Transform) Lower.Error!@import("../mem
     return before;
 }
 
-pub fn registerOwned(self: *Lower, symbols: []const ir.SymbolId) Lower.Error!void {
+pub fn registerOwned(self: *Lower, symbols: []const u32) Lower.Error!void {
     if (!self.state_active) return;
 
     const entry = @import("generated_state_locals_owned");
@@ -54,7 +54,7 @@ pub fn registerOwned(self: *Lower, symbols: []const ir.SymbolId) Lower.Error!voi
     const input: InputType = .{
         .symbol_types = self.program.symbols.types,
         .queries = zx.columns.slice(@FieldType(InputType, "queries"), self.state_plan.queries),
-        .symbols = @import("../../node/view.zig").slice(@FieldType(InputType, "symbols"), symbols),
+        .symbols = symbols,
     };
 
     const index = entry.executeState(self.allocator, if (@typeInfo(Parameter) == .pointer) &input else input) catch |err| return failure(err);
