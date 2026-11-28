@@ -1,9 +1,10 @@
-import type { NativeResources } from "library_stage_host"
-import type { Setup } from "../../command/scope/model"
+import type { Stage } from "library_stage_host"
+import type { NativeModules, Setup } from "../../command/scope/model"
 
 export type Preparation = {
-    resources: NativeResources,
+    resources: Stage,
     setup: Setup,
+    modules: NativeModules,
     count: u64
 }
 
@@ -13,7 +14,7 @@ export type Step = Preparation & {
 }
 
 export type ModuleInput = {
-    resources: NativeResources,
+    resources: Stage,
     includes: string[],
     has_bundle: bool,
     has_header: bool

@@ -1,4 +1,4 @@
-import type { ColumnLengths, OptionalU32Buffer, U64Buffer } from "memory"
+import type { ColumnLengths } from "memory"
 import type { BodyStatements } from "rx_project_host"
 import type { Row as CaseMember } from "../../control/write/case_member"
 import type { Row as ParallelMember } from "../../control/write/parallel_member"
@@ -8,8 +8,8 @@ import type { Output as SavedScope } from "./scope_save"
 
 export type Scopes = {
     active: ColumnLengths,
-    bindings: U64Buffer,
-    values: OptionalU32Buffer
+    bindings: u64[],
+    values: u32?[]
 }
 
 export type Request = Config & {

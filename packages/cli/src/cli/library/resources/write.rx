@@ -1,9 +1,7 @@
 <Module>
     <Type from="model" as="Resources" />
 
-    <Args in={Resources.Preparation} out={void} />
-
-    <Call fn="index.allocateNativeRows" in={$in.resources} />
+    <Args in={Resources.Preparation} out={string[]} />
 
     <Call
         fn="../../command/scope/paths"
@@ -13,14 +11,6 @@
         }}
     />
 
-    <Call
-        fn="index.bindLibraryPaths"
-        in={[
-            $in.resources,
-            $ctx.paths
-        ]}
-    />
-
     <If on={$in.count != 0}>
         <Call
             module="walk"
@@ -28,9 +18,12 @@
                 resources: $in.resources,
                 setup: $in.setup,
                 count: $in.count,
+                modules: $in.modules,
                 index: 0,
                 running: true
             }}
         />
     </If>
+
+    <Return value={$ctx.paths} />
 </Module>

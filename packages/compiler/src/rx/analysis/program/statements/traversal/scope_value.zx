@@ -1,15 +1,12 @@
 import integers from "std:integer"
-import memory from "memory"
-
-import type { OptionalU32Buffer } from "memory"
 
 export type Input = {
-    values: OptionalU32Buffer,
+    values: u32?[],
     slot: u32
 }
 
 export type Output = u32?
 
 export default function (in: Input): Output {
-    return memory.optionalU32Views(in.values)[integers.widen(in.slot)]
+    return in.values[integers.widen(in.slot)]
 }

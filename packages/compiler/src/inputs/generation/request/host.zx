@@ -5,6 +5,7 @@ export {
     classifyGenerationDocuments,
     registerGenerationInterfaces,
     fingerprintGenerationInputs,
+    readGenerationStamp,
     invalidateGenerationStamp,
     restoreGenerationAnalysis,
     prepareGenerationTemplates,

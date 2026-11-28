@@ -2,11 +2,7 @@ export type SourceLint = opaque
 
 export type SemanticLint = opaque
 
-export type SpecialLint = opaque
-
 export type WorkspaceLint = opaque
-
-export type ReachableLint = opaque
 
 export type SemanticProject = {
     entry?: string,
@@ -30,10 +26,9 @@ export type ConfigurationContent = {
 export declare function parseLintRx(check: SourceLint): bool throws { SourceLoadFailure }
 export declare function validateLintRx(check: SourceLint): bool throws { SourceLoadFailure }
 export declare function checkLintRxValues(check: SourceLint): bool throws { SourceLoadFailure }
-export declare function formatLintRx(check: SourceLint): void throws { SourceLoadFailure }
+export declare function formatLintRx(check: SourceLint): u8[] throws { SourceLoadFailure }
 export declare function checkLintZx(check: SourceLint): bool throws { SourceLoadFailure }
-export declare function formatLintZx(check: SourceLint): void throws { SourceLoadFailure }
-export declare function checkLintFormatting(check: SourceLint): bool throws { SourceLoadFailure }
+export declare function formatLintZx(check: SourceLint): u8[] throws { SourceLoadFailure }
 export declare function checkLintLength(check: SourceLint): bool throws { SourceLoadFailure }
 
 export declare function checkSemanticManifest(check: SemanticLint): bool throws { SourceLoadFailure }
@@ -41,37 +36,28 @@ export declare function loadSemanticProject(
     check: SemanticLint,
     manifest: bool
 ): SemanticProject? throws { SourceLoadFailure }
-export declare function clearSemanticLibrary(check: SemanticLint): void
-export declare function checkSemanticSpecial(
-    check: SemanticLint,
-    manifest: bool,
-    store: bool
-): bool throws { SourceLoadFailure }
-export declare function useSemanticEntryExport(check: SemanticLint, manifest: bool): void throws { SourceLoadFailure }
-export declare function analyzeSemanticLibrary(check: SemanticLint): bool throws { SourceLoadFailure }
+export declare function prepareSemanticSpecial(check: SemanticLint, entry: string?): void throws { SourceLoadFailure }
+export declare function analyzeSemanticLibrary(check: SemanticLint, use_entry: bool, entry: string?): bool throws { SourceLoadFailure }
 export declare function checkSemanticSources(check: SemanticLint): bool throws { SourceLoadFailure }
-export declare function linkSemanticLibrary(check: SemanticLint): void throws { SourceLoadFailure }
+export declare function linkSemanticLibrary(check: SemanticLint, gateway: bool): void throws { SourceLoadFailure }
 
-export declare function checkSpecialSource(check: SpecialLint): bool throws { SourceLoadFailure }
-export declare function collectLintStore(check: SpecialLint): bool throws { SourceLoadFailure }
-export declare function collectLintStoreTypes(check: SpecialLint): bool throws { SourceLoadFailure }
-export declare function checkLintStoreTypes(check: SpecialLint): bool throws { SourceLoadFailure }
-export declare function analyzeLintGateway(check: SpecialLint): bool? throws { SourceLoadFailure }
-export declare function checkLintServices(check: SpecialLint): bool throws { SourceLoadFailure }
-export declare function linkLintGateway(check: SpecialLint): void throws { SourceLoadFailure }
+export declare function checkSpecialSource(check: SemanticLint): bool throws { SourceLoadFailure }
+export declare function collectLintStore(check: SemanticLint): bool throws { SourceLoadFailure }
+export declare function collectLintStoreTypes(check: SemanticLint): bool throws { SourceLoadFailure }
+export declare function checkLintStoreTypes(check: SemanticLint): bool throws { SourceLoadFailure }
+export declare function analyzeLintGateway(check: SemanticLint): bool? throws { SourceLoadFailure }
+export declare function checkLintServices(check: SemanticLint): bool throws { SourceLoadFailure }
 
 export declare function discoverLintWorkspace(check: WorkspaceLint): bool throws { SourceLoadFailure }
-export declare function resolveLintWorkspace(check: WorkspaceLint): bool throws { SourceLoadFailure }
-export declare function locateLintWorkspace(check: WorkspaceLint): u64 throws { SourceLoadFailure }
+export declare function resolveLintWorkspace(check: WorkspaceLint): u64? throws { SourceLoadFailure }
 export declare function selectLintWorkspaceMember(check: WorkspaceLint, index: u64): bool throws { SourceLoadFailure }
 export declare function lintMemberSemantics(check: WorkspaceLint): bool throws { SourceLoadFailure }
 export declare function lintMemberConfiguration(check: WorkspaceLint): bool throws { SourceLoadFailure }
-export declare function releaseLintWorkspaceMember(check: WorkspaceLint): void
 
-export declare function checkReachableLintSource(check: ReachableLint, row: u64): bool
+export declare function checkReachableLintSource(check: SourceLint, path: u8[], source: u8[]): bool
     throws { SourceLoadFailure }
 
-export declare function checkReachableLintStore(check: ReachableLint, row: u64): bool
+export declare function checkReachableLintStore(check: SourceLint, path: u8[]): bool
     throws { SourceLoadFailure }
 
 export declare function readConfiguration(

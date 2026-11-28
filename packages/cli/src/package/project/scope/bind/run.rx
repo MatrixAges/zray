@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Scopes" />
 
-    <Args in={Scopes.Input} out={void} />
+    <Args in={Scopes.Input} out={bool} />
 
     <Loop on={$in.running}>
         <Call
@@ -24,4 +24,6 @@
             }}
         />
     </Loop>
+
+    <Return value={$ctx.publish.valid} />
 </Module>

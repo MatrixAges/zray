@@ -9,7 +9,6 @@ const Error = effects.Error;
 const State = struct {
     io: std.Io,
     allocator: std.mem.Allocator,
-    scopes: []const compiler.project.PackageScope,
     inputs: ?*Inputs,
     failure: effects.Failure = .{},
     fn get(handle: *const anyopaque) *State {
@@ -27,12 +26,12 @@ pub fn validateWithInputs(io: std.Io, allocator: std.mem.Allocator, path: []cons
     var state: State = .{
         .io = io,
         .allocator = allocator,
-        .scopes = scopes,
         .inputs = inputs,
     };
 
+    const owner = compiler.project.package_scope.owner(scopes, path);
     const reference = &state;
-    const status = rules.workspace_source.executeValue(allocator, &.{ .source = @ptrCast(&reference), .path = path }) catch |err| return state.failure.unwrap(err);
+    const status = rules.workspace_source.executeValue(allocator, &.{ .source = @ptrCast(&reference), .path = path, .root = if (owner) |index| scopes[index].root else null }) catch |err| return state.failure.unwrap(err);
 
     switch (status) {
         .Valid => {},
@@ -40,13 +39,6 @@ pub fn validateWithInputs(io: std.Io, allocator: std.mem.Allocator, path: []cons
         .Alias => return error.PackageSourceMustUsePhysicalPath,
         .Undeclared => return error.SourceBelongsToUndeclaredPackage,
     }
-}
-
-pub fn scopeRoot(handle: *const anyopaque, path: []const u8) ?[]const u8 {
-    const self = State.get(handle);
-    const owner = compiler.project.package_scope.owner(self.scopes, path) orelse return null;
-
-    return self.scopes[owner].root;
 }
 
 pub fn physicalSource(handle: *const anyopaque, path: []const u8) Error![]const u8 {

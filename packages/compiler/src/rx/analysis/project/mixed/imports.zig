@@ -10,8 +10,8 @@ const enabled = @import("rx_options").generated_graph and frontend.project.Parse
 const Parse = frontend.project.ParseCache.ModuleResult;
 const rule = if (enabled) @import("generated_rx_mixed_import_bindings") else void;
 const Input = if (enabled) std.meta.Child(rule.Input) else void;
-const Rows = if (enabled) @import("rx_execution_abi").layouts.@"zig:rx_project_host".MixedImportRows else void;
-
+const StoreState = if (enabled) std.meta.Child(@FieldType(rule.zx_pending, "store_0")) else void;
+const Rows = if (enabled) std.meta.Child(std.meta.Child(@FieldType(std.meta.Child(StoreState), "rows"))) else void;
 pub const Result = struct { functions: []const Binding, published: []const Binding };
 
 pub fn collect(state: *State, allocator: std.mem.Allocator, parsed: *const Parse, index: usize, signature: *const Signature, source_text: []const u8) State.Error!Result {
@@ -47,9 +47,6 @@ const Bindings = struct {
     request: if (enabled) Selection.Request.Storage else void = undefined,
     rows: Rows = undefined,
     publication: Publication = undefined,
-    fn borrow(handle: *anyopaque) *Bindings {
-        return @ptrCast(@alignCast(handle));
-    }
     fn dependency(self: *Bindings, index: usize) State.Error!?Selection.Symbols {
         const state = self.state;
         const edge = self.edges[index];
@@ -103,6 +100,30 @@ const Bindings = struct {
         return &self.rows;
     }
 };
+
+const StoreHost = if (enabled) struct {
+    bindings: *Bindings,
+    store_0: *StoreState,
+    snapshot: *std.meta.Child(StoreState),
+    pub fn commit(self: *StoreHost, pending: anytype) State.Error!void {
+        const effect = pending.store_0 orelse return;
+        const bindings = self.bindings;
+
+        if (effect.message) |message| return bindings.reject(@intCast(effect.row), message);
+        if (effect.publication) |plan| return bindings.publication.commit(plan);
+
+        const index: usize = @intCast(effect.row);
+
+        const rows = switch (bindings.parsed.*) {
+            .native => |parsed| try bindings.open(nativeHeader(parsed), index),
+            .indexed => |*indexed| try bindings.open(indexed.header(), index),
+        };
+
+        self.snapshot.* = effect.*;
+        self.snapshot.rows = rows;
+        self.store_0.* = self.snapshot;
+    }
+} else void;
 
 const Publication = struct {
     allocator: std.mem.Allocator,
@@ -161,14 +182,16 @@ fn collectSource(bindings: *Bindings, allocator: std.mem.Allocator, signature: *
     const symbols: *const @TypeOf(bindings.request.input) = &bindings.request.input;
 
     const input: Input = .{
-        .binding = @ptrCast(bindings),
         .count = bindings.edges.len,
         .row = 0,
-        .pending = null,
         .symbols = &.{zx.columns.pointer(std.meta.Elem(@FieldType(Input, "symbols")), symbols)},
     };
 
-    const pending = rule.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    var snapshot: std.meta.Child(StoreState) = .{ .row = 0, .publication = null, .message = null, .rows = null };
+    var store: StoreState = &snapshot;
+    var host: StoreHost = .{ .bindings = bindings, .store_0 = &store, .snapshot = &snapshot };
+
+    rule.executeIn(scratch.allocator(), &input, &host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         error.InvalidSourceGraph => return error.InvalidSourceGraph,
         else => unreachable,
@@ -176,29 +199,10 @@ fn collectSource(bindings: *Bindings, allocator: std.mem.Allocator, signature: *
 
     const publication = &bindings.publication;
 
-    if (pending) |plan| try publication.commit(plan);
-
     return .{
         .functions = if (publication.functions.items.len == 0) signature.function_imports else publication.functions.items,
         .published = if (publication.published.items.len == 0) signature.reexport_functions else publication.published.items,
     };
-}
-
-pub inline fn openMixedImport(handle: *anyopaque, row: u64, publication: anytype) State.Error!?*const Rows {
-    const bindings = Bindings.borrow(handle);
-
-    if (publication) |plan| try bindings.publication.commit(plan);
-
-    const index: usize = @intCast(row);
-
-    return switch (bindings.parsed.*) {
-        .native => |parsed| bindings.open(nativeHeader(parsed), index),
-        .indexed => |*indexed| bindings.open(indexed.header(), index),
-    };
-}
-
-pub fn rejectMixedImport(handle: *anyopaque, row: u64, message: []const u8) State.Error!void {
-    return Bindings.borrow(handle).reject(@intCast(row), message);
 }
 
 fn nativeHeader(parsed: @FieldType(Parse, "native")) zx.syntax.header.Native {

@@ -1,0 +1,9 @@
+import type { GraphScanTargets, Publication } from "./model"
+
+export type Input = Publication
+
+export type Output = GraphScanTargets
+
+export default function (in: Input): Output {
+    return in.targets
+}

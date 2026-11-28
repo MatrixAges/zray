@@ -15,7 +15,13 @@
         </If>
     </If>
 
-    <Call fn="../index.openDirectory" in={$in.directory} />
+    <Call
+        fn="../index.openDirectory"
+        in={[
+            $in.directory,
+            true
+        ]}
+    />
 
     <Call
         fn="sidecars"

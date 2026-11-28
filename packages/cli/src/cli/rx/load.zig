@@ -93,6 +93,7 @@ pub fn check(io: std.Io, allocator: std.mem.Allocator, result_allocator: std.mem
         .allocator = allocator,
         .result_allocator = result_allocator,
         .backing = backing,
+        .scratch = std.heap.ArenaAllocator.init(backing),
         .entry = entry,
         .config_path = config_path,
         .writer = writer,
@@ -140,7 +141,7 @@ pub fn collectCheckDocuments(handle: *const anyopaque) Error!bool {
     return self.loaded != null;
 }
 
-pub fn collectCheckTypes(handle: *const anyopaque) Error!bool {
+pub fn collectCheckTypes(handle: *const anyopaque) Error!?*const CheckRows {
     const self = State.get(handle);
     const loaded = &self.loaded.?.data;
 
@@ -151,31 +152,28 @@ pub fn collectCheckTypes(handle: *const anyopaque) Error!bool {
         .stores = loaded.stores,
         .functions = loaded.functions,
         .writer = self.writer,
-    }) catch |err| return self.failure.save(err)) orelse return false;
-
-    return true;
-}
-
-pub fn reserveCheckCalls(handle: *const anyopaque) Error!*const CheckRows {
-    const self = State.get(handle);
+    }) catch |err| return self.failure.save(err)) orelse return null;
 
     self.calls = self.allocator.alloc(std.ArrayList(functions_check.Selection), self.functions.len) catch |err| return self.failure.save(err);
 
     @memset(self.calls, .empty);
 
-    const documents = &self.loaded.?.data;
-
-    self.rows = .{ .source_count = self.functions.len, .module_count = documents.modules.len, .gateway = documents.gateway != null };
+    self.rows = .{
+        .source_count = self.functions.len,
+        .module_count = loaded.modules.len,
+        .gateway = loaded.gateway != null,
+        .owner = self.owner,
+        .first_module = if (loaded.modules.len != 0) loaded.modules[0].path else "",
+    };
 
     return &self.rows;
 }
 
-pub fn reserveCheckGraph(handle: *const anyopaque, gateway: bool) Error!void {
+pub fn reserveCheckGraph(handle: *const anyopaque, entry: []const u8) Error!void {
     const self = State.get(handle);
     const modules = self.loaded.?.data.modules;
     const allocator = self.allocator;
-
-    self.graph_entry = if (gateway) modules[0].path else self.owner;
+    self.graph_entry = entry;
     self.sources = allocator.alloc(compiler.project.Source, self.functions.len) catch |err| return self.failure.save(err);
     self.roots = allocator.alloc([]const u8, modules.len) catch |err| return self.failure.save(err);
 }
@@ -300,12 +298,6 @@ pub fn checkStoreTypes(handle: *const anyopaque) Error!bool {
     const self = State.get(handle);
 
     return @import("store_types.zig").validate(self.io, self.allocator, self.loaded.?.data, self.functions, self.project, self.writer) catch |err| return self.failure.save(err);
-}
-
-pub fn beginCheckFunctions(handle: *const anyopaque) void {
-    const self = State.get(handle);
-
-    self.scratch = std.heap.ArenaAllocator.init(self.backing);
 }
 
 pub fn checkFunction(handle: *const anyopaque, index: u64) Error!bool {

@@ -3,33 +3,40 @@
 
     <Args in={State.Walk} out={State.Walk} />
 
-    <Call fn="index.collectionQueueLength" in={$in.collection} />
+    <Call
+        fn="index.selectCollectionPath"
+        in={[
+            $in.collection,
+            $in.index
+        ]}
+    />
 
-    <If on={$in.index >= $ctx.collectionQueueLength}>
+    <If on={$ctx.selectCollectionPath != null}>
+        <Call
+            module="visit"
+            in={{
+                collection: $in.collection,
+                path: $ctx.selectCollectionPath,
+                first: $in.index == 0
+            }}
+        />
+
+        <Call fn="index.releaseRxDocument" in={$in.collection} />
+
         <Return
             value={{
                 ...$in,
-                running: false
+                index: $in.index + 1,
+                valid: $ctx.visit,
+                running: $ctx.visit
             }}
         />
     </If>
 
-    <Call
-        module="visit"
-        in={$in.pick([
-            "collection",
-            "index"
-        ])}
-    />
-
-    <Call fn="index.releaseRxDocument" in={$in.collection} />
-
     <Return
         value={{
             ...$in,
-            index: $in.index + 1,
-            valid: $ctx.visit,
-            running: $ctx.visit
+            running: false
         }}
     />
 </Module>

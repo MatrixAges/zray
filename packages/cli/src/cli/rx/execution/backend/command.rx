@@ -3,7 +3,13 @@
 
     <Args in={Backend.CommandInvocation} out={bool} />
 
-    <Call fn="modules/names" in={$in.native_headers} />
+    <Call
+        fn="modules/requires_libc"
+        in={{
+            headers: $in.native.modules.headers,
+            count: $in.native.count
+        }}
+    />
 
     <Call
         fn="../../../command/scope/paths"
@@ -17,7 +23,7 @@
         fn="index.appendBackendPrefix"
         in={[
             $in.build,
-            $ctx.names,
+            $ctx.requires_libc,
             $ctx.paths,
             $in.wasm
         ]}
@@ -49,16 +55,35 @@
             module="modules/views"
             in={{
                 build: $in.build,
+                views: $in.native.abi_views,
                 count: $in.abi_count,
                 index: 0
             }}
         />
     </Loop>
 
-    <Call fn="index.appendCanonicalAbi" in={$in.build} />
+    <Call fn="modules/support_modules" in={$in.node} />
 
-    <If on={$in.node}>
-        <Call fn="index.appendNapiModule" in={$in.build} />
+    <Call
+        fn="index.appendSupportModule"
+        in={[
+            $in.build,
+            $ctx.support_modules.abi.name,
+            $ctx.support_modules.abi.file,
+            $ctx.support_modules.abi.dependencies
+        ]}
+    />
+
+    <If on={$ctx.support_modules.napi != null}>
+        <Call
+            fn="index.appendSupportModule"
+            in={[
+                $in.build,
+                $ctx.support_modules.napi.name,
+                $ctx.support_modules.napi.file,
+                $ctx.support_modules.napi.dependencies
+            ]}
+        />
     </If>
 
     <Call fn="index.writeBackendCommand" in={$in.build} />

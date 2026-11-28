@@ -44,21 +44,24 @@ pub fn publish(allocator: std.mem.Allocator, definitions: []Store.Definition, co
     if (definitions.len == 0) return definitions;
 
     const result = if (retained) try allocator.dupe(Store.Definition, definitions) else definitions;
-    var publication: Publication = .{ .allocator = allocator, .definitions = result, .contract = contract, .retained = retained };
+    var publication: Publication = .{ .allocator = allocator, .definitions = result, .contract = contract };
 
     if (comptime generated) {
         const rule = @import("generated_rx_publish_store_registry");
+        var scratch = std.heap.ArenaAllocator.init(allocator);
 
-        rule.executeIn(.failing, &.{
-            .state = @ptrCast(&publication),
+        defer scratch.deinit();
+
+        rule.executeIn(scratch.allocator(), &.{
+            .retained = retained,
             .count = result.len,
             .row = 0,
-        }) catch |err| switch (@as(anyerror, err)) {
+        }, &publication) catch |err| switch (@as(anyerror, err)) {
             error.OutOfMemory => return error.OutOfMemory,
             else => unreachable,
         };
     } else for (0..result.len) |row| {
-        try openStoreRegistryPublication(&publication, row);
+        try publication.apply(row, retained);
     }
 
     return result;
@@ -140,24 +143,21 @@ const Publication = struct {
     allocator: std.mem.Allocator,
     definitions: []Store.Definition,
     contract: *const Contract,
-    retained: bool,
-    fn open(work: *Publication, row: usize) std.mem.Allocator.Error![]Store.Object {
-        const definition = &work.definitions[row];
-        const objects = if (work.retained) try work.allocator.dupe(Store.Object, definition.objects) else definition.objects;
+    pub fn commit(self: *Publication, pending: anytype) std.mem.Allocator.Error!void {
+        if (pending.store_0) |definition| {
+            try self.apply(@intCast(definition.row), definition.copy_objects);
+        }
+    }
+    fn apply(self: *Publication, row: usize, copy_objects: bool) std.mem.Allocator.Error!void {
+        const definition = &self.definitions[row];
+        const objects = if (copy_objects) try self.allocator.dupe(Store.Object, definition.objects) else definition.objects;
 
-        definition.types = work.contract.types;
+        definition.types = self.contract.types;
         definition.objects = objects;
 
-        return objects;
+        for (objects) |*object| {
+            object.initial.types = self.contract.types;
+            object.initial.native_modules = self.contract.native_modules;
+        }
     }
 };
-
-pub fn openStoreRegistryPublication(handle: *anyopaque, row: u64) std.mem.Allocator.Error!void {
-    const work: *Publication = @ptrCast(@alignCast(handle));
-    const objects = try work.open(@intCast(row));
-
-    for (objects) |*object| {
-        object.initial.types = work.contract.types;
-        object.initial.native_modules = work.contract.native_modules;
-    }
-}

@@ -4,7 +4,6 @@ const Lower = @import("../../lower.zig");
 const Frame = @import("frame.zig");
 const Form = @import("../workflow.zig").FunctionForm;
 const publication = @import("emission.zig");
-const evaluation = @import("../../expressions/evaluate.zig");
 const Stored = @import("../../../node/stored.zig").Declarations;
 const generated = @import("genz_options").generated_analysis;
 
@@ -19,24 +18,19 @@ pub fn lower(self: *Lower, id: ir.FunctionId, form: Form) Lower.Error!Stored {
 
     self.local_regular_function = form != .Value;
 
-    const handle: *anyopaque = @ptrCast(&frame);
-
     if (generated) {
         const entry = @import("generated_lower_function_declarations");
-        const input: std.meta.Child(entry.Input) = .{ .module_frame = @ptrCast(&frame), .form = form };
+        const input: std.meta.Child(entry.Input) = .{ .form = form, .suffix = null };
 
-        try evaluation.executeWith(self, entry, &input);
-    } else {
-        try seed(handle, form);
-
-        return frame.finishSeed(false);
+        return @import("steps.zig").execute(entry, &frame, input);
     }
 
-    return frame.result;
+    try seed(&frame, form);
+
+    return frame.finishSeed(false);
 }
 
-pub fn openFunctionModule(handle: *anyopaque) Lower.Error!void {
-    const frame = Frame.borrow(handle);
+pub fn openFunctionModule(frame: *Frame) Lower.Error!void {
     const self = frame.lowering;
     const id = frame.function.?;
     const context = @import("../../functions/context.zig");
@@ -48,29 +42,27 @@ pub fn openFunctionModule(handle: *anyopaque) Lower.Error!void {
     try context.reserve(self);
 }
 
-pub fn openNativeFunctionModule(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
+pub fn openNativeFunctionModule(frame: *Frame) void {
     @import("../../functions/scope.zig").installFunction(&frame.lowering.program, @backingInt(frame.function.?), .Native);
 }
 
-fn seed(handle: *anyopaque, form: Form) Lower.Error!void {
-    try publication.emitModuleStandard(handle);
-    try publication.emitModuleTypes(handle);
-    try publication.emitModuleStore(handle);
+fn seed(frame: *Frame, form: Form) Lower.Error!void {
+    try publication.emitModuleStandard(frame);
+    try publication.emitModuleTypes(frame);
+    try publication.emitModuleStore(frame);
 
     if (form == .Native) {
-        try publication.emitModuleImports(handle);
-        try emitFunctionModuleBody(handle, .Native);
+        try publication.emitModuleImports(frame);
+        try emitFunctionModuleBody(frame, .Native);
     } else {
-        if (form != .Value) try emitFunctionModuleBody(handle, .Regular);
-        if (form != .Regular) try emitFunctionModuleBody(handle, .Value);
+        if (form != .Value) try emitFunctionModuleBody(frame, .Regular);
+        if (form != .Regular) try emitFunctionModuleBody(frame, .Value);
     }
 
-    try publication.suffixSeed(handle);
+    try publication.suffixSeed(frame);
 }
 
-pub fn emitFunctionModuleBody(handle: *anyopaque, form: Form) Lower.Error!void {
-    const frame = Frame.borrow(handle);
+pub fn emitFunctionModuleBody(frame: *Frame, form: Form) Lower.Error!void {
     const self = frame.lowering;
     const id = frame.function.?;
 

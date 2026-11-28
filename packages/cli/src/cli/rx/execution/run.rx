@@ -2,12 +2,12 @@
     <Type from="index" as="IO" />
     <Type from="model" as="Execution" />
 
-    <Args in={Execution.Request} out={IO.Status} />
+    <Args in={Execution.Request} out={Execution.EntryOutcome} />
 
-    <If on={$in.settings.library}>
-        <Call fn="index.reportRxLibraryEntry" in={$in.application} />
+    <Call fn="admit" in={$in.settings.library} />
 
-        <Return value={IO.Status.Failed} />
+    <If on={$ctx.admit != null}>
+        <Return value={$ctx.admit} />
     </If>
 
     <Call fn="index.loadRxApplication" in={$in.application} />
@@ -21,8 +21,16 @@
             }}
         />
 
-        <Return value={$ctx.loaded} />
+        <Return
+            value={{
+                status: $ctx.loaded
+            }}
+        />
     </If>
 
-    <Return value={IO.Status.Failed} />
+    <Return
+        value={{
+            status: IO.Status.Failed
+        }}
+    />
 </Module>

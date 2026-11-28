@@ -30,7 +30,6 @@ constructed: Construction.Frame = undefined,
 construction: ConstructionRow = undefined,
 selection: SelectionRow = undefined,
 source: std.meta.Child(@FieldType(SelectionRow, "source")) = undefined,
-parents: []u32 = undefined,
 selection_spans: []const zx.Span = undefined,
 pub fn bind(self: *Self, graph: *Graph, closure: *Closure, scope: *zx.memory.ArenaScope) void {
     self.graph = graph;
@@ -46,13 +45,13 @@ pub fn bind(self: *Self, graph: *Graph, closure: *Closure, scope: *zx.memory.Are
 
     self.constructions = .{
         .columns = &self.columns,
-        .parents = @ptrCast(&self.parents),
+        .parents = undefined,
         .results = @ptrCast(objects.items(.result)),
         .parts = objects.items(.count),
     };
 
     self.selections = .{
-        .parents = @ptrCast(&self.parents),
+        .parents = undefined,
         .kinds = undefined,
         .sources = @ptrCast(selections.items(.source)),
         .constructions = objects.len,
@@ -75,7 +74,8 @@ pub fn bind(self: *Self, graph: *Graph, closure: *Closure, scope: *zx.memory.Are
 
 fn refresh(self: *Self) void {
     self.columns = GraphColumns.borrow(Columns, self.graph);
-    self.parents = self.graph.parents();
+    self.constructions.parents = self.graph.parents();
+    self.selections.parents = self.constructions.parents;
     self.context = self.readiness.context();
     self.selections.kinds = self.context.kinds;
     self.selections.revision = self.context.revision;

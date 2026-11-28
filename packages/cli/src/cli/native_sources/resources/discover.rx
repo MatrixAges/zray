@@ -25,7 +25,13 @@
         />
     </If>
 
-    <Call fn="index.openResources" in={$in.walk} />
+    <Call
+        fn="index.openDirectory"
+        in={[
+            $in.walk,
+            false
+        ]}
+    />
 
     <Loop on={$in.running}>
         <Call

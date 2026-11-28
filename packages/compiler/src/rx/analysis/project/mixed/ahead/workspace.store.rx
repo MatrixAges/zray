@@ -1,0 +1,8 @@
+<Store name="mixed_workspace_recycle" version={1}>
+    <Type from="reset" as="Reset" />
+
+    <Object name="recycle">
+        <Field name="action" type={Reset.Action} value={Reset.Action.ClearResults} />
+        <Field name="worker" type={u64} value={0} />
+    </Object>
+</Store>

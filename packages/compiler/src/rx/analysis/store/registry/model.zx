@@ -1,4 +1,4 @@
-import type { StoreRegistryLoad, StoreRegistryPublication } from "rx_project_host"
+import type { StoreRegistryLoad } from "rx_project_host"
 
 export type Load = {
     state: StoreRegistryLoad,
@@ -7,7 +7,12 @@ export type Load = {
 }
 
 export type Publication = {
-    state: StoreRegistryPublication,
+    retained: bool,
     count: u64,
     row: u64
+}
+
+export type PublishedDefinition = {
+    row: u64,
+    copy_objects: bool
 }

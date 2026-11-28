@@ -1,42 +1,21 @@
 <Module>
     <Type from="model" as="Edit" />
 
-    <Args in={Edit.Cursor} out={Edit.Cursor} />
+    <Args in={Edit.Edit} out={u64?} />
+
+    <Call fn="header" in={$in} />
+
+    <If on={!$ctx.header}>
+        <Return value={null} />
+    </If>
 
     <Call
         fn="../source"
         in={{
-            sources: $in.context.sources,
-            first: $in.first
+            sources: $in.sources,
+            first: $in.row + 1
         }}
     />
 
-    <If on={$ctx.source != null && $ctx.source != $in.context.sources.current_count}>
-        <Call
-            fn="header"
-            in={{
-                context: $in.context,
-                row: $ctx.source
-            }}
-        />
-
-        <Return
-            value={{
-                context: $in.context,
-                first: $ctx.source + 1,
-                matched: $ctx.header,
-                running:
-                    $ctx.header &&
-                    $ctx.source + 1 < $in.context.sources.current_count
-            }}
-        />
-    </If>
-
-    <Return
-        value={{
-            ...$in,
-            matched: $ctx.source != null,
-            running: false
-        }}
-    />
+    <Return value={$ctx.source} />
 </Module>

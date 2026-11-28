@@ -1,0 +1,16 @@
+import { Prune } from "./model"
+
+export type Input = {
+    aligned: bool,
+    present: bool
+}
+
+export type Output = Prune
+
+export default function (in: Input): Output {
+    return match {
+        in.aligned => Prune.None,
+        in.present => Prune.Manifest,
+        _ => Prune.Directory
+    }
+}

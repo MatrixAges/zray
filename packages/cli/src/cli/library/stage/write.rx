@@ -7,7 +7,14 @@
 
     <Call module="../resources/write" in={$in.resources} />
 
-    <Call fn="index.prepareStageLayout" in={$in.stage} />
+    <Call
+        fn="index.prepareStageLayout"
+        in={[
+            $in.stage,
+            $ctx.write
+        ]}
+    />
+
     <Call fn="index.writeStageArtifact" in={$in.stage} />
 
     <Call

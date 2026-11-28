@@ -1,17 +1,26 @@
 <Module>
     <Type from="reset" as="Reset" />
 
-    <Args in={Reset.Request} out={void} />
+    <Args in={Reset.Input} out={void} />
+
+    <Store from="workspace" as="workspace" />
 
     <If on={$in.rows != 0}>
-        <Call fn="host.clearMixedResults" in={$in.workspace} />
-        <Call fn="reset" in={$in.omit(["workspace"])} />
+        <Call
+            fn="stage_recycle"
+            in={{
+                action: Reset.Action.ClearResults,
+                worker: 0
+            }}
+            setter={[$store.workspace.recycle]}
+        />
+
+        <Call fn="reset" in={$in} />
 
         <Loop on={$in.index < $in.count}>
             <Call
                 module="worker"
                 in={{
-                    workspace: $in.workspace,
                     count: $ctx.reset,
                     index: 0
                 }}
@@ -19,5 +28,12 @@
         </Loop>
     </If>
 
-    <Call fn="host.resetMixedBindings" in={$in.workspace} />
+    <Call
+        fn="stage_recycle"
+        in={{
+            action: Reset.Action.ResetBindings,
+            worker: 0
+        }}
+        setter={[$store.workspace.recycle]}
+    />
 </Module>

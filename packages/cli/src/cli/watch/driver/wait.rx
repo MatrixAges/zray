@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Driver" />
 
-    <Args in={Driver.Cycle} out={bool} />
+    <Args in={Driver.Cycle} out={Driver.WaitOutcome} />
 
     <If on={$in.status == Driver.Status.Retry}>
         <Call
@@ -12,7 +12,7 @@
             ]}
         />
 
-        <Return value={false} />
+        <Return value={Driver.WaitOutcome.Idle} />
     </If>
 
     <Call fn="start_poll" in={$in} />
@@ -21,5 +21,13 @@
         <Call module="poll" />
     </Loop>
 
-    <Return value={$ctx.poll.changed} />
+    <If on={$ctx.poll.canceled}>
+        <Return value={Driver.WaitOutcome.Canceled} />
+    </If>
+
+    <If on={$ctx.poll.changed}>
+        <Return value={Driver.WaitOutcome.Changed} />
+    </If>
+
+    <Return value={Driver.WaitOutcome.Idle} />
 </Module>

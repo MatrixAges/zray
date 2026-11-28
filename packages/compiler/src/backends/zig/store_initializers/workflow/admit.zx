@@ -1,0 +1,40 @@
+import probe from "../index_slots/probe"
+import compatible from "../validation/names"
+import { Status } from "./model"
+
+import type { Input as Workflow, Output } from "./model"
+
+export type Input = Workflow.Pick("plan", "buckets", "candidate")
+
+export default function (in: Input): Output {
+    const { plan, candidate, buckets } = in
+
+    if (candidate == null || !compatible({
+        actual: candidate.names,
+        expected: plan.expected
+    })) {
+        return {
+            status: Status.InvalidInitializer,
+            capacity: 0
+        }
+    }
+
+    if (buckets.length == 0) {
+        return {
+            status: Status.Ready,
+            capacity: 0
+        }
+    }
+
+    const slot = probe({
+        keys: plan.keys,
+        buckets,
+        key: candidate.identity
+    })
+
+    return {
+        status: slot.row == null ? Status.Ready : Status.DuplicateInitializer,
+        capacity: 0,
+        slot: slot.index
+    }
+}

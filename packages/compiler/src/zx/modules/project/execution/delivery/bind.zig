@@ -2,15 +2,17 @@ const zx = @import("zx");
 const Frame = @import("frame.zig");
 const Binding = @import("../../../binding.zig");
 const Native = @import("../native.zig");
+const ModuleRecord = @import("../../../module_record.zig");
+const Project = @import("../../../project.zig").Project;
+const Imported = @import("../../../project.zig").Imported;
+const Signature = @import("../../../source_signature.zig").Member;
+const Target = @import("project_execution_abi").layouts.@"zig:project_host".ProjectImportTarget;
 
 pub fn reuseProjectNativeUnit(handle: *anyopaque) bool {
     const frame = Frame.borrow(handle);
     const project = frame.walk.project;
     const native = frame.route.interface.native;
     const key = native.key();
-
-    frame.dependency = .native;
-    frame.identity = key;
     const unit = project.native_units.get(key) orelse return false;
 
     frame.imported = .{ .exports = unit.exports, .members = unit.members };
@@ -60,14 +62,6 @@ pub fn bindProjectLegacy(handle: *anyopaque) zx.Error!void {
     switch (frame.item) {
         inline else => |item| try @import("../legacy.zig").bind(project, externals, first, item, &frame.active.imports),
     }
-
-    frame.dependency = .external;
-}
-
-pub fn prepareProjectIntrinsic(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
-    frame.imported = .{ .exports = &.{}, .members = &@import("../../../intrinsic.zig").exports };
-    frame.dependency = .intrinsic;
 }
 
 pub fn loadProjectLibrary(handle: *anyopaque) zx.Error!void {
@@ -81,22 +75,39 @@ pub fn loadProjectLibrary(handle: *anyopaque) zx.Error!void {
     const project = frame.walk.project;
 
     frame.imported = try project.loadCompiled(project.units[frame.active.index].path, target, span);
-    frame.dependency = .{ .compiled = target };
 }
 
-pub fn bindProjectImport(handle: *anyopaque, signature: bool, exported: bool) zx.Error!void {
+pub fn bindProjectImport(handle: *anyopaque, target: *const Target, signature: bool, exported: bool) zx.Error!void {
     const frame = Frame.borrow(handle);
     const project = frame.walk.project;
-    const imported = &frame.imported;
     const active = frame.active;
-    const functions = members(frame);
+    var deferred: [1]Signature = undefined;
+
+    const imported: Imported = switch (target.kind) {
+        .Source => Project.importedSource(frame.sourceUnit(target.row.?), frame.walk.phase),
+        .Deferred => result: {
+            const path = try project.allocator.dupe(u8, frame.resolved.target.source);
+
+            deferred[0] = .{ .name = "", .kind = .deferred, .source = path };
+
+            break :result .{ .exports = &.{}, .signatures = &deferred };
+        },
+        .Compiled, .Native => frame.imported,
+        .Intrinsic => .{ .exports = &.{}, .members = &@import("../../../intrinsic.zig").exports },
+        .External => unreachable,
+    };
+
+    const functions: Binding.Members = .{
+        .default = if (imported.default_member) |*member| member else null,
+        .named = imported.members,
+    };
 
     const symbols: Binding.Symbols = .{
-        .target = if (signature) .source else switch (frame.dependency) {
-            .source => .source,
-            .compiled => .compiled,
-            .native, .intrinsic => .native,
-            .external => unreachable,
+        .target = if (signature) .source else switch (target.kind) {
+            .Source => .source,
+            .Compiled => .compiled,
+            .Native, .Intrinsic => .native,
+            .Deferred, .External => unreachable,
         },
         .types = project.types.view(),
         .exports = imported.exports,
@@ -132,16 +143,21 @@ pub fn bindProjectImport(handle: *anyopaque, signature: bool, exported: bool) zx
     };
 }
 
-fn members(frame: *const Frame) Binding.Members {
-    const imported = &frame.imported;
-
-    return .{ .default = if (imported.default_member) |*member| member else null, .named = imported.members };
-}
-
-pub fn recordProjectImport(handle: *anyopaque) error{OutOfMemory}!void {
+pub fn recordProjectImport(handle: *anyopaque, target: *const Target) error{OutOfMemory}!void {
     const frame = Frame.borrow(handle);
 
+    const dependency: ModuleRecord.Target.Wire = switch (target.kind) {
+        .Source => .{ .source = frame.sourceUnit(target.row.?).path },
+        .Compiled => .{ .compiled = frame.resolved.target.compiled },
+        .Native => .native,
+        .External => .external,
+        .Intrinsic => .intrinsic,
+        .Deferred => unreachable,
+    };
+
+    const identity = if (target.kind == .Native) frame.route.interface.native.key() else null;
+
     return switch (frame.item) {
-        inline else => |item| frame.walk.project.rememberImport(frame.active, item, frame.dependency, frame.identity),
+        inline else => |item| frame.walk.project.rememberImport(frame.active, item, dependency, identity),
     };
 }

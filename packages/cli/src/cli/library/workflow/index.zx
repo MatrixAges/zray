@@ -1,5 +1,4 @@
 export {
-    configureLibraryEntry,
     analyzeLibraryBuild,
     linkLibraryBuild,
     collectBuildSources,
@@ -10,8 +9,7 @@ export {
     resolveLibraryNativeProject,
     createLibraryStaging,
     stageLibraryBuild,
-    publishLibraryBuild,
-    rejectChangedLibraryBuild
+    publishLibraryBuild
 } from "library_workflow_host"
 
 export type { BuildStatus } from "library_workflow_host"

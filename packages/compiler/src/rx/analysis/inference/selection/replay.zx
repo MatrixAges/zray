@@ -1,5 +1,4 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import equivalent from "../fields/equivalent"
 import { Action as FieldAction } from "../fields/existing"
@@ -7,7 +6,6 @@ import field from "../fields/existing"
 import find from "../known/find"
 
 import type { State as Known } from "core/integer/map/model"
-import type { U32Buffer } from "memory"
 import type { Object, Output as Field } from "../fields/existing"
 
 export type Input = {
@@ -17,7 +15,7 @@ export type Input = {
     indices: u32[],
     all: bool,
     target: Object,
-    parents: U32Buffer,
+    parents: u32[],
     known: Known,
     first: u64
 }
@@ -30,7 +28,7 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const parents = memory.u32Views(in.parents)
+    const parents = in.parents
 
     const missing: u32? = null
 

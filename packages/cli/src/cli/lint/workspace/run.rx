@@ -17,27 +17,23 @@
 
     <Call fn="../index.resolveLintWorkspace" in={$in.host} />
 
-    <If on={!$ctx.resolveLintWorkspace}>
-        <Return value={Lint.WorkspaceOutcome.Invalid} />
-    </If>
+    <If on={$ctx.resolveLintWorkspace != null}>
+        <Loop on={$in.running}>
+            <Call
+                module="members"
+                in={{
+                    check: $in.host,
+                    count: $ctx.resolveLintWorkspace,
+                    index: 0,
+                    valid: true,
+                    running: $ctx.resolveLintWorkspace != 0
+                }}
+            />
+        </Loop>
 
-    <Call fn="../index.locateLintWorkspace" in={$in.host} />
-
-    <Loop on={$in.running}>
-        <Call
-            module="members"
-            in={{
-                check: $in.host,
-                count: $ctx.locateLintWorkspace,
-                index: 0,
-                valid: true,
-                running: $ctx.locateLintWorkspace != 0
-            }}
-        />
-    </Loop>
-
-    <If on={$ctx.members.valid}>
-        <Return value={Lint.WorkspaceOutcome.Valid} />
+        <If on={$ctx.members.valid}>
+            <Return value={Lint.WorkspaceOutcome.Valid} />
+        </If>
     </If>
 
     <Return value={Lint.WorkspaceOutcome.Invalid} />

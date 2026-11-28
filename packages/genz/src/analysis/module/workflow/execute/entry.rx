@@ -1,37 +1,35 @@
 <Module>
     <Type from="model" as="Workflow" />
 
-    <Args in={Workflow.Entry} out={void} />
+    <Args in={Workflow.Entry} out={Workflow.Output} />
 
-    <Call fn="index.emitModuleStandard" in={$in.module_frame} />
+    <If on={$in.request != null}>
+        <Call
+            module="../../../functions/requests/execute/request"
+            in={$in.request}
+        />
 
-    <If on={$in.local}>
-        <Call fn="index.emitModuleImports" in={$in.module_frame} />
+        <Return value={$ctx.request} />
     </If>
 
-    <Call fn="index.emitModuleTypes" in={$in.module_frame} />
-    <Call fn="index.emitModuleExports" in={$in.module_frame} />
-    <Call fn="index.emitModuleConstants" in={$in.module_frame} />
+    <If on={$in.suffix != null}>
+        <Call module="suffix" in={$in.suffix} />
 
-    <If on={!$in.type_only}>
-        <Call fn="index.emitModuleShape" in={$in.module_frame} />
-        <Call fn="index.emitModuleAliases" in={$in.module_frame} />
-        <Call fn="index.emitModuleStore" in={$in.module_frame} />
-        <Call fn="index.emitModuleEntry" in={$in.module_frame} />
-        <Call fn="index.emitModuleValueEntry" in={$in.module_frame} />
-
-        <If on={$in.local}>
-            <Call
-                module="../../../functions/requests/execute/drain"
-                in={$in.module_frame}
-            />
-        </If>
-
-        <Call module="suffix" in={$in.module_frame} />
-
-        <Call fn="index.appendModuleAuxiliary" in={$in.module_frame} />
-        <Call fn="index.appendModuleSuffix" in={$in.module_frame} />
+        <Return value={$ctx.suffix} />
     </If>
 
-    <Call fn="index.finishModuleDeclarations" in={$in.module_frame} />
+    <Call
+        fn="entry_steps"
+        in={$in.pick([
+            "type_only",
+            "local"
+        ])}
+    />
+
+    <Return
+        value={{
+            steps: $ctx.entry_steps,
+            comparisons: 0
+        }}
+    />
 </Module>

@@ -1,7 +1,21 @@
-import type { FunctionSources } from "output_host"
+import type { Record, Reuse } from "../updates/model"
+
+export enum Step {
+    Fetch,
+    Restore,
+    Record,
+    Account,
+    Generate,
+    Publish
+}
 
 export type Input = {
-    batch: FunctionSources,
     count: u64,
-    cached: bool
+    cached: bool,
+    reuse?: Reuse
+}
+
+export type Output = {
+    steps: Step[],
+    record?: Record
 }

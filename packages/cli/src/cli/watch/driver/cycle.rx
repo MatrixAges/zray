@@ -21,7 +21,17 @@
     <If on={$in.status != Driver.Status.Initial}>
         <Call module="wait" in={$in} />
 
-        <If on={$ctx.wait}>
+        <If on={$ctx.wait == Driver.WaitOutcome.Canceled}>
+            <Return
+                value={{
+                    ...$in,
+                    running: false,
+                    canceled: true
+                }}
+            />
+        </If>
+
+        <If on={$ctx.wait == Driver.WaitOutcome.Changed}>
             <Call
                 fn="clear_diagnostic"
                 in={$store.watch_state.diagnostics}
@@ -63,14 +73,24 @@
 
     <Call
         module="commit"
-        in={[
-            $in.watch,
-            $ctx.compileTurn
-        ]}
+        in={{
+            watch: $in.watch,
+            status: $ctx.compileTurn
+        }}
     />
 
     <If on={$ctx.compileTurn == Driver.Status.Success}>
-        <Call fn="index.announceBuilt" in={$in.watch} />
+        <Call fn="notice_prefix" in={Driver.Notice.Built} />
+
+        <Call
+            fn="index.writeWatchNotice"
+            in={[
+                $in.watch,
+                $ctx.notice_prefix,
+                $in.output_path,
+                false
+            ]}
+        />
 
         <If on={$in.run_application}>
             <Call fn="index.interrupted" in={$in.watch} />

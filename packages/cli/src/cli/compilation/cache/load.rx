@@ -7,7 +7,15 @@
     <If on={$in.settings.cache}>
         <If on={$in.has_compiled_libraries}>
             <If on={$in.settings.cache_stats}>
-                <Call fn="../index.reportCompilationCacheBypass" in={$in.compilation} />
+                <Call fn="cache_notice" in={true} />
+
+                <Call
+                    fn="../index.writeCompilationDiagnostic"
+                    in={[
+                        $in.compilation,
+                        $ctx.cache_notice
+                    ]}
+                />
             </If>
 
             <Else>

@@ -16,7 +16,6 @@ pub const Frame = struct {
     view: Binding = undefined,
     object: FieldView = undefined,
     known: Known = undefined,
-    parents: []u32 = undefined,
     bound: bool = false,
     pub fn bind(self: *Frame) void {
         self.access = .{
@@ -36,8 +35,7 @@ pub const Frame = struct {
         };
 
         self.known = self.graph.pending.known_types.borrow(Known);
-        self.parents = self.graph.parents();
-        self.view = .{ .object = &self.object, .parents = @ptrCast(&self.parents), .known = &self.known, .site = &self.access.site };
+        self.view = .{ .object = &self.object, .parents = self.graph.parents(), .known = &self.known, .site = &self.access.site };
         self.bound = true;
     }
 

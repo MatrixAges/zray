@@ -1,6 +1,6 @@
 import integers from "std:integer"
 
-import root from "../../forest/borrowed_root"
+import root from "../../forest/root"
 import { Kind } from "../../unification/model"
 import intern from "./intern"
 

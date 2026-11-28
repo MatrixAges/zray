@@ -65,7 +65,7 @@ pub const State = struct {
         self.backend_arena.deinit();
         self.replaceSnapshot(.Failure, null);
         self.replaceSnapshot(.Success, null);
-        process.stopApplication(@ptrCast(&self)) catch {};
+        process.stopApplication(@ptrCast(&self), false) catch {};
     }
 
     pub fn get(handle: *const anyopaque) *State {
@@ -93,17 +93,12 @@ pub const State = struct {
     }
 };
 
-pub fn announce(handle: *const anyopaque) Error!void {
+pub fn writeWatchNotice(handle: *const anyopaque, prefix: []const u8, detail: []const u8, flush_now: bool) Error!void {
     const self = State.get(handle);
 
-    self.stderr.print("zxc watch: watching {s}\n", .{self.options.input}) catch |err| return self.fail(err);
-    self.stderr.flush() catch |err| return self.fail(err);
-}
+    self.stderr.print("{s}{s}\n", .{ prefix, detail }) catch |err| return self.fail(err);
 
-pub fn announceBuilt(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    self.stderr.print("zxc watch: built {s}\n", .{self.options.output.?}) catch |err| return self.fail(err);
+    if (flush_now) self.stderr.flush() catch |err| return self.fail(err);
 }
 
 pub fn flush(handle: *const anyopaque) Error!void {

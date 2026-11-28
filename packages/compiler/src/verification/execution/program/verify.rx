@@ -1,13 +1,20 @@
 <Module>
     <Type from="model" as="Program" />
 
-    <Args in={Program.Entry} out={Program.Verification} />
+    <Args in={Program.Entry} out={Program.Admission} />
 
-    <Call fn="index.ensureSymbolicGraph" in={$in.program} />
+    <If on={!$in.graph_ready}>
+        <Return
+            value={{
+                steps: [Program.Step.EnsureGraph]
+            }}
+        />
+    </If>
 
     <If on={$in.type_only || $in.stores != 0}>
         <Return
             value={{
+                steps: [],
                 diagnostic: {
                     message:
                         "verification requires an executable pure function without Store capabilities",
@@ -32,6 +39,7 @@
     <If on={$ctx.walk.diagnostic != null}>
         <Return
             value={{
+                steps: [],
                 diagnostic: {
                     message: $ctx.walk.diagnostic,
                     unsupported: true
@@ -40,46 +48,12 @@
         />
     </If>
 
-    <Call
-        fn="index.publishSymbolicParameter"
-        in={[
-            $in.program,
-            $ctx.walk.rows
-        ]}
-    />
-
-    <Call
-        fn="index.symbolicProgramPreconditions"
-        in={[
-            $in.program,
-            false
-        ]}
-    />
-
-    <Call
-        fn="index.runSymbolicProgramBody"
-        in={[
-            $in.program,
-            $ctx.symbolicProgramPreconditions.path
-        ]}
-    />
-
-    <If on={$in.returns_unit}>
-        <Call
-            fn="index.checkSymbolicUnit"
-            in={[
-                $in.program,
-                $ctx.runSymbolicProgramBody
-            ]}
-        />
-    </If>
+    <Call fn="verify_steps" in={$in.returns_unit} />
 
     <Return
         value={{
-            query: {
-                path: $ctx.symbolicProgramPreconditions.path,
-                prefix: $ctx.symbolicProgramPreconditions.prefix
-            }
+            steps: $ctx.verify_steps,
+            rows: $ctx.walk.rows
         }}
     />
 </Module>

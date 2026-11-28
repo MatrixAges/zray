@@ -7,7 +7,9 @@ export type FunctionCheck = opaque
 export type CheckRows = {
     source_count: u64,
     module_count: u64,
-    gateway: bool
+    gateway: bool,
+    owner: string,
+    first_module: string
 }
 
 export type CallEdge = {
@@ -44,9 +46,8 @@ export type SignatureCheck = {
 
 export declare function loadCheckProject(check: ProjectCheck): bool throws { SourceLoadFailure }
 export declare function collectCheckDocuments(check: ProjectCheck): bool throws { SourceLoadFailure }
-export declare function collectCheckTypes(check: ProjectCheck): bool throws { SourceLoadFailure }
-export declare function reserveCheckCalls(check: ProjectCheck): CheckRows throws { SourceLoadFailure }
-export declare function reserveCheckGraph(check: ProjectCheck, gateway: bool): void throws { SourceLoadFailure }
+export declare function collectCheckTypes(check: ProjectCheck): CheckRows? throws { SourceLoadFailure }
+export declare function reserveCheckGraph(check: ProjectCheck, entry: string): void throws { SourceLoadFailure }
 export declare function registerCheckSource(check: ProjectCheck, index: u64): void
 export declare function registerCheckRoot(check: ProjectCheck, index: u64): void
 export declare function buildCheckGraph(check: ProjectCheck): bool throws { SourceLoadFailure }
@@ -58,7 +59,6 @@ export declare function recordCheckFunctionCalls(
 ): void throws { SourceLoadFailure }
 export declare function closeCheckGraph(check: ProjectCheck): void
 export declare function checkStoreTypes(check: ProjectCheck): bool throws { SourceLoadFailure }
-export declare function beginCheckFunctions(check: ProjectCheck): void
 export declare function checkFunction(check: ProjectCheck, index: u64): bool throws { SourceLoadFailure }
 export declare function closeCheckFunctions(check: ProjectCheck): void
 export declare function checkCompiledModules(check: ProjectCheck): bool throws { SourceLoadFailure }

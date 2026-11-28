@@ -5,17 +5,19 @@
 
     <Call module="step" in={$in} />
 
-    <If on={$ctx.step == Workspace.Progress.Stop}>
+    <If
+        on={$ctx.step != Workspace.Progress.Advance &&
+            $ctx.step != Workspace.Progress.Retained}
+    >
         <Return
             value={{
                 ...$in,
-                complete: true,
+                progress: $ctx.step,
                 running: false
             }}
         />
     </If>
 
-    <Call fn="index.discardCandidates" in={$in.search} />
     <Call fn="../paths/parent" in={$in.directory} />
 
     <If on={$ctx.parent != null}>
@@ -23,6 +25,7 @@
             value={{
                 ...$in,
                 directory: $ctx.parent,
+                progress: $ctx.step,
                 has_nearest: $in.has_nearest || $ctx.step == Workspace.Progress.Retained
             }}
         />
@@ -31,6 +34,7 @@
     <Return
         value={{
             ...$in,
+            progress: $ctx.step,
             has_nearest: $in.has_nearest || $ctx.step == Workspace.Progress.Retained,
             running: false
         }}

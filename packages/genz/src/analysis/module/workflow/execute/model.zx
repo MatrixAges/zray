@@ -1,23 +1,51 @@
-import type { ModuleFrame, ModuleFunctionForm } from "lowering_host"
+import type { ModuleFunctionForm, ModuleRequestForm, ModuleSuffix } from "lowering_host"
 
-export { ModuleFunctionForm } from "lowering_host"
+export enum Step {
+    Standard,
+    Imports,
+    Types,
+    Exports,
+    Constants,
+    Shape,
+    Aliases,
+    Store,
+    Entry,
+    ValueEntry,
+    Requests,
+    Suffix,
+    Auxiliary,
+    AppendSuffix,
+    Finish,
+    OpenFunction,
+    OpenNative,
+    NativeBody,
+    RegularBody,
+    ValueBody,
+    ParallelAllocator,
+    Comparisons,
+    RequestedNative,
+    RequestedOpen,
+    RequestedStore,
+    RequestedRegular,
+    RequestedValue,
+    RequestedPublish
+}
+
+export type Suffix = ModuleSuffix
 
 export type Entry = {
-    module_frame: ModuleFrame,
     type_only: bool,
-    local: bool
+    local: bool,
+    suffix?: Suffix,
+    request?: ModuleRequestForm
 }
 
 export type Function = {
-    module_frame: ModuleFrame,
-    form: ModuleFunctionForm
+    form: ModuleFunctionForm,
+    suffix?: Suffix
 }
 
-export type Module = ModuleFrame
-
-export type ComparisonCursor = {
-    frame: ModuleFrame,
-    count: u64,
-    row: u64,
-    running: bool
+export type Output = {
+    steps: Step[],
+    comparisons: u64
 }

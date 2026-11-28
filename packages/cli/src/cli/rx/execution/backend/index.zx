@@ -1,6 +1,6 @@
 export {
     appendGeneratedModule,
-    appendAbiView,
+    preloadBackendPath,
     expireBackendPath,
     createStagedBindings,
     openStagedOutput,
@@ -16,7 +16,6 @@ export {
     createObservedBindings,
     publishBackendPaths,
     reportObservedNativeBuild,
-    rejectIncompleteBackendInputs,
     publishObservedNativeBuild,
     validateNativePorts,
     generateNodeResources,
@@ -32,7 +31,6 @@ export {
     appendBackendPrefix,
     appendBackendEntry,
     writeBackendCommand,
-    nativeBackendModule,
     bindBackendModule,
     writeNativeHeader,
     spawnNativeTranslation,
@@ -41,8 +39,7 @@ export {
     releaseNativeTranslation,
     writeNativeAdapter,
     appendNativeModule,
-    appendCanonicalAbi,
-    appendNapiModule,
+    appendSupportModule,
     Status
 } from "native_build_host"
 

@@ -27,42 +27,46 @@ pub const SourceColumns = struct {
 pub fn bodies(history: *const History.History, earlier: *const History.Retained, current: []const Source, cache: *ParseCache) std.mem.Allocator.Error!bool {
     const rule = @import("generated_rx_history_body_edits");
     const Input = std.meta.Child(rule.Input);
-    const Context = std.meta.Child(@FieldType(Input, "context"));
-    const Pair = std.meta.Child(@FieldType(Context, "sources"));
+    const Pair = std.meta.Child(@FieldType(Input, "sources"));
     const View = std.meta.Child(@FieldType(Pair, "earlier"));
     const before = SourceColumns.init(earlier.sources);
     const after = SourceColumns.init(current);
+    const earlier_view = before.view(View);
+    const current_view = after.view(View);
     const paths = earlier.derived.dependencies.modules.items(.path)[0..earlier.sources.len];
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    return rule.executeIn(empty.allocator(), &.{
+    var request: Input = .{
         .identity = &.{
             .earlier = &earlier.frame,
             .current = &history.frame,
             .earlier_count = earlier.sources.len,
             .current_count = current.len,
         },
-        .context = &.{
-            .cache = @ptrCast(cache),
-            .paths = paths,
-            .sources = &.{
-                .earlier = &before.view(View),
-                .current = &after.view(View),
-                .earlier_count = earlier.sources.len,
-                .current_count = current.len,
-            },
+        .sources = &.{
+            .earlier = &earlier_view,
+            .current = &current_view,
+            .earlier_count = earlier.sources.len,
+            .current_count = current.len,
         },
-    }) catch |err| switch (err) {
-        error.OutOfMemory => error.OutOfMemory,
-        else => unreachable,
+        .row = null,
+        .opening = null,
     };
-}
 
-pub fn historyBodyOpening(handle: *anyopaque, path: []const u8, text: []const u8) std.mem.Allocator.Error!?u64 {
-    const cache: *ParseCache = @ptrCast(@alignCast(handle));
-    const parsed = try cache.getModule(text, path);
+    while (true) {
+        const next = rule.executeIn(empty.allocator(), &request) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => unreachable,
+        } orelse return false;
 
-    return parsed.bodyStart();
+        if (next == current.len) return true;
+
+        const row: usize = @intCast(next);
+        const parsed = try cache.getModule(current[row].source, paths[row]);
+
+        request.row = next;
+        request.opening = parsed.bodyStart();
+    }
 }
 
 pub fn sameInputs(earlier: *const [32]u8, current: *const [32]u8, earlier_count: usize, current_count: usize) bool {

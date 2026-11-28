@@ -13,15 +13,19 @@
                 $ctx.next.input
             ]}
         />
+
+        <Return
+            value={{
+                ...$in,
+                parents: $ctx.defaultConstraintInput,
+                next: $ctx.next.next
+            }}
+        />
     </If>
 
     <Return
         value={{
-            frame: $in.frame,
-            parents: $in.parents,
-            columns: $in.columns,
-            marked: $in.marked,
-            protected: $in.protected,
+            ...$in,
             next: $ctx.next.next
         }}
     />

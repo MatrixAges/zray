@@ -6,8 +6,6 @@ export type Source = opaque
 
 export type Project = opaque
 
-export type ScopeBinding = opaque
-
 export enum Probe {
     Missing,
     Invalid,
@@ -70,17 +68,12 @@ export declare function publishMember(collection: Collection, path: string): voi
     SourceLoadFailure
 }
 
-export declare function startSearch(search: Search): string throws { SourceLoadFailure }
 export declare function readCandidate(search: Search, directory: string): Probe
     throws { SourceLoadFailure }
 export declare function rememberCandidate(search: Search): void
-export declare function selectCandidate(search: Search, nearest: bool): void
 export declare function loadAncestor(search: Search, directory: string): MemberSearch?
     throws { SourceLoadFailure }
-export declare function selectAncestor(search: Search): void
-export declare function discardCandidates(search: Search): void
 
-export declare function scopeRoot(source: Source, path: string): string?
 export declare function physicalSource(source: Source, path: string): string throws {
     SourceLoadFailure
 }
@@ -91,23 +84,19 @@ export declare function hasPackageManifest(source: Source, directory: string): b
 export declare function findProjectConfiguration(project: Project): string? throws {
     SourceLoadFailure
 }
-export declare function loadProjectGraph(project: Project, path: string): bool throws {
+export declare function loadProjectGraph(project: Project, path: string): u64? throws {
     SourceLoadFailure
 }
-export declare function bindProjectScopes(project: Project): bool throws { SourceLoadFailure }
 export declare function owningProjectScope(project: Project): u64? throws { SourceLoadFailure }
-export declare function publishProject(project: Project, owner: u64): void throws {
-    SourceLoadFailure
-}
 
-export declare function readScopeSurface(binding: ScopeBinding, index: u64): Surface throws {
+export declare function readScopeSurface(binding: Project, index: u64): Surface throws {
     SourceLoadFailure
 }
 export declare function publishScopeSurface(
-    binding: ScopeBinding,
+    binding: Project,
     index: u64,
     surface: PublishedSurface
 ): void throws { SourceLoadFailure }
-export declare function bindScope(binding: ScopeBinding, index: u64): bool throws {
+export declare function bindScope(binding: Project, index: u64): bool throws {
     SourceLoadFailure
 }

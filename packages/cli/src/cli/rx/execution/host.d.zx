@@ -16,7 +16,6 @@ export enum Status {
     Retry
 }
 
-export declare function reportRxLibraryEntry(check: RxApplication): void throws { SourceLoadFailure }
 export declare function loadRxApplication(check: RxApplication): string? throws { SourceLoadFailure }
 export declare function buildRxGateway(check: RxApplication): Status throws { SourceLoadFailure }
 export declare function analyzeRxApplication(check: RxApplication): u64? throws { SourceLoadFailure }
@@ -40,7 +39,6 @@ export declare function collectGatewayDocuments(check: GatewayAnalysis): bool th
 export declare function analyzeGatewayDocument(check: GatewayAnalysis): GatewayRoutes? throws { SourceLoadFailure }
 export declare function analyzeGatewayServices(check: GatewayAnalysis, service_names: string[]): bool throws { SourceLoadFailure }
 
-export declare function reportGatewayBuildMode(check: GatewayBuild): void throws { SourceLoadFailure }
 export declare function loadGatewayBuild(check: GatewayBuild): bool throws { SourceLoadFailure }
 export declare function linkGatewayBuild(check: GatewayBuild): bool throws { SourceLoadFailure }
 export declare function bindGatewayBuildRoutes(check: GatewayBuild): void throws { SourceLoadFailure }

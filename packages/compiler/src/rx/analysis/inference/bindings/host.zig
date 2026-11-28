@@ -17,7 +17,6 @@ pub const Frame = struct {
     view: Replay,
     topology: Topology,
     nodes: View,
-    parents: []u32,
     collisions: Collisions,
     collision_spans: []const zx.Span,
     lookup_spans: []const zx.Span,
@@ -32,7 +31,6 @@ pub const Frame = struct {
 
         self.bindTopology();
 
-        self.topology = .{ .graph = &self.nodes, .parents = @ptrCast(&self.parents) };
         self.collision_spans = collisions.items(.span);
         self.lookup_spans = lookups.items(.span);
         self.use_spans = uses.items(.span);
@@ -54,7 +52,7 @@ pub const Frame = struct {
     }
     fn bindTopology(self: *Frame) void {
         self.nodes = rules.view(Topology, self.graph);
-        self.parents = self.graph.parents();
+        self.topology = .{ .graph = &self.nodes, .parents = self.graph.parents() };
     }
 
     fn borrow(handle: *anyopaque) *Frame {
@@ -86,11 +84,10 @@ pub fn applyBindingDiagnostic(handle: *anyopaque, source: DiagnosticSource, row:
 }
 
 pub fn require(graph: *Graph, value: Graph.Id, span: zx.Span) zx.Error!void {
-    var parents = graph.parents();
     const RequireTopology = std.meta.Child(@FieldType(Requirement, "topology"));
 
     const input: Requirement = .{
-        .topology = &.{ .graph = &rules.view(RequireTopology, graph), .parents = @ptrCast(&parents) },
+        .topology = &.{ .graph = &rules.view(RequireTopology, graph), .parents = graph.parents() },
         .value = @backingInt(value),
     };
 

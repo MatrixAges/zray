@@ -1,0 +1,11 @@
+import type { Recycle } from "./reset"
+
+export type Input = Recycle
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.workspace.recycle = in
+}

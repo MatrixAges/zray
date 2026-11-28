@@ -50,12 +50,14 @@
     <Switch on={$ctx.prepare.kind}>
         <Case value={Expression.ExpressionKind.Reference}>
             <Call
-                fn="index.loadSymbolicReference"
-                in={[
-                    $in.frame,
-                    $ctx.prepare.first
-                ]}
+                fn="reference"
+                in={{
+                    environment: $in.environment,
+                    symbol: $ctx.prepare.first
+                }}
             />
+
+            <Return value={$ctx.reference} />
         </Case>
 
         <Case value={Expression.ExpressionKind.Integer}>
@@ -259,11 +261,4 @@
             />
         </Default>
     </Switch>
-
-    <Return
-        value={{
-            scalar: null,
-            safe: null
-        }}
-    />
 </Module>

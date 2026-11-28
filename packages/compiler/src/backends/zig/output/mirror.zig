@@ -6,9 +6,6 @@ const parallel = @import("parallel.zig");
 const File = @import("../partition/placement.zig").File;
 const file_manifest = @import("manifest.zig");
 const manifest_name = file_manifest.name;
-const Failure = @import("failure.zig");
-const native = if (ledger.available) @import("output_execution_abi").layouts.@"zig:output_host" else struct {};
-const Hashes = if (ledger.available) native.BootstrapHashes else void;
 const stamp_name = @import("../../../inputs/generation.zig").stamp_name;
 
 /// Publishes a generated tree while preserving unchanged files and their timestamps.
@@ -34,41 +31,16 @@ pub fn write(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Alloca
     defer frame.deinit();
 
     try remove(io, directory, manifest_name);
+    try frame.hash();
+    if (comptime ledger.available) return frame.publish();
+    try frame.compare();
 
-    if (comptime ledger.available) {
-        const entry = @import("generated_bootstrap_mirror");
-        var scratch = std.heap.ArenaAllocator.init(workspace);
+    const changed = frame.selected.?.value.changed;
 
-        defer scratch.deinit();
-
-        const resource = scratch.allocator();
-
-        const input: std.meta.Child(entry.Input) = .{
-            .target = @ptrCast(&frame),
-            .previous_paths = if (frame.previous) |previous| previous.paths else null,
-            .previous_bytes = if (frame.previous) |previous| previous.paths else &.{},
-            .previous_hashes = if (frame.previous) |previous| previous.hashes else &.{},
-        };
-
-        entry.executeIn(resource, &input) catch |err| {
-            if (frame.failure.original) |original| return original;
-
-            return switch (@as(anyerror, err)) {
-                error.IntegerOverflow, error.Overflow => error.OutOfMemory,
-                else => err,
-            };
-        };
-    } else {
-        try frame.hash();
-        try frame.compare();
-
-        const changed = frame.selected.?.value.changed;
-
-        if (changed.len != 0) try frame.parentsSeed();
-        try frame.writeChanged(changed);
-        if (!frame.selected.?.value.aligned) try frame.trimSeed();
-        try frame.commit();
-    }
+    if (changed.len != 0) try frame.parentsSeed();
+    try frame.writeChanged(changed);
+    if (!frame.selected.?.value.aligned) try frame.trimSeed();
+    try frame.commit();
 }
 
 const Frame = struct {
@@ -82,10 +54,69 @@ const Frame = struct {
     arenas: ?parallel.Arenas = null,
     hashing: Hashing = undefined,
     selected: ?ledger.Changes = null,
-    hashed: Hashes = undefined,
-    failure: Failure = .{},
-    fn fromHandle(handle: *anyopaque) *@This() {
-        return @ptrCast(@alignCast(handle));
+    fn publish(self: *Frame) !void {
+        try self.prepareManifest();
+
+        var scratch = std.heap.ArenaAllocator.init(self.workspace);
+
+        defer scratch.deinit();
+
+        const allocator = scratch.allocator();
+        const entry = @import("generated_bootstrap_mirror");
+        const Input = std.meta.Child(entry.Input);
+        const Trimming = std.meta.Child(@typeInfo(@FieldType(Input, "trimming")).optional.child);
+
+        var input: Input = .{
+            .paths = self.hashing.paths,
+            .path_bytes = self.hashing.paths,
+            .hashes = self.hashing.hashes,
+            .previous_bytes = if (self.previous) |previous| previous.paths else &.{},
+            .previous_hashes = if (self.previous) |previous| previous.hashes else &.{},
+            .present = self.previous != null,
+            .trimming = null,
+        };
+
+        const plan = entry.executeIn(allocator, &input) catch |err| return generationFailure(err);
+
+        for (plan.folders) |folder| try self.directory.createDirPath(self.io, folder);
+        if (plan.changed.len != 0) try self.writeChanged(plan.changed);
+
+        if (plan.prune != .None) {
+            const trimming: Trimming = .{
+                .files = switch (plan.prune) {
+                    .None => unreachable,
+                    .Manifest => self.previous.?.paths,
+                    .Directory => try self.listFiles(allocator),
+                },
+                .preserve_fingerprint = plan.prune == .Directory,
+            };
+
+            input.trimming = &trimming;
+
+            const cleanup = entry.executeIn(allocator, &input) catch |err| return generationFailure(err);
+
+            for (cleanup.stale) |path| try remove(self.io, self.directory, path);
+        }
+
+        try self.commit();
+    }
+    fn listFiles(self: *const Frame, allocator: std.mem.Allocator) ![]const []const u8 {
+        var walker = try self.directory.walk(allocator);
+
+        defer {
+            while (walker.inner.stack.items.len != 0) walker.leave(self.io);
+
+            walker.deinit();
+        }
+
+        var files: std.ArrayList([]const u8) = .empty;
+
+        while (try walker.next(self.io)) |entry| {
+            if (entry.kind != .file) continue;
+            try files.append(allocator, try allocator.dupe(u8, entry.path));
+        }
+
+        return files.items;
     }
     fn deinit(self: *Frame) void {
         if (self.selected) |*selected| selected.deinit();
@@ -193,66 +224,11 @@ const Frame = struct {
     }
 };
 
-pub fn hashBootstrapFiles(handle: *anyopaque) Failure.Error!*const Hashes {
-    const frame = Frame.fromHandle(handle);
-
-    frame.hash() catch |err| return frame.failure.save(err);
-    frame.prepareManifest() catch |err| return frame.failure.save(err);
-
-    frame.hashed = .{
-        .paths = frame.hashing.paths,
-        .path_bytes = frame.hashing.paths,
-        .hashes = frame.hashing.hashes,
+fn generationFailure(err: anyerror) anyerror {
+    return switch (err) {
+        error.IntegerOverflow, error.Overflow => error.OutOfMemory,
+        else => err,
     };
-
-    return &frame.hashed;
-}
-
-pub fn createBootstrapFolders(handle: *anyopaque, folders: []const []const u8) Failure.Error!void {
-    const frame = Frame.fromHandle(handle);
-
-    for (folders) |folder| frame.directory.createDirPath(frame.io, folder) catch |err| return frame.failure.save(err);
-}
-
-pub fn writeBootstrapChanges(handle: *anyopaque, changed: []const u32) Failure.Error!void {
-    const frame = Frame.fromHandle(handle);
-
-    frame.writeChanged(changed) catch |err| return frame.failure.save(err);
-}
-
-pub fn listBootstrapFiles(handle: *anyopaque) Failure.Error![]const []const u8 {
-    const frame = Frame.fromHandle(handle);
-    var walker = frame.directory.walk(frame.allocator) catch |err| return frame.failure.save(err);
-
-    defer {
-        while (walker.inner.stack.items.len != 0) walker.leave(frame.io);
-
-        walker.deinit();
-    }
-
-    var files: std.ArrayList([]const u8) = .empty;
-
-    while (walker.next(frame.io) catch |err| return frame.failure.save(err)) |entry| {
-        if (entry.kind != .file) continue;
-
-        const owned = frame.allocator.dupe(u8, entry.path) catch |err| return frame.failure.save(err);
-
-        files.append(frame.allocator, owned) catch |err| return frame.failure.save(err);
-    }
-
-    return files.items;
-}
-
-pub fn deleteBootstrapFiles(handle: *anyopaque, paths: []const []const u8) Failure.Error!void {
-    const frame = Frame.fromHandle(handle);
-
-    for (paths) |path| remove(frame.io, frame.directory, path) catch |err| return frame.failure.save(err);
-}
-
-pub fn commitBootstrapManifest(handle: *anyopaque) Failure.Error!void {
-    const frame = Frame.fromHandle(handle);
-
-    frame.commit() catch |err| return frame.failure.save(err);
 }
 
 const Writer = struct {

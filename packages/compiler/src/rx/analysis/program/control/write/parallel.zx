@@ -1,5 +1,4 @@
 import { StatementKind } from "core/control_table/model"
-import memory from "memory"
 
 import { invocations_lane, parallels_lane } from "../const"
 import header from "./header"
@@ -17,13 +16,13 @@ export type Output = Statement
 export default function (in: Input): Output {
     const { writer, count } = in
 
-    const first = memory.readU32(writer.cells, invocations_lane)
+    const first = writer.cells[invocations_lane]
 
     return {
         header: header({
             writer,
             kind: StatementKind.Parallel,
-            row: memory.readU32(writer.cells, parallels_lane),
+            row: writer.cells[parallels_lane],
             lane: parallels_lane
         }),
         first,

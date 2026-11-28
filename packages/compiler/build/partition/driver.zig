@@ -43,9 +43,7 @@ pub fn execute(self: *Self) !bool {
         .offsets = self.selected.offsets,
     };
 
-    var fixed = std.heap.FixedBufferAllocator.init(&.{});
-
-    return entry.executeIn(fixed.allocator(), &input) catch |err| return self.failure orelse err;
+    return entry.executeIn(self.allocator, &input) catch |err| return self.failure orelse err;
 }
 
 fn borrow(handle: *anyopaque) *Self {

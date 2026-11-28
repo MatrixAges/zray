@@ -7,24 +7,22 @@
 
     <Call fn="index.readRetirement" in={$in.retirement} />
 
-    <If on={!$ctx.readRetirement}>
-        <Return value={Retirement.Status.Ready} />
+    <If on={$ctx.readRetirement != null}>
+        <Loop on={$in.running}>
+            <Call
+                module="walk"
+                in={{
+                    ...$in,
+                    targets: $ctx.readRetirement,
+                    index: 0,
+                    status: Retirement.Status.Ready,
+                    running: $in.previous.count != 0
+                }}
+            />
+        </Loop>
+
+        <Return value={$ctx.walk.status} />
     </If>
 
-    <Call fn="index.reserveTargets" in={$in.retirement} />
-
-    <Loop on={$in.running}>
-        <Call
-            module="walk"
-            in={{
-                ...$in,
-                targets: $ctx.reserveTargets,
-                index: 0,
-                status: Retirement.Status.Ready,
-                running: $in.previous.count != 0
-            }}
-        />
-    </Loop>
-
-    <Return value={$ctx.walk.status} />
+    <Return value={Retirement.Status.Ready} />
 </Module>

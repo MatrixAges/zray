@@ -1,10 +1,9 @@
 import shape from "../fields/shape"
 import { Mode } from "../fields/view"
-import representative from "../forest/borrowed_root"
+import representative from "../forest/root"
 import spread from "./spread"
 import { Action } from "./spread"
 
-import type { U32Buffer } from "memory"
 import type { Columns } from "../fields/shape"
 import type { Mode as ObjectMode } from "../fields/view"
 import type { Action as SpreadAction } from "./spread"
@@ -12,7 +11,7 @@ import type { Action as SpreadAction } from "./spread"
 export type Input = {
     names: string?[],
     values: u32[],
-    parents: U32Buffer,
+    parents: u32[],
     columns: Columns,
     result: u32,
     row: u64,

@@ -1,0 +1,11 @@
+import type { PublishedDefinition } from "./model"
+
+export type Input = PublishedDefinition
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.publication.definition = in
+}

@@ -1,7 +1,7 @@
 import integers from "std:integer"
 import memory from "memory"
 
-import representative from "../forest/borrowed_root"
+import representative from "../forest/root"
 import { Kind } from "../unification/model"
 import { SequenceRoute } from "./model"
 import sequence from "./sequence"

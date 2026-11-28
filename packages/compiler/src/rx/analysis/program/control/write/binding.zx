@@ -1,5 +1,4 @@
 import { StatementKind } from "core/control_table/model"
-import memory from "memory"
 
 import { constants_lane, evaluations_lane } from "../const"
 import header from "./header"
@@ -23,7 +22,7 @@ export default function (in: Input): Output {
             header: header({
                 writer,
                 kind: StatementKind.Evaluate,
-                row: memory.readU32(writer.cells, evaluations_lane),
+                row: writer.cells[evaluations_lane],
                 lane: evaluations_lane
             }),
             value
@@ -34,7 +33,7 @@ export default function (in: Input): Output {
         header: header({
             writer,
             kind: StatementKind.Constant,
-            row: memory.readU32(writer.cells, constants_lane),
+            row: writer.cells[constants_lane],
             lane: constants_lane
         }),
         symbol,

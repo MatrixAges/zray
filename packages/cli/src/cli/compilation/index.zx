@@ -1,28 +1,17 @@
 export {
     saveDiskSemanticEntry,
-    runCompilationLint,
-    runCompilationConfiguration,
-    openCompilationInputs,
     resolveCompilationEntry,
-    runCompilationRx,
     loadCompilationProject,
-    runCompilationLibraryProof,
-    runCompilationLibraryBuild,
     readCompilationSource,
     openCompilationCaches,
     readCompilationDependencies,
-    adoptCompilationInputs,
-    reportCompilationCacheBypass,
+    writeCompilationDiagnostic,
     loadCompilationCache,
     saveCompilationCache,
     reportCompilationCache,
-    reportCompilationCacheDisabled,
-    analyzeCompilationCached,
-    analyzeCompilationUncached,
-    checkCompilationAnalysis,
+    analyzeCompilation,
     verifyCompilationProgram,
     generateCompilationFpga,
-    closeCompilationAnalysis,
     flushCompilationDiagnostics,
     openCompilationGeneration,
     formatCompilationSource,
@@ -38,12 +27,12 @@ export {
     lowerFpgaProgram,
     renderFpgaProgram,
     publishFpgaProgram,
+    Dependencies,
     Status
 } from "compilation_host"
 
 export type {
     Compilation,
-    SemanticDiskRead,
-    SemanticDiskWrite,
+    SemanticDisk,
     FpgaProgram
 } from "compilation_host"

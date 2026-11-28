@@ -1,0 +1,40 @@
+import { ModuleFunctionForm } from "lowering_host"
+
+import { Step } from "./model"
+
+import type { ModuleFunctionForm as Input } from "lowering_host"
+
+export type Output = Step[]
+
+export default function (in: Input): Output {
+    const native = in == ModuleFunctionForm.Native
+
+    const prefix: Step[] = [
+        native ? Step.OpenNative : Step.OpenFunction,
+        Step.Standard,
+        Step.Types,
+        Step.Store
+    ]
+
+    const body: Step[] = match in {
+        ModuleFunctionForm.Native => [
+            Step.Imports,
+            Step.NativeBody
+        ],
+        ModuleFunctionForm.Regular => [Step.RegularBody],
+        ModuleFunctionForm.Value => [Step.ValueBody],
+        _ => [
+            Step.RegularBody,
+            Step.ValueBody
+        ]
+    }
+
+    const suffix: Step[] = [
+        Step.Suffix,
+        Step.Auxiliary,
+        Step.AppendSuffix,
+        Step.Finish
+    ]
+
+    return prefix.concat(body)[0].concat(suffix)[0]
+}

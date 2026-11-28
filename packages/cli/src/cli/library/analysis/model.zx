@@ -18,3 +18,9 @@ export type Entries = {
     valid: bool,
     running: bool
 }
+
+export enum Outcome {
+    Ready,
+    Invalid,
+    MissingExports
+}

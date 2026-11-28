@@ -1,8 +1,12 @@
 <Module>
     <Type from="model" as="Workflow" />
 
-    <Args in={Workflow.Work} out={void} />
+    <Args in={void} out={Workflow.Step[]} />
 
-    <Call fn="index.analyzeEntryFlags" in={$in} />
-    <Call fn="index.analyzeIndependentEntry" in={$in} />
+    <Return
+        value={[
+            Workflow.Step.AnalyzeFlags,
+            Workflow.Step.PlanEntry
+        ]}
+    />
 </Module>

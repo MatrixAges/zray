@@ -1,7 +1,7 @@
 export {
     nextResource,
     observeResource,
-    openResources,
+    openDirectory,
     resourceLinkIsFile,
     resourceRoot
 } from "publication_host"

@@ -163,7 +163,7 @@ pub fn validatePreparedModule(handle: *const anyopaque, index: u64) Error!void {
     self.validatePath(path) catch |err| return self.failure.save(err);
 }
 
-pub fn collectPreparationTypes(handle: *const anyopaque) Error!bool {
+pub fn collectPreparationTypes(handle: *const anyopaque) Error!?u64 {
     const self = State.get(handle);
     const options = self.options;
     const loaded = &self.loaded.?.data;
@@ -177,13 +177,7 @@ pub fn collectPreparationTypes(handle: *const anyopaque) Error!bool {
         .writer = options.writer,
         .inputs = options.inputs,
         .texts = options.texts,
-    }) catch |err| return self.failure.save(err)) orelse return false;
-
-    return true;
-}
-
-pub fn reservePreparationRoots(handle: *const anyopaque) Error!u64 {
-    const self = State.get(handle);
+    }) catch |err| return self.failure.save(err)) orelse return null;
 
     self.paths = self.allocator.alloc([]const u8, self.functions.len) catch |err| return self.failure.save(err);
 

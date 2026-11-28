@@ -1,21 +1,29 @@
 <Module>
     <Type from="../index" as="IO" />
     <Type from="request" as="Gateway" />
+    <Type from="../model" as="Execution" />
 
-    <Args in={Gateway.Request} out={IO.Status} />
+    <Args in={Gateway.Request} out={Execution.EntryOutcome} />
 
     <Call fn="admit" in={$in.settings} />
 
-    <If on={!$ctx.admit}>
-        <Call fn="../index.reportGatewayBuildMode" in={$in.gateway} />
-
-        <Return value={IO.Status.Failed} />
+    <If on={!$ctx.admit.valid}>
+        <Return
+            value={{
+                status: IO.Status.Failed,
+                diagnostic: $ctx.admit.diagnostic
+            }}
+        />
     </If>
 
     <Call fn="../index.loadGatewayBuild" in={$in.gateway} />
 
     <If on={!$ctx.loadGatewayBuild}>
-        <Return value={IO.Status.Failed} />
+        <Return
+            value={{
+                status: IO.Status.Failed
+            }}
+        />
     </If>
 
     <Call fn="../index.linkGatewayBuild" in={$in.gateway} />
@@ -27,7 +35,11 @@
         <Call fn="../index.emitGatewayBuildServices" in={$in.gateway} />
 
         <If on={!$ctx.emitGatewayBuildServices}>
-            <Return value={IO.Status.Failed} />
+            <Return
+                value={{
+                    status: IO.Status.Failed
+                }}
+            />
         </If>
 
         <Call fn="../index.assembleGatewayBuild" in={$in.gateway} />
@@ -43,5 +55,9 @@
     <Call fn="../index.resolveGatewayNativeProject" in={$in.gateway} />
     <Call fn="../index.runGatewayBackend" in={$in.gateway} />
 
-    <Return value={$ctx.runGatewayBackend} />
+    <Return
+        value={{
+            status: $ctx.runGatewayBackend
+        }}
+    />
 </Module>

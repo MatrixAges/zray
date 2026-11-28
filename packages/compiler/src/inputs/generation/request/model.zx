@@ -3,7 +3,13 @@ import type { GenerationRequest, PreparedGeneration } from "generation_host"
 export type Input = {
     request: GenerationRequest,
     write: bool,
+    stamp_path: string,
     roots: u64
+}
+
+export type Current = {
+    stamp_path: string,
+    digest?: u8[]
 }
 
 export type Analyze = {

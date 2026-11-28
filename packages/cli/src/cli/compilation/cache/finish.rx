@@ -13,7 +13,15 @@
             <Call fn="../index.reportCompilationCache" in={$in.compilation} />
 
             <Else>
-                <Call fn="../index.reportCompilationCacheDisabled" in={$in.compilation} />
+                <Call fn="cache_notice" in={false} />
+
+                <Call
+                    fn="../index.writeCompilationDiagnostic"
+                    in={[
+                        $in.compilation,
+                        $ctx.cache_notice
+                    ]}
+                />
             </Else>
         </If>
     </If>

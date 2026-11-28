@@ -1,4 +1,10 @@
-import type { StatePublication } from "state_publication_host"
+import type { Lookup } from "state_publication_host"
+
+export enum Action {
+    Lookup,
+    Reuse,
+    Render
+}
 
 export type Key = {
     imports: string[],
@@ -9,14 +15,15 @@ export type Key = {
 }
 
 export type Input = {
-    frame: StatePublication,
     name: string,
     key: Key,
-    cached: bool
+    cached: bool,
+    lookup?: Lookup
 }
 
 export type Source = {
-    source: u8[],
+    action: Action,
+    source?: u8[],
     cache_key?: u8[]
 }
 

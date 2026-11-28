@@ -1,5 +1,3 @@
-export type SymbolicProgram = mutable_opaque
-
 export type Parameter = {
     type_id: u32,
     fields: u64,
@@ -8,35 +6,3 @@ export type Parameter = {
     declaration?: string,
     domain?: string
 }
-
-export type Preconditions = {
-    path: string,
-    prefix: u64
-}
-
-export declare function ensureSymbolicGraph(program: SymbolicProgram): void
-    throws { OutOfMemory }
-
-export declare function beginSymbolicCall(program: SymbolicProgram): void
-
-export declare function symbolicProgramPreconditions(
-    program: SymbolicProgram,
-    called: bool
-): Preconditions throws { OutOfMemory, InvalidSource }
-
-export declare function runSymbolicProgramBody(program: SymbolicProgram, path: string): string
-    throws { OutOfMemory, InvalidSource }
-
-export declare function checkSymbolicUnit(program: SymbolicProgram, path: string): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function appendSymbolicUnit(program: SymbolicProgram, path: string): void
-    throws { OutOfMemory }
-
-export declare function publishSymbolicProgramResult(program: SymbolicProgram): bool
-    throws { OutOfMemory, InvalidSource }
-
-export declare function publishSymbolicParameter(
-    program: SymbolicProgram,
-    rows: Parameter[]
-): void throws { OutOfMemory }

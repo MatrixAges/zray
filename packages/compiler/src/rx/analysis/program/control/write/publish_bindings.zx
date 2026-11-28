@@ -1,5 +1,4 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import type { Cursor } from "./buffers"
 
@@ -14,7 +13,7 @@ export type Output = u32[]
 export default function (in: Input): Output {
     const first = integers.widen(in.first)
     const count = integers.widen(in.count)
-    const symbols = memory.optionalU32Views(in.writer.parallel_symbols)
+    const symbols = in.writer.parallel_symbols
 
     const bindings: u32[] = []
 

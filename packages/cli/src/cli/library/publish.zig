@@ -15,30 +15,35 @@ pub fn write(request: Request) ![]const inventory.File {
     defer directory.close(request.io);
 
     var failure: host.Failure = .{};
+    const modules = request.loaded.config.native_modules;
 
-    var native: resources.State = .{
+    const native: resources.State = .{
         .io = request.io,
         .allocator = request.allocator,
         .directory = request.directory,
-        .loaded = request.loaded,
         .inputs = request.inputs,
         .failure = &failure,
+        .native_modules = try request.allocator.dupe(@import("../project.zig").NativeModule, modules),
+        .dependencies = try request.allocator.alloc(resources.Dependency, modules.len),
     };
 
-    var state: storage.State = .{ .request = request, .resources = &native, .failure = &failure, .disk = .{ .io = request.io, .directory = directory } };
+    var state: storage.State = .{ .request = request, .resources = native, .failure = &failure, .disk = .{ .io = request.io, .directory = directory } };
     const stage_ref = &state;
-    const native_ref = &native;
-    var paths: @import("../project/native_paths.zig").Paths = undefined;
+    const columns = @import("../project/native_paths.zig");
+    var paths: columns.Paths = undefined;
+    var native_columns: columns.NativeModules = undefined;
 
     paths.init(request.loaded, &request.allocator);
+    native_columns.init(request.loaded);
 
     rule.executeIn(request.allocator, &.{
         .stage = @ptrCast(&stage_ref),
         .files = &state.files,
         .resources = &.{
-            .resources = @ptrCast(&native_ref),
+            .resources = @ptrCast(&stage_ref),
             .setup = &paths.setup,
-            .count = request.loaded.config.native_modules.len,
+            .modules = &native_columns.view,
+            .count = modules.len,
         },
     }) catch |err| return failure.unwrap(err);
 
@@ -52,7 +57,7 @@ pub fn prepareStageAbi(handle: *const anyopaque) Error!void {
     self.abi = @import("../abi.zig").create(request.allocator, request.bundle, request.loaded) catch |err| return self.failure.save(err);
 }
 
-pub fn prepareStageLayout(handle: *const anyopaque) Error!void {
+pub fn prepareStageLayout(handle: *const anyopaque, library_paths: []const []const u8) Error!void {
     const self = storage.State.get(handle);
     const request = self.request;
     const config = request.loaded.config;
@@ -68,7 +73,7 @@ pub fn prepareStageLayout(handle: *const anyopaque) Error!void {
         .private = config.private,
         .native_modules = self.resources.native_modules,
         .libraries = config.libraries,
-        .library_paths = self.resources.library_paths,
+        .library_paths = library_paths,
     };
 
     self.borrowFiles();

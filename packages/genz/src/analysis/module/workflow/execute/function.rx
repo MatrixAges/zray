@@ -1,57 +1,20 @@
 <Module>
     <Type from="model" as="Workflow" />
 
-    <Args in={Workflow.Function} out={void} />
+    <Args in={Workflow.Function} out={Workflow.Output} />
 
-    <If on={$in.form == Workflow.ModuleFunctionForm.Native}>
-        <Call fn="index.openNativeFunctionModule" in={$in.module_frame} />
+    <If on={$in.suffix != null}>
+        <Call module="suffix" in={$in.suffix} />
 
-        <Else>
-            <Call fn="index.openFunctionModule" in={$in.module_frame} />
-        </Else>
+        <Return value={$ctx.suffix} />
     </If>
 
-    <Call fn="index.emitModuleStandard" in={$in.module_frame} />
-    <Call fn="index.emitModuleTypes" in={$in.module_frame} />
-    <Call fn="index.emitModuleStore" in={$in.module_frame} />
+    <Call fn="function_steps" in={$in.form} />
 
-    <If on={$in.form == Workflow.ModuleFunctionForm.Native}>
-        <Call fn="index.emitModuleImports" in={$in.module_frame} />
-
-        <Call
-            fn="index.emitFunctionModuleBody"
-            in={[
-                $in.module_frame,
-                Workflow.ModuleFunctionForm.Native
-            ]}
-        />
-
-        <Else>
-            <If on={$in.form != Workflow.ModuleFunctionForm.Value}>
-                <Call
-                    fn="index.emitFunctionModuleBody"
-                    in={[
-                        $in.module_frame,
-                        Workflow.ModuleFunctionForm.Regular
-                    ]}
-                />
-            </If>
-
-            <If on={$in.form != Workflow.ModuleFunctionForm.Regular}>
-                <Call
-                    fn="index.emitFunctionModuleBody"
-                    in={[
-                        $in.module_frame,
-                        Workflow.ModuleFunctionForm.Value
-                    ]}
-                />
-            </If>
-        </Else>
-    </If>
-
-    <Call module="suffix" in={$in.module_frame} />
-
-    <Call fn="index.appendModuleAuxiliary" in={$in.module_frame} />
-    <Call fn="index.appendModuleSuffix" in={$in.module_frame} />
-    <Call fn="index.finishModuleDeclarations" in={$in.module_frame} />
+    <Return
+        value={{
+            steps: $ctx.function_steps,
+            comparisons: 0
+        }}
+    />
 </Module>

@@ -1,5 +1,1 @@
-export declare function historyBodyOpening(
-    cache: HistoryParseCache,
-    path: string,
-    text: string
-): u64? throws { OutOfMemory }
+export declare function retainMixedHistory(state: Mixed): void

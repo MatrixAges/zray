@@ -1,0 +1,21 @@
+import memory from "memory"
+
+import type { ReadColumn } from "memory"
+
+export type Input = {
+    headers: ReadColumn,
+    count: u64
+}
+
+export type Output = bool
+
+export default function (in: Input): Output {
+    return loop(0, {
+        while: row =>
+            row < in.count && memory.readOptionalTextColumn(in.headers, row) == null,
+        next: row => {
+            row += 1
+        },
+        return: row => row < in.count
+    })
+}

@@ -41,8 +41,6 @@ export declare function publishMixedObservations(state: Mixed): void throws { Ou
 export declare function publishMixedExports(state: Mixed): void
     throws { OutOfMemory, InvalidSourceGraph }
 
-export declare function retainMixedHistory(state: Mixed): void
-
 export declare function installMixedTypes(state: MixedState): void throws { OutOfMemory }
 
 export declare function installMixedNatives(state: MixedState): void throws { OutOfMemory }
@@ -57,12 +55,6 @@ export declare function installMixedSignatures(state: MixedState): void
 
 export declare function reserveMixedWorkers(state: MixedPreparation): u64
     throws { OutOfMemory }
-
-export declare function clearMixedResults(workspace: MixedWorkspace): void
-
-export declare function resetMixedWorker(workspace: MixedWorkspace, index: u64): void
-
-export declare function resetMixedBindings(workspace: MixedWorkspace): void
 
 export declare function openMixedCandidate(state: MixedPreparation, index: u64): void
 
@@ -105,21 +97,6 @@ export declare function rejectMixedCallee(
     name: bool,
     message: string
 ): void throws { OutOfMemory, InvalidSourceGraph }
-
-export declare function openMixedImport(
-    binding: MixedImports,
-    row: u64,
-    publication: {
-        exported: bool,
-        prefix: u64,
-        fits: bool,
-        names: string[],
-        sources: u8[][]
-    }?
-): MixedImportRows? throws { OutOfMemory, InvalidSourceGraph }
-
-export declare function rejectMixedImport(binding: MixedImports, row: u64, message: string): void
-    throws { OutOfMemory, InvalidSourceGraph }
 
 export declare function openMixedZXPreparation(source: MixedZXPreparation): void
     throws { OutOfMemory, InvalidSourceGraph }

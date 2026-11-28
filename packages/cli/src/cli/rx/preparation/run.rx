@@ -24,33 +24,37 @@
 
     <Call fn="index.collectPreparationTypes" in={$in.preparation} />
 
-    <If on={!$ctx.collectPreparationTypes}>
-        <Return value={false} />
-    </If>
+    <If on={$ctx.collectPreparationTypes != null}>
+        <Call
+            module="sources/prepare"
+            in={{
+                ...$in,
+                count: $ctx.collectPreparationTypes
+            }}
+        />
 
-    <Call module="sources/prepare" in={$in} />
+        <Call fn="index.collectPreparationLibraries" in={$in.preparation} />
 
-    <Call fn="index.collectPreparationLibraries" in={$in.preparation} />
+        <If on={!$ctx.collectPreparationLibraries}>
+            <Return value={false} />
+        </If>
 
-    <If on={!$ctx.collectPreparationLibraries}>
-        <Return value={false} />
-    </If>
+        <Call fn="index.inferPreparedProject" in={$in.preparation} />
 
-    <Call fn="index.inferPreparedProject" in={$in.preparation} />
+        <If on={$ctx.inferPreparedProject != null}>
+            <Loop on={$in.index < $in.count}>
+                <Call
+                    module="evidence"
+                    in={{
+                        preparation: $in.preparation,
+                        count: $ctx.inferPreparedProject,
+                        index: 0
+                    }}
+                />
+            </Loop>
 
-    <If on={$ctx.inferPreparedProject != null}>
-        <Loop on={$in.index < $in.count}>
-            <Call
-                module="evidence"
-                in={{
-                    preparation: $in.preparation,
-                    count: $ctx.inferPreparedProject,
-                    index: 0
-                }}
-            />
-        </Loop>
-
-        <Return value={true} />
+            <Return value={true} />
+        </If>
     </If>
 
     <Return value={false} />

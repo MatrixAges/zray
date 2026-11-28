@@ -1,0 +1,42 @@
+import bytes from "std:bytes"
+import encoding from "std:encoding"
+import path from "std:path"
+import { ascii_backslash, ascii_slash } from "core/ascii/const"
+
+import { escaped_root, parent_component } from "../const"
+
+export type Input = string
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    if (path.isAbsolute(in)) {
+        return escaped_root
+    }
+
+    const length = in.length
+    const width = parent_component.length
+
+    if (length < width) {
+        return null
+    }
+
+    const first = encoding.sliceBytes(in, 0, width)
+
+    if (!bytes.equals(
+        bytes.fromText(first),
+        bytes.fromText(parent_component)
+    )) {
+        return null
+    }
+
+    if (length == width) {
+        return escaped_root
+    }
+
+    const text = bytes.fromText(in)
+    const separator = text[width]
+    const escaped = separator == ascii_slash || separator == ascii_backslash
+
+    return escaped ? escaped_root : null
+}

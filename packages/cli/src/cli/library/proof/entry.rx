@@ -4,11 +4,13 @@
     <Args in={Proof.Entry} out={bool} />
 
     <If on={!$in.item.executable}>
+        <Call fn="message" in={$in.item} />
+
         <Call
-            fn="index.confirmProofInterface"
+            fn="index.writeProofMessage"
             in={[
                 $in.proof,
-                $in.index
+                $ctx.message
             ]}
         />
 
@@ -23,11 +25,13 @@
         }}
     />
 
+    <Call fn="message" in={$in.item} />
+
     <Call
-        fn="index.writeProofHeading"
+        fn="index.writeProofMessage"
         in={[
             $in.proof,
-            $in.index
+            $ctx.message
         ]}
     />
 

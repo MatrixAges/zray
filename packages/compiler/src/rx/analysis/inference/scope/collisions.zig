@@ -30,8 +30,7 @@ pub fn parallel(graph: *Graph, scope: *Scope.Storage, allocator: std.mem.Allocat
 }
 
 fn register(graph: *Graph, active: Active, incoming: Active, spans: []const zx.Span, message: []const u8, batch: ?Parallel) zx.Error!void {
-    var parents = graph.parents();
-    const topology: Topology = .{ .graph = &rules.view(Topology, graph), .parents = @ptrCast(&parents) };
+    const topology: Topology = .{ .graph = &rules.view(Topology, graph), .parents = graph.parents() };
 
     const input: Input = .{
         .topology = &topology,

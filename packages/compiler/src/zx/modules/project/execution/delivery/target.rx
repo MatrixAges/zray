@@ -1,5 +1,6 @@
 <Module>
     <Type from="model" as="Delivery" />
+    <Type from="index" as="Host" />
 
     <Args in={Delivery.Binding} out={u64?} />
 
@@ -13,7 +14,15 @@
 
     <Call fn="index.loadProjectLibrary" in={$in.frame} />
 
-    <Call module="bind" in={$in} />
+    <Call
+        module="bind"
+        in={{
+            ...$in,
+            target: {
+                kind: Host.ProjectImportKind.Compiled
+            }
+        }}
+    />
 
     <Return value={null} />
 </Module>

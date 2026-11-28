@@ -13,7 +13,6 @@ const Self = @This();
 sequences: Sequences,
 lengths: Lengths,
 indexes: Indexes,
-parents: []u32,
 known: Known,
 length_types: std.meta.Child(@FieldType(Lengths, "types")),
 sequence_view: std.meta.Child(@FieldType(Indexes, "graph")),
@@ -24,7 +23,6 @@ position_spans: []const zx.Span,
 pub fn bindSequences(self: *Self, graph: *Graph, handle: *anyopaque) void {
     const rows = graph.pending.sequences.slice();
 
-    self.parents = graph.parents();
     self.sequence_view = Target.borrow(@TypeOf(self.sequence_view), graph);
     self.sequence_spans = rows.items(.span);
 
@@ -33,7 +31,7 @@ pub fn bindSequences(self: *Self, graph: *Graph, handle: *anyopaque) void {
         .owner = @ptrCast(graph),
         .spans = @ptrCast(&self.sequence_spans),
         .graph = &self.sequence_view,
-        .parents = @ptrCast(&self.parents),
+        .parents = graph.parents(),
         .values = @ptrCast(rows.items(.value)),
         .elements = @ptrCast(rows.items(.elements)),
     };
@@ -45,7 +43,6 @@ pub fn bindLengths(self: *Self, graph: *Graph, handle: *anyopaque) void {
     const types = &graph.types.items;
     const kinds: []const Nodes.Kind = nodes.items(.kind);
 
-    self.parents = graph.parents();
     self.known = graph.pending.known_types.borrow(Known);
     self.length_spans = rows.items(.span);
 
@@ -64,7 +61,7 @@ pub fn bindLengths(self: *Self, graph: *Graph, handle: *anyopaque) void {
         .arguments = nodes.items(.argument),
         .allowed = nodes.items(.allowed),
         .types = &self.length_types,
-        .parents = @ptrCast(&self.parents),
+        .parents = graph.parents(),
         .known = &self.known,
         .targets = @ptrCast(rows.items(.target)),
         .values = @ptrCast(rows.items(.value)),
@@ -75,7 +72,6 @@ pub fn bindLengths(self: *Self, graph: *Graph, handle: *anyopaque) void {
 pub fn bindIndexes(self: *Self, graph: *Graph, handle: *anyopaque) void {
     const rows = graph.pending.indexes.slice();
 
-    self.parents = graph.parents();
     self.known = graph.pending.known_types.borrow(Known);
     self.sequence_view = Target.borrow(@TypeOf(self.sequence_view), graph);
     self.index_spans = rows.items(.span);
@@ -85,7 +81,7 @@ pub fn bindIndexes(self: *Self, graph: *Graph, handle: *anyopaque) void {
         .frame = @ptrCast(handle),
         .owner = @ptrCast(graph),
         .graph = &self.sequence_view,
-        .parents = @ptrCast(&self.parents),
+        .parents = graph.parents(),
         .known = &self.known,
         .targets = @ptrCast(rows.items(.target)),
         .values = @ptrCast(rows.items(.value)),

@@ -1,6 +1,5 @@
 export {
     readRetirement,
-    reserveTargets,
     readPublicationFileKind,
     checkRetirementInput
 } from "publication_host"

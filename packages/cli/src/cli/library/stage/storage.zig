@@ -27,7 +27,7 @@ pub const Request = struct {
 
 pub const State = struct {
     request: Request,
-    resources: *const resources.State,
+    resources: resources.State,
     failure: *host.Failure,
     disk: @import("artifact_io").DirectoryWriter,
     abi: abi.Result = undefined,

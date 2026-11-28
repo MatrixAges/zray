@@ -1,22 +1,33 @@
 <Module>
     <Type from="model" as="Driver" />
 
-    <Args in={Driver.WatchInput} out={void} />
+    <Args in={Driver.WatchInput} out={bool} />
 
     <Store from="state" as="watch_state" />
 
-    <Call fn="index.announce" in={$in.watch} />
+    <Call fn="notice_prefix" in={Driver.Notice.Watching} />
+
+    <Call
+        fn="index.writeWatchNotice"
+        in={[
+            $in.watch,
+            $ctx.notice_prefix,
+            $in.input_path,
+            true
+        ]}
+    />
 
     <Loop on={$in.running}>
         <Call
             module="cycle"
             in={{
-                watch: $in.watch,
-                cache: $in.cache,
-                run_application: $in.run_application,
+                ...$in,
                 running: true,
+                canceled: false,
                 status: Driver.Status.Initial
             }}
         />
     </Loop>
+
+    <Return value={$ctx.cycle.canceled} />
 </Module>

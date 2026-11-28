@@ -1,11 +1,23 @@
 import type { TextColumn } from "memory"
-import type { ApplicationInitializers } from "output_host"
 
 export enum Status {
     Ready,
     DuplicateInitializer,
     MissingInitializer,
     InvalidInitializer
+}
+
+export enum Phase {
+    Prepare,
+    Select,
+    Admit,
+    Coverage
+}
+
+export enum Origin {
+    Owned,
+    Borrowed,
+    Linked
 }
 
 export type Plan = {
@@ -17,17 +29,33 @@ export type Plan = {
     keys: TextColumn
 }
 
-export type Input = {
-    target: ApplicationInitializers,
-    plan: Plan,
-    paths: string[],
-    types: u32[]
+export type Request = {
+    origin: Origin,
+    index: u64
 }
 
-export type Emitted = {
-    status: Status,
+export type Candidate = {
+    identity: string,
+    type_id: u32,
+    names: u8[][]
+}
+
+export type Input = {
+    plan: Plan,
+    paths: string[],
+    types: u32[],
+    phase: Phase,
+    row: u64,
+    candidate?: Candidate,
     values: u32[],
     buckets: u64[]
 }
 
-export type Coverage = Input.Omit("target") & Emitted.Omit("status")
+export type Output = {
+    status: Status,
+    capacity: u64,
+    request?: Request,
+    slot?: u64
+}
+
+export type Coverage = Input.Pick("plan", "paths", "types", "values", "buckets")

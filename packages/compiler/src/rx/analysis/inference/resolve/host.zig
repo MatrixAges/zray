@@ -19,7 +19,6 @@ pub const Frame = struct {
     rows: Nodes.Storage.Slice = undefined,
     scope: *zx.memory.ArenaScope = undefined,
     scratch: Scratch = .{},
-    parents: []u32 = undefined,
     graph_view: View = undefined,
     view: Session = undefined,
     tables: Tables = undefined,
@@ -31,7 +30,6 @@ pub const Frame = struct {
         self.graph = graph;
         self.rows = rows;
         self.scope = scope;
-        self.parents = graph.parents();
 
         comptime std.debug.assert(@sizeOf(Nodes.Kind) == @sizeOf(u8));
 
@@ -48,7 +46,7 @@ pub const Frame = struct {
         self.view = .{
             .frame = @ptrCast(self),
             .graph = &self.graph_view,
-            .parents = @ptrCast(&self.parents),
+            .parents = graph.parents(),
             .tables = &self.tables,
             .payload = &self.payload,
         };

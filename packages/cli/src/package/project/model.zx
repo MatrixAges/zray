@@ -5,7 +5,7 @@ export type Input = {
     config_path?: string
 }
 
-export enum Outcome {
-    Complete,
-    OutsidePackage
+export type Outcome = {
+    owner?: u64,
+    outside_package: bool
 }

@@ -1,0 +1,52 @@
+import { Step } from "./model"
+
+import type { Entry } from "./model"
+
+export type Input = Entry.Pick("type_only", "local")
+
+export type Output = Step[]
+
+export default function (in: Input): Output {
+    const standard: Step[] = [Step.Standard]
+
+    const imports = match in.local {
+        true => standard.push(Step.Imports)[0],
+        _ => standard
+    }
+
+    const declarations: Step[] = [
+        Step.Types,
+        Step.Exports,
+        Step.Constants
+    ]
+
+    const prefix = imports.concat(declarations)[0]
+
+    if (in.type_only) {
+        return prefix.push(Step.Finish)[0]
+    }
+
+    const body: Step[] = [
+        Step.Shape,
+        Step.Aliases,
+        Step.Store,
+        Step.Entry,
+        Step.ValueEntry
+    ]
+
+    const emitted = prefix.concat(body)[0]
+
+    const requests = match in.local {
+        true => emitted.push(Step.Requests)[0],
+        _ => emitted
+    }
+
+    const suffix: Step[] = [
+        Step.Suffix,
+        Step.Auxiliary,
+        Step.AppendSuffix,
+        Step.Finish
+    ]
+
+    return requests.concat(suffix)[0]
+}

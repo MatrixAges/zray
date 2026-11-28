@@ -40,9 +40,13 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
     var host: StoreHost = .{ .store_0 = &store_0, .store_1 = &store_1 };
     const handle = &state;
 
-    rule.execute(&arena, &.{
+    const canceled = rule.execute(&arena, &.{
         .watch = @ptrCast(&handle),
         .cache = options.cache,
         .run_application = options.run,
+        .input_path = options.input,
+        .output_path = options.output.?,
     }, &host) catch |err| return if (err == error.WatchFailure) state.failure.? else err;
+
+    if (canceled) return error.Canceled;
 }

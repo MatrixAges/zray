@@ -1,4 +1,4 @@
-import type { ProjectImport } from "project_host"
+import type { ProjectImport, ProjectImportTarget } from "project_host"
 
 export type Input = {
     frame: ProjectImport,
@@ -8,3 +8,7 @@ export type Input = {
 }
 
 export type Binding = Input.Omit("completed")
+
+export type ResolvedBinding = Binding & {
+    target: ProjectImportTarget
+}

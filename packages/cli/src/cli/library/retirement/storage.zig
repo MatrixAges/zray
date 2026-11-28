@@ -104,12 +104,12 @@ fn retired(io: std.Io, allocator: std.mem.Allocator, backing: std.mem.Allocator,
     return paths;
 }
 
-pub fn readRetirement(handle: *const anyopaque) Error!bool {
+pub fn readRetirement(handle: *const anyopaque) Error!?[]const []const u8 {
     const self = effects.state(Plan, handle);
 
     self.previous = inventory.read(self.io, self.backing, self.directory) catch |err| return self.failure.save(err);
 
-    const previous = self.previous orelse return false;
+    const previous = self.previous orelse return null;
     const managed = previous.value.managed_files;
 
     self.borrowed = zx.memory.borrowReadFields(history, managed orelse previous.value.bundled_files);
@@ -121,12 +121,8 @@ pub fn readRetirement(handle: *const anyopaque) Error!bool {
         .native_only = managed == null,
     };
 
-    return true;
-}
-
-pub fn reserveTargets(handle: *const anyopaque) Error![]const []const u8 {
-    const self = effects.state(Plan, handle);
     const memory = self.planning.allocator();
+
     self.physical_root = std.Io.Dir.cwd().realPathFileAlloc(self.io, self.directory, memory) catch |err| return self.failure.save(err);
 
     const targets = memory.alloc([]const u8, self.current.len) catch |err| return self.failure.save(err);

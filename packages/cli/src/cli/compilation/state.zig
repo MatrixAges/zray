@@ -8,8 +8,8 @@ const Error = Effects.Error;
 const Disk = @import("../cache.zig");
 const Libraries = @import("../library/inputs.zig");
 const sources = @import("../sources.zig");
-const native = @import("../build/native.zig");
 const toolchain = @import("../toolchain.zig");
+const Dependencies = @import("cli_abi").native.@"zig:compilation_host".Dependencies;
 
 pub const State = struct {
     context: Compile.Context,
@@ -83,32 +83,27 @@ pub fn run(context: Compile.Context) !Compile.Status {
 
     const result = entry.executeIn(context.allocator, &request) catch |err| return state.failure.unwrap(err);
 
-    return native.status(result);
+    return switch (result) {
+        .Success => .success,
+        .Failed => .failed,
+        .BackendFailed => .backend_failed,
+        .Retry => .retry,
+        .Linting => @import("../lint.zig").run(state.context),
+        .Configuration => @import("../configuration/root.zig").run(state.context),
+        .RunRx => @import("../rx/compile.zig").run(state.context),
+        .LibraryProof => runLibraryProof(&state),
+        .LibraryBuild => runLibraryBuild(&state),
+    };
 }
 
-pub fn runCompilationLint(handle: *const anyopaque) Error!native.CompilationStatus {
-    const self = State.get(handle);
-    const result = @import("../lint.zig").run(self.context) catch |err| return self.failure.save(err);
-
-    return native.sourceStatusAs(native.CompilationStatus, result);
-}
-
-pub fn runCompilationConfiguration(handle: *const anyopaque) Error!native.CompilationStatus {
-    const self = State.get(handle);
-    const result = @import("../configuration/root.zig").run(self.context) catch |err| return self.failure.save(err);
-
-    return native.sourceStatusAs(native.CompilationStatus, result);
-}
-
-pub fn openCompilationInputs(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    self.library_inputs = Inputs.init(self.context.io, self.context.allocator) catch |err| return self.failure.save(err);
-}
-
-pub fn resolveCompilationEntry(handle: *const anyopaque) Error![]const u8 {
+pub fn resolveCompilationEntry(handle: *const anyopaque, track_library: bool) Error![]const u8 {
     const self = State.get(handle);
     const context = &self.context;
+
+    if (track_library) {
+        self.library_inputs = Inputs.init(context.io, context.allocator) catch |err| return self.failure.save(err);
+    }
+
     const observed = self.inputs();
     const path = @import("../sources/module_path.zig").entry(context.io, context.allocator, context.options.input, observed) catch |err| return self.failure.save(err);
 
@@ -117,13 +112,6 @@ pub fn resolveCompilationEntry(handle: *const anyopaque) Error![]const u8 {
     if (observed) |inputs| inputs.add(context.io, path) catch |err| return self.failure.save(err);
 
     return path;
-}
-
-pub fn runCompilationRx(handle: *const anyopaque) Error!native.CompilationStatus {
-    const self = State.get(handle);
-    const result = @import("../rx/compile.zig").run(self.context) catch |err| return self.failure.save(err);
-
-    return native.sourceStatusAs(native.CompilationStatus, result);
 }
 
 pub fn loadCompilationProject(handle: *const anyopaque) Error!bool {
@@ -151,36 +139,32 @@ pub fn loadCompilationProject(handle: *const anyopaque) Error!bool {
     return true;
 }
 
-pub fn runCompilationLibraryProof(handle: *const anyopaque) Error!native.CompilationStatus {
-    const self = State.get(handle);
+fn runLibraryProof(self: *State) !Compile.Status {
     const context = &self.context;
 
     const result = @import("../library/verify.zig").run(context.*, self.loaded, self.inputs()) catch |err| {
-        if (err == error.OutOfMemory or err == error.Canceled) return self.failure.save(err);
+        if (err == error.OutOfMemory or err == error.Canceled) return err;
+        try context.stderr.print("{s}: public module verification: {s}\n", .{ context.options.input, @errorName(err) });
+        try context.stderr.flush();
 
-        context.stderr.print("{s}: public module verification: {s}\n", .{ context.options.input, @errorName(err) }) catch |issue| return self.failure.save(issue);
-        context.stderr.flush() catch |issue| return self.failure.save(issue);
-
-        return .Failed;
+        return .failed;
     };
 
-    return native.sourceStatusAs(native.CompilationStatus, result);
+    return result;
 }
 
-pub fn runCompilationLibraryBuild(handle: *const anyopaque) Error!native.CompilationStatus {
-    const self = State.get(handle);
+fn runLibraryBuild(self: *State) !Compile.Status {
     const context = &self.context;
 
     const result = @import("../library/build.zig").run(context.*, self.loaded, self.inputs().?) catch |err| {
-        if (err == error.OutOfMemory or err == error.Canceled) return self.failure.save(err);
+        if (err == error.OutOfMemory or err == error.Canceled) return err;
+        try context.stderr.print("{s}: library build: {s}\n", .{ context.options.input, @errorName(err) });
+        try context.stderr.flush();
 
-        context.stderr.print("{s}: library build: {s}\n", .{ context.options.input, @errorName(err) }) catch |issue| return self.failure.save(issue);
-        context.stderr.flush() catch |issue| return self.failure.save(issue);
-
-        return .Failed;
+        return .failed;
     };
 
-    return native.sourceStatusAs(native.CompilationStatus, result);
+    return result;
 }
 
 pub fn readCompilationSource(handle: *const anyopaque) Error!bool {
@@ -208,7 +192,7 @@ pub fn openCompilationCaches(handle: *const anyopaque) Error!void {
     self.libraries = .{ .allocator = context.allocator };
 }
 
-pub fn readCompilationDependencies(handle: *const anyopaque) Error!?bool {
+pub fn readCompilationDependencies(handle: *const anyopaque) Error!Dependencies {
     const self = State.get(handle);
     const context = &self.context;
 
@@ -218,16 +202,12 @@ pub fn readCompilationDependencies(handle: *const anyopaque) Error!?bool {
         context.stderr.print("{s}: source loading: {s}\n", .{ self.libraries.?.failure_path orelse context.options.input, @errorName(err) }) catch |issue| return self.failure.save(issue);
         context.stderr.flush() catch |issue| return self.failure.save(issue);
 
-        return null;
+        return .Invalid;
     };
 
     self.sources = detected.sources;
 
-    return detected.has_rx;
-}
-
-pub fn adoptCompilationInputs(handle: *const anyopaque) bool {
-    const self = State.get(handle);
+    if (detected.has_rx) return .Rx;
 
     if (self.watchingParses()) |parsed| {
         std.mem.swap(compiler.project.ParseCache, parsed, &self.semantic.?.parse_cache);
@@ -237,5 +217,5 @@ pub fn adoptCompilationInputs(handle: *const anyopaque) bool {
 
     self.loaded.project.compiled_libraries = self.libraries.?.libraries.items;
 
-    return self.loaded.project.compiled_libraries.len != 0;
+    return if (self.loaded.project.compiled_libraries.len == 0) .Zx else .WithLibraries;
 }

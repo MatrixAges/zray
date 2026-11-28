@@ -24,7 +24,6 @@ pub const advanceLengthSlot = column_length.advance;
 pub const shrinkLengthSlot = column_length.shrink;
 const column_range = @import("column_range.zig");
 pub const ColumnRanges = column_range.Ranges;
-pub const bindColumnRanges = column_range.bind;
 pub const ColumnRangeGroup = column_range.Group;
 pub const columnRangeSlotCount = column_range.columns;
 pub const columnRangeLength = column_range.length;
@@ -135,12 +134,6 @@ pub inline fn u8ListViews(source: *const anyopaque) []const []const u8 {
 
 pub inline fn u32Views(source: *const anyopaque) []const u32 {
     const view: *const []const u32 = @ptrCast(@alignCast(source));
-
-    return view.*;
-}
-
-pub inline fn optionalU32Views(source: *const anyopaque) []const ?u32 {
-    const view: *const []const ?u32 = @ptrCast(@alignCast(source));
 
     return view.*;
 }
@@ -269,7 +262,6 @@ pub const allocateRowStorage = column.allocateRowStorage;
 pub const rowBufferBytes = column.rowBufferBytes;
 pub const writeRowListCount = column.writeRowListCount;
 pub const copyRow = column.copyRow;
-pub const borrowWriteColumn = column.borrow;
 const scalar_column = @import("scalar.zig");
 pub const Scalar = scalar_column.Value;
 pub const readScalarKind = scalar_column.readKind;

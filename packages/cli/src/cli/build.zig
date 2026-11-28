@@ -32,7 +32,6 @@ pub const State = struct {
     configuration: []const u8 = undefined,
     abi: @import("abi.zig").Result = undefined,
     abi_views: @import("project/native_paths.zig").Abi = undefined,
-    module: @import("cli_abi").layouts.@"zig:native_build_host".NativeBackendModule = undefined,
     workspace: @import("artifacts.zig").Prepared = undefined,
     native_names: [][]const u8 = undefined,
     settings: []const []const u8 = undefined,

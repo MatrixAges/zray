@@ -1,8 +1,6 @@
 export type Compilation = opaque
 
-export type SemanticDiskRead = opaque
-
-export type SemanticDiskWrite = opaque
+export type SemanticDisk = opaque
 
 export type FpgaProgram = opaque
 
@@ -10,33 +8,34 @@ export enum Status {
     Success,
     Failed,
     BackendFailed,
-    Retry
+    Retry,
+    Linting,
+    Configuration,
+    RunRx,
+    LibraryProof,
+    LibraryBuild
 }
 
-export declare function runCompilationLint(check: Compilation): Status throws { SourceLoadFailure }
-export declare function runCompilationConfiguration(check: Compilation): Status throws { SourceLoadFailure }
-export declare function openCompilationInputs(check: Compilation): void throws { SourceLoadFailure }
-export declare function resolveCompilationEntry(check: Compilation): u8[] throws { SourceLoadFailure }
-export declare function runCompilationRx(check: Compilation): Status throws { SourceLoadFailure }
+export enum Dependencies {
+    Invalid,
+    Rx,
+    Zx,
+    WithLibraries
+}
+
+export declare function resolveCompilationEntry(check: Compilation, track_library: bool): u8[] throws { SourceLoadFailure }
 export declare function loadCompilationProject(check: Compilation): bool throws { SourceLoadFailure }
-export declare function runCompilationLibraryProof(check: Compilation): Status throws { SourceLoadFailure }
-export declare function runCompilationLibraryBuild(check: Compilation): Status throws { SourceLoadFailure }
 export declare function readCompilationSource(check: Compilation): bool throws { SourceLoadFailure }
 export declare function openCompilationCaches(check: Compilation): void throws { SourceLoadFailure }
-export declare function readCompilationDependencies(check: Compilation): bool? throws { SourceLoadFailure }
-export declare function adoptCompilationInputs(check: Compilation): bool
+export declare function readCompilationDependencies(check: Compilation): Dependencies throws { SourceLoadFailure }
 
-export declare function reportCompilationCacheBypass(check: Compilation): void throws { SourceLoadFailure }
+export declare function writeCompilationDiagnostic(check: Compilation, message: string): void throws { SourceLoadFailure }
 export declare function loadCompilationCache(check: Compilation): void throws { SourceLoadFailure }
 export declare function saveCompilationCache(check: Compilation): void throws { SourceLoadFailure }
 export declare function reportCompilationCache(check: Compilation): void throws { SourceLoadFailure }
-export declare function reportCompilationCacheDisabled(check: Compilation): void throws { SourceLoadFailure }
-export declare function analyzeCompilationCached(check: Compilation): void throws { SourceLoadFailure }
-export declare function analyzeCompilationUncached(check: Compilation): void throws { SourceLoadFailure }
-export declare function checkCompilationAnalysis(check: Compilation, proof: bool): bool throws { SourceLoadFailure }
+export declare function analyzeCompilation(check: Compilation, cache: bool): string? throws { SourceLoadFailure }
 export declare function verifyCompilationProgram(check: Compilation): bool throws { SourceLoadFailure }
 export declare function generateCompilationFpga(check: Compilation): bool throws { SourceLoadFailure }
-export declare function closeCompilationAnalysis(check: Compilation): void
 export declare function flushCompilationDiagnostics(check: Compilation): void throws { SourceLoadFailure }
 export declare function openCompilationGeneration(check: Compilation): void throws { SourceLoadFailure }
 export declare function formatCompilationSource(check: Compilation): bool throws { SourceLoadFailure }
@@ -49,9 +48,9 @@ export declare function checkCompilationText(check: Compilation): bool throws { 
 export declare function writeCompilationText(check: Compilation): void throws { SourceLoadFailure }
 export declare function printCompilationText(check: Compilation): void throws { SourceLoadFailure }
 
-export declare function loadDiskSemanticSource(check: SemanticDiskRead, index: u64): void throws { SourceLoadFailure }
+export declare function loadDiskSemanticSource(check: SemanticDisk, index: u64): void throws { SourceLoadFailure }
 export declare function saveDiskSemanticEntry(
-    check: SemanticDiskWrite,
+    check: SemanticDisk,
     is_native: bool,
     index: u64
 ): void throws { SourceLoadFailure }

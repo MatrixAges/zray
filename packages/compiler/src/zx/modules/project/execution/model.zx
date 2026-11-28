@@ -5,6 +5,7 @@ import type { CacheInstall, ProjectBody } from "project_host"
 import type { FunctionColumns } from "../../entry_body/model"
 import type { Output as CacheSlot } from "../../semantic_cache/slot/commit"
 import type { Admission, Frame } from "../load/model"
+import type { Publication } from "../publication/model"
 import type { Input as BodyExports } from "./body_exports/model"
 import type { Installation } from "./body_install/model"
 import type { Request as BodyCache } from "./cache/model"
@@ -52,8 +53,20 @@ export type Body = {
 export type BodyResult = {
     duplicate?: string,
     cache_root?: u64,
-    records_used?: u64,
+    record?: RecordedBody,
     cache_record?: u64
+}
+
+export type RecordedBody = {
+    row: u64,
+    exports: u8[],
+    constants: u8[],
+    members: u8[],
+    entry?: u32,
+    publication: Publication,
+    function_id?: u32,
+    recursive?: u32,
+    retain_entry: bool
 }
 
 export type Entry = {

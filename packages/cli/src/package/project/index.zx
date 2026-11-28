@@ -1,9 +1,7 @@
 export {
     findProjectConfiguration,
     loadProjectGraph,
-    bindProjectScopes,
-    owningProjectScope,
-    publishProject
+    owningProjectScope
 } from "package_workspace_host"
 
 export type { Project } from "package_workspace_host"

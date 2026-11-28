@@ -234,32 +234,6 @@ pub fn copyRow(target: *anyopaque, source: u64, destination: u64) IndexError!voi
     @memcpy(output.bytes[next..][0..output.stride], output.bytes[first..][0..output.stride]);
 }
 
-/// The caller lends a mutable field of each row exclusively until the generated call returns.
-pub inline fn borrow(comptime T: type, comptime field: []const u8, rows: anytype) Column {
-    return borrowNested(T, &.{field}, rows);
-}
-
-pub inline fn borrowNested(comptime T: type, comptime fields: []const []const u8, rows: anytype) Column {
-    const Row = std.meta.Child(@TypeOf(rows));
-    const layout = comptime @import("rows.zig").fieldLayout(Row, fields);
-    const Field = layout.type;
-
-    comptime {
-        if (@sizeOf(Field) != @sizeOf(T) or @alignOf(Field) != @alignOf(T)) {
-            @compileError("Incompatible strided column field");
-        }
-    }
-
-    const bytes: [*]u8 = @ptrCast(rows.ptr);
-
-    return .{
-        .items = if (rows.len == 0) bytes else bytes + layout.offset,
-        .count = rows.len,
-        .stride = @sizeOf(Row),
-        .width = @sizeOf(T),
-    };
-}
-
 pub inline fn write(comptime T: type, target: *anyopaque, index: u64, value: T) IndexError!void {
     const column: *Column = @ptrCast(@alignCast(target));
 

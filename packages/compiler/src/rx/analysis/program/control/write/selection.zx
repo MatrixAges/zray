@@ -1,5 +1,4 @@
 import { StatementKind } from "core/control_table/model"
-import memory from "memory"
 
 import { cases_lane, selections_lane } from "../const"
 import header from "./header"
@@ -19,13 +18,13 @@ export type Output = Statement
 export default function (in: Input): Output {
     const { writer, subject, count, exhaustive } = in
 
-    const first = memory.readU32(writer.cells, cases_lane)
+    const first = writer.cells[cases_lane]
 
     return {
         header: header({
             writer,
             kind: StatementKind.Switch,
-            row: memory.readU32(writer.cells, selections_lane),
+            row: writer.cells[selections_lane],
             lane: selections_lane
         }),
         value: subject,

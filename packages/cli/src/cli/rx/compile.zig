@@ -100,15 +100,11 @@ pub fn run(context: Compile.Context) !Compile.Status {
 
     defer state.deinit();
 
-    const result = entry.executeIn(context.allocator, &request) catch |err| return state.failure.unwrap(err);
+    const outcome = entry.executeIn(context.allocator, &request) catch |err| return state.failure.unwrap(err);
 
-    return native.status(result);
-}
+    if (outcome.diagnostic) |message| try context.stderr.print("{s}\n", .{message});
 
-pub fn reportRxLibraryEntry(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    self.context.stderr.writeAll("RX libraries require the unified package publishing entry\n") catch |err| return self.failure.save(err);
+    return native.status(outcome.status);
 }
 
 pub fn loadRxApplication(handle: *const anyopaque) Error!?[]const u8 {

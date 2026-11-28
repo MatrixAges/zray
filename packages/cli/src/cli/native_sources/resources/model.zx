@@ -1,14 +1,14 @@
 export { ResourceKind } from "publication_host"
 
-import type { ResourceWalk } from "publication_host"
+import type { Directory } from "publication_host"
 
 export type Input = {
-    walk: ResourceWalk,
+    walk: Directory,
     running: bool
 }
 
 export type Step = {
-    walk: ResourceWalk,
+    walk: Directory,
     running: bool,
     valid: bool
 }

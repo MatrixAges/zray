@@ -1,4 +1,4 @@
-import type { RxApplication } from "rx_execution_host"
+import type { RxApplication, Status } from "rx_execution_host"
 import type { Settings } from "../../compilation/model"
 
 export type Request = {
@@ -17,4 +17,9 @@ export type Analyzed = Request & {
 export type Build = {
     application: RxApplication,
     stores: u64
+}
+
+export type EntryOutcome = {
+    status: Status,
+    diagnostic?: string
 }

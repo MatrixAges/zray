@@ -14,30 +14,41 @@
             ]}
         />
 
-        <If on={$ctx.loadProjectGraph}>
-            <Call fn="index.bindProjectScopes" in={$in.project} />
+        <If on={$ctx.loadProjectGraph != null}>
+            <Call
+                module="scope/bind/run"
+                in={{
+                    binding: $in.project,
+                    count: $ctx.loadProjectGraph
+                }}
+            />
 
-            <If on={$ctx.bindProjectScopes}>
+            <If on={$ctx.run}>
                 <Call fn="index.owningProjectScope" in={$in.project} />
 
                 <If on={$ctx.owningProjectScope != null}>
-                    <Call
-                        fn="index.publishProject"
-                        in={[
-                            $in.project,
-                            $ctx.owningProjectScope
-                        ]}
+                    <Return
+                        value={{
+                            owner: $ctx.owningProjectScope,
+                            outside_package: false
+                        }}
                     />
 
-                    <Return value={Project.Outcome.Complete} />
-
                     <Else>
-                        <Return value={Project.Outcome.OutsidePackage} />
+                        <Return
+                            value={{
+                                outside_package: true
+                            }}
+                        />
                     </Else>
                 </If>
             </If>
         </If>
     </If>
 
-    <Return value={Project.Outcome.Complete} />
+    <Return
+        value={{
+            outside_package: false
+        }}
+    />
 </Module>

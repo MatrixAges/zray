@@ -13,17 +13,14 @@ pub const resolveNative = native_lookup.Resolver(&.{
     @import("backends/verilog/root.zig"),
     @import("backends/zig/cache.zig"),
     @import("backends/zig/function_sources.zig"),
-    @import("backends/zig/function_sources/cache_updates.zig"),
     @import("backends/zig/gateway/workflow.zig"),
     @import("backends/zig/library_entries.zig"),
     @import("backends/zig/library_initializers.zig"),
-    @import("backends/zig/output/mirror.zig"),
     @import("backends/zig/output/tree.zig"),
     @import("backends/zig/partition/build.zig"),
     @import("backends/zig/partition/workers.zig"),
     @import("backends/zig/state/publication.zig"),
     @import("backends/zig/store_initializers.zig"),
-    @import("verification/call_cache.zig"),
     @import("verification/execution/block.zig"),
     @import("verification/execution/call.zig"),
     @import("verification/execution/context.zig"),
@@ -38,7 +35,6 @@ pub const parallel = zx.parallel;
 pub const input_snapshot = @import("inputs/snapshot.zig");
 pub const input_fingerprint = @import("inputs/fingerprint.zig");
 pub const input_generation = @import("inputs/generation.zig");
-pub const parsed_inputs = @import("inputs/parsed.zig");
 pub const file_versions = @import("inputs/file_versions.zig");
 pub const source_inputs = @import("inputs/collection.zig");
 pub const SourceIndex = frontend.SourceIndex;

@@ -1,21 +1,69 @@
 <Module>
     <Type from="model" as="Application" />
 
-    <Args in={Application.Input} out={Application.Status} />
+    <Args in={Application.Input} out={Application.Output} />
 
-    <Call fn="emit" in={$in} />
+    <Switch on={$in.phase}>
+        <Case value={Application.Phase.Prepare}>
+            <Call fn="capacity" in={$in.plan.count} />
 
-    <If on={$ctx.emit.status != Application.Status.Ready}>
-        <Return value={$ctx.emit.status} />
-    </If>
+            <Return
+                value={{
+                    status: Application.Status.Ready,
+                    capacity: $ctx.capacity
+                }}
+            />
+        </Case>
 
-    <Call
-        fn="coverage"
-        in={{
-            ...$in.omit(["target"]),
-            ...$ctx.emit.omit(["status"])
-        }}
-    />
+        <Case value={Application.Phase.Select}>
+            <Call
+                fn="select"
+                in={$in.pick([
+                    "plan",
+                    "row"
+                ])}
+            />
 
-    <Return value={$ctx.coverage} />
+            <Return
+                value={{
+                    status: Application.Status.Ready,
+                    capacity: 0,
+                    request: $ctx.select
+                }}
+            />
+        </Case>
+
+        <Case value={Application.Phase.Admit}>
+            <Call
+                fn="admit"
+                in={$in.pick([
+                    "plan",
+                    "buckets",
+                    "candidate"
+                ])}
+            />
+
+            <Return value={$ctx.admit} />
+        </Case>
+
+        <Default>
+            <Call
+                fn="coverage"
+                in={$in.pick([
+                    "plan",
+                    "paths",
+                    "types",
+                    "values",
+                    "buckets"
+                ])}
+            />
+
+            <Return
+                value={{
+                    status: $ctx.coverage,
+                    capacity: 0
+                }}
+            />
+        </Default>
+    </Switch>
 </Module>

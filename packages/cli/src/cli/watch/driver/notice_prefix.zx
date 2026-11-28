@@ -1,0 +1,13 @@
+import { Notice } from "./model"
+
+export type Input = Notice
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return match in {
+        Notice.Watching => "zxc watch: watching ",
+        Notice.Built => "zxc watch: built ",
+        _ => "zxc watch: input scan: "
+    }
+}

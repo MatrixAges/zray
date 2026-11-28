@@ -1,5 +1,7 @@
 export {
-    startVersions,
+    versionMatches,
+    readRow,
+    acceptVersion,
     classify,
     readDirectory,
     readFile,

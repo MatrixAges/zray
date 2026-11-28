@@ -1,0 +1,2 @@
+export const library_entry: string =
+    "RX libraries require the unified package publishing entry"

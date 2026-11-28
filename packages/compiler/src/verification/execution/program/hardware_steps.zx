@@ -1,0 +1,10 @@
+import call from "./call_steps"
+import { Step } from "./model"
+
+export type Input = bool
+
+export type Output = Step[]
+
+export default function (in: Input): Output {
+    return [Step.PublishParameter].concat(call(in))[0]
+}

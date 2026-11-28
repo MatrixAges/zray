@@ -57,15 +57,11 @@ pub fn run(context: *const Compile.Context, loaded: *const Loaded) !Compile.Stat
 
     defer state.deinit();
 
-    const status = entry.executeIn(context.allocator, &request) catch |err| return state.failure.unwrap(err);
+    const outcome = entry.executeIn(context.allocator, &request) catch |err| return state.failure.unwrap(err);
 
-    return native.status(status);
-}
+    if (outcome.diagnostic) |message| try context.stderr.print("{s}\n", .{message});
 
-pub fn reportGatewayBuildMode(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    self.context.stderr.writeAll("Gateway requires build --mode app and does not support --result discard\n") catch |err| return self.failure.save(err);
+    return native.status(outcome.status);
 }
 
 pub fn loadGatewayBuild(handle: *const anyopaque) Error!bool {

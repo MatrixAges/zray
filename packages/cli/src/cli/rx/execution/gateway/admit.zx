@@ -1,6 +1,11 @@
+import { build_mode } from "./const"
+
 import type { Settings as Input } from "../../../compilation/model"
 
-export type Output = bool
+export type Output = {
+    valid: bool,
+    diagnostic?: string
+}
 
 export default function (in: Input): Output {
     const permitted = (
@@ -10,5 +15,8 @@ export default function (in: Input): Output {
         - and in.json_result
     )
 
-    return permitted
+    return {
+        valid: permitted,
+        diagnostic: permitted ? null : build_mode
+    }
 }

@@ -7,9 +7,9 @@
         <Call fn="host.observeGenerationInputs" in={$in.request} />
 
         <Call
-            fn="current"
+            module="current"
             in={{
-                request: $in.request,
+                stamp_path: $in.stamp_path,
                 digest: $ctx.observeGenerationInputs
             }}
         />
@@ -33,9 +33,9 @@
     <If on={$in.write}>
         <If on={$ctx.prepare.interfaces_loaded}>
             <Call
-                fn="current"
+                module="current"
                 in={{
-                    request: $in.request,
+                    stamp_path: $in.stamp_path,
                     digest: $ctx.prepare.digest
                 }}
             />
@@ -47,7 +47,7 @@
             </If>
         </If>
 
-        <Call fn="host.invalidateGenerationStamp" in={$in.request} />
+        <Call fn="host.invalidateGenerationStamp" in={$in.stamp_path} />
     </If>
 
     <Call
@@ -59,7 +59,16 @@
     />
 
     <If on={$in.write}>
-        <Call fn="host.writeGenerationStamp" in={$in.request} />
+        <Call fn="../stamp" in={$ctx.prepare.digest} />
+
+        <Call
+            fn="host.writeGenerationStamp"
+            in={[
+                $in.stamp_path,
+                $ctx.stamp
+            ]}
+        />
+
         <Call fn="host.saveGenerationSnapshot" in={$in.request} />
     </If>
 

@@ -46,12 +46,14 @@ const State = struct {
 pub fn run(context: Compile.Context, loaded: Loaded, inputs: *Inputs) !Compile.Status {
     var state: State = .{ .context = &context, .loaded = &loaded, .inputs = inputs, .configured = loaded };
     const reference = &state;
+    const manifest = std.mem.eql(u8, std.fs.path.basename(context.options.input), "pkg.yaml");
 
     defer state.deinit();
 
     const status = rule.executeIn(context.allocator, &.{
         .build = @ptrCast(&reference),
         .has_exports = state.configured.config.exports.len != 0,
+        .fallback_entry = if (manifest) loaded.config.entry else loaded.project.entry,
         .watching = context.watch != null,
     }) catch |err| return state.failure.unwrap(err);
 
@@ -59,23 +61,20 @@ pub fn run(context: Compile.Context, loaded: Loaded, inputs: *Inputs) !Compile.S
         .Success => .success,
         .Failed => .failed,
         .Retry => .retry,
+        .Changed => error.LibraryInputsChanged,
+        .MissingEntry => error.MissingLibraryEntry,
     };
 }
 
-pub fn configureLibraryEntry(handle: *const anyopaque) Error!void {
-    const self = effects.state(State, handle);
-    const loaded = self.loaded;
-    const manifest = std.mem.eql(u8, std.fs.path.basename(self.context.options.input), "pkg.yaml");
-    const source = if (manifest) loaded.config.entry orelse return self.failure.save(error.MissingLibraryEntry) else loaded.project.entry;
-
-    self.fallback = .{.{ .path = ".", .source = source }};
-    self.configured.config.exports = &self.fallback;
-}
-
-pub fn analyzeLibraryBuild(handle: *const anyopaque) Error!bool {
+pub fn analyzeLibraryBuild(handle: *const anyopaque, entry: ?[]const u8) Error!bool {
     const self = effects.state(State, handle);
     const context = self.context;
     const parses = if (context.watch) |attempt| attempt.parse_cache else null;
+
+    if (entry) |path| {
+        self.fallback = .{.{ .path = ".", .source = path }};
+        self.configured.config.exports = &self.fallback;
+    }
 
     self.analyzed = analysis.run(context.allocator, .{
         .io = context.io,
@@ -194,8 +193,4 @@ pub fn publishLibraryBuild(handle: *const anyopaque) Error!bool {
     const context = self.context;
 
     return @import("../watch/library.zig").publish(context.io, context.backing, self.staging.?, context.options.output.?, self.managed, self.inputs) catch |err| return self.failure.save(err);
-}
-
-pub fn rejectChangedLibraryBuild(handle: *const anyopaque) Error!void {
-    return effects.state(State, handle).failure.save(error.LibraryInputsChanged);
 }

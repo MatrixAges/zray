@@ -7,7 +7,7 @@
         fn="../index.reserveCheckGraph"
         in={[
             $in.check,
-            $in.gateway
+            $in.gateway ? $in.first_module : $in.owner
         ]}
     />
 

@@ -4,6 +4,14 @@
     <Args in={Driver.Watch} out={void} />
 
     <Call fn="../index.prepareApplication" in={$in} />
-    <Call fn="../index.stopApplication" in={$in} />
+
+    <Call
+        fn="../index.stopApplication"
+        in={[
+            $in,
+            false
+        ]}
+    />
+
     <Call fn="../index.startApplication" in={$in} />
 </Module>

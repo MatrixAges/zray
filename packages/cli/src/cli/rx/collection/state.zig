@@ -9,7 +9,7 @@ const Error = effects.Error;
 const abi = @import("cli_abi").native.@"zig:rx_collection_host";
 const PhysicalResolution = @import("cli_abi").layouts.@"zig:rx_collection_host".PhysicalResolution;
 pub const Kind = abi.Kind;
-pub const Availability = abi.Availability;
+pub const FileRead = @import("cli_abi").layouts.@"zig:rx_collection_host".FileRead;
 const rule = @import("cli_source").collect_rx_sources;
 const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
 
@@ -39,13 +39,13 @@ pub const State = struct {
     gateway: ?collection.GatewaySource = null,
     file: File = undefined,
     physical_view: PhysicalResolution = undefined,
+    file_read: FileRead = undefined,
     checked: ?rx.Result = null,
     collector: Collector = undefined,
     const File = struct {
         absolute: []const u8,
         path: []const u8,
         real: []const u8 = undefined,
-        problem: anyerror = undefined,
         text: Text.Read = undefined,
         documents: ?*Text.Cache = null,
         module: rx.ModuleSource = undefined,
@@ -122,13 +122,13 @@ pub const State = struct {
             .writer = options.writer,
         };
     }
-
-    pub fn fileUnavailable(self: *State, err: anyerror) Error!Availability {
+    pub fn fileUnavailable(self: *State, err: anyerror) Error!FileRead {
         if (err == error.OutOfMemory) return self.failure.save(err);
 
-        self.file.problem = err;
-
-        return if (err == error.FileNotFound) .Missing else .Failed;
+        return .{
+            .availability = if (err == error.FileNotFound) .Missing else .Failed,
+            .problem = @errorName(err),
+        };
     }
 };
 
@@ -157,10 +157,6 @@ pub fn registerCollectionEntry(handle: *const anyopaque, kind: Kind) Error!bool 
     self.queued.put(allocator, absolute, {}) catch |err| return self.failure.save(err);
 
     return true;
-}
-
-pub fn collectionQueueLength(handle: *const anyopaque) u64 {
-    return State.get(handle).queue.items.len;
 }
 
 pub fn releaseRxDocument(handle: *const anyopaque) void {

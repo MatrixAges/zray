@@ -1,5 +1,4 @@
 import { StatementKind } from "core/control_table/model"
-import memory from "memory"
 
 import { results_lane } from "../const"
 import header from "./header"
@@ -21,7 +20,7 @@ export default function (in: Input): Output {
         header: header({
             writer,
             kind: StatementKind.Result,
-            row: memory.readU32(writer.cells, results_lane),
+            row: writer.cells[results_lane],
             lane: results_lane
         }),
         value

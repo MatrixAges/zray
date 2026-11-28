@@ -1,12 +1,1 @@
-export type GraphVisit = mutable_opaque
-
-export declare function readSourceGraphZX(target: GraphVisit, owner: u64): void
-    throws { OutOfMemory, InvalidGraph }
-
-export declare function readSourceGraphRX(target: GraphVisit, owner: u64, row: u64, store: bool): void
-    throws { OutOfMemory, InvalidGraph }
-
-export declare function publishSourceGraphDependencies(
-    target: GraphVisit,
-    owner: u64
-): u64[] throws { OutOfMemory }
+export type GraphScanTargets = u64[]

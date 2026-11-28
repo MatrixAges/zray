@@ -1,0 +1,19 @@
+import { Step } from "./model"
+
+import type { Analysis as Input } from "./model"
+
+export type Output = {
+    basis?: Step,
+    ownership: Step
+}
+
+export default function (in: Input): Output {
+    return {
+        basis: match {
+            !in.build => null,
+            in.concurrent => Step.StartBasis,
+            _ => Step.BuildBasis
+        },
+        ownership: in.concurrent ? Step.PlanConcurrent : Step.PlanSerial
+    }
+}

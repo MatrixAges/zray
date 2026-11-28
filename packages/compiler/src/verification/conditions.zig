@@ -40,11 +40,11 @@ pub fn evaluateContract(self: *Self, clause: ir.Contract, output: ?Value) zx.Err
 
     defer self.scratch.rewindRetainingCapacity(checkpoint);
 
-    const environment = try self.scratch.allocator().alloc(?Value, clause.symbols.count());
+    const environment = try self.scratch.allocator().alloc(terms.Binding, clause.symbols.count());
 
-    environment[0] = self.input;
+    environment[0] = .{ .bound = true, .value = self.input };
 
-    if (clause.kind == .ensures) environment[1] = output;
+    if (clause.kind == .ensures) environment[1] = if (output) |value| .{ .bound = true, .value = value } else .{};
 
     var view = self.program;
 

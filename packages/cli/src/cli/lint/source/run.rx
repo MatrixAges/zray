@@ -1,12 +1,12 @@
 <Module>
     <Type from="../model" as="Lint" />
 
-    <Args in={Lint.SourceInput} out={bool} />
+    <Args in={Lint.SourceInput} out={Lint.SourceOutcome} />
 
     <Call fn="../is_rx" in={$in.input_path} />
 
     <If on={$ctx.is_rx}>
-        <Call module="rx" in={$in.host} />
+        <Call module="rx" in={$in.omit(["input_path"])} />
 
         <Return value={$ctx.rx} />
     </If>
@@ -14,17 +14,28 @@
     <Call fn="../index.checkLintZx" in={$in.host} />
 
     <If on={!$ctx.checkLintZx}>
-        <Return value={false} />
+        <Return value={Lint.SourceOutcome.Invalid} />
     </If>
 
     <Call fn="../index.formatLintZx" in={$in.host} />
-    <Call fn="../index.checkLintFormatting" in={$in.host} />
 
-    <If on={!$ctx.checkLintFormatting}>
-        <Return value={false} />
+    <Call
+        fn="same_format"
+        in={[
+            $in.source,
+            $ctx.formatLintZx
+        ]}
+    />
+
+    <If on={!$ctx.same_format}>
+        <Return value={Lint.SourceOutcome.Unformatted} />
     </If>
 
     <Call fn="../index.checkLintLength" in={$in.host} />
 
-    <Return value={$ctx.checkLintLength} />
+    <If on={$ctx.checkLintLength}>
+        <Return value={Lint.SourceOutcome.Valid} />
+    </If>
+
+    <Return value={Lint.SourceOutcome.Invalid} />
 </Module>

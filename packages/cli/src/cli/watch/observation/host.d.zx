@@ -1,4 +1,3 @@
-export type Scan = opaque
 export type Observation = opaque
 export type Registration = opaque
 export type Directory = opaque
@@ -28,12 +27,11 @@ export enum Reuse {
     Failed
 }
 
-export declare function startVersions(scan: Scan): void
-export declare function versionMatches(scan: Scan, index: u64): bool throws { ObservationFailure }
-export declare function readRow(scan: Scan, index: u64, versioned: bool): bool throws {
+export declare function versionMatches(scan: Observation, index: u64): bool throws { ObservationFailure }
+export declare function readRow(scan: Observation, index: u64, versioned: bool): bool throws {
     ObservationFailure
 }
-export declare function acceptVersion(scan: Scan, index: u64): void
+export declare function acceptVersion(scan: Observation, index: u64): void
 
 export declare function classify(observation: Observation): PathKind throws { ObservationFailure }
 export declare function readDirectory(

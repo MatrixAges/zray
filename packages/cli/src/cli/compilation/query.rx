@@ -4,24 +4,31 @@
 
     <Args in={Query.Query} out={IO.Status} />
 
-    <If on={$in.settings.cache}>
-        <Call fn="index.analyzeCompilationCached" in={$in.compilation} />
-
-        <Else>
-            <Call fn="index.analyzeCompilationUncached" in={$in.compilation} />
-        </Else>
-    </If>
-
     <Call
-        fn="index.checkCompilationAnalysis"
+        fn="index.analyzeCompilation"
         in={[
             $in.compilation,
-            $in.proof
+            $in.settings.cache
         ]}
     />
 
-    <If on={!$ctx.checkCompilationAnalysis}>
-        <Call fn="index.closeCompilationAnalysis" in={$in.compilation} />
+    <If on={$ctx.analyzeCompilation != null}>
+        <Call
+            fn="analysis_diagnostic"
+            in={{
+                proof: $in.proof,
+                message: $ctx.analyzeCompilation
+            }}
+        />
+
+        <Call
+            fn="index.writeCompilationDiagnostic"
+            in={[
+                $in.compilation,
+                $ctx.analysis_diagnostic
+            ]}
+        />
+
         <Call fn="index.flushCompilationDiagnostics" in={$in.compilation} />
 
         <Return value={IO.Status.Failed} />
@@ -29,7 +36,6 @@
 
     <If on={$in.proof}>
         <Call fn="index.verifyCompilationProgram" in={$in.compilation} />
-        <Call fn="index.closeCompilationAnalysis" in={$in.compilation} />
 
         <If on={!$ctx.verifyCompilationProgram}>
             <Call fn="index.flushCompilationDiagnostics" in={$in.compilation} />
@@ -39,7 +45,6 @@
 
         <Else>
             <Call fn="index.generateCompilationFpga" in={$in.compilation} />
-            <Call fn="index.closeCompilationAnalysis" in={$in.compilation} />
 
             <If on={!$ctx.generateCompilationFpga}>
                 <Call fn="index.flushCompilationDiagnostics" in={$in.compilation} />

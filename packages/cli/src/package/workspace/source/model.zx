@@ -9,7 +9,8 @@ export enum Status {
 
 export type Input = {
     source: Source,
-    path: string
+    path: string,
+    root?: string
 }
 
 export type Scan = {

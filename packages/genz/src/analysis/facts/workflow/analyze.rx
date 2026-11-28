@@ -1,37 +1,28 @@
 <Module>
     <Type from="model" as="Workflow" />
 
-    <Args in={Workflow.Analysis} out={void} />
+    <Args in={Workflow.Analysis} out={Workflow.Step[]} />
 
-    <If on={$in.build}>
-        <If on={$in.concurrent}>
-            <Call fn="index.startAnalysisBasis" in={$in.work} />
+    <Call fn="schedule" in={$in} />
 
-            <If on={!$ctx.startAnalysisBasis}>
-                <Call fn="index.buildAnalysisBasis" in={$in.work} />
-            </If>
-
-            <Else>
-                <Call fn="index.buildAnalysisBasis" in={$in.work} />
-            </Else>
-        </If>
+    <If on={$ctx.schedule.basis != null}>
+        <Return
+            value={[
+                $ctx.schedule.basis,
+                Workflow.Step.CollectFacts,
+                Workflow.Step.JoinBasis,
+                $ctx.schedule.ownership,
+                Workflow.Step.AnalyzeFlags
+            ]}
+        />
     </If>
 
-    <Call fn="index.collectAnalysisFacts" in={$in.work} />
-    <Call fn="index.joinAnalysisBasis" in={$in.work} />
-
-    <Call
-        fn="index.requireAllocation"
-        in={$ctx.collectAnalysisFacts && $ctx.joinAnalysisBasis}
+    <Return
+        value={[
+            Workflow.Step.CollectFacts,
+            Workflow.Step.JoinBasis,
+            $ctx.schedule.ownership,
+            Workflow.Step.AnalyzeFlags
+        ]}
     />
-
-    <If on={$in.concurrent}>
-        <Call fn="index.planAnalysisConcurrent" in={$in.work} />
-
-        <Else>
-            <Call fn="index.planAnalysis" in={$in.work} />
-        </Else>
-    </If>
-
-    <Call fn="index.analyzeEntryFlags" in={$in.work} />
 </Module>

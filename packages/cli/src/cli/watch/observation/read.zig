@@ -8,16 +8,22 @@ const rule = @import("cli_source").read;
 pub const Context = struct {
     io: std.Io,
     allocator: std.mem.Allocator,
-    path: []const u8,
+    path: []const u8 = undefined,
+    scan: ?Scan = null,
     started: i96 = 0,
     save_version: bool = false,
     verified_file: ?Snapshot.VerifiedFile = null,
     result: Snapshot.State = undefined,
     failure: ?anyerror = null,
-    fn get(handle: *const anyopaque) *Context {
+    pub const Scan = struct {
+        entries: []Snapshot.Entry,
+        scratch: *std.heap.ArenaAllocator,
+    };
+    pub fn get(handle: *const anyopaque) *Context {
         return storage.context(Context, handle);
     }
-    fn fail(self: *Context, err: anyerror) Error {
+
+    pub fn fail(self: *Context, err: anyerror) Error {
         self.failure = err;
 
         return error.ObservationFailure;

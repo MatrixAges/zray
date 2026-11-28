@@ -1,0 +1,25 @@
+import integers from "std:integer"
+import memory from "memory"
+
+import type { Environment, Outcome as Output } from "./model"
+
+export type Input = {
+    environment: Environment,
+    symbol: u32
+}
+
+export default function (in: Input): Output {
+    const { environment } = in
+
+    const row = integers.widen(in.symbol)
+
+    if (!memory.readColumnBool(environment.bound, row)) {
+        return {
+            contract: "verification encountered an unbound symbol"
+        }
+    }
+
+    return {
+        reference: memory.readFixedBytes(environment.values, row, environment.width)
+    }
+}

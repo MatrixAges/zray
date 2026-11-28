@@ -77,7 +77,7 @@ fn writeInventory(self: *State) !void {
 
     var buffer: [4096]u8 = undefined;
     var writer = file.file.writerStreaming(request.io, &buffer);
-    const resources = self.resources;
+    const resources = &self.resources;
 
     std.json.Stringify.value(.{
         .format_version = constants.managed_inventory,

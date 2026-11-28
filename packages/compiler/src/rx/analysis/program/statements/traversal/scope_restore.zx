@@ -1,5 +1,4 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import type { Scopes } from "./workflow"
 
@@ -13,5 +12,5 @@ export type Output = u64
 export default function (in: Input): Output {
     const { scopes, slot } = in
 
-    return memory.readU64(scopes.bindings, integers.widen(slot))
+    return scopes.bindings[integers.widen(slot)]
 }

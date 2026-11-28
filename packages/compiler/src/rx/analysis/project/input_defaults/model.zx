@@ -1,11 +1,13 @@
 import type { DefaultColumns, Request } from "../constraints/collection/model"
 
-export type Index = Request.Pick("parents", "default_known") & {
+export type Index = Request.Pick("default_known") & {
+    parents: u32[],
     unused: u64,
     columns: DefaultColumns
 }
 
-export type Cursor = Request.Pick("frame", "parents") & {
+export type Cursor = Request.Pick("frame") & {
+    parents: u32[],
     columns: DefaultColumns,
     marked: bool[],
     protected?: u32,

@@ -1,0 +1,4 @@
+export const bypass: string =
+    "zxc cache: compiled library inputs bypass semantic artifacts; parsing and generation caches remain available\n"
+
+export const disabled: string = "zxc cache: disabled\n"

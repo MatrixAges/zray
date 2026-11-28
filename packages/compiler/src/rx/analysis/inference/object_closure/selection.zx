@@ -1,16 +1,15 @@
 import integers from "std:integer"
 
-import representative from "../forest/borrowed_root"
+import representative from "../forest/root"
 import query from "./query"
 import { Action } from "./query"
 
-import type { U32Buffer } from "memory"
 import type { Kind } from "../unification/model"
 import type { Cache } from "./cache"
 import type { Output as Plan } from "./query"
 
 export type Input = {
-    parents: U32Buffer,
+    parents: u32[],
     kinds: Kind[],
     sources: u32[],
     revision: u64,

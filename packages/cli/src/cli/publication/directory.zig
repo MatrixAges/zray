@@ -1,8 +1,10 @@
 const std = @import("std");
+const Inputs = @import("watch_inputs").Inputs;
 const abi = @import("publication_abi");
 const effects = @import("effects.zig");
 const constants = @import("cli_source").publication_constants.@"zx.constants";
 const DirectoryEntry = abi.layouts.@"zig:publication_host".DirectoryEntry;
+const ResourceEntry = abi.layouts.@"zig:publication_host".ResourceEntry;
 const InventoryEntry = abi.layouts.@"zig:publication_host".InventoryEntry;
 const Self = @This();
 
@@ -12,12 +14,13 @@ failure: *effects.Failure,
 source: []const u8,
 destination: []const u8 = &.{},
 
+inputs: ?*Inputs = null,
 opened: bool = false,
 directory: std.Io.Dir = undefined,
 walker: std.Io.Dir.Walker = undefined,
 path: []const u8 = &.{},
-
 entry_view: DirectoryEntry = undefined,
+resource_view: ResourceEntry = undefined,
 inventory_view: InventoryEntry = undefined,
 pub fn deinit(self: *Self) void {
     if (!self.opened) return;
@@ -32,8 +35,12 @@ pub fn copyPublishedFile(io: std.Io, source: []const u8, destination: []const u8
     return std.Io.Dir.cwd().copyFile(source, .cwd(), destination, io, .{ .make_path = true });
 }
 
-pub fn openDirectory(handle: *const anyopaque) effects.Error!void {
-    return effects.state(Self, handle).open(true);
+pub fn openDirectory(handle: *const anyopaque, follow_symlinks: bool) effects.Error!void {
+    const self = effects.state(Self, handle);
+
+    if (self.inputs) |observed| observed.addDirectory(self.io, self.source) catch |err| return self.failure.save(err);
+
+    return self.open(follow_symlinks);
 }
 
 pub fn open(self: *Self, follow_symlinks: bool) effects.Error!void {

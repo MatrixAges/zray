@@ -1,6 +1,5 @@
 <Module>
     <Type from="model" as="Execution" />
-    <Type from="../publication/model" as="Body" />
 
     <Args in={Execution.Body} out={Execution.BodyResult} />
 
@@ -114,40 +113,20 @@
         ]}
     />
 
-    <Call
-        fn="index.writeProjectModuleRecord"
-        in={[
-            $in.body,
-            $in.installation.records.used,
-            $ctx.publish.exports,
-            $ctx.publish.constant_exports,
-            $ctx.publish.members,
-            $ctx.publish.entry,
-            $ctx.plan.publication == Body.Publication.Entry,
-            $ctx.plan.publication == Body.Publication.Dependency ? $ctx.plan.id : null,
-            $ctx.plan.own_function
-        ]}
-    />
-
-    <If on={$in.installation.request.entry}>
-        <Call fn="index.moveProjectEntryBody" in={$in.body} />
-
-        <If on={$ctx.plan.publish_artifact}>
-            <Return
-                value={{
-                    duplicate: $ctx.publish.duplicate,
-                    cache_root: $in.installation.records.used,
-                    records_used: $in.installation.records.used + 1,
-                    cache_record: $ctx.register_cache
-                }}
-            />
-        </If>
-    </If>
-
     <Return
         value={{
-            duplicate: $ctx.publish.duplicate,
-            records_used: $in.installation.records.used + 1,
+            record: {
+                row: $in.installation.records.used,
+                exports: $ctx.publish.exports,
+                constants: $ctx.publish.constant_exports,
+                members: $ctx.publish.members,
+                entry: $ctx.publish.entry,
+                publication: $ctx.plan.publication,
+                function_id: $ctx.plan.id,
+                recursive: $ctx.plan.own_function,
+                retain_entry: $in.installation.request.entry
+            },
+            cache_root: $in.installation.request.entry ? $ctx.register_cache : null,
             cache_record: $ctx.register_cache
         }}
     />

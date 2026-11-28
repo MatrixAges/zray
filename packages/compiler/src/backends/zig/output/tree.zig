@@ -10,12 +10,11 @@ const available = ledger.available;
 pub fn write(io: std.Io, allocator: std.mem.Allocator, workspace: std.mem.Allocator, output: []const u8, bundle: Bundle, partitions: u32) !void {
     const groups = try ledger.inventory.group(allocator, bundle.modules);
     const tree = try ledger.assembly.prepare(allocator, &bundle, groups, partitions != 0);
+    var scratch = std.heap.ArenaAllocator.init(workspace);
+
+    defer scratch.deinit();
 
     const functions = functions: {
-        var scratch = std.heap.ArenaAllocator.init(workspace);
-
-        defer scratch.deinit();
-
         var frame: Frame = .{
             .io = io,
             .allocator = allocator,
@@ -87,6 +86,6 @@ const Frame = struct {
     fn place(self: *Frame) !void {
         const slots = self.tree.sections;
 
-        self.functions = try layout.plan(self.io, self.allocator, self.workspace, self.functions, self.original, self.tree.files[slots.support..slots.signatures], self.partitions);
+        self.functions = try layout.plan(self.io, self.allocator, self.workspace, self.scratch, self.functions, self.original, self.tree.files[slots.support..slots.signatures], self.partitions);
     }
 };

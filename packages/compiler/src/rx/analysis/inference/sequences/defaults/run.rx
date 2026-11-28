@@ -13,11 +13,13 @@
         />
     </If>
 
+    <Call fn="canonical.u32Views" in={$in.view.parents} />
+
     <Call
         module="choose"
         in={{
             graph: {
-                parents: $in.view.parents,
+                parents: $ctx.u32Views,
                 kinds: $in.view.graph.kinds,
                 arguments: $in.view.graph.arguments,
                 members: $in.sequences.members

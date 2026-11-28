@@ -1,39 +1,23 @@
 <Module>
     <Type from="model" as="Flow" />
 
-    <Args in={Flow.Cursor} out={Flow.Cursor} />
+    <Args in={Flow.ModuleRequestForm} out={Flow.Output} />
 
-    <Call fn="emit" in={$in.form} />
-
-    <If on={$ctx.emit.native}>
-        <Call fn="model.emitRequestedNative" in={$in.frame} />
-
-        <Else>
-            <Call fn="model.openRequestedFunction" in={$in.frame} />
-
-            <If on={$ctx.emit.first}>
-                <Call fn="model.emitRequestedStore" in={$in.frame} />
-            </If>
-
-            <Call
-                fn="model.emitRequestedBody"
-                in={[
-                    $in.frame,
-                    $ctx.emit.value
-                ]}
-            />
-
-            <Call fn="model.publishRequestedFunction" in={$in.frame} />
-        </Else>
+    <If on={$in == Flow.ModuleRequestForm.Done}>
+        <Return
+            value={{
+                steps: [],
+                comparisons: 0
+            }}
+        />
     </If>
 
-    <Call fn="model.takeModuleFunction" in={$in.frame} />
+    <Call fn="emit" in={$in} />
 
     <Return
         value={{
-            frame: $in.frame,
-            form: $ctx.takeModuleFunction,
-            running: $ctx.takeModuleFunction != Flow.ModuleRequestForm.Done
+            steps: $ctx.emit,
+            comparisons: 0
         }}
     />
 </Module>

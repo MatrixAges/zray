@@ -2,7 +2,6 @@ const std = @import("std");
 const generating = @import("genz").zx.state;
 const modules = @import("../modules.zig");
 const Cache = @import("../cache.zig");
-const native = if (@import("parser_options").generated_parser) @import("output_execution_abi").layouts.@"zig:state_publication_host" else struct {};
 const Error = std.mem.Allocator.Error;
 const Self = @This();
 
@@ -16,9 +15,9 @@ cache: ?*Cache,
 pub fn run(self: *Self) Error!void {
     const entry = @import("generated_publish_state");
     const Input = std.meta.Child(entry.Input);
+    const Lookup = std.meta.Child(@typeInfo(@FieldType(Input, "lookup")).optional.child);
 
-    const input: Input = .{
-        .frame = @ptrCast(self),
+    var input: Input = .{
         .name = @import("generated_state_constants").@"zx.constants".state_name,
         .key = &.{
             .imports = self.imports,
@@ -28,11 +27,29 @@ pub fn run(self: *Self) Error!void {
             .process = self.requirements.process,
         },
         .cached = self.cache != null,
+        .lookup = null,
     };
 
-    const publication = @import("zx").columns.invoke(entry.executeIn, self.temporary, &input) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
-        else => unreachable,
+    var publication = entry.executeIn(self.temporary, &input) catch |err| return failure(err);
+
+    if (publication.action == .Lookup) {
+        const key = publication.cache_key.?;
+
+        const lookup: Lookup = .{
+            .key = key,
+            .source = try self.cache.?.get(publication.name, key[0..32].*),
+        };
+
+        input.lookup = &lookup;
+        publication = entry.executeIn(self.temporary, &input) catch |err| return failure(err);
+    }
+
+    const allocator = self.bundle.arena.allocator();
+
+    const source = switch (publication.action) {
+        .Lookup => unreachable,
+        .Reuse => try allocator.dupe(u8, publication.source.?),
+        .Render => try self.render(allocator),
     };
 
     if (publication.cache_key) |key| {
@@ -40,27 +57,13 @@ pub fn run(self: *Self) Error!void {
 
         cache.generated += 1;
 
-        try cache.put(publication.name, key[0..32].*, publication.source);
+        try cache.put(publication.name, key[0..32].*, source);
     }
 
-    try self.appendFile(.{ .name = publication.name, .source = publication.source, .imports = publication.imports });
+    try self.appendFile(.{ .name = publication.name, .source = source, .imports = publication.imports });
 }
 
-fn borrow(handle: *anyopaque) *Self {
-    return @ptrCast(@alignCast(handle));
-}
-
-pub fn lookupStateSource(in: *const native.Lookup) Error!?[]const u8 {
-    const self = borrow(in.frame);
-    const key = in.key[0..32].*;
-    const source = try self.cache.?.get(in.name, key) orelse return null;
-
-    return try self.bundle.arena.allocator().dupe(u8, source);
-}
-
-pub fn renderStateSource(handle: *anyopaque) Error![]const u8 {
-    const self = borrow(handle);
-    const allocator = self.bundle.arena.allocator();
+fn render(self: *const Self, allocator: std.mem.Allocator) Error![]const u8 {
     const names = self.imports[1..];
 
     if (comptime generating.generated) {
@@ -72,6 +75,13 @@ pub fn renderStateSource(handle: *anyopaque) Error![]const u8 {
     const objects = try @import("objects.zig").create(self.temporary, names, self.writable, self.independent);
 
     return generating.renderWithCapabilities(allocator, objects, self.requirements);
+}
+
+fn failure(err: anyerror) Error {
+    return switch (err) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => error.OutOfMemory,
+        else => unreachable,
+    };
 }
 
 fn appendFile(self: *Self, file: modules.File) Error!void {

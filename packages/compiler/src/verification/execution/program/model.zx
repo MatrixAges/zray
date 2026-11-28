@@ -1,5 +1,5 @@
 import type { Table } from "core/type_table/model"
-import type { SymbolicProgram } from "verification_program_host"
+import type { Parameter } from "verification_program_host"
 
 export type Ports = Table.Pick(
     "kinds",
@@ -10,18 +10,31 @@ export type Ports = Table.Pick(
     "field_names"
 )
 
+export enum Step {
+    EnsureGraph,
+    BeginCall,
+    PublishParameter,
+    EntryPreconditions,
+    CallPreconditions,
+    RunBody,
+    CheckUnit,
+    AppendUnit,
+    Resolve,
+    Merge
+}
+
 export type Entry = {
-    program: SymbolicProgram,
     types: Ports,
     input: u32,
     type_only: bool,
     stores: u64,
-    returns_unit: bool
+    returns_unit: bool,
+    graph_ready: bool
 }
 
 export type Called = {
-    program: SymbolicProgram,
-    returns_unit: bool
+    returns_unit: bool,
+    returned?: u64
 }
 
 export type Diagnostic = {
@@ -29,12 +42,11 @@ export type Diagnostic = {
     unsupported: bool
 }
 
-export type Query = {
-    prefix: u64,
-    path: string
+export type Plan = {
+    steps: Step[],
+    diagnostic?: Diagnostic
 }
 
-export type Verification = {
-    diagnostic?: Diagnostic,
-    query?: Query
+export type Admission = Plan & {
+    rows?: Parameter[]
 }

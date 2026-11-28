@@ -4,13 +4,8 @@ export enum Status {
     Success,
     Failed,
     BackendFailed,
-    Retry
-}
-
-export type NativeBackendModule = {
-    name: string,
-    includes?: string[],
-    path?: string
+    Retry,
+    IncompleteInputs
 }
 
 export type BackendTarget = {
@@ -69,9 +64,6 @@ export declare function publishBackendPaths(build: NativeBuild): void
 export declare function reportObservedNativeBuild(build: NativeBuild): bool? throws {
     SourceLoadFailure
 }
-export declare function rejectIncompleteBackendInputs(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
 export declare function publishObservedNativeBuild(build: NativeBuild): bool throws {
     SourceLoadFailure
 }
@@ -126,7 +118,6 @@ export declare function writeBackendCommand(build: NativeBuild): void throws {
 export declare function appendGeneratedModule(build: NativeBuild, index: u64): void throws {
     SourceLoadFailure
 }
-export declare function nativeBackendModule(build: NativeBuild, index: u64): NativeBackendModule
 export declare function bindBackendModule(
     build: NativeBuild,
     index: u64,
@@ -153,12 +144,11 @@ export declare function writeNativeAdapter(build: NativeBuild): void throws {
 export declare function appendNativeModule(build: NativeBuild): void throws {
     SourceLoadFailure
 }
-export declare function appendAbiView(build: NativeBuild, index: u64): void throws {
-    SourceLoadFailure
-}
-export declare function appendCanonicalAbi(build: NativeBuild): void throws {
-    SourceLoadFailure
-}
-export declare function appendNapiModule(build: NativeBuild): void throws {
+export declare function appendSupportModule(
+    build: NativeBuild,
+    name: string,
+    file: string,
+    imports: string[]
+): void throws {
     SourceLoadFailure
 }

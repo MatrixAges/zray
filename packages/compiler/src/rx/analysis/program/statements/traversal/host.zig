@@ -31,12 +31,11 @@ pub const State = struct {
     imported: @import("rx_execution_abi").layouts.@"zig:rx_project_host".BodyImport = undefined,
     control: Control = undefined,
     view: Cursor = undefined,
-    cells: []u32 = undefined,
     pub fn initControl(self: *State, layout: []const u32) void {
         const statements = self.statements;
         const table = &statements.writer.columns;
 
-        self.view = .{ .parallel_symbols = @ptrCast(&table.parallel_symbols.items), .cells = @ptrCast(&self.cells) };
+        self.view = .{ .parallel_symbols = table.parallel_symbols.items, .cells = undefined };
 
         self.control = .{
             .writer = &self.view,
@@ -97,7 +96,7 @@ pub fn selectBodyWriter(handle: *anyopaque, block: u32) void {
 
     state.row = &state.statements.plan.rows[block];
     state.writer = if (block == state.root) state.root_writer else &state.writers[state.row.tag];
-    state.cells = state.writer.cells();
+    state.view.cells = state.writer.cells();
 }
 
 pub fn evaluateBodyValue(handle: *anyopaque, row: u32, borrowed: bool) Error!u32 {

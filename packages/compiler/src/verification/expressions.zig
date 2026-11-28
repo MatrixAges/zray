@@ -2,7 +2,6 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const terms = @import("terms.zig");
-const Value = terms.Value;
 const Evaluation = terms.Evaluation;
 const Self = @This();
 const Graph = @import("graph.zig");
@@ -13,7 +12,7 @@ const Types = source.Types;
 allocator: std.mem.Allocator,
 scratch: *zx.Arena,
 program: ir.Program,
-environment: []?Value,
+environment: []terms.Binding,
 reporter: *zx.Reporter,
 graph: *Graph,
 cache: std.AutoHashMapUnmanaged(ir.ExprId, Evaluation) = .empty,

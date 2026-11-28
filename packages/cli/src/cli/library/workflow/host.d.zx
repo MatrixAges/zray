@@ -3,7 +3,9 @@ export type Build = opaque
 export enum BuildStatus {
     Success,
     Failed,
-    Retry
+    Retry,
+    Changed,
+    MissingEntry
 }
 
 export type Analysis = opaque
@@ -12,8 +14,7 @@ export type Link = opaque
 
 export type Proof = opaque
 
-export declare function configureLibraryEntry(build: Build): void throws { LibraryWorkflowFailure }
-export declare function analyzeLibraryBuild(build: Build): bool throws { LibraryWorkflowFailure }
+export declare function analyzeLibraryBuild(build: Build, entry: string?): bool throws { LibraryWorkflowFailure }
 export declare function linkLibraryBuild(build: Build): void throws { LibraryWorkflowFailure }
 export declare function collectBuildSources(build: Build): void throws { LibraryWorkflowFailure }
 export declare function openLibraryBuildCache(build: Build): void throws { LibraryWorkflowFailure }
@@ -24,9 +25,7 @@ export declare function resolveLibraryNativeProject(build: Build): void throws {
 export declare function createLibraryStaging(build: Build): void throws { LibraryWorkflowFailure }
 export declare function stageLibraryBuild(build: Build): void throws { LibraryWorkflowFailure }
 export declare function publishLibraryBuild(build: Build): bool throws { LibraryWorkflowFailure }
-export declare function rejectChangedLibraryBuild(build: Build): void throws { LibraryWorkflowFailure }
 
-export declare function missingLibraryExports(analysis: Analysis): void throws { LibraryWorkflowFailure }
 export declare function loadCompiledLibrary(analysis: Analysis): void throws { LibraryWorkflowFailure }
 export declare function beginLibraryAnalysis(analysis: Analysis): void throws { LibraryWorkflowFailure }
 export declare function selectLibraryExport(analysis: Analysis, index: u64): string throws { LibraryWorkflowFailure }
@@ -35,11 +34,8 @@ export declare function inferLibraryRx(analysis: Analysis): bool throws { Librar
 export declare function inferLibraryZx(analysis: Analysis): void throws { LibraryWorkflowFailure }
 export declare function recordLibraryAnalysis(analysis: Analysis): bool throws { LibraryWorkflowFailure }
 
-export declare function takeCompiledLibrary(link: Link): void
-export declare function allocateLinkInputs(link: Link): void throws { LibraryWorkflowFailure }
 export declare function prepareLibraryLinkInput(link: Link, index: u64): void throws { LibraryWorkflowFailure }
 export declare function linkLibraryInputs(link: Link): void throws { LibraryWorkflowFailure }
 
-export declare function confirmProofInterface(proof: Proof, index: u64): void throws { LibraryWorkflowFailure }
-export declare function writeProofHeading(proof: Proof, index: u64): void throws { LibraryWorkflowFailure }
+export declare function writeProofMessage(proof: Proof, message: string): void throws { LibraryWorkflowFailure }
 export declare function verifyPublicExport(proof: Proof, index: u64, output: string?): bool throws { LibraryWorkflowFailure }

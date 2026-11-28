@@ -1,5 +1,4 @@
 import integers from "std:integer"
-import memory from "memory"
 
 import { statement_lane } from "../const"
 
@@ -15,7 +14,7 @@ export default function (in: Input): Output {
     const block = integers.widen(in.block)
     const first = integers.widen(firsts[block])
     const count = integers.widen(lengths[block])
-    const statement = integers.widen(memory.readU32(writer.cells, statement_lane))
+    const statement = integers.widen(writer.cells[statement_lane])
 
     if (statement != first + count) {
         return false
@@ -28,7 +27,7 @@ export default function (in: Input): Output {
         while: state => state.equal && state.lane < statement_lane,
         next: state => {
             const lane = state.lane
-            const actual = memory.readU32(writer.cells, lane)
+            const actual = writer.cells[lane]
 
             state.equal = actual == in.expected[lane]
             state.lane += 1

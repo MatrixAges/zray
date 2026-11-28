@@ -1,0 +1,10 @@
+<Store name="source_graph_dependencies" version={1}>
+    <Type from="../source" as="Source" />
+
+    <Object name="publication">
+        <Field name="owner" type={u64} value={0} />
+        <Field name="kind" type={Source.Kind} value={Source.Kind.ZX} />
+        <Field name="row" type={u64} value={0} />
+        <Field name="targets" type={u64[]} value={[]} />
+    </Object>
+</Store>

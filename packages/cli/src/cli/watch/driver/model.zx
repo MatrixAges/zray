@@ -36,11 +36,14 @@ export type RestoreInput = {
 export type WatchInput = {
     watch: Watch,
     cache: bool,
-    run_application: bool
+    run_application: bool,
+    input_path: string,
+    output_path: string
 }
 
 export type Cycle = WatchInput & {
     running: bool,
+    canceled: bool,
     status: Status
 }
 
@@ -51,7 +54,8 @@ export type Poll = {
     running: bool,
     scans: u64,
     changed: bool,
-    scan_error?: u16
+    canceled: bool,
+    scan_error?: string
 }
 
 export type DiagnosticStore = {
@@ -65,4 +69,24 @@ export type ReportDiagnosticInput = {
     diagnostics: DiagnosticStore
 }
 
-export type Wait = [Watch, Status]
+export type BuildResult = {
+    watch: Watch,
+    status: Status
+}
+
+export enum Notice {
+    Watching,
+    Built,
+    ScanError
+}
+
+export enum WaitOutcome {
+    Idle,
+    Changed,
+    Canceled
+}
+
+export type PollResult = {
+    poll: Poll,
+    result: ScanResult
+}

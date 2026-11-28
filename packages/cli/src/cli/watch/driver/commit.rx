@@ -1,18 +1,18 @@
 <Module>
     <Type from="model" as="Driver" />
 
-    <Args in={Driver.Wait} out={void} />
+    <Args in={Driver.BuildResult} out={void} />
 
     <Store from="state" as="watch_state" />
 
-    <If on={$in[1] == Driver.Status.Success}>
-        <Call fn="index.adoptPublishedSnapshot" in={$in[0]} />
+    <If on={$in.status == Driver.Status.Success}>
+        <Call fn="index.adoptPublishedSnapshot" in={$in.watch} />
 
         <If on={!$ctx.adoptPublishedSnapshot}>
             <Call
                 fn="index.captureSnapshot"
                 in={[
-                    $in[0],
+                    $in.watch,
                     Driver.SnapshotSlot.Success
                 ]}
             />
@@ -21,7 +21,7 @@
         <Call
             fn="index.releaseSnapshot"
             in={[
-                $in[0],
+                $in.watch,
                 Driver.SnapshotSlot.Failure
             ]}
         />
@@ -39,7 +39,7 @@
             <Call
                 module="restore"
                 in={{
-                    watch: $in[0],
+                    watch: $in.watch,
                     has_success: $store.watch_state.snapshots.has_success
                 }}
             />
@@ -47,7 +47,7 @@
             <Call
                 fn="index.captureSnapshot"
                 in={[
-                    $in[0],
+                    $in.watch,
                     Driver.SnapshotSlot.Failure
                 ]}
             />

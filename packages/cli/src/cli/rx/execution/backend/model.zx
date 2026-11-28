@@ -1,5 +1,5 @@
 import type { NativeBuild } from "native_build_host"
-import type { Setup, Views } from "../../../command/scope/model"
+import type { NativeModules, Setup, Views } from "../../../command/scope/model"
 
 export type BuildMode = {
     build: NativeBuild,
@@ -11,7 +11,6 @@ export type Invocation = BuildMode & {
     native: NativeWalk,
     previous_backend: string[],
     observed_paths: string[],
-    native_headers: bool[],
     generated_count: u64
 }
 
@@ -27,6 +26,7 @@ export type RangeInput = {
 
 export type NativeWalk = RangeInput & {
     observed: bool,
+    modules: NativeModules,
     setup: Setup,
     abi_views: Views
 }
@@ -42,20 +42,26 @@ export type AppendInput = NativeWalk & {
 }
 
 export type PreloadInput = {
-    build: NativeBuild,
     previous: string[],
     observed: string[]
 }
 
-export type ExpireInput = {
+export type PathWalk = {
     build: NativeBuild,
-    paths: string[]
+    paths: string[],
+    index: u64
 }
 
 export type ModuleWalk = RangeInput & {
     index: u64
 }
 
-export type ExpireWalk = ExpireInput & {
-    index: u64
+export type AbiWalk = ModuleWalk & {
+    views: Views
+}
+
+export type SupportModule = {
+    name: string,
+    file: string,
+    dependencies: string[]
 }

@@ -1,3 +1,18 @@
-import type { BootstrapPartition } from "output_host"
+import type { PartitionWorkers } from "output_host"
+import type { Input as Layout, Output as LayoutPlan } from "../layout/model"
+import type { State, Output as Placement } from "../placement/model"
+import type { Batch, Status } from "../scanning/model"
 
-export type Input = BootstrapPartition
+export { Status } from "../scanning/model"
+
+export type Input = Layout.Pick("paths", "sizes", "count") & {
+    workers: PartitionWorkers,
+    files: State,
+    support: Batch
+}
+
+export type Output = {
+    status: Status,
+    layout?: LayoutPlan.Pick("roots", "placement"),
+    files?: Placement
+}

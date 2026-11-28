@@ -4,18 +4,18 @@
     <Args in={Step.Step} out={Step.Step} />
 
     <Call
-        fn="index.libraryNativeModule"
-        in={[
-            $in.resources,
-            $in.index
-        ]}
+        fn="native_module"
+        in={{
+            modules: $in.modules,
+            index: $in.index
+        }}
     />
 
     <Call
         fn="../../command/scope/select"
         in={{
             setup: $in.setup,
-            name: $ctx.libraryNativeModule.name
+            name: $ctx.native_module.name
         }}
     />
 
@@ -32,7 +32,7 @@
         in={{
             setup: $in.setup,
             index: $ctx.select,
-            explicit: $ctx.libraryNativeModule.includes,
+            explicit: $ctx.native_module.includes,
             root: $ctx.root
         }}
     />
@@ -41,6 +41,7 @@
         fn="index.bindLibraryModule"
         in={[
             $in.resources,
+            $in.index,
             $ctx.root,
             $ctx.includes
         ]}
@@ -51,8 +52,8 @@
         in={{
             resources: $in.resources,
             includes: $ctx.includes,
-            has_bundle: $ctx.libraryNativeModule.has_bundle,
-            has_header: $ctx.libraryNativeModule.has_header
+            has_bundle: $ctx.native_module.has_bundle,
+            has_header: $ctx.native_module.has_header
         }}
     />
 

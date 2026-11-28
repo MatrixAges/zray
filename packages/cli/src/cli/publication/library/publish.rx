@@ -11,7 +11,7 @@
             destination: $in.destination,
             observed: $in.observed,
             separator: $in.separator,
-            count: $ctx.capture.count
+            count: $ctx.capture
         }}
     />
 
@@ -23,7 +23,6 @@
         fn="../index.verify"
         in={[
             $in.verification,
-            $ctx.capture.snapshot,
             $in.versioned
         ]}
     />
@@ -41,7 +40,13 @@
         ]}
     />
 
-    <Call fn="../index.openDirectory" in={$in.directory} />
+    <Call
+        fn="../index.openDirectory"
+        in={[
+            $in.directory,
+            true
+        ]}
+    />
 
     <Call
         fn="preflight"
@@ -89,13 +94,7 @@
     />
 
     <If on={$in.versioned}>
-        <Call
-            fn="../index.retain"
-            in={[
-                $in.verification,
-                $ctx.capture.snapshot
-            ]}
-        />
+        <Call fn="../index.retain" in={$in.verification} />
     </If>
 
     <Return value={Library.Output.Published} />

@@ -7,11 +7,16 @@
         <Return value={false} />
     </If>
 
-    <If on={$in.versioned}>
-        <Call fn="index.startVersions" in={$in.scan} />
-    </If>
+    <Loop on={$in.same && $in.index < $in.count}>
+        <Call
+            module="scan_row"
+            in={{
+                ...$in.omit(["consistent"]),
+                index: 0,
+                same: true
+            }}
+        />
+    </Loop>
 
-    <Call fn="scan_rows" in={$in.omit(["consistent"])} />
-
-    <Return value={$ctx.scan_rows} />
+    <Return value={$ctx.scan_row.same} />
 </Module>

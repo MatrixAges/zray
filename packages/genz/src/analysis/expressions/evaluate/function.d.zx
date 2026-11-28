@@ -20,22 +20,6 @@ export declare function lowerFunctionPending(frame: Lowering): u64
 export declare function lowerFunctionReferences(frame: Lowering): u64
     throws { OutOfMemory }
 
-export declare function lowerFunctionCommit(frame: Lowering): u64
-    throws { OutOfMemory }
-
-export declare function enterFunctionRepresentation(body: ValueFunction): void
-    throws { OutOfMemory }
-
-export declare function bindFunctionArgument(body: ValueFunction, bind: bool): void
-    throws { OutOfMemory }
-
-export declare function setFunctionOutput(body: ValueFunction, value: bool): void
-
-export declare function emitValuePrototype(body: ValueFunction): void
-    throws { OutOfMemory }
-
-export declare function emitValueBody(body: ValueFunction): void throws { OutOfMemory }
-
 export declare function openPreconditionScope(
     parent: Lowering,
     predicate: Lowering,
@@ -43,24 +27,3 @@ export declare function openPreconditionScope(
 ): void throws { OutOfMemory }
 
 export declare function publishPreconditionScope(parent: Lowering, predicate: Lowering): void
-export declare function startAnalysisBasis(work: AnalysisWork): bool
-
-export declare function buildAnalysisBasis(work: AnalysisWork): void
-
-export declare function collectAnalysisFacts(work: AnalysisWork): bool
-
-export declare function joinAnalysisBasis(work: AnalysisWork): bool
-
-export declare function planAnalysis(work: AnalysisWork): void throws { OutOfMemory }
-
-export declare function planAnalysisConcurrent(work: AnalysisWork): void throws { OutOfMemory }
-
-export declare function analyzeEntryFlags(work: AnalysisWork): void throws { OutOfMemory }
-
-export declare function analyzeIndependentEntry(work: AnalysisWork): void throws { OutOfMemory }
-
-export declare function buildBasisSlots(work: BasisWork): void throws { OutOfMemory }
-
-export declare function hashBasis(work: BasisWork): void throws { OutOfMemory }
-
-export declare function buildBasisFlow(work: BasisWork): BasisFlowRows throws { OutOfMemory }

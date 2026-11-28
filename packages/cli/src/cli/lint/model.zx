@@ -39,8 +39,18 @@ export type CommandInput = {
     semantic: bool
 }
 
-export type SourceInput = {
+export enum SourceOutcome {
+    Valid,
+    Invalid,
+    Unformatted
+}
+
+export type SourceDocument = {
     host: SourceLint,
+    source: u8[]
+}
+
+export type SourceInput = SourceDocument & {
     input_path: u8[]
 }
 

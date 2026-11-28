@@ -170,8 +170,3 @@ export declare function bindStoreRegistryAliases(state: StoreRegistryLoad, row: 
 
 export declare function compileStoreRegistryEntry(state: StoreRegistryLoad, row: u64): void
     throws { OutOfMemory, InvalidSource }
-
-export declare function openStoreRegistryPublication(
-    state: StoreRegistryPublication,
-    row: u64
-): void throws { OutOfMemory }

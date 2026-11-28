@@ -1,11 +1,4 @@
-export type StatePublication = mutable_opaque
-
 export type Lookup = {
-    frame: StatePublication,
-    name: string,
-    key: u8[]
+    key: u8[],
+    source?: u8[]
 }
-
-export declare function lookupStateSource(in: Lookup): u8[]? throws { OutOfMemory }
-
-export declare function renderStateSource(frame: StatePublication): u8[] throws { OutOfMemory }

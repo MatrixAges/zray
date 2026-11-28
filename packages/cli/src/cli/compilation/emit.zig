@@ -8,10 +8,10 @@ const artifacts = @import("../artifacts.zig");
 const generation = @import("../generation_cache.zig");
 const verification = @import("../verify.zig");
 
-pub fn reportCompilationCacheBypass(handle: *const anyopaque) Error!void {
+pub fn writeCompilationDiagnostic(handle: *const anyopaque, message: []const u8) Error!void {
     const self = State.get(handle);
 
-    self.context.stderr.writeAll("zxc cache: compiled library inputs bypass semantic artifacts; parsing and generation caches remain available\n") catch |err| return self.failure.save(err);
+    self.context.stderr.writeAll(message) catch |err| return self.failure.save(err);
 }
 
 pub fn loadCompilationCache(handle: *const anyopaque) Error!void {
@@ -40,37 +40,26 @@ pub fn reportCompilationCache(handle: *const anyopaque) Error!void {
     self.storage.?.report(&self.semantic.?, self.context.stderr) catch |err| return self.failure.save(err);
 }
 
-pub fn reportCompilationCacheDisabled(handle: *const anyopaque) Error!void {
+pub fn analyzeCompilation(handle: *const anyopaque, cache: bool) Error!?[]const u8 {
     const self = State.get(handle);
+    const allocator = self.context.allocator;
 
-    self.context.stderr.writeAll("zxc cache: disabled\n") catch |err| return self.failure.save(err);
-}
+    self.analyzed = if (cache)
+        compiler.analyzeProjectIncremental(allocator, self.sources, self.loaded.project, &self.semantic.?) catch |err| return self.failure.save(err)
 
-pub fn analyzeCompilationCached(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
+    else
+        compiler.analyzeProjectWithCache(allocator, self.sources, self.loaded.project, &self.semantic.?.parse_cache) catch |err| return self.failure.save(err);
 
-    self.analyzed = compiler.analyzeProjectIncremental(self.context.allocator, self.sources, self.loaded.project, &self.semantic.?) catch |err| return self.failure.save(err);
-}
-
-pub fn analyzeCompilationUncached(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    self.analyzed = compiler.analyzeProjectWithCache(self.context.allocator, self.sources, self.loaded.project, &self.semantic.?.parse_cache) catch |err| return self.failure.save(err);
-}
-
-pub fn checkCompilationAnalysis(handle: *const anyopaque, proof: bool) Error!bool {
-    const self = State.get(handle);
     const result = &self.analyzed.?.value;
 
-    if (result.* != .diagnostic) return true;
-
-    self.context.stderr.print("{s}: {s}\n", .{ if (proof) "verification" else "fpga", result.diagnostic.message }) catch |err| return self.failure.save(err);
-
-    return false;
+    return if (result.* == .diagnostic) result.diagnostic.message else null;
 }
 
 pub fn verifyCompilationProgram(handle: *const anyopaque) Error!bool {
     const self = State.get(handle);
+
+    defer closeAnalysis(self);
+
     const options = self.options();
 
     return compiler.verification.check(self.context.io, verification.workspace_allocator, self.analyzed.?.value.ir, self.sources, self.loaded.project.entry, .{ .solver = options.solver, .output = options.output }, self.context.stderr) catch |err| self.failure.save(err);
@@ -79,12 +68,12 @@ pub fn verifyCompilationProgram(handle: *const anyopaque) Error!bool {
 pub fn generateCompilationFpga(handle: *const anyopaque) Error!bool {
     const self = State.get(handle);
 
+    defer closeAnalysis(self);
+
     return @import("../fpga.zig").runProgram(self.context, &self.analyzed.?.value.ir, self.sources, self.loaded.project.entry) catch |err| self.failure.save(err);
 }
 
-pub fn closeCompilationAnalysis(handle: *const anyopaque) void {
-    const self = State.get(handle);
-
+fn closeAnalysis(self: *State) void {
     self.analyzed.?.deinit();
 
     self.analyzed = null;

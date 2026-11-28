@@ -1,21 +1,15 @@
 import memory from "memory"
 import columns from "memory/columns"
 
-import type { MixedImportRows } from "rx_project_host"
+import type { Plan, Rows } from "./model"
 
 export type Input = {
     names: string[],
     indices: u64[],
-    rows: MixedImportRows
+    rows: Rows
 }
 
-export type Output = {
-    exported: bool,
-    prefix: u64,
-    fits: bool,
-    names: string[],
-    sources: u8[][]
-}
+export type Output = Plan
 
 export default function (in: Input): Output {
     const { names, indices, rows } = in

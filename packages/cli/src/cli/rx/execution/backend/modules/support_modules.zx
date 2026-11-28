@@ -1,0 +1,38 @@
+import {
+    abi_module,
+    abi_source,
+    application_module,
+    napi_module,
+    napi_source
+} from "../../../../command/const"
+
+import type { SupportModule } from "../model"
+
+export type Input = bool
+
+export type Output = {
+    abi: SupportModule,
+    napi?: SupportModule
+}
+
+export default function (in: Input): Output {
+    const abi: SupportModule = {
+        name: abi_module,
+        file: abi_source,
+        dependencies: []
+    }
+
+    const napi: SupportModule? = match {
+        in => {
+            name: napi_module,
+            file: napi_source,
+            dependencies: [application_module]
+        },
+        _ => null
+    }
+
+    return {
+        abi,
+        napi
+    }
+}

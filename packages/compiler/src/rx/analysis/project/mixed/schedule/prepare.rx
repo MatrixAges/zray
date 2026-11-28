@@ -1,7 +1,10 @@
 <Module>
     <Type from="preparation" as="Preparation" />
+    <Type from="../ahead/reset" as="Reset" />
 
     <Args in={Preparation.Request} out={u64} />
+
+    <Store from="../ahead/workspace" as="workspace" />
 
     <Call module="../ahead/recycle" in={$in.prior} />
 
@@ -50,7 +53,14 @@
 
             <Else>
                 <If on={$ctx.collect.count != 0}>
-                    <Call fn="host.clearMixedResults" in={$in.prior.workspace} />
+                    <Call
+                        fn="../ahead/stage_recycle"
+                        in={{
+                            action: Reset.Action.ClearResults,
+                            worker: 0
+                        }}
+                        setter={[$store.workspace.recycle]}
+                    />
                 </If>
             </Else>
         </If>

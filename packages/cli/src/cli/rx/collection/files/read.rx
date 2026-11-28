@@ -15,17 +15,24 @@
                 collection: $in.collection,
                 kind: $in.kind,
                 first: $in.first,
-                availability: $ctx.resolveCollectionPhysicalPath.availability
+                availability: $ctx.resolveCollectionPhysicalPath.availability,
+                problem: $ctx.resolveCollectionPhysicalPath.problem
             }}
         />
 
         <Return value={$ctx.unavailable} />
     </If>
 
-    <Call fn="outside" in={$ctx.resolveCollectionPhysicalPath.relative} />
+    <Call fn="escape_diagnostic" in={$ctx.resolveCollectionPhysicalPath.relative} />
 
-    <If on={$ctx.outside}>
-        <Call fn="../index.reportCollectionEscape" in={$in.collection} />
+    <If on={$ctx.escape_diagnostic != null}>
+        <Call
+            fn="../index.writeCollectionDiagnostic"
+            in={[
+                $in.collection,
+                $ctx.escape_diagnostic
+            ]}
+        />
 
         <Return value={Collection.Readiness.Invalid} />
     </If>
@@ -48,11 +55,13 @@
         on={$ctx.register_physical.status ==
             Collection.PhysicalRegistration.AliasConflict}
     >
+        <Call fn="alias_message" in={$ctx.register_physical.previous} />
+
         <Call
-            fn="../index.reportCollectionAlias"
+            fn="../index.writeCollectionDiagnostic"
             in={[
                 $in.collection,
-                $ctx.register_physical.previous
+                $ctx.alias_message
             ]}
         />
 
@@ -67,14 +76,15 @@
         ]}
     />
 
-    <If on={$ctx.readCollectionFile != IO.Availability.Ready}>
+    <If on={$ctx.readCollectionFile.availability != IO.Availability.Ready}>
         <Call
             module="unavailable"
             in={{
                 collection: $in.collection,
                 kind: $in.kind,
                 first: $in.first,
-                availability: $ctx.readCollectionFile
+                availability: $ctx.readCollectionFile.availability,
+                problem: $ctx.readCollectionFile.problem
             }}
         />
 

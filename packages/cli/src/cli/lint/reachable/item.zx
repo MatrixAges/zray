@@ -1,0 +1,9 @@
+import type { Item, Walk } from "./model"
+
+export type Input = Walk
+
+export type Output = Item
+
+export default function (in: Input): Output {
+    return in.items[in.index]
+}

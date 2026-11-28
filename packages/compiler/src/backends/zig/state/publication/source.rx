@@ -4,41 +4,36 @@
     <Args in={Publish.Input} out={Publish.Source} />
 
     <If on={!$in.cached}>
-        <Call fn="index.renderStateSource" in={$in.frame} />
+        <Return
+            value={{
+                action: Publish.Action.Render
+            }}
+        />
+    </If>
+
+    <If on={$in.lookup != null}>
+        <If on={$in.lookup.source != null}>
+            <Return
+                value={{
+                    action: Publish.Action.Reuse,
+                    source: $in.lookup.source
+                }}
+            />
+        </If>
 
         <Return
             value={{
-                source: $ctx.renderStateSource,
-                cache_key: null
+                action: Publish.Action.Render,
+                cache_key: $in.lookup.key
             }}
         />
     </If>
 
     <Call fn="fingerprint" in={$in.key} />
 
-    <Call
-        fn="index.lookupStateSource"
-        in={{
-            frame: $in.frame,
-            name: $in.name,
-            key: $ctx.fingerprint
-        }}
-    />
-
-    <If on={$ctx.lookupStateSource != null}>
-        <Return
-            value={{
-                source: $ctx.lookupStateSource,
-                cache_key: null
-            }}
-        />
-    </If>
-
-    <Call fn="index.renderStateSource" in={$in.frame} />
-
     <Return
         value={{
-            source: $ctx.renderStateSource,
+            action: Publish.Action.Lookup,
             cache_key: $ctx.fingerprint
         }}
     />

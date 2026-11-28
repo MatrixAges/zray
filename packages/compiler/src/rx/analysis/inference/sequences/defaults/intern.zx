@@ -2,11 +2,10 @@ import insert from "core/integer/index/insert_columns"
 
 import canonical from "./canonical"
 
-import type { U32Buffer } from "memory"
 import type { Classes } from "./model"
 
 export type Input = {
-    parents: U32Buffer,
+    parents: u32[],
     classes: Classes,
     keys: u32[],
     buckets: u32[],

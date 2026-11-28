@@ -1,0 +1,14 @@
+import type { Output as Source } from "../source"
+
+export type Input = Source
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.dependencies.publication = {
+        ...in,
+        targets: []
+    }
+}

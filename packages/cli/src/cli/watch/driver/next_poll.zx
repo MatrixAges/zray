@@ -1,17 +1,13 @@
-import host from "watch_host"
-
 import { backend_retry_polls } from "./const"
 
-import type { Poll as Input } from "./model"
-
-export type Output = Input
+import type { Poll as Output, PollResult as Input } from "./model"
 
 export default function (in: Input): Output {
-    const outcome = host.scanInputs(in.watch, in.snapshot)
+    const { poll, result } = in
 
-    const scans = in.scans + 1
-    const changed = outcome.changed
-    const retry = !changed && outcome.error_code == null && in.retry_backend
+    const scans = poll.scans + 1
+    const changed = result.changed
+    const retry = !changed && result.error_name == null && poll.retry_backend
 
     const running = match {
         changed => false,
@@ -20,12 +16,10 @@ export default function (in: Input): Output {
     }
 
     return {
-        watch: in.watch,
-        snapshot: in.snapshot,
-        retry_backend: in.retry_backend,
+        ...poll,
         running,
         scans,
         changed,
-        scan_error: outcome.error_code
+        scan_error: result.error_name
     }
 }

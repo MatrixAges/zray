@@ -1,12 +1,31 @@
-import type { BootstrapMirror } from "output_host"
-
-export type Input = {
-    target: BootstrapMirror,
-    previous_paths?: string[],
-    previous_bytes: u8[][],
-    previous_hashes: u64[]
+export enum Prune {
+    None,
+    Manifest,
+    Directory
 }
 
-export type Trimming = Input.Pick("target", "previous_paths") & {
+export type Input = {
+    paths: string[],
+    path_bytes: u8[][],
+    hashes: u64[],
+    previous_bytes: u8[][],
+    previous_hashes: u64[],
+    present: bool,
+    trimming?: Inventory
+}
+
+export type Inventory = {
+    files: string[],
+    preserve_fingerprint: bool
+}
+
+export type Trimming = Inventory & {
     paths: u8[][]
+}
+
+export type Output = {
+    folders: u8[][],
+    changed: u32[],
+    prune: Prune,
+    stale: string[]
 }

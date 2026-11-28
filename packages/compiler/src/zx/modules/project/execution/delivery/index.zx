@@ -6,15 +6,16 @@ export {
     loadProjectNativeUnit,
     rememberProjectNativeUnit,
     bindProjectLegacy,
-    prepareProjectIntrinsic,
     resolveProjectImport,
     selectProjectSource,
-    prepareProjectSource,
     loadProjectLibrary,
     bindProjectImport,
-    prepareDeferredProjectSignature,
     rejectProjectSource,
     recordProjectImport
 } from "project_host"
 
-export type { ProjectImportRoute, ProjectSourceAction } from "project_host"
+export type {
+    ProjectImportKind,
+    ProjectImportRoute,
+    ProjectSourceAction
+} from "project_host"

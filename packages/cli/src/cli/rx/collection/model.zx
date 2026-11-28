@@ -38,9 +38,10 @@ export type ServicesInput = {
     count: u64
 }
 
-export type Row = {
+export type Visit = {
     collection: Collection,
-    index: u64
+    path: string,
+    first: bool
 }
 
 export type Document = {
@@ -57,7 +58,8 @@ export type Unavailable = {
     collection: Collection,
     kind: Kind,
     first: bool,
-    availability: Availability
+    availability: Availability,
+    problem: string
 }
 
 export type Walk = {

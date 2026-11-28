@@ -1,5 +1,4 @@
 import type { State as KnownTypes } from "core/integer/map/model"
-import type { U32Buffer } from "memory"
 import type { ProjectionSpans } from "rx_project_host"
 import type { Graph, IndexPlan } from "../sequences/model"
 
@@ -11,7 +10,7 @@ export enum Action {
 
 export type Input = {
     graph: Graph,
-    parents: U32Buffer,
+    parents: u32[],
     targets: u32[],
     values: u32[],
     resolved: bool[],

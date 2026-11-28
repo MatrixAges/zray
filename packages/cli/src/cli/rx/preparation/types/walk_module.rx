@@ -16,7 +16,6 @@
             <Call
                 module="walk_reference"
                 in={{
-                    types: $in.types,
                     references: $in.references,
                     scoped: $in.scoped,
                     diagnostic: $in.diagnostic,

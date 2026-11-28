@@ -1,47 +1,21 @@
 <Module>
     <Type from="model" as="Sources" />
 
-    <Args in={Sources.Record} out={bool} />
+    <Args in={Sources.Reuse} out={Sources.Record} />
 
     <If on={$in.ordered}>
-        <Call
-            fn="host.recordCachedRows"
-            in={[
-                $in.batch,
-                0,
-                $in.count
-            ]}
-        />
-
-        <Return value={$ctx.recordCachedRows} />
-    </If>
-
-    <Loop on={$in.remaining != 0 && $in.failure == null}>
-        <Call
-            module="adopt"
-            in={{
-                batch: $in.batch,
-                stored: $in.stored,
-                remaining: $in.stored.length,
-                failure: null
+        <Return
+            value={{
+                order: Sources.Order.All,
+                stored: []
             }}
         />
-    </Loop>
-
-    <If on={$ctx.adopt.failure != null}>
-        <Call
-            fn="host.recordCachedRows"
-            in={[
-                $in.batch,
-                0,
-                $ctx.adopt.failure
-            ]}
-        />
-
-        <Return value={false} />
     </If>
 
-    <Call fn="host.accountCachedSources" in={$in.batch} />
-
-    <Return value={true} />
+    <Return
+        value={{
+            order: Sources.Order.StoredDescending,
+            stored: $in.stored
+        }}
+    />
 </Module>

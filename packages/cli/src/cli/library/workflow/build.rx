@@ -4,11 +4,17 @@
 
     <Args in={Model.Input} out={Library.BuildStatus} />
 
-    <If on={!$in.has_exports}>
-        <Call fn="index.configureLibraryEntry" in={$in.build} />
+    <If on={!$in.has_exports && $in.fallback_entry == null}>
+        <Return value={Library.BuildStatus.MissingEntry} />
     </If>
 
-    <Call fn="index.analyzeLibraryBuild" in={$in.build} />
+    <Call
+        fn="index.analyzeLibraryBuild"
+        in={[
+            $in.build,
+            $in.has_exports ? null : $in.fallback_entry
+        ]}
+    />
 
     <If on={!$ctx.analyzeLibraryBuild}>
         <Return value={Library.BuildStatus.Failed} />
@@ -38,7 +44,5 @@
         <Return value={Library.BuildStatus.Retry} />
     </If>
 
-    <Call fn="index.rejectChangedLibraryBuild" in={$in.build} />
-
-    <Return value={Library.BuildStatus.Failed} />
+    <Return value={Library.BuildStatus.Changed} />
 </Module>

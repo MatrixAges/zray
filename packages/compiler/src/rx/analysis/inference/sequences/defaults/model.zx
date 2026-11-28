@@ -1,4 +1,3 @@
-import type { U32Buffer } from "memory"
 import type { Kind } from "../../unification/model"
 
 export enum Reach {
@@ -31,7 +30,7 @@ export type Output = {
 }
 
 export type Graph = {
-    parents: U32Buffer,
+    parents: u32[],
     kinds: Kind[],
     arguments: u32[],
     members: u32[][]

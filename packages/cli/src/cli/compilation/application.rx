@@ -13,23 +13,20 @@
     <Call fn="index.openCompilationCaches" in={$in.compilation} />
     <Call fn="index.readCompilationDependencies" in={$in.compilation} />
 
-    <If on={$ctx.readCompilationDependencies == null}>
+    <If on={$ctx.readCompilationDependencies == IO.Dependencies.Invalid}>
         <Return value={IO.Status.Failed} />
     </If>
 
-    <If on={$ctx.readCompilationDependencies == true}>
-        <Call fn="index.runCompilationRx" in={$in.compilation} />
-
-        <Return value={$ctx.runCompilationRx} />
+    <If on={$ctx.readCompilationDependencies == IO.Dependencies.Rx}>
+        <Return value={IO.Status.RunRx} />
     </If>
-
-    <Call fn="index.adoptCompilationInputs" in={$in.compilation} />
 
     <Call
         module="cache/load"
         in={{
             ...$in,
-            has_compiled_libraries: $ctx.adoptCompilationInputs
+            has_compiled_libraries:
+                $ctx.readCompilationDependencies == IO.Dependencies.WithLibraries
         }}
     />
 

@@ -1,11 +1,11 @@
 export { PathKind, Reuse } from "snapshot_host"
 
-import type { Observation, Registration, Scan } from "snapshot_host"
+import type { Observation, Registration } from "snapshot_host"
 
-export type { Registration, Scan } from "snapshot_host"
+export type { Registration } from "snapshot_host"
 
 export type ScanInput = {
-    scan: Scan,
+    scan: Observation,
     count: u64,
     consistent: bool,
     versioned: bool,
@@ -32,4 +32,9 @@ export enum Admission {
     Unchanged,
     New,
     Upgrade
+}
+
+export type ScanRow = ScanRows & {
+    index: u64,
+    same: bool
 }

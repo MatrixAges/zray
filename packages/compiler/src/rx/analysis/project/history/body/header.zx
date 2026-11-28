@@ -1,6 +1,5 @@
 import bytes from "std:bytes"
 import memory from "memory"
-import host from "rx_project_host"
 
 import type { Edit } from "./model"
 
@@ -9,24 +8,22 @@ export type Input = Edit
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { context, row } = in
+    const { sources, row, opening } = in
 
-    const before = memory.readTextColumn(context.sources.earlier.texts, row)
-    const after = memory.readTextColumn(context.sources.current.texts, row)
-    const body = host.historyBodyOpening(context.cache, context.paths[row], after)
-
-    if (body == null) {
+    if (opening == null) {
         return false
     }
 
+    const before = memory.readTextColumn(sources.earlier.texts, row)
+    const after = memory.readTextColumn(sources.current.texts, row)
     const earlier = bytes.fromText(before)
     const current = bytes.fromText(after)
 
-    if (body >= earlier.length || body >= current.length) {
+    if (opening >= earlier.length || opening >= current.length) {
         return false
     }
 
-    const length = body + 1
+    const length = opening + 1
     const earlier_header = earlier.splice(0, length, [])[1]
     const current_header = current.splice(0, length, [])[1]
 

@@ -30,20 +30,20 @@ pub fn deinit(self: *Self) void {
     self.* = undefined;
 }
 
-const Read = struct {
+const Access = struct {
     disk: *Self,
-    sources: []const compiler.project.Source,
-    project: *const compiler.project.Options,
     cache: *SemanticCache,
+    sources: []const compiler.project.Source = &.{},
+    project: *const compiler.project.Options = undefined,
     seen: std.StringHashMapUnmanaged(void) = .empty,
     failure: Effects.Failure = .{},
-    fn get(handle: *const anyopaque) *Read {
-        return Effects.state(Read, handle);
+    fn get(handle: *const anyopaque) *Access {
+        return Effects.state(Access, handle);
     }
 };
 
 pub fn load(self: *Self, sources: []const compiler.project.Source, project: compiler.project.Options, cache: *SemanticCache) !void {
-    var state: Read = .{ .disk = self, .sources = sources, .project = &project, .cache = cache };
+    var state: Access = .{ .disk = self, .sources = sources, .project = &project, .cache = cache };
     const reference = &state;
 
     defer state.seen.deinit(self.allocator);
@@ -55,7 +55,7 @@ pub fn load(self: *Self, sources: []const compiler.project.Source, project: comp
 }
 
 pub fn loadDiskSemanticSource(handle: *const anyopaque, index: u64) Error!void {
-    const self = Read.get(handle);
+    const self = Access.get(handle);
     const disk = self.disk;
     const cache = self.cache;
     const source = &self.sources[@intCast(index)];
@@ -115,15 +115,6 @@ fn loadEntry(self: *Self, allocator: std.mem.Allocator, entries: *SemanticCache.
     return true;
 }
 
-const Write = struct {
-    disk: *Self,
-    cache: *SemanticCache,
-    failure: Effects.Failure = .{},
-    fn get(handle: *const anyopaque) *Write {
-        return Effects.state(Write, handle);
-    }
-};
-
 pub fn save(self: *Self, cache: *SemanticCache) !void {
     var arena = std.heap.ArenaAllocator.init(self.allocator);
 
@@ -138,7 +129,7 @@ pub fn save(self: *Self, cache: *SemanticCache) !void {
     for (source_values, 0..) |entry, index| source_dirty[index] = entry.dirty;
     for (native_values, 0..) |entry, index| native_dirty[index] = entry.dirty;
 
-    var state: Write = .{ .disk = self, .cache = cache };
+    var state: Access = .{ .disk = self, .cache = cache };
     const reference = &state;
 
     @import("cli_source").save_disk_semantic_cache.executeIn(owned, &.{
@@ -149,7 +140,7 @@ pub fn save(self: *Self, cache: *SemanticCache) !void {
 }
 
 pub fn saveDiskSemanticEntry(handle: *const anyopaque, is_native: bool, index: u64) Error!void {
-    const self = Write.get(handle);
+    const self = Access.get(handle);
     const disk = self.disk;
     const row: usize = @intCast(index);
     const entries = if (is_native) &self.cache.native.items else &self.cache.entries;

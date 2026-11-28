@@ -62,18 +62,10 @@ pub fn run(context: Compile.Context, loaded: Loaded, inputs: ?*Inputs) !Compile.
     return if (verified) .success else .failed;
 }
 
-pub fn confirmProofInterface(handle: *const anyopaque, index: u64) Error!void {
+pub fn writeProofMessage(handle: *const anyopaque, message: []const u8) Error!void {
     const self = effects.state(State, handle);
-    const name = self.library.exports[@intCast(index)].name;
 
-    self.context.stderr.print("public module {s}: type interface validated; no executable proof obligation\n", .{name}) catch |err| return self.failure.save(err);
-}
-
-pub fn writeProofHeading(handle: *const anyopaque, index: u64) Error!void {
-    const self = effects.state(State, handle);
-    const name = self.library.exports[@intCast(index)].name;
-
-    self.context.stderr.print("public module {s}:\n", .{name}) catch |err| return self.failure.save(err);
+    self.context.stderr.writeAll(message) catch |err| return self.failure.save(err);
 }
 
 pub fn verifyPublicExport(handle: *const anyopaque, index: u64, output: ?[]const u8) Error!bool {

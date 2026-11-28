@@ -1,6 +1,4 @@
 export {
     prepareLibraryLinkInput,
-    takeCompiledLibrary,
-    allocateLinkInputs,
     linkLibraryInputs
 } from "library_workflow_host"

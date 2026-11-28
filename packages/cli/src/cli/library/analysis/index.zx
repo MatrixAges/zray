@@ -1,5 +1,4 @@
 export {
-    missingLibraryExports,
     loadCompiledLibrary,
     beginLibraryAnalysis,
     selectLibraryExport,

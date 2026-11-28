@@ -1,6 +1,6 @@
 import integers from "std:integer"
 
-import representative from "../forest/borrowed_root"
+import representative from "../forest/root"
 import { Kind } from "../unification/model"
 import { Route } from "./model"
 

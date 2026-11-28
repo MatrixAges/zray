@@ -21,7 +21,7 @@
     <Call
         fn="../index.validateTypeSourceFile"
         in={[
-            $in.types,
+            $in.references,
             $in.path
         ]}
     />
@@ -30,7 +30,7 @@
         <Call
             fn="../index.validateTypeSourceRoot"
             in={[
-                $in.types,
+                $in.references,
                 $in.path
             ]}
         />
@@ -39,7 +39,7 @@
     <Call
         fn="../index.readPreparedTypeSource"
         in={[
-            $in.types,
+            $in.references,
             $in.ref_index,
             $in.path
         ]}

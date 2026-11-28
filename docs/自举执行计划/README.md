@@ -89,4 +89,5 @@ flowchart TD
 - [Wave 101](waves/wave-101.md)（`11b7120d4` · 已完成）
 - [Wave 102](waves/wave-102.md)（`1df708af1` · 已完成）
 - [Wave 103](waves/wave-103.md)（`ebae849a7` · 已完成）
-- [Wave 104](waves/wave-104.md)（已完成）
+- [Wave 104](waves/wave-104.md)（`03d85d08a` · 已完成）
+- [Wave 105](waves/wave-105.md)（已完成）

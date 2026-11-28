@@ -6,7 +6,12 @@
     <Call fn="../index.applicationFinished" in={$in} />
 
     <If on={$ctx.applicationFinished}>
-        <Call fn="../index.stopApplication" in={$in} />
-        <Call fn="../index.reportApplicationExit" in={$in} />
+        <Call
+            fn="../index.stopApplication"
+            in={[
+                $in,
+                true
+            ]}
+        />
     </If>
 </Module>

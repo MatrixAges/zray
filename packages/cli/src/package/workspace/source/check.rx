@@ -3,15 +3,7 @@
 
     <Args in={Ownership.Input} out={Ownership.Status} />
 
-    <Call
-        fn="index.scopeRoot"
-        in={[
-            $in.source,
-            $in.path
-        ]}
-    />
-
-    <If on={$ctx.scopeRoot != null}>
+    <If on={$in.root != null}>
         <Call
             fn="index.physicalSource"
             in={[
@@ -32,7 +24,7 @@
                 in={{
                     source: $in.source,
                     directory: $ctx.parent,
-                    root: $ctx.scopeRoot
+                    root: $in.root
                 }}
             />
 

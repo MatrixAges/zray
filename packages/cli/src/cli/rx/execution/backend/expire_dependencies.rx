@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Model" />
 
-    <Args in={Model.ExpireWalk} out={Model.ExpireWalk} />
+    <Args in={Model.PathWalk} out={Model.PathWalk} />
 
     <Call
         fn="index.expireBackendPath"

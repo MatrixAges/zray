@@ -7,11 +7,21 @@
     <Call
         fn="preload_dependencies"
         in={{
-            build: $in.build,
             previous: $in.previous_backend,
             observed: $in.observed_paths
         }}
     />
+
+    <Loop on={$in.index < $in.paths.length}>
+        <Call
+            module="preload_dependency"
+            in={{
+                build: $in.build,
+                paths: $ctx.preload_dependencies,
+                index: 0
+            }}
+        />
+    </Loop>
 
     <Call fn="index.openBackendTranslation" in={$in.build} />
     <Call fn="index.openBackendEnvironment" in={$in.build} />
@@ -51,7 +61,7 @@
     </If>
 
     <If on={$ctx.reportObservedNativeBuild == false}>
-        <Call fn="index.rejectIncompleteBackendInputs" in={$in.build} />
+        <Return value={IO.Status.IncompleteInputs} />
     </If>
 
     <Call fn="index.publishObservedNativeBuild" in={$in.build} />

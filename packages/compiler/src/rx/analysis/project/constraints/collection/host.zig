@@ -11,7 +11,6 @@ const Body = layouts.ConstraintBody;
 pub const Frame = struct {
     state: *Collection = undefined,
     input: Input = undefined,
-    parents: []u32 = undefined,
     edges: std.meta.Child(@FieldType(Columns, "edges")) = undefined,
     known: std.meta.Child(@FieldType(Input, "default_known")) = undefined,
     columns: Columns = undefined,
@@ -23,7 +22,6 @@ pub const Frame = struct {
         self.input = .{
             .frame = @ptrCast(self),
             .modules = state.modules.len,
-            .parents = @ptrCast(&self.parents),
             .default_columns = &self.columns,
             .default_known = &self.known,
         };
@@ -95,13 +93,11 @@ pub fn commitConstraintPort(handle: *anyopaque, row: u64, fixed: bool, binding_e
     states.items(.task_end)[index] = task_end;
 }
 
-pub fn openConstraintDefaults(handle: *anyopaque) void {
+pub fn openConstraintDefaults(handle: *anyopaque) []const u32 {
     const frame = Frame.borrow(handle);
     const state = frame.state;
     const graph = state.graph;
     const edges = graph.pending.assignments.slice();
-
-    frame.parents = graph.parents();
 
     frame.edges = .{
         .left = @ptrCast(edges.items(.value)),
@@ -115,13 +111,15 @@ pub fn openConstraintDefaults(handle: *anyopaque) void {
         .fixed = state.states.items(.input_fixed),
         .edges = &frame.edges,
     };
+
+    return graph.parents();
 }
 
-pub fn defaultConstraintInput(handle: *anyopaque, input: u32) zx.Error!void {
+pub fn defaultConstraintInput(handle: *anyopaque, input: u32) zx.Error![]const u32 {
     const frame = Frame.borrow(handle);
     const graph = frame.state.graph;
 
     try Defaults.default(graph, @fromBackingInt(input));
 
-    frame.parents = graph.parents();
+    return graph.parents();
 }

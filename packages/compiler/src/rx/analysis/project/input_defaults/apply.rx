@@ -8,7 +8,7 @@
     <Call
         fn="index_references"
         in={{
-            parents: $in.parents,
+            parents: $ctx.openConstraintDefaults,
             unused: $in.unused,
             default_known: $in.default_known,
             columns: $in.default_columns
@@ -20,7 +20,7 @@
             module="advance"
             in={{
                 frame: $in.frame,
-                parents: $in.parents,
+                parents: $ctx.openConstraintDefaults,
                 columns: $in.default_columns,
                 marked: $ctx.index_references.marked,
                 protected: $ctx.index_references.protected,

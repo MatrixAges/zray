@@ -59,6 +59,7 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
         .request = request,
         .manifest_source = manifest_source,
         .project = project,
+        .stamp_path = if (request.write) try std.fs.path.join(allocator, &.{ request.output, publication.stamp_name }) else "",
     };
 
     if (comptime !generated) return frame.seed();
@@ -68,6 +69,7 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
     const input: std.meta.Child(workflow.Input) = .{
         .request = @ptrCast(&frame),
         .write = request.write,
+        .stamp_path = frame.stamp_path,
         .roots = project.roots.len,
     };
 
@@ -75,7 +77,7 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
 
     defer arena.deinit();
 
-    return workflow.executeIn(arena.allocator(), &input) catch |err| return frame.failure orelse err;
+    return workflow.executeIn(arena.allocator(), &input, io) catch |err| return frame.failure orelse err;
 }
 
 const Generation = struct {
@@ -89,8 +91,7 @@ const Generation = struct {
     project: manifest.Project,
     documents: std.ArrayList(collection.Document) = .empty,
     snapshot: InputSnapshot = undefined,
-    stamp_path: []const u8 = undefined,
-    stamp_buffer: [publication.stamp_width + 1]u8 = undefined,
+    stamp_path: []const u8,
     packages: []const compiler.project.Package = undefined,
     inputs: collection.Catalog = undefined,
     interfaces: interface_inputs.Result = undefined,
@@ -123,7 +124,6 @@ const Generation = struct {
     }
     fn observe(self: *Generation) !?[]const u8 {
         self.snapshot = try InputSnapshot.prepare(self.io, self.allocator, self.owned, &self.resident.files, self.resident.digest, self.project, self.manifest_source, self.request.partitions, self.request.cache);
-        self.stamp_path = try std.fs.path.join(self.allocator, &.{ self.request.output, publication.stamp_name });
 
         return if (self.snapshot.fingerprint) |*digest| digest else null;
     }
@@ -259,20 +259,6 @@ const Generation = struct {
         return digest[0..@sizeOf(fingerprint.Digest)].*;
     }
 
-    fn readStamp(self: *Generation) !?[]const u8 {
-        return std.Io.Dir.cwd().readFile(self.io, self.stamp_path, &self.stamp_buffer) catch |err| switch (err) {
-            error.FileNotFound => null,
-            else => err,
-        };
-    }
-
-    fn invalidateStamp(self: *const Generation) !void {
-        std.Io.Dir.cwd().deleteFile(self.io, self.stamp_path) catch |err| switch (err) {
-            error.FileNotFound => {},
-            else => return err,
-        };
-    }
-
     fn prepareTemplates(self: *Generation) !void {
         self.sources = switch (try compiler.project.prepareSources(self.owned, self.inputs.sources, .{ .entry = "" })) {
             .sources => |items| items,
@@ -301,18 +287,15 @@ const Generation = struct {
             .fingerprint = self.digest,
         });
     }
-    fn writeStamp(self: *const Generation) !void {
-        try std.Io.Dir.cwd().writeFile(self.io, .{ .sub_path = self.stamp_path, .data = &publication.stamp(&self.digest) });
-    }
     fn saveSnapshot(self: *const Generation) !void {
         self.snapshot.save(self.io, &self.resident.files, self.digest) catch |err| switch (err) {
             error.OutOfMemory => return error.OutOfMemory,
             else => {},
         };
     }
-
     fn seedStampMatches(self: *Generation, digest: *const fingerprint.Digest) !bool {
-        const recorded = try self.readStamp() orelse return false;
+        var buffer: [publication.stamp_width + 1]u8 = undefined;
+        const recorded = try readStamp(self.io, self.stamp_path, &buffer) orelse return false;
 
         return recorded.len == publication.stamp_width and std.mem.eql(u8, recorded, &publication.stamp(digest));
     }
@@ -336,7 +319,7 @@ const Generation = struct {
                 return "";
             }
 
-            try self.invalidateStamp();
+            try invalidateGenerationStamp(self.io, self.stamp_path);
         }
 
         const previous = if (self.interfaces.failure == null) self.resident.exactAnalysis(&self.digest) else null;
@@ -350,7 +333,7 @@ const Generation = struct {
         };
 
         if (self.request.write) {
-            try self.writeStamp();
+            try writeGenerationStamp(self.io, self.stamp_path, &publication.stamp(&self.digest));
             try self.saveSnapshot();
         }
 
@@ -374,12 +357,9 @@ const Generation = struct {
     pub const retainGenerationPackages = effect(preparePackages).invoke;
     pub const classifyGenerationDocuments = effect(classify).invoke;
     pub const registerGenerationInterfaces = effect(registerInterfaces).invoke;
-    pub const readGenerationStamp = effect(readStamp).invoke;
-    pub const invalidateGenerationStamp = effect(invalidateStamp).invoke;
     pub const prepareGenerationTemplates = effect(prepareTemplates).invoke;
     pub const prepareGenerationModules = effect(prepareModules).invoke;
     pub const generateFromPreparedInputs = effect(emit).invoke;
-    pub const writeGenerationStamp = effect(writeStamp).invoke;
     pub const saveGenerationSnapshot = effect(saveSnapshot).invoke;
 
     pub fn loadGenerationRoot(handle: *anyopaque, row: u64, observed: bool) Error!void {
@@ -416,6 +396,36 @@ const Generation = struct {
         if (self.interfaces.failure) |err| return self.fail(err);
     }
 };
+
+fn readStamp(io: std.Io, path: []const u8, buffer: []u8) !?[]const u8 {
+    return std.Io.Dir.cwd().readFile(io, path, buffer) catch |err| switch (err) {
+        error.FileNotFound => null,
+        else => err,
+    };
+}
+
+pub fn readGenerationStamp(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !?[]const u8 {
+    const buffer = try allocator.alloc(u8, publication.stamp_width + 1);
+
+    errdefer allocator.free(buffer);
+
+    if (try readStamp(io, path, buffer)) |recorded| return recorded;
+
+    allocator.free(buffer);
+
+    return null;
+}
+
+pub fn invalidateGenerationStamp(io: std.Io, path: []const u8) !void {
+    std.Io.Dir.cwd().deleteFile(io, path) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => return err,
+    };
+}
+
+pub fn writeGenerationStamp(io: std.Io, path: []const u8, stamp: []const u8) !void {
+    try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = stamp });
+}
 
 fn fileDigests(files: *Files, allocator: std.mem.Allocator, rows: anytype) ![]const []const u8 {
     const values = try allocator.alloc(fingerprint.Digest, rows.len);

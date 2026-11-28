@@ -15,10 +15,6 @@ export enum CallArgument {
     Stack
 }
 
-export type ValueFunction = mutable_opaque
-
-export type ModuleFrame = mutable_opaque
-
 export type ModuleSuffix = {
     uses_parallel: bool,
     comparisons: u64
@@ -47,13 +43,4 @@ export enum StoredType {
     StateType,
     StateLayout,
     ViewType
-}
-
-export type AnalysisWork = mutable_opaque
-
-export type BasisWork = mutable_opaque
-
-export type BasisFlowRows = {
-    held: bool[][],
-    written: bool[][]
 }

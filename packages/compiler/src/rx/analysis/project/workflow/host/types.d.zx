@@ -9,8 +9,6 @@ export type StoreDefinitionWork = mutable_opaque
 
 export type StoreRegistryLoad = mutable_opaque
 
-export type StoreRegistryPublication = mutable_opaque
-
 export type Inference = mutable_opaque
 
 export type Derivation = mutable_opaque
@@ -189,20 +187,7 @@ export type MixedState = opaque
 
 export type MixedPreparation = mutable_opaque
 
-export type MixedWorkspace = mutable_opaque
-
 export type MixedCallees = mutable_opaque
-
-export type MixedImports = mutable_opaque
-
-export type MixedImportRows = {
-    named: u8[],
-    fallback: u8[],
-    stride: u64,
-    prefix: u64,
-    exported: bool
-}
-
 
 export type MixedZXPreparation = mutable_opaque
 
@@ -221,8 +206,6 @@ export type ImportedCallee = {
     has_stores: bool,
     orchestration: bool
 }
-
-export type HistoryParseCache = mutable_opaque
 
 export enum MixedAction {
     Exhausted,

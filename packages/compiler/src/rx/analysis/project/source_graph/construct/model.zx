@@ -1,5 +1,4 @@
 import type { TextColumn } from "memory"
-import type { GraphVisit } from "rx_graph_host"
 import type { Cycle } from "../model"
 import type { Ranges as SourceRanges } from "../source"
 
@@ -34,7 +33,6 @@ export type RootPaths = Registration.Pick("ranges", "root") & {
 }
 
 export type Input = Registration & RootPaths.Omit("index") & {
-    visit: GraphVisit,
     setup?: Setup,
     retain_parses: bool,
     retain_dependencies: bool

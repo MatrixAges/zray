@@ -1,0 +1,24 @@
+import { Origin } from "./model"
+
+import type { Input as Workflow, Request as Output } from "./model"
+
+export type Input = Workflow.Pick("plan", "row")
+
+export default function (in: Input): Output {
+    const { plan, row } = in
+
+    const origin = match {
+        row < plan.owned => Origin.Owned,
+        row < plan.source_end => Origin.Borrowed,
+        _ => Origin.Linked
+    }
+
+    return {
+        origin,
+        index: match origin {
+            Origin.Owned => row,
+            Origin.Borrowed => row - plan.owned,
+            _ => plan.linked[row - plan.source_end]
+        }
+    }
+}

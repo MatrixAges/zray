@@ -3,40 +3,40 @@
 
     <Args in={Lint.SemanticLoaded} out={Lint.SemanticOutcome} />
 
-    <If on={!$in.manifest}>
-        <Call fn="../index.clearSemanticLibrary" in={$in.host} />
-    </If>
-
     <Call fn="entry_kind" in={$in.project.entry} />
 
     <If on={$ctx.entry_kind != Lint.Entry.Ordinary}>
         <Call
-            fn="../index.checkSemanticSpecial"
+            fn="../index.prepareSemanticSpecial"
             in={[
                 $in.host,
-                $in.manifest,
-                $ctx.entry_kind == Lint.Entry.Store
+                $in.project.entry
             ]}
         />
 
-        <If on={$ctx.checkSemanticSpecial}>
+        <Call
+            module="../special/run"
+            in={{
+                check: $in.host,
+                store: $ctx.entry_kind == Lint.Entry.Store
+            }}
+        />
+
+        <If on={$ctx.run}>
             <Return value={Lint.SemanticOutcome.Valid} />
         </If>
 
         <Return value={Lint.SemanticOutcome.Invalid} />
     </If>
 
-    <If on={!$in.manifest || !$in.project.has_exports}>
-        <Call
-            fn="../index.useSemanticEntryExport"
-            in={[
-                $in.host,
-                $in.manifest
-            ]}
-        />
-    </If>
-
-    <Call fn="../index.analyzeSemanticLibrary" in={$in.host} />
+    <Call
+        fn="../index.analyzeSemanticLibrary"
+        in={[
+            $in.host,
+            !$in.manifest || !$in.project.has_exports,
+            $in.project.entry
+        ]}
+    />
 
     <If on={!$ctx.analyzeSemanticLibrary}>
         <Return value={Lint.SemanticOutcome.Invalid} />
@@ -48,7 +48,13 @@
         <Return value={Lint.SemanticOutcome.Invalid} />
     </If>
 
-    <Call fn="../index.linkSemanticLibrary" in={$in.host} />
+    <Call
+        fn="../index.linkSemanticLibrary"
+        in={[
+            $in.host,
+            false
+        ]}
+    />
 
     <Return value={Lint.SemanticOutcome.Valid} />
 </Module>

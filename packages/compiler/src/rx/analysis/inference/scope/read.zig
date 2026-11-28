@@ -9,10 +9,8 @@ const Input = std.meta.Child(entry.Input);
 const Topology = std.meta.Child(@FieldType(Input, "topology"));
 
 pub fn run(graph: *Graph, rows: Scope.Storage.Slice, facts: []const []const u8, name: []const u8, identifier: bool, span: zx.Span) zx.Error!Scope.Reference {
-    var parents = graph.parents();
-
     const query: Input = .{
-        .topology = &.{ .graph = &rules.view(Topology, graph), .parents = @ptrCast(&parents) },
+        .topology = &.{ .graph = &rules.view(Topology, graph), .parents = graph.parents() },
         .active = &.{ .names = rows.items(.name), .values = @ptrCast(rows.items(.value)) },
         .name = name,
         .start = 0,

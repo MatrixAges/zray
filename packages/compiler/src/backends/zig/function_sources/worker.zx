@@ -1,28 +1,55 @@
-import host from "output_host"
+import integers from "std:integer"
+import memory from "memory"
+import { FunctionSourceKind as Kind } from "output_host"
 
-import job from "./job"
+import type { View } from "../function_units/model"
 
-import type { FunctionSourceWorker } from "output_host"
-import type { Jobs } from "./job"
+export type Jobs = {
+    entries: u64,
+    types: bool,
+    functions: View,
+    selected?: u64[]
+}
 
 export type Input = {
     jobs: Jobs,
-    row: u64,
-    position: u64,
-    search: bool,
-    worker: FunctionSourceWorker
+    position: u64
 }
 
-export type Output = u32
+export type Output = {
+    kind: Kind,
+    index: u64
+}
 
 export default function (in: Input): Output {
-    const route = job({
-        jobs: in.jobs,
-        position: in.position
-    })
+    const { jobs, position } = in
 
-    return match in.search {
-        true => host.findFunctionSource(in.worker, in.row, route.kind, route.index),
-        _ => host.renderFunctionSource(in.worker, in.row, route.kind, route.index)
+    if (position < jobs.entries) {
+        return {
+            kind: Kind.Entry,
+            index: position
+        }
+    }
+
+    const offset = position - jobs.entries
+
+    if (jobs.types && offset == 0) {
+        return {
+            kind: Kind.Types,
+            index: 0
+        }
+    }
+
+    const row = offset - (jobs.types ? 1 : 0)
+
+    const { selected } = jobs
+
+    const index = selected == null ? row : selected[row]
+    const regular = memory.readColumnBool(jobs.functions.regular, index)
+    const id = memory.readColumnU32(jobs.functions.ids, index)
+
+    return {
+        kind: regular ? Kind.Regular : Kind.Function,
+        index: integers.widen(id)
     }
 }

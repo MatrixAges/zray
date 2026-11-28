@@ -46,6 +46,8 @@ pub fn execute(evaluator: *Expressions, id: ir.ExprId, target: ir.TypeId, span: 
     }
 
     var frame: Frame = .{ .evaluator = evaluator, .id = id, .target = target, .span = span };
+    const bound = zx.memory.borrowReadColumn(bool, "bound", evaluator.environment);
+    const values = zx.memory.borrowReadColumn(Value, "value", evaluator.environment);
 
     const input: Input = .{
         .frame = @ptrCast(&frame),
@@ -53,11 +55,14 @@ pub fn execute(evaluator: *Expressions, id: ir.ExprId, target: ir.TypeId, span: 
         .types = &evaluator.types.?,
         .id = @backingInt(id),
         .depth = depth,
+        .environment = &.{ .bound = @ptrCast(&bound), .values = @ptrCast(&values), .width = @sizeOf(Value) },
     };
 
     const outcome = zx.columns.invoke(rule.executeIn, evaluator.allocator, &input) catch |err| return @import("context.zig").failure(err);
 
     if (outcome.diagnostic) |message| return evaluator.reporter.fail(.unsupported, span, message);
+    if (outcome.contract) |message| return evaluator.reporter.fail(.contract, span, message);
+    if (outcome.reference) |row| return .{ .value = std.mem.bytesAsValue(Value, row[0..@sizeOf(Value)]).* };
 
     if (outcome.projection) |index| {
         const source = frame.at(.First);
@@ -83,15 +88,6 @@ pub fn execute(evaluator: *Expressions, id: ir.ExprId, target: ir.TypeId, span: 
     }
 
     return frame.at(.Result).*;
-}
-
-pub fn loadSymbolicReference(handle: *anyopaque, symbol: u32) error{InvalidSource}!void {
-    const frame = Frame.borrow(handle);
-
-    const value = frame.evaluator.environment[symbol] orelse
-        return @errorCast(frame.evaluator.reporter.fail(.contract, frame.span, "verification encountered an unbound symbol"));
-
-    frame.at(.Result).* = .{ .value = value };
 }
 
 pub fn evaluateSymbolicOperand(handle: *anyopaque, slot: Operand, expression: u32) zx.Error!*const native.SymbolicOutcome {

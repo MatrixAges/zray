@@ -1,17 +1,23 @@
 import { ModuleRequestForm } from "lowering_host"
 
-export type Input = ModuleRequestForm
+import { Step } from "./model"
 
-export type Output = {
-    native: bool,
-    first: bool,
-    value: bool
-}
+import type { ModuleRequestForm as Input } from "lowering_host"
+
+export type Output = Step[]
 
 export default function (in: Input): Output {
-    return {
-        native: in == ModuleRequestForm.Native,
-        first: in == ModuleRequestForm.FirstRegular || in == ModuleRequestForm.FirstValue,
-        value: in == ModuleRequestForm.Value || in == ModuleRequestForm.FirstValue
+    if (in == ModuleRequestForm.Native) {
+        return [Step.RequestedNative]
     }
+
+    const first =
+        in == ModuleRequestForm.FirstRegular || in == ModuleRequestForm.FirstValue
+
+    const value = in == ModuleRequestForm.Value || in == ModuleRequestForm.FirstValue
+    const opened: Step[] = [Step.RequestedOpen]
+    const prepared = first ? opened.push(Step.RequestedStore)[0] : opened
+    const body = value ? Step.RequestedValue : Step.RequestedRegular
+
+    return prepared.push(body)[0].push(Step.RequestedPublish)[0]
 }

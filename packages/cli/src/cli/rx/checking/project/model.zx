@@ -19,3 +19,8 @@ export type GraphWalk = {
     count: u64,
     index: u64
 }
+
+export type FunctionWalk = GraphWalk & {
+    valid: bool,
+    running: bool
+}

@@ -1,13 +1,5 @@
 export type Directory = opaque
 export type Verification = opaque
-export type Snapshot = opaque
-
-export type Captured = {
-    snapshot: Snapshot,
-    count: u64
-}
-
-export type ResourceWalk = opaque
 export type Retirement = opaque
 
 export type DirectoryEntry = {
@@ -63,7 +55,7 @@ export declare function copyPublishedFile(io, source: string, destination: strin
     Unexpected, WouldBlock
 }
 
-export declare function openDirectory(directory: Directory): void throws { PublicationFailure }
+export declare function openDirectory(directory: Directory, follow_symlinks: bool): void throws { PublicationFailure }
 export declare function nextEntry(directory: Directory, name: string): DirectoryEntry
     throws { PublicationFailure }
 export declare function copyEntry(directory: Directory): void throws { PublicationFailure }
@@ -77,9 +69,9 @@ export declare function removeRetiredFile(directory: Directory, target: string):
 export declare function digestEntry(directory: Directory, path: string): InventoryEntry
     throws { PublicationFailure }
 
-export declare function capture(verification: Verification): Captured throws { PublicationFailure }
-export declare function verify(verification: Verification, snapshot: Snapshot, versioned: bool): bool throws { PublicationFailure }
-export declare function retain(verification: Verification, snapshot: Snapshot): void
+export declare function capture(verification: Verification): u64 throws { PublicationFailure }
+export declare function verify(verification: Verification, versioned: bool): bool throws { PublicationFailure }
+export declare function retain(verification: Verification): void
 
 export declare function checkPublishedTarget(
     allocator,
@@ -115,19 +107,17 @@ export declare function readPublicationFileKind(io, path: string): PublicationFi
     Unexpected, WouldBlock
 }
 
-export declare function resourceRoot(walk: ResourceWalk): ResourceEntry throws { PublicationFailure }
-export declare function openResources(walk: ResourceWalk): void throws { PublicationFailure }
-export declare function nextResource(walk: ResourceWalk): ResourceEntry throws { PublicationFailure }
+export declare function resourceRoot(walk: Directory): ResourceEntry throws { PublicationFailure }
+export declare function nextResource(walk: Directory): ResourceEntry throws { PublicationFailure }
 export declare function observeResource(
-    walk: ResourceWalk,
+    walk: Directory,
     path: string,
     is_directory: bool
 ): void throws { PublicationFailure }
-export declare function resourceLinkIsFile(walk: ResourceWalk, path: string): bool
+export declare function resourceLinkIsFile(walk: Directory, path: string): bool
     throws { PublicationFailure }
 
-export declare function readRetirement(plan: Retirement): bool throws { PublicationFailure }
-export declare function reserveTargets(plan: Retirement): string[] throws { PublicationFailure }
+export declare function readRetirement(plan: Retirement): string[]? throws { PublicationFailure }
 
 export declare function retirementSpelling(plan: Retirement, path: string): RetirementPath
     throws { PublicationFailure }

@@ -1,18 +1,16 @@
 <Module>
     <Type from="model" as="Analysis" />
 
-    <Args in={Analysis.Input} out={bool} />
+    <Args in={Analysis.Input} out={Analysis.Outcome} />
 
     <If on={$in.export_count == 0}>
-        <Call fn="index.missingLibraryExports" in={$in.analysis} />
-
-        <Return value={false} />
+        <Return value={Analysis.Outcome.MissingExports} />
     </If>
 
     <If on={$in.compiled}>
         <Call fn="index.loadCompiledLibrary" in={$in.analysis} />
 
-        <Return value={true} />
+        <Return value={Analysis.Outcome.Ready} />
     </If>
 
     <Call fn="index.beginLibraryAnalysis" in={$in.analysis} />
@@ -30,5 +28,9 @@
         />
     </Loop>
 
-    <Return value={$ctx.entries.valid} />
+    <If on={$ctx.entries.valid}>
+        <Return value={Analysis.Outcome.Ready} />
+    </If>
+
+    <Return value={Analysis.Outcome.Invalid} />
 </Module>

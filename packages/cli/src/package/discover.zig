@@ -29,7 +29,6 @@ const State = struct {
     io: std.Io,
     scratch: std.mem.Allocator,
     retained: std.mem.Allocator,
-    entry: []const u8,
     inputs: ?*Inputs,
     result: Result = .{},
     nearest: ?Candidate = null,
@@ -58,7 +57,6 @@ pub fn findWithInputs(io: std.Io, scratch: std.mem.Allocator, retained: std.mem.
         .io = io,
         .scratch = scratch,
         .retained = retained,
-        .entry = entry,
         .inputs = inputs,
     };
 
@@ -68,25 +66,32 @@ pub fn findWithInputs(io: std.Io, scratch: std.mem.Allocator, retained: std.mem.
         if (state.nearest) |*saved| saved.arena.deinit();
     }
 
+    if (inputs) |observed| try observed.add(io, entry);
+
+    const real = try std.Io.Dir.cwd().realPathFileAlloc(io, entry, scratch);
     const reference = &state;
 
-    rules.workspace_discover.executeIn(scratch, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+    const progress = rules.workspace_discover.executeIn(scratch, &.{
+        .search = @ptrCast(&reference),
+        .directory = std.fs.path.dirname(real).?,
+    }) catch |err| return state.failure.unwrap(err);
+
+    switch (progress) {
+        .Current => selectCandidate(&state, &state.candidate),
+        .Nearest => selectCandidate(&state, &state.nearest),
+        .Ancestor => selectAncestor(&state),
+        .Advance, .Stop => {},
+        .Retained => unreachable,
+    }
 
     return state.result;
 }
 
-pub fn startSearch(handle: *const anyopaque) Error![]const u8 {
-    const self = State.get(handle);
-
-    if (self.inputs) |observed| observed.add(self.io, self.entry) catch |err| return self.failure.save(err);
-
-    const real = std.Io.Dir.cwd().realPathFileAlloc(self.io, self.entry, self.scratch) catch |err| return self.failure.save(err);
-
-    return std.fs.path.dirname(real).?;
-}
-
 pub fn readCandidate(handle: *const anyopaque, directory: []const u8) Error!Probe {
     const self = State.get(handle);
+
+    self.discardProbe();
+
     const path = std.fs.path.join(self.scratch, &.{ directory, constants.manifest_name }) catch |err| return self.failure.save(err);
 
     const file = source.locate(self.io, self.scratch, path, self.inputs) catch |err| switch (err) {
@@ -126,9 +131,7 @@ pub fn rememberCandidate(handle: *const anyopaque) void {
     self.candidate = null;
 }
 
-pub fn selectCandidate(handle: *const anyopaque, nearest: bool) void {
-    const self = State.get(handle);
-    const selected = if (nearest) &self.nearest else &self.candidate;
+fn selectCandidate(self: *State, selected: *?Candidate) void {
     const manifest = selected.*.?.manifest;
     self.result.path = manifest.file.path;
     self.result.root = manifest;
@@ -175,17 +178,11 @@ pub fn loadAncestor(handle: *const anyopaque, directory: []const u8) Error!?*con
     return &self.member_search;
 }
 
-pub fn selectAncestor(handle: *const anyopaque) void {
-    const self = State.get(handle);
-
+fn selectAncestor(self: *State) void {
     self.result.path = self.candidate.?.manifest.file.path;
     self.result.members = self.members;
     self.members = null;
     self.member_memory = null;
     self.candidate = null;
     self.nearest = null;
-}
-
-pub fn discardCandidates(handle: *const anyopaque) void {
-    State.get(handle).discardProbe();
 }

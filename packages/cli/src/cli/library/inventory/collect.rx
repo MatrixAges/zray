@@ -5,7 +5,13 @@
 
     <Store from="collected" as="state" />
 
-    <Call fn="index.openDirectory" in={$in.directory} />
+    <Call
+        fn="index.openDirectory"
+        in={[
+            $in.directory,
+            true
+        ]}
+    />
 
     <Loop on={$in.running}>
         <Call

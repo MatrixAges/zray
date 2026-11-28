@@ -5,3 +5,5 @@ export const gateway_suffix: string = ".gateway.rx"
 export const store_suffix: string = ".store.rx"
 
 export const parent_component: string = ".."
+
+export const escaped_root: string = "physical module file escapes the project root"

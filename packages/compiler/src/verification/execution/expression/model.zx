@@ -2,6 +2,7 @@ import { ExpressionKind } from "core/expression_table/kinds"
 
 import type { Expressions } from "core/expression_table/model"
 import type { Table } from "core/type_table/model"
+import type { ReadColumn } from "memory"
 import type { SymbolicExpression } from "verification_host"
 
 export { ExpressionKind } from "core/expression_table/kinds"
@@ -52,7 +53,14 @@ export type Input = {
     columns: Columns,
     types: Types,
     id: u64,
-    depth: u64
+    depth: u64,
+    environment: Environment
+}
+
+export type Environment = {
+    bound: ReadColumn,
+    values: ReadColumn,
+    width: u64
 }
 
 export type Payload = {
@@ -79,6 +87,8 @@ export type Outcome = {
     safe?: string,
     projection?: u32,
     diagnostic?: string,
+    contract?: string,
+    reference?: u8[],
     fields?: AggregateField[]
 }
 

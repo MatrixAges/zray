@@ -7,7 +7,6 @@ const process = @import("backend_protocol").process;
 const source = @import("cli_source");
 const workspace = source.workspace_artifact_constants.@"zx.constants";
 const Error = @import("../sources/effects.zig").Error;
-const NativeModule = @import("cli_abi").layouts.@"zig:native_build_host".NativeBackendModule;
 
 pub fn appendGeneratedModule(handle: *const anyopaque, index: u64) Error!void {
     const self = State.get(handle);
@@ -24,15 +23,6 @@ pub fn appendGeneratedModule(handle: *const anyopaque, index: u64) Error!void {
         .abi = null,
         .translated = null,
     }) catch |err| return self.failure.save(err);
-}
-
-pub fn nativeBackendModule(handle: *const anyopaque, index: u64) *const NativeModule {
-    const self = State.get(handle);
-    const module = &self.project.config.native_modules[@intCast(index)];
-
-    self.module = .{ .name = module.name, .includes = module.include_paths, .path = module.path };
-
-    return &self.module;
 }
 
 pub fn bindBackendModule(handle: *const anyopaque, index: u64, includes: []const []const u8, abi: ?[]const u8, path: ?[]const u8) void {
@@ -136,29 +126,11 @@ pub fn appendNativeModule(handle: *const anyopaque) Error!void {
     self.command.module(self.native.spec) catch |err| return self.failure.save(err);
 }
 
-pub fn appendAbiView(handle: *const anyopaque, index: u64) Error!void {
+pub fn appendSupportModule(handle: *const anyopaque, name: []const u8, file: []const u8, imports: []const []const u8) Error!void {
     const self = State.get(handle);
-    const view = &self.abi.views[@intCast(index)];
+    const path = std.fmt.allocPrint(self.context.allocator, "{s}/{s}", .{ self.workspace.directory, file }) catch |err| return self.failure.save(err);
 
-    appendSupport(self, view.name, view.path, &.{Command.constants.canonical_dependency}) catch |err| return self.failure.save(err);
-}
-
-pub fn appendCanonicalAbi(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    appendSupport(self, Command.constants.abi_module, Command.constants.abi_source, &.{}) catch |err| return self.failure.save(err);
-}
-
-pub fn appendNapiModule(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    appendSupport(self, Command.constants.napi_module, Command.constants.napi_source, &.{Command.constants.application_module}) catch |err| return self.failure.save(err);
-}
-
-fn appendSupport(self: *State, name: []const u8, file: []const u8, imports: []const []const u8) !void {
-    const path = try std.fmt.allocPrint(self.context.allocator, "{s}/{s}", .{ self.workspace.directory, file });
-
-    try self.command.module(.{
+    self.command.module(.{
         .settings = self.settings,
         .name = name,
         .path = path,
@@ -167,5 +139,5 @@ fn appendSupport(self: *State, name: []const u8, file: []const u8, imports: []co
         .canonical = false,
         .abi = null,
         .translated = null,
-    });
+    }) catch |err| return self.failure.save(err);
 }

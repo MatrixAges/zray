@@ -1,6 +1,4 @@
-const std = @import("std");
 const zx = @import("zx");
-const Project = @import("../../../project.zig").Project;
 const Frame = @import("frame.zig");
 const Loading = @import("../../load/host.zig");
 const Action = @import("project_execution_abi").layouts.@"zig:project_host".ProjectSourceAction;
@@ -29,26 +27,6 @@ pub fn selectProjectSource(handle: *anyopaque) *const Selection {
     };
 
     return &frame.selection;
-}
-
-pub fn prepareProjectSource(handle: *anyopaque, row: u64) void {
-    const frame = Frame.borrow(handle);
-    const index: usize = @intCast(row);
-    const project = frame.walk.project;
-    const unit = &project.units[index];
-
-    std.debug.assert(project.load_states[index] == .Done);
-
-    frame.imported = Project.importedSource(unit, frame.walk.phase);
-    frame.dependency = .{ .source = unit.path };
-}
-
-pub fn prepareDeferredProjectSignature(handle: *anyopaque) error{OutOfMemory}!void {
-    const frame = Frame.borrow(handle);
-    const project = frame.walk.project;
-    const path = try project.allocator.dupe(u8, frame.resolved.target.source);
-    frame.deferred = .{ .name = "", .kind = .deferred, .source = path };
-    frame.imported = .{ .exports = &.{}, .signatures = @as(*[1]@TypeOf(frame.deferred), @ptrCast(&frame.deferred)) };
 }
 
 pub fn rejectProjectSource(handle: *anyopaque, action: Action) error{InvalidSource}!void {

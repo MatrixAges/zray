@@ -15,12 +15,15 @@
     />
 
     <If on={$ctx.admit_path}>
-        <If on={$in.items[$in.index].is_store}>
+        <Call fn="item" in={$in} />
+
+        <If on={$ctx.item.source != null}>
             <Call
-                fn="../index.checkReachableLintStore"
+                fn="../index.checkReachableLintSource"
                 in={[
                     $in.check,
-                    $in.items[$in.index].row
+                    $ctx.item.path,
+                    $ctx.item.source
                 ]}
             />
 
@@ -28,19 +31,19 @@
                 value={{
                     ...$in,
                     index: $in.index + 1,
-                    valid: $ctx.checkReachableLintStore,
+                    valid: $ctx.checkReachableLintSource,
                     running:
-                        $ctx.checkReachableLintStore &&
+                        $ctx.checkReachableLintSource &&
                         $in.index + 1 < $in.items.length
                 }}
             />
 
             <Else>
                 <Call
-                    fn="../index.checkReachableLintSource"
+                    fn="../index.checkReachableLintStore"
                     in={[
                         $in.check,
-                        $in.items[$in.index].row
+                        $ctx.item.path
                     ]}
                 />
 
@@ -48,9 +51,9 @@
                     value={{
                         ...$in,
                         index: $in.index + 1,
-                        valid: $ctx.checkReachableLintSource,
+                        valid: $ctx.checkReachableLintStore,
                         running:
-                            $ctx.checkReachableLintSource &&
+                            $ctx.checkReachableLintStore &&
                             $in.index + 1 < $in.items.length
                     }}
                 />

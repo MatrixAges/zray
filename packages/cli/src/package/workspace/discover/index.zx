@@ -1,11 +1,7 @@
 export {
-    startSearch,
     readCandidate,
     rememberCandidate,
-    selectCandidate,
     loadAncestor,
-    selectAncestor,
-    discardCandidates,
     Probe
 } from "package_workspace_host"
 

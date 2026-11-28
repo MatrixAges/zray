@@ -1,18 +1,22 @@
-import type { MixedWorkspace } from "rx_project_host"
-
 export type Input = {
     rows: u64,
     workers: u64
 }
 
-export type Request = Input & {
-    workspace: MixedWorkspace
-}
-
 export type Worker = {
-    workspace: MixedWorkspace,
     count: u64,
     index: u64
+}
+
+export enum Action {
+    ClearResults,
+    ResetWorker,
+    ResetBindings
+}
+
+export type Recycle = {
+    action: Action,
+    worker: u64
 }
 
 export type Output = u64

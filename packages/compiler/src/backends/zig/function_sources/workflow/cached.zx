@@ -1,0 +1,25 @@
+import { Step } from "./model"
+
+import type { Reuse as Input } from "../updates/model"
+
+export type Output = Step[]
+
+export default function (in: Input): Output {
+    const initial: Step[] = match {
+        in.hits == 0 => [],
+        _ => [Step.Restore]
+    }
+
+    const recorded = initial.push(Step.Record)[0]
+
+    const accounted = match in.ordered {
+        true => recorded,
+        _ => recorded.push(Step.Account)[0]
+    }
+
+    if (in.pending == 0) {
+        return accounted
+    }
+
+    return accounted.push(Step.Generate)[0].push(Step.Publish)[0]
+}

@@ -1,28 +1,39 @@
 <Module>
-    <Type from="../index" as="IO" />
+    <Type from="../model" as="Lint" />
 
-    <Args in={IO.SourceLint} out={bool} />
+    <Args in={Lint.SourceDocument} out={Lint.SourceOutcome} />
 
-    <Call fn="../index.parseLintRx" in={$in} />
+    <Call fn="../index.parseLintRx" in={$in.host} />
 
     <If on={!$ctx.parseLintRx}>
-        <Return value={false} />
+        <Return value={Lint.SourceOutcome.Invalid} />
     </If>
 
-    <Call fn="../index.validateLintRx" in={$in} />
+    <Call fn="../index.validateLintRx" in={$in.host} />
 
     <If on={!$ctx.validateLintRx}>
-        <Return value={false} />
+        <Return value={Lint.SourceOutcome.Invalid} />
     </If>
 
-    <Call fn="../index.checkLintRxValues" in={$in} />
+    <Call fn="../index.checkLintRxValues" in={$in.host} />
 
     <If on={!$ctx.checkLintRxValues}>
-        <Return value={false} />
+        <Return value={Lint.SourceOutcome.Invalid} />
     </If>
 
-    <Call fn="../index.formatLintRx" in={$in} />
-    <Call fn="../index.checkLintFormatting" in={$in} />
+    <Call fn="../index.formatLintRx" in={$in.host} />
 
-    <Return value={$ctx.checkLintFormatting} />
+    <Call
+        fn="same_format"
+        in={[
+            $in.source,
+            $ctx.formatLintRx
+        ]}
+    />
+
+    <If on={$ctx.same_format}>
+        <Return value={Lint.SourceOutcome.Valid} />
+    </If>
+
+    <Return value={Lint.SourceOutcome.Unformatted} />
 </Module>

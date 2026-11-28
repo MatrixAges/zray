@@ -1,11 +1,30 @@
-import type { MixedImports } from "rx_project_host"
 import type { Request as Symbols } from "../../../../../zx/modules/binding/model"
-import type { Output as Publication } from "./publish"
 
 export type Input = {
-    binding: MixedImports,
     count: u64,
     symbols: Symbols[],
+    row: u64
+}
+
+export type Rows = {
+    named: u8[],
+    fallback: u8[],
+    stride: u64,
+    prefix: u64,
+    exported: bool
+}
+
+export type Plan = {
+    exported: bool,
+    prefix: u64,
+    fits: bool,
+    names: string[],
+    sources: u8[][]
+}
+
+export type Effect = {
     row: u64,
-    pending?: Publication
+    publication?: Plan,
+    message?: string,
+    rows?: Rows
 }

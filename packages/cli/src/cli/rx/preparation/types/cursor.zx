@@ -8,7 +8,6 @@ export type Output = TypeWalk
 
 export default function (in: Input): Output {
     return {
-        types: in.types,
         references: in.references,
         scoped: in.scoped,
         diagnostic: type_zx_required,

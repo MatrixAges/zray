@@ -1,10 +1,16 @@
-import type { FunctionSources, SourceReuse } from "output_host"
-
-export type Record = SourceReuse.Omit("hits", "pending") & {
-    batch: FunctionSources
+export type Reuse = {
+    stored: u64[],
+    ordered: bool,
+    hits: u64,
+    pending: u64
 }
 
-export type Adoption = Record.Pick("batch", "stored") & {
-    remaining: u64,
-    failure?: u64
+export enum Order {
+    All,
+    StoredDescending
+}
+
+export type Record = {
+    order: Order,
+    stored: u64[]
 }

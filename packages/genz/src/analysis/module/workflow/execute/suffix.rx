@@ -1,23 +1,24 @@
 <Module>
-    <Type from="model" as="Flow" />
+    <Type from="model" as="Workflow" />
 
-    <Args in={Flow.Module} out={void} />
+    <Args in={Workflow.Suffix} out={Workflow.Output} />
 
-    <Call fn="index.readModuleSuffix" in={$in} />
-
-    <If on={$ctx.readModuleSuffix.uses_parallel}>
-        <Call fn="index.emitModuleParallelAllocator" in={$in} />
-    </If>
-
-    <Loop on={$in.running}>
-        <Call
-            module="comparison"
-            in={{
-                frame: $in,
-                count: $ctx.readModuleSuffix.comparisons,
-                row: 0,
-                running: $ctx.readModuleSuffix.comparisons != 0
+    <If on={$in.uses_parallel}>
+        <Return
+            value={{
+                steps: [
+                    Workflow.Step.ParallelAllocator,
+                    Workflow.Step.Comparisons
+                ],
+                comparisons: $in.comparisons
             }}
         />
-    </Loop>
+    </If>
+
+    <Return
+        value={{
+            steps: [Workflow.Step.Comparisons],
+            comparisons: $in.comparisons
+        }}
+    />
 </Module>

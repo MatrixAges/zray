@@ -1,0 +1,51 @@
+<Module>
+    <Type from="model" as="Snapshot" />
+
+    <Args in={Snapshot.ScanRow} out={Snapshot.ScanRow} />
+
+    <If on={$in.reuse_versions}>
+        <Call
+            fn="index.versionMatches"
+            in={[
+                $in.scan,
+                $in.index
+            ]}
+        />
+
+        <If on={$ctx.versionMatches}>
+            <Return
+                value={{
+                    ...$in,
+                    index: $in.index + 1
+                }}
+            />
+        </If>
+    </If>
+
+    <Call
+        fn="index.readRow"
+        in={[
+            $in.scan,
+            $in.index,
+            $in.versioned
+        ]}
+    />
+
+    <If on={$ctx.readRow && $in.versioned}>
+        <Call
+            fn="index.acceptVersion"
+            in={[
+                $in.scan,
+                $in.index
+            ]}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            same: $ctx.readRow
+        }}
+    />
+</Module>

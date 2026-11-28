@@ -30,11 +30,20 @@ export declare function fingerprintGenerationInputs(
     request: GenerationRequest
 ): PreparedGeneration throws { GenerationRequestFailed }
 
-export declare function readGenerationStamp(request: GenerationRequest): u8[]?
-    throws { GenerationRequestFailed }
+export declare function readGenerationStamp(allocator, io, path: string): u8[]? throws {
+    AccessDenied, AntivirusInterference, BadPathName, Canceled, ConnectionResetByPeer,
+    DeviceBusy, FileBusy, FileLocksUnsupported, FileNotFound, FileTooBig, InputOutput, IsDir,
+    LockViolation, NameTooLong, NetworkNotFound, NoDevice, NoSpaceLeft, NotDir,
+    NotOpenForReading, OutOfMemory, PathAlreadyExists, PermissionDenied, PipeBusy,
+    ProcessFdQuotaExceeded, ReadOnlyFileSystem, SocketUnconnected, SymLinkLoop,
+    SystemFdQuotaExceeded, SystemResources, Unexpected, WouldBlock
+}
 
-export declare function invalidateGenerationStamp(request: GenerationRequest): void
-    throws { GenerationRequestFailed }
+export declare function invalidateGenerationStamp(io, path: string): void throws {
+    AccessDenied, BadPathName, Canceled, FileBusy, FileNotFound, FileSystem, IsDir,
+    NameTooLong, NetworkNotFound, NotDir, PermissionDenied, ReadOnlyFileSystem, SymLinkLoop,
+    SystemResources, Unexpected
+}
 
 export declare function restoreGenerationAnalysis(request: GenerationRequest): string
     throws { GenerationRequestFailed }
@@ -51,8 +60,14 @@ export declare function checkGenerationInterfaces(request: GenerationRequest): v
 export declare function generateFromPreparedInputs(request: GenerationRequest): string
     throws { GenerationRequestFailed }
 
-export declare function writeGenerationStamp(request: GenerationRequest): void
-    throws { GenerationRequestFailed }
+export declare function writeGenerationStamp(io, path: string, stamp: string): void throws {
+    AccessDenied, AntivirusInterference, BadPathName, BrokenPipe, Canceled, DeviceBusy,
+    DiskQuota, FileBusy, FileLocksUnsupported, FileNotFound, FileTooBig, InputOutput, IsDir,
+    LockViolation, NameTooLong, NetworkNotFound, NoDevice, NoSpaceLeft, NotDir,
+    NotOpenForWriting, PathAlreadyExists, PermissionDenied, PipeBusy, ProcessFdQuotaExceeded,
+    ReadOnlyFileSystem, SymLinkLoop, SystemFdQuotaExceeded, SystemResources, Unexpected,
+    WouldBlock
+}
 
 export declare function saveGenerationSnapshot(request: GenerationRequest): void
     throws { GenerationRequestFailed }

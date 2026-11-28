@@ -73,7 +73,6 @@
         fn="../index.verify"
         in={[
             $in.verification,
-            $ctx.capture.snapshot,
             $in.versioned
         ]}
     />
@@ -122,13 +121,7 @@
         />
 
         <If on={$in.versioned}>
-            <Call
-                fn="../index.retain"
-                in={[
-                    $in.verification,
-                    $ctx.capture.snapshot
-                ]}
-            />
+            <Call fn="../index.retain" in={$in.verification} />
         </If>
 
         <Return value={Observed.Output.Published} />

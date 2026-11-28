@@ -4,11 +4,10 @@ const zx = @import("zx");
 const modules = @import("modules.zig");
 const names = @import("genz").zx.names;
 const generated = @import("parser_options").generated_parser;
-const native = if (generated) @import("output_execution_abi").layouts.@"zig:output_host" else struct {};
 const workflow = if (generated) @import("generated_application_initializer_workflow") else struct {};
-const Plan = if (generated) std.meta.Child(@FieldType(std.meta.Child(workflow.Input), "plan")) else void;
-const Candidate = if (generated) native.InitializerCandidate else void;
-const Origin = if (generated) native.InitializerOrigin else void;
+const Input = if (generated) std.meta.Child(workflow.Input) else void;
+const Plan = if (generated) std.meta.Child(@FieldType(Input, "plan")) else void;
+const Candidate = if (generated) std.meta.Child(@typeInfo(@FieldType(Input, "candidate")).optional.child) else void;
 pub const Initializer = frontend.project.SourceStoreInitializer;
 
 pub const Options = struct {
@@ -44,21 +43,56 @@ pub fn append(bundle: *modules.Bundle, options: Options) Error!void {
 
     try frame.prepare();
 
-    const input: std.meta.Child(workflow.Input) = .{
-        .target = @ptrCast(&frame),
+    const allocator = buffered.allocator();
+
+    var input: Input = .{
         .plan = &frame.plan,
         .paths = application.stores.paths,
         .types = application.stores.types,
+        .phase = .Prepare,
+        .row = 0,
+        .candidate = null,
+        .values = &.{},
+        .buckets = &.{},
     };
 
-    const status = workflow.executeIn(buffered.allocator(), &input) catch |err| return failure(err);
+    const prepared = try run(allocator, &input);
+    const buckets = try allocator.alloc(u64, @intCast(prepared.capacity));
+    const values = try allocator.alloc(u32, frame.entries.len);
 
-    switch (status) {
-        .DuplicateInitializer => return error.DuplicateInitializer,
-        .MissingInitializer => return error.MissingInitializer,
-        .InvalidInitializer => return error.InvalidInitializer,
-        .Ready => {},
+    @memset(buckets, 0);
+
+    input.buckets = buckets;
+    input.values = values;
+
+    for (values, 0..) |*value, row| {
+        input.phase = .Select;
+        input.row = row;
+
+        const selected = try run(allocator, &input);
+        const request = selected.request.?;
+        var linked_source: Initializer = undefined;
+        const current = frame.source(request, &linked_source);
+        const candidate = try frame.describe(current);
+        input.phase = .Admit;
+        input.candidate = if (candidate) |*item| item else null;
+
+        const admitted = try run(allocator, &input);
+
+        try check(admitted.status);
+
+        input.candidate = null;
+
+        try frame.emit(row, current);
+
+        value.* = candidate.?.type_id;
+
+        if (admitted.slot) |slot| buckets[slot] = row + 1;
     }
+
+    input.phase = .Coverage;
+
+    try check((try run(allocator, &input)).status);
 
     bundle.modules = frame.files;
     bundle.store_initializers = frame.entries;
@@ -75,12 +109,6 @@ const Application = struct {
     entries: []modules.StoreInitializer = undefined,
     keys: zx.memory.TextColumn = undefined,
     plan: Plan = undefined,
-    candidate: Candidate = undefined,
-    linked_source: Initializer = undefined,
-    current: Initializer.Borrowed = undefined,
-    fn fromHandle(handle: *anyopaque) *@This() {
-        return @ptrCast(@alignCast(handle));
-    }
     fn prepare(self: *@This()) (names.Error || error{InvalidInitializer})!void {
         const options = self.options;
         const backing = self.name_workspace.child_allocator;
@@ -104,44 +132,50 @@ const Application = struct {
             .keys = @ptrCast(&self.keys),
         };
     }
+    fn source(self: *const Application, request: anytype, linked_source: *Initializer) Initializer.Borrowed {
+        const index: usize = @intCast(request.index);
+
+        return switch (request.origin) {
+            .Owned => self.options.initializers[index].borrow(),
+            .Borrowed => self.options.borrowed_initializers[index],
+            .Linked => selected: {
+                linked_source.* = linked(self.application, self.options.analysis.store_initializers[index]);
+
+                break :selected linked_source.borrow();
+            },
+        };
+    }
+
+    fn describe(self: *Application, current: Initializer.Borrowed) names.Error!?Candidate {
+        const validation = @import("store_initializers/validation.zig");
+
+        if (!try validation.validate(self.name_workspace.child_allocator, current.program, .allowed)) return null;
+
+        const actual = try names.typeNamesIn(self.name_workspace.allocator(), current.program, self.options.analysis.nominal_types);
+
+        return .{ .identity = current.identity, .type_id = @backingInt(current.program.output_type), .names = actual };
+    }
+    fn emit(self: *Application, row: usize, current: Initializer.Borrowed) modules.Error!void {
+        _ = self.name_workspace.reset(.retain_capacity);
+        const published = try @import("publication/initializer.zig").emit(self.owned, self.name_workspace.child_allocator, current.identity, current.schema_version, current.program, .{ .types = self.plan.expected, .functions = &.{} }, self.options.cache);
+        self.files[self.existing.len + row] = published.file;
+        self.entries[row] = published.entry;
+    }
 };
 
-pub fn readApplicationInitializer(handle: *anyopaque, origin: Origin, index: u64) names.Error!?*const Candidate {
-    const frame = Application.fromHandle(handle);
-    const options = frame.options;
-    const position: usize = @intCast(index);
+fn run(allocator: std.mem.Allocator, input: *const Input) Error!std.meta.Child(workflow.Output) {
+    const output = workflow.executeIn(allocator, input) catch |err| return failure(err);
 
-    const initial = switch (origin) {
-        .Owned => options.initializers[position].borrow(),
-        .Borrowed => options.borrowed_initializers[position],
-        .Linked => row: {
-            frame.linked_source = linked(frame.application, options.analysis.store_initializers[position]);
-
-            break :row frame.linked_source.borrow();
-        },
-    };
-
-    const validation = @import("store_initializers/validation.zig");
-
-    if (!try validation.validate(frame.name_workspace.child_allocator, initial.program, .allowed)) return null;
-
-    const actual = try names.typeNamesIn(frame.name_workspace.allocator(), initial.program, options.analysis.nominal_types);
-
-    frame.current = initial;
-    frame.candidate = .{ .identity = initial.identity, .type_id = @backingInt(initial.program.output_type), .names = actual };
-
-    return &frame.candidate;
+    return output.*;
 }
 
-pub fn emitApplicationInitializer(handle: *anyopaque, row: u64) modules.Error!void {
-    const frame = Application.fromHandle(handle);
-    const current = frame.current;
-    const index: usize = @intCast(row);
-    const types = frame.plan.expected;
-    _ = frame.name_workspace.reset(.retain_capacity);
-    const published = try @import("publication/initializer.zig").emit(frame.owned, frame.name_workspace.child_allocator, current.identity, current.schema_version, current.program, .{ .types = types, .functions = &.{} }, frame.options.cache);
-    frame.files[frame.existing.len + index] = published.file;
-    frame.entries[index] = published.entry;
+fn check(status: anytype) Error!void {
+    return switch (status) {
+        .DuplicateInitializer => error.DuplicateInitializer,
+        .MissingInitializer => error.MissingInitializer,
+        .InvalidInitializer => error.InvalidInitializer,
+        .Ready => {},
+    };
 }
 
 fn failure(err: anyerror) Error {

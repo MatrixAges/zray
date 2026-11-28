@@ -19,13 +19,17 @@ pub fn build(allocator: std.mem.Allocator, types: ir.TypeTable) std.mem.Allocato
         else => unreachable,
     };
 
+    return .{ .slots = bind(types, output), .texts = output.texts };
+}
+
+pub fn bind(types: ir.TypeTable, output: anytype) Slots {
     comptime std.debug.assert(@typeInfo(ir.TypeId).@"enum".tag_type == u32);
 
-    return .{ .slots = .{
+    return .{
         .types = types,
         .counts = output.counts,
         .offsets = output.offsets,
         .members = @ptrCast(output.members),
         .unwrapped = @ptrCast(output.unwrapped),
-    }, .texts = output.texts };
+    };
 }

@@ -1,12 +1,11 @@
-import representative from "../forest/borrowed_root"
+import representative from "../forest/root"
 import requiresReplay from "./requires_replay"
 
-import type { U32Buffer } from "memory"
 import type { Columns } from "../fields/shape"
 
 export type Input = {
     columns: Columns,
-    parents: U32Buffer,
+    parents: u32[],
     results: u32[],
     parts: u64[],
     first: u64

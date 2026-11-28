@@ -47,3 +47,17 @@ export type ProjectSourceSelection = {
     action: ProjectSourceAction,
     row: u64
 }
+
+export enum ProjectImportKind {
+    Source,
+    Deferred,
+    Compiled,
+    Native,
+    External,
+    Intrinsic
+}
+
+export type ProjectImportTarget = {
+    kind: ProjectImportKind,
+    row?: u64
+}

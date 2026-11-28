@@ -82,7 +82,7 @@ pub fn discoverLintWorkspace(handle: *const anyopaque) Error!bool {
     return true;
 }
 
-pub fn resolveLintWorkspace(handle: *const anyopaque) Error!bool {
+pub fn resolveLintWorkspace(handle: *const anyopaque) Error!?u64 {
     const self = State.get(handle);
     const context = self.context;
 
@@ -91,15 +91,8 @@ pub fn resolveLintWorkspace(handle: *const anyopaque) Error!bool {
     if (self.graph.?.diagnostic) |message| {
         context.stderr.print("{s}\n", .{message}) catch |err| return self.failure.save(err);
 
-        return false;
+        return null;
     }
-
-    return true;
-}
-
-pub fn locateLintWorkspace(handle: *const anyopaque) Error!u64 {
-    const self = State.get(handle);
-    const context = self.context;
 
     self.root_manifest = std.Io.Dir.cwd().realPathFileAlloc(context.io, context.options.input, context.allocator) catch |err| return self.failure.save(err);
 
@@ -116,6 +109,9 @@ pub fn selectLintWorkspaceMember(handle: *const anyopaque, index: u64) Error!boo
 
 pub fn lintMemberSemantics(handle: *const anyopaque) Error!bool {
     const self = State.get(handle);
+
+    defer self.releaseMember();
+
     const status = @import("semantic.zig").run(self.memberContext()) catch |err| return self.failure.save(err);
 
     return status == .success;
@@ -123,11 +119,10 @@ pub fn lintMemberSemantics(handle: *const anyopaque) Error!bool {
 
 pub fn lintMemberConfiguration(handle: *const anyopaque) Error!bool {
     const self = State.get(handle);
+
+    defer self.releaseMember();
+
     const status = @import("../configuration/root.zig").run(self.memberContext()) catch |err| return self.failure.save(err);
 
     return status == .success;
-}
-
-pub fn releaseLintWorkspaceMember(handle: *const anyopaque) void {
-    State.get(handle).releaseMember();
 }

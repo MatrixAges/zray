@@ -42,7 +42,13 @@
         </If>
     </If>
 
-    <Call fn="../index.linkLintGateway" in={$in.check} />
+    <Call
+        fn="../index.linkSemanticLibrary"
+        in={[
+            $in.check,
+            true
+        ]}
+    />
 
     <Return value={true} />
 </Module>

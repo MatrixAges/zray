@@ -11,21 +11,49 @@
         ]}
     />
 
-    <Call fn="index.checkCanceled" in={$in.watch} />
+    <Call fn="index.interrupted" in={$in.watch} />
+
+    <If on={$ctx.interrupted}>
+        <Return
+            value={{
+                ...$in,
+                running: false,
+                canceled: true
+            }}
+        />
+    </If>
 
     <Call module="application/poll" in={$in.watch} />
 
-    <Call fn="next_poll" in={$in} />
+    <Call
+        fn="index.scanInputs"
+        in={[
+            $in.watch,
+            $in.snapshot
+        ]}
+    />
+
+    <Call
+        fn="next_poll"
+        in={{
+            poll: $in,
+            result: $ctx.scanInputs
+        }}
+    />
 
     <If
         on={$ctx.next_poll.scan_error != $in.scan_error &&
             $ctx.next_poll.scan_error != null}
     >
+        <Call fn="notice_prefix" in={Driver.Notice.ScanError} />
+
         <Call
-            fn="index.reportScanError"
+            fn="index.writeWatchNotice"
             in={[
                 $in.watch,
-                $ctx.next_poll.scan_error
+                $ctx.notice_prefix,
+                $ctx.next_poll.scan_error,
+                true
             ]}
         />
     </If>

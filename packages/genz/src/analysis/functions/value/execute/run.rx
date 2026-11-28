@@ -1,33 +1,14 @@
 <Module>
     <Type from="model" as="Value" />
 
-    <Args in={Value.Input} out={void} />
+    <Args in={Value.Input} out={Value.Step[]} />
 
-    <If on={$in.enter}>
-        <Call fn="index.enterFunctionRepresentation" in={$in.body} />
-    </If>
-
-    <Call
-        fn="index.bindFunctionArgument"
-        in={[
-            $in.body,
-            $in.bind_input
+    <Return
+        value={[
+            ($in.enter ? Value.Step.Enter : Value.Step.Reuse),
+            ($in.bind_input ? Value.Step.Bind : Value.Step.Open),
+            ($in.value_output ? Value.Step.Value : Value.Step.Abi),
+            ($in.signature ? Value.Step.Prototype : Value.Step.Body)
         ]}
     />
-
-    <Call
-        fn="index.setFunctionOutput"
-        in={[
-            $in.body,
-            $in.value_output
-        ]}
-    />
-
-    <If on={$in.signature}>
-        <Call fn="index.emitValuePrototype" in={$in.body} />
-
-        <Else>
-            <Call fn="index.emitValueBody" in={$in.body} />
-        </Else>
-    </If>
 </Module>

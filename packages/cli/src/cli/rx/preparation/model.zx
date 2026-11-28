@@ -1,12 +1,10 @@
 import type {
     ModuleReference,
     Preparation,
-    References,
-    TypeSources
+    References
 } from "rx_preparation_host"
 
 export type TypePass = {
-    types: TypeSources,
     references: References,
     module_count: u64,
     scoped: bool,
@@ -14,10 +12,9 @@ export type TypePass = {
 }
 
 export type TypeWalkStart =
-    TypePass.Pick("types", "references", "module_count", "scoped")
+    TypePass.Omit("initial_paths")
 
 export type TypeModuleState = {
-    types: TypeSources,
     references: References,
     scoped: bool,
     diagnostic: string
@@ -28,7 +25,7 @@ export type TypeReference = TypeModuleState & {
 }
 
 export type TypeRead = {
-    types: TypeSources,
+    references: References,
     ref_index: u64,
     scoped: bool,
     path: string
@@ -61,6 +58,8 @@ export type Request = {
     preparation: Preparation,
     scoped: bool
 }
+
+export type SourcePass = Request & Range
 
 export type Root = Request & {
     index: u64

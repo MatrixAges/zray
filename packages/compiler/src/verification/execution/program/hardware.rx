@@ -1,14 +1,17 @@
 <Module>
     <Type from="model" as="Program" />
 
-    <Args in={Program.Entry} out={Program.Diagnostic?} />
+    <Args in={Program.Entry} out={Program.Admission} />
 
     <If on={$in.type_only || $in.stores != 0}>
         <Return
             value={{
-                message:
-                    "symbolic execution requires a pure executable function without Store capabilities",
-                unsupported: true
+                steps: [],
+                diagnostic: {
+                    message:
+                        "symbolic execution requires a pure executable function without Store capabilities",
+                    unsupported: true
+                }
             }}
         />
     </If>
@@ -28,27 +31,21 @@
     <If on={$ctx.walk.diagnostic != null}>
         <Return
             value={{
-                message: $ctx.walk.diagnostic,
-                unsupported: true
+                steps: [],
+                diagnostic: {
+                    message: $ctx.walk.diagnostic,
+                    unsupported: true
+                }
             }}
         />
     </If>
 
-    <Call
-        fn="index.publishSymbolicParameter"
-        in={[
-            $in.program,
-            $ctx.walk.rows
-        ]}
-    />
+    <Call fn="hardware_steps" in={$in.returns_unit} />
 
-    <Call
-        module="call"
-        in={{
-            program: $in.program,
-            returns_unit: $in.returns_unit
+    <Return
+        value={{
+            steps: $ctx.hardware_steps,
+            rows: $ctx.walk.rows
         }}
     />
-
-    <Return value={$ctx.call} />
 </Module>

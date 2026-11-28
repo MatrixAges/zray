@@ -1,0 +1,6 @@
+<Store name="store_registry_publication" version={1}>
+    <Object name="definition">
+        <Field name="row" type={u64} value={0} />
+        <Field name="copy_objects" type={bool} value={false} />
+    </Object>
+</Store>

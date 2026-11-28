@@ -11,23 +11,7 @@ pub const Range = struct {
 
 pub const Ranges = []Range;
 
-pub fn bind(storage: anytype, source: anytype, views: anytype) [@typeInfo(std.meta.Child(@TypeOf(storage))).@"struct".field_names.len]Range {
-    const names = @typeInfo(std.meta.Child(@TypeOf(storage))).@"struct".field_names;
-    var ranges: [names.len]Range = undefined;
-
-    inline for (names, &ranges) |name, *range| {
-        const column = &@field(storage, name);
-        const Item = std.meta.Elem(@TypeOf(column.items));
-        const tail_view: *[]const Item = &@field(views, name);
-        const rows = @field(source, name);
-
-        range.* = bindOne(column, if (@typeInfo(@TypeOf(rows)) == .pointer) rows.len else rows, @ptrCast(tail_view), false);
-    }
-
-    return ranges;
-}
-
-pub fn bindOne(column: anytype, size: usize, tail_view: *anyopaque, comptime bytes: bool) Range {
+fn bindOne(column: anytype, size: usize, tail_view: *anyopaque, comptime bytes: bool) Range {
     const Item = std.meta.Elem(@TypeOf(column.items));
     const View = if (bytes) u8 else Item;
 

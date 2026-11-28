@@ -109,25 +109,17 @@ fn clearSeed(self: *Self) void {
     self.items.clearRetainingCapacity();
 }
 
-fn borrowWorkspace(handle: *anyopaque) *Self {
-    return @ptrCast(@alignCast(handle));
-}
-
-pub fn clearMixedResults(handle: *anyopaque) void {
-    borrowWorkspace(handle).clearResults();
-}
-
-pub fn resetMixedWorker(handle: *anyopaque, index: u64) void {
-    _ = borrowWorkspace(handle).arenas[@intCast(index)].reset(.retain_capacity);
-}
-
 fn resetBindings(self: *Self) void {
     _ = self.bindings.reset(.retain_capacity);
     self.next_item = 0;
 }
 
-pub fn resetMixedBindings(handle: *anyopaque) void {
-    borrowWorkspace(handle).resetBindings();
+pub fn commit(self: *Self, pending: anytype) error{}!void {
+    if (pending.store_0) |recycle| switch (recycle.action) {
+        .ClearResults => self.clearResults(),
+        .ResetWorker => _ = self.arenas[@intCast(recycle.worker)].reset(.retain_capacity),
+        .ResetBindings => self.resetBindings(),
+    };
 }
 
 /// Analyzes a bounded prefix of the run and returns its module count. Runs below the parallel minimum are left to
@@ -334,7 +326,7 @@ fn executeWindow(frame: *Preparation, reuse: *const Reuse, window: Schedule.Wind
             .history = if (previous) |snapshot| zx.columns.pointer(@typeInfo(@FieldType(Selection, "history")).optional.child, &snapshot.history) else null,
         },
         .workspace = @ptrCast(frame),
-        .prior = &.{ .workspace = @ptrCast(frame.ahead), .rows = frame.ahead.items.len, .workers = frame.ahead.arenas.len },
+        .prior = &.{ .rows = frame.ahead.items.len, .workers = frame.ahead.arenas.len },
         .minimum = minimum,
         .capacity = Candidates.chunk_size,
     };
@@ -343,7 +335,7 @@ fn executeWindow(frame: *Preparation, reuse: *const Reuse, window: Schedule.Wind
 
     defer scratch.deinit();
 
-    const consumed = collect_plan.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    const consumed = collect_plan.executeIn(scratch.allocator(), &input, frame.ahead) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow => return error.OutOfMemory,
         else => unreachable,
     };

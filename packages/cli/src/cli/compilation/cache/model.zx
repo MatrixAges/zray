@@ -1,18 +1,18 @@
-import type { SemanticDiskRead, SemanticDiskWrite } from "compilation_host"
+import type { SemanticDisk } from "compilation_host"
 
 export type ReadInput = {
-    disk: SemanticDiskRead,
+    disk: SemanticDisk,
     count: u64
 }
 
 export type WriteInput = {
-    disk: SemanticDiskWrite,
+    disk: SemanticDisk,
     source_dirty: bool[],
     native_dirty: bool[]
 }
 
 export type WriteEntries = {
-    disk: SemanticDiskWrite,
+    disk: SemanticDisk,
     is_native: bool,
     dirty: bool[]
 }

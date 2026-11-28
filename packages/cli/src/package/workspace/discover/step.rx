@@ -36,15 +36,7 @@
     </If>
 
     <If on={$ctx.decision == Choice.Decision.Select}>
-        <Call
-            fn="index.selectCandidate"
-            in={[
-                $in.search,
-                false
-            ]}
-        />
-
-        <Return value={Workspace.Progress.Stop} />
+        <Return value={Workspace.Progress.Current} />
     </If>
 
     <If on={$ctx.decision == Choice.Decision.Inspect}>
@@ -56,9 +48,7 @@
             ])}
         />
 
-        <If on={$ctx.ancestor}>
-            <Return value={Workspace.Progress.Stop} />
-        </If>
+        <Return value={$ctx.ancestor} />
     </If>
 
     <Return value={Workspace.Progress.Advance} />

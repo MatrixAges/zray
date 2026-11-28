@@ -7,10 +7,9 @@
 
     <Return
         value={{
+            ...$ctx.source,
             name: $in.name,
-            imports: $in.key.imports,
-            source: $ctx.source.source,
-            cache_key: $ctx.source.cache_key
+            imports: $in.key.imports
         }}
     />
 </Module>

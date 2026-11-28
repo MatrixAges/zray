@@ -1,0 +1,32 @@
+import type { Row } from "../scanning/model"
+
+export type Input = Row[]
+
+export type Output = {
+    top_callees: u32[][],
+    top_variants: u8[][][]
+}
+
+export default function (in: Input): Output {
+    const top_callees: u32[][] = []
+    const top_variants: u8[][][] = []
+
+    return loop({
+        row: 0,
+        top_callees,
+        top_variants
+    }, {
+        while: state => state.row < in.length,
+        next: state => {
+            const scanned = in[state.row]
+
+            state.top_callees = state.top_callees.push(scanned.callees)[0]
+            state.top_variants = state.top_variants.push(scanned.variants)[0]
+            state.row += 1
+        },
+        return: state => state.pick([
+            "top_callees",
+            "top_variants"
+        ])
+    })
+}

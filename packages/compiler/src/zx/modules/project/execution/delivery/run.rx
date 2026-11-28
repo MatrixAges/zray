@@ -6,14 +6,15 @@
 
     <If on={$in.completed != null}>
         <Call
-            fn="index.prepareProjectSource"
-            in={[
-                $in.frame,
-                $in.completed
-            ]}
+            module="bind"
+            in={{
+                ...$in.omit(["completed"]),
+                target: {
+                    kind: Host.ProjectImportKind.Source,
+                    row: $in.completed
+                }
+            }}
         />
-
-        <Call module="bind" in={$in.omit(["completed"])} />
 
         <Return value={null} />
     </If>
@@ -33,18 +34,29 @@
 
         <Case value={Host.ProjectImportRoute.Legacy}>
             <Call fn="index.bindProjectLegacy" in={$in.frame} />
+
+            <If on={!$in.signature}>
+                <Call
+                    fn="index.recordProjectImport"
+                    in={[
+                        $in.frame,
+                        {
+                            kind: Host.ProjectImportKind.External
+                        }
+                    ]}
+                />
+            </If>
         </Case>
 
         <Case value={Host.ProjectImportRoute.Intrinsic}>
-            <Call fn="index.prepareProjectIntrinsic" in={$in.frame} />
-
             <Call
-                fn="index.bindProjectImport"
-                in={[
-                    $in.frame,
-                    false,
-                    $in.exported
-                ]}
+                module="bind"
+                in={{
+                    ...$in.omit(["completed"]),
+                    target: {
+                        kind: Host.ProjectImportKind.Intrinsic
+                    }
+                }}
             />
         </Case>
 
@@ -63,10 +75,6 @@
             <Return value={null} />
         </Default>
     </Switch>
-
-    <If on={!$in.signature}>
-        <Call fn="index.recordProjectImport" in={$in.frame} />
-    </If>
 
     <Return value={null} />
 </Module>

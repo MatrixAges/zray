@@ -1,0 +1,10 @@
+<Store name="mixed_import_binding" version={1}>
+    <Type from="model" as="Imports" />
+
+    <Object name="effect">
+        <Field name="row" type={u64} value={0} />
+        <Field name="publication" type={Imports.Plan?} value={null} />
+        <Field name="message" type={string?} value={null} />
+        <Field name="rows" type={Imports.Rows?} value={null} />
+    </Object>
+</Store>

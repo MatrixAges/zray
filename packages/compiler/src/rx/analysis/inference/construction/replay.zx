@@ -1,4 +1,3 @@
-import memory from "memory"
 
 import equivalent from "../fields/equivalent"
 import { Action as FieldAction } from "../fields/existing"
@@ -9,7 +8,6 @@ import { Effect } from "./application"
 import { Receiver, Route } from "./model"
 
 import type { State as Known } from "core/integer/map/model"
-import type { U32Buffer } from "memory"
 import type { Object, Output as Field } from "../fields/existing"
 import type { Output as Application } from "./application"
 import type { Candidates } from "./model"
@@ -18,7 +16,7 @@ export type Input = {
     names: string[],
     plan: Candidates,
     object: Object,
-    parents: U32Buffer,
+    parents: u32[],
     known: Known,
     start: u64
 }
@@ -29,7 +27,7 @@ export type Output = Application & {
 }
 
 export default function (in: Input): Output {
-    const parents = memory.u32Views(in.parents)
+    const parents = in.parents
 
     const fallback: Field = {
         action: FieldAction.Field,

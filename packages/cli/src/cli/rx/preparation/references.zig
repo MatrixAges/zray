@@ -3,6 +3,7 @@ const compiler = @import("compiler");
 const rx = @import("rx");
 const zx = @import("zx");
 const Inputs = @import("watch_inputs").Inputs;
+const Text = @import("../../sources/text.zig");
 const Libraries = @import("../../library/inputs.zig");
 const effects = @import("../../sources/effects.zig");
 const Error = effects.Error;
@@ -22,6 +23,8 @@ pub const Cursor = struct {
     writer: *std.Io.Writer,
     inputs: ?*Inputs,
     libraries: ?*Libraries = null,
+    texts: ?*Text.Cache = null,
+    type_sources: std.ArrayList(rx.TextSource) = .empty,
     failure: effects.Failure = .{},
     module: *const rx.ModuleSource = undefined,
     owner: []const u8 = undefined,

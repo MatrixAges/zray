@@ -1,40 +1,10 @@
 const std = @import("std");
-const rx = @import("rx");
-const Compile = @import("../compile.zig");
-const Loaded = @import("../project.zig").Loaded;
 const sources = @import("sources.zig");
 const collection = @import("../rx/collection.zig");
 const gateway = @import("../rx/gateway/analyze.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
-
-const State = struct {
-    context: *const Compile.Context,
-    loaded: *const Loaded,
-    collection: ?collection.Result = null,
-    functions: []const rx.TextSource = &.{},
-    gateway: ?gateway.Result = null,
-    failure: effects.Failure = .{},
-    fn get(handle: *const anyopaque) *State {
-        return effects.state(State, handle);
-    }
-    fn deinit(self: *State) void {
-        if (self.gateway) |*analyzed| analyzed.deinit();
-        if (self.collection) |*loaded| loaded.deinit();
-    }
-};
-
-pub fn run(context: Compile.Context, loaded: *const Loaded, store: bool) !Compile.Status {
-    var state: State = .{ .context = &context, .loaded = loaded };
-    const reference = &state;
-    const rule = @import("cli_source").lint_special_rx;
-
-    defer state.deinit();
-
-    const valid = rule.executeIn(context.allocator, &.{ .check = @ptrCast(&reference), .store = store }) catch |err| return state.failure.unwrap(err);
-
-    return if (valid) .success else .failed;
-}
+const State = @import("semantic.zig").State;
 
 pub fn checkSpecialSource(handle: *const anyopaque) Error!bool {
     const self = State.get(handle);
@@ -91,7 +61,7 @@ pub fn analyzeLintGateway(handle: *const anyopaque) Error!?bool {
 
     self.gateway = gateway.run(context.allocator, .{
         .io = context.io,
-        .loaded = self.loaded.*,
+        .loaded = self.loaded,
         .writer = context.stderr,
     }) catch |err| return self.failure.save(err);
 
@@ -105,11 +75,4 @@ pub fn checkLintServices(handle: *const anyopaque) Error!bool {
     const status = sources.check(self.context.*, self.gateway.?.services.?.modules, self.loaded.project.root_dir) catch |err| return self.failure.save(err);
 
     return status == .success;
-}
-
-pub fn linkLintGateway(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-    var linked = self.gateway.?.link(self.context.allocator) catch |err| return self.failure.save(err);
-
-    if (linked) |*library| library.deinit();
 }

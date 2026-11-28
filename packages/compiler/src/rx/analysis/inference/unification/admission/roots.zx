@@ -1,14 +1,13 @@
 import { max_nesting_depth } from "core/const"
 
-import representative from "../../forest/borrowed_root"
+import representative from "../../forest/root"
 import { Action } from "../application/model"
 import { Route } from "../model"
 
-import type { U32Buffer } from "memory"
 import type { Output as Admission } from "./model"
 
 export type Input = {
-    parents: U32Buffer,
+    parents: u32[],
     left: u32,
     right: u32,
     depth: u64,

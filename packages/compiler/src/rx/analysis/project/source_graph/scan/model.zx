@@ -1,22 +1,23 @@
-import type { GraphVisit } from "rx_graph_host"
+import type { GraphScanTargets } from "rx_graph_host"
 import type { Edges, Frontier, Selection } from "../frontier/model"
-import type { Ranges } from "../source"
+import type { Output as Source, Ranges } from "../source"
+
+export type { GraphScanTargets } from "rx_graph_host"
 
 export type Input = Ranges & {
     end: u64,
-    target: GraphVisit,
     roots: u64[]
 }
 
-export type Request = Ranges & {
-    target: GraphVisit
+export type State = Frontier & Edges & Selection & {
+    sources: Ranges,
+    edge_end: u64
 }
 
-export type State = Frontier & Edges & Selection & {
-    request: Request,
-    targets: u64[]
+export type Publication = Source & {
+    targets: GraphScanTargets
 }
 
 export type Output = Edges & {
-    targets: u64[]
+    targets: GraphScanTargets
 }

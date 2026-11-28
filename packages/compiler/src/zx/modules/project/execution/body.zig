@@ -95,7 +95,11 @@ pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
             else => errorSet(err),
         };
 
-        if (outcome.records_used) |count| body.installation.modules.length = count;
+        if (outcome.record) |pending| {
+            publishRecord(&body, pending);
+
+            if (pending.retain_entry) retainEntry(&body);
+        }
 
         if (outcome.cache_record) |index| {
             const cache_tail = &body.installation.cache;
@@ -159,7 +163,7 @@ fn seed(body: *Body, input: anytype) zx.Error!void {
     }
 
     try project.modules.append(project.allocator, record(body, plan.body, plan.own_function));
-    if (body.entry) moveProjectEntryBody(body);
+    if (body.entry) retainEntry(body);
 }
 
 pub fn hashProjectCacheContext(handle: *anyopaque, root: bool) std.mem.Allocator.Error!void {
@@ -302,25 +306,27 @@ fn publishSeedExports(body: *Body) zx.Error!void {
     }
 }
 
-pub fn writeProjectModuleRecord(handle: *anyopaque, row: u64, types: []const u8, constants: []const u8, members: []const u8, entry: ?u32, entry_record: bool, function_id: ?u32, recursive: ?u32) void {
-    const body = Body.borrow(handle);
+fn publishRecord(body: *Body, pending: anytype) void {
     const rows = @import("../exports/publication/rows.zig");
     const unit = body.unit;
+    const modules = &body.installation.modules;
 
-    unit.exports = rows.typedRows(ir.Export, types);
-    unit.constants = rows.typedRows(ir.Constant, constants);
-    unit.members = rows.typedRows(project_api.FunctionImport, members);
-    unit.function = if (entry) |id| @fromBackingInt(id) else null;
+    unit.exports = rows.typedRows(ir.Export, pending.exports);
+    unit.constants = rows.typedRows(ir.Constant, pending.constants);
+    unit.members = rows.typedRows(project_api.FunctionImport, pending.members);
+    unit.function = if (pending.entry) |id| @fromBackingInt(id) else null;
 
-    const kind: @FieldType(ModuleRecord, "body") = if (entry_record)
-        .entry
+    const kind: @FieldType(ModuleRecord, "body") = switch (pending.publication) {
+        .Entry => .entry,
+        .Dependency => if (pending.function_id) |id| .{ .function = @fromBackingInt(id) } else .types,
+        .Types => .types,
+    };
 
-    else if (function_id) |id|
-        .{ .function = @fromBackingInt(id) }
-    else
-        .types;
+    const recursive: ?ir.FunctionId = if (pending.recursive) |id| @fromBackingInt(id) else null;
 
-    body.installation.modules.output.rows()[@intCast(row)] = record(body, kind, if (recursive) |id| @fromBackingInt(id) else null);
+    modules.output.rows()[@intCast(pending.row)] = record(body, kind, recursive);
+
+    modules.length = pending.row + 1;
 }
 
 inline fn record(body: *const Body, kind: @FieldType(ModuleRecord, "body"), recursive: ?ir.FunctionId) ModuleRecord {
@@ -343,8 +349,7 @@ inline fn record(body: *const Body, kind: @FieldType(ModuleRecord, "body"), recu
     };
 }
 
-pub fn moveProjectEntryBody(handle: *anyopaque) void {
-    const body = Body.borrow(handle);
+fn retainEntry(body: *Body) void {
     const program = &body.program;
     program.types = .{};
     program.functions = .{};

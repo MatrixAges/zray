@@ -3,26 +3,29 @@
 
     <Args in={Imports.Input} out={Imports.Input} />
 
+    <Store from="binding" as="binding" />
+
     <Call
-        fn="host.openMixedImport"
-        in={[
-            $in.binding,
-            $in.row,
-            $in.pending
-        ]}
+        fn="stage"
+        in={{
+            row: $in.row
+        }}
+        setter={[$store.binding.effect]}
     />
 
-    <If on={$ctx.openMixedImport != null}>
+    <Call fn="read" in={$store.binding.effect} />
+
+    <If on={$ctx.read != null}>
         <Call module="../../../../../zx/modules/binding/bind" in={$in.symbols[0]} />
 
         <If on={$ctx.bind.message != ""}>
             <Call
-                fn="host.rejectMixedImport"
-                in={[
-                    $in.binding,
-                    $in.row,
-                    $ctx.bind.message
-                ]}
+                fn="stage"
+                in={{
+                    row: $in.row,
+                    message: $ctx.bind.message
+                }}
+                setter={[$store.binding.effect]}
             />
         </If>
 
@@ -32,16 +35,17 @@
                 in={{
                     names: $ctx.bind.function_names,
                     indices: $ctx.bind.function_indices,
-                    rows: $ctx.openMixedImport
+                    rows: $ctx.read
                 }}
             />
 
-            <Return
-                value={{
-                    ...$in,
-                    row: $in.row + 1,
-                    pending: $ctx.publish
+            <Call
+                fn="stage"
+                in={{
+                    row: $in.row,
+                    publication: $ctx.publish
                 }}
+                setter={[$store.binding.effect]}
             />
         </If>
     </If>
@@ -49,8 +53,7 @@
     <Return
         value={{
             ...$in,
-            row: $in.row + 1,
-            pending: null
+            row: $in.row + 1
         }}
     />
 </Module>

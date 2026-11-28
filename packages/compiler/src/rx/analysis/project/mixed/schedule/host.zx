@@ -1,1 +1,1 @@
-export { clearMixedResults, executeMixedWorkers } from "rx_project_host"
+export { executeMixedWorkers } from "rx_project_host"

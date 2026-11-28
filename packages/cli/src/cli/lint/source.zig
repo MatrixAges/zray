@@ -7,13 +7,13 @@ const Compile = @import("../compile.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
 
-const State = struct {
+pub const State = struct {
     context: *const Compile.Context,
-    source: []const u8,
+    source: []const u8 = &.{},
     parsed: ?rx.document.Parsed = null,
     formatted: ?[]u8 = null,
     failure: effects.Failure = .{},
-    fn get(handle: *const anyopaque) *State {
+    pub fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);
     }
     fn deinit(self: *State) void {
@@ -29,12 +29,17 @@ pub fn check(context: Compile.Context, source: []const u8) !Compile.Status {
 
     defer state.deinit();
 
-    const valid = @import("cli_source").lint_source.executeIn(context.allocator, &.{
+    const outcome = @import("cli_source").lint_source.executeIn(context.allocator, &.{
         .host = @ptrCast(&reference),
         .input_path = context.options.input,
+        .source = source,
     }) catch |err| return state.failure.unwrap(err);
 
-    return if (valid) .success else .failed;
+    if (outcome == .Unformatted) {
+        try context.stderr.print("{s}: {s}\n", .{ context.options.input, lint.source.formatting_required });
+    }
+
+    return if (outcome == .Valid) .success else .failed;
 }
 
 pub fn parseLintRx(handle: *const anyopaque) Error!bool {
@@ -77,10 +82,12 @@ pub fn checkLintRxValues(handle: *const anyopaque) Error!bool {
     return false;
 }
 
-pub fn formatLintRx(handle: *const anyopaque) Error!void {
+pub fn formatLintRx(handle: *const anyopaque) Error![]const u8 {
     const self = State.get(handle);
 
     self.formatted = rx.document.formatParsed(self.context.allocator, self.source, &self.parsed) catch |err| return self.failure.save(err);
+
+    return self.formatted.?;
 }
 
 pub fn checkLintZx(handle: *const anyopaque) Error!bool {
@@ -97,21 +104,13 @@ pub fn checkLintZx(handle: *const anyopaque) Error!bool {
     return false;
 }
 
-pub fn formatLintZx(handle: *const anyopaque) Error!void {
+pub fn formatLintZx(handle: *const anyopaque) Error![]const u8 {
     const self = State.get(handle);
     const formatted = compiler.format(self.context.allocator, self.source, self.context.options.input) catch |err| return self.failure.save(err);
 
     self.formatted = formatted.source;
-}
 
-pub fn checkLintFormatting(handle: *const anyopaque) Error!bool {
-    const self = State.get(handle);
-
-    if (std.mem.eql(u8, self.source, self.formatted.?)) return true;
-
-    self.context.stderr.print("{s}: {s}\n", .{ self.context.options.input, lint.source.formatting_required }) catch |err| return self.failure.save(err);
-
-    return false;
+    return formatted.source;
 }
 
 pub fn checkLintLength(handle: *const anyopaque) Error!bool {

@@ -8,7 +8,6 @@ const Self = @This();
 const generated = @import("genz_options").generated_analysis;
 const analyzing_effects = if (generated) @import("generated_uniqueness_effects") else void;
 const publication = @import("../construction/publication.zig");
-const FlowRows = @import("../expressions/evaluate.zig").Api.BasisFlowRows;
 const identity = @import("identity.zig");
 const Error = std.mem.Allocator.Error;
 pub const Effects = if (generated) analyzing_effects.Output else void;
@@ -29,30 +28,37 @@ pub fn create(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progra
 
     if (generated) {
         const entry = @import("generated_basis_workflow");
-        var result: Self = .{ .slots = undefined, .flow = undefined, .return_only = undefined, .effects = undefined };
-
-        var frame: Frame = .{
-            .allocator = allocator,
-            .workspace = workspace,
-            .program = &program,
-            .memo = kept,
-            .result = &result,
-        };
-
         const Input = std.meta.Child(entry.Input);
         const Functions = std.meta.Child(@FieldType(Input, "functions"));
+        const FlowRows = std.meta.Child(@typeInfo(@FieldType(Input, "flow")).optional.child);
         var functions: Functions = undefined;
 
         inline for (@typeInfo(Functions).@"struct".field_names) |name| {
             @field(functions, name) = zx.columns.slice(@FieldType(Functions, name), @field(program.functions, name));
         }
 
-        const input: Input = .{ .work = @ptrCast(&frame), .persistent = kept != null, .functions = &functions };
-        const effects = entry.executeIn(allocator, &input) catch |err| return publication.failure(err);
-        result.return_only = effects.return_only;
-        result.effects = zx.columns.view(Effects, effects);
+        const types = zx.columns.borrow(std.meta.Child(@FieldType(Input, "types")), &program.types);
+        var input: Input = .{ .persistent = kept != null, .types = &types, .functions = &functions, .flow = null };
+        const prepared = entry.executeIn(allocator, &input) catch |err| return publication.failure(err);
+        const plan = prepared.plan.?;
+        const slots = @import("slots/generated.zig").bind(program.types, plan.slots.*);
+        const contents = if (plan.hash) try identity.contents(allocator, &program) else &.{};
+        const digest: [32]u8 = if (plan.hash) identity.types(program.types) else @splat(0);
+        const flow = try Flow.create(allocator, workspace, program, slots, plan.slots.texts, contents, digest, kept);
+        const rows: FlowRows = .{ .held = flow.held, .written = flow.written };
+        input.flow = &rows;
 
-        return result;
+        const completed = entry.executeIn(allocator, &input) catch |err| return publication.failure(err);
+        const effects = completed.effects.?;
+
+        return .{
+            .slots = slots,
+            .flow = flow,
+            .return_only = effects.return_only,
+            .effects = zx.columns.view(Effects, effects),
+            .contents = contents,
+            .types = digest,
+        };
     }
 
     const built = try Slots.init(allocator, program.types);
@@ -67,45 +73,6 @@ pub fn create(allocator: std.mem.Allocator, workspace: std.mem.Allocator, progra
         .contents = contents,
         .types = types,
     };
-}
-
-const Frame = struct {
-    allocator: std.mem.Allocator,
-    workspace: std.mem.Allocator,
-    program: *const ir.Program,
-    memo: ?*Memo,
-    result: *Self,
-    texts: []const bool = undefined,
-    flow_rows: FlowRows = undefined,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-};
-
-pub fn buildBasisSlots(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-    const built = try Slots.init(frame.allocator, frame.program.types);
-    frame.result.slots = built.slots;
-    frame.texts = built.texts;
-}
-
-pub fn hashBasis(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-    frame.result.contents = try identity.contents(frame.allocator, frame.program);
-    frame.result.types = identity.types(frame.program.types);
-}
-
-pub fn buildBasisFlow(handle: *anyopaque) Error!*const FlowRows {
-    const frame = Frame.borrow(handle);
-    const result = frame.result;
-    result.flow = try Flow.create(frame.allocator, frame.workspace, frame.program.*, result.slots, frame.texts, result.contents, result.types, frame.memo);
-
-    frame.flow_rows = .{
-        .held = result.flow.held,
-        .written = result.flow.written,
-    };
-
-    return &frame.flow_rows;
 }
 
 pub fn lists(allocator: std.mem.Allocator, slots: Slots, type_id: ir.TypeId) std.mem.Allocator.Error![]const ir.TypeId {

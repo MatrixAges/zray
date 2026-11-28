@@ -2,25 +2,17 @@
     <Type from="index" as="IO" />
     <Type from="model" as="Collection" />
 
-    <Args in={Collection.Row} out={bool} />
+    <Args in={Collection.Visit} out={bool} />
 
-    <Call
-        fn="index.selectCollectionPath"
-        in={[
-            $in.collection,
-            $in.index
-        ]}
-    />
-
-    <Call fn="kind" />
+    <Call fn="kind" in={$in.path} />
 
     <Call
         module="files/read"
         in={{
             collection: $in.collection,
             kind: $ctx.kind,
-            path: $ctx.selectCollectionPath,
-            first: $in.index == 0
+            path: $in.path,
+            first: $in.first
         }}
     />
 

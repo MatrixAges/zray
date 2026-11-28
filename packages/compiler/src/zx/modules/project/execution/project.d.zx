@@ -8,17 +8,3 @@ export declare function checkProjectOwnership(body: ProjectBody, count: u64, id:
     throws { OutOfMemory, InvalidSource }
 
 export declare function bindProjectBodyExports(body: ProjectBody, id: u32?): void
-
-export declare function writeProjectModuleRecord(
-    body: ProjectBody,
-    row: u64,
-    types: u8[],
-    constants: u8[],
-    members: u8[],
-    entry: u32?,
-    entry_record: bool,
-    function_id: u32?,
-    recursive: u32?
-): void
-
-export declare function moveProjectEntryBody(body: ProjectBody): void

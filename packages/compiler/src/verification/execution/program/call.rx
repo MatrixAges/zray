@@ -1,55 +1,33 @@
 <Module>
     <Type from="model" as="Program" />
 
-    <Args in={Program.Called} out={Program.Diagnostic?} />
+    <Args in={Program.Called} out={Program.Plan} />
 
-    <Call fn="index.ensureSymbolicGraph" in={$in.program} />
-    <Call fn="index.beginSymbolicCall" in={$in.program} />
+    <If on={$in.returned != null}>
+        <If on={$in.returned == 0}>
+            <Return
+                value={{
+                    steps: [],
+                    diagnostic: {
+                        message: "verified call has no return value",
+                        unsupported: false
+                    }
+                }}
+            />
+        </If>
 
-    <Call
-        fn="index.symbolicProgramPreconditions"
-        in={[
-            $in.program,
-            true
-        ]}
-    />
-
-    <Call
-        fn="index.runSymbolicProgramBody"
-        in={[
-            $in.program,
-            $ctx.symbolicProgramPreconditions.path
-        ]}
-    />
-
-    <If on={$in.returns_unit}>
-        <Call
-            fn="index.checkSymbolicUnit"
-            in={[
-                $in.program,
-                $ctx.runSymbolicProgramBody
-            ]}
-        />
-
-        <Call
-            fn="index.appendSymbolicUnit"
-            in={[
-                $in.program,
-                $ctx.runSymbolicProgramBody
-            ]}
-        />
-    </If>
-
-    <Call fn="index.publishSymbolicProgramResult" in={$in.program} />
-
-    <If on={!$ctx.publishSymbolicProgramResult}>
         <Return
             value={{
-                message: "verified call has no return value",
-                unsupported: false
+                steps: [Program.Step.Merge]
             }}
         />
     </If>
 
-    <Return value={null} />
+    <Call fn="call_steps" in={$in.returns_unit} />
+
+    <Return
+        value={{
+            steps: $ctx.call_steps
+        }}
+    />
 </Module>

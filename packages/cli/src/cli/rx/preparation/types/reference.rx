@@ -25,7 +25,7 @@
             <Call
                 module="read"
                 in={{
-                    types: $in.types,
+                    references: $in.references,
                     ref_index: $in.ref_index,
                     scoped: $in.scoped,
                     path: $ctx.resolvePreparationTarget.source_path

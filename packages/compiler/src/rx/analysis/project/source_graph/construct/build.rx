@@ -8,7 +8,6 @@
             module="../scan/visit"
             in={{
                 ...$in.ranges,
-                target: $in.visit,
                 roots: $in.setup.roots
             }}
         />

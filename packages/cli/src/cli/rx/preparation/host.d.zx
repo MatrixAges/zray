@@ -2,8 +2,6 @@ export type Preparation = opaque
 
 export type References = opaque
 
-export type TypeSources = opaque
-
 export enum Role {
     TypeImport,
     ModuleCall,
@@ -46,17 +44,16 @@ export declare function reportPreparationReference(
 ): void throws { SourceLoadFailure }
 export declare function prepareCompiledReference(references: References): bool throws { SourceLoadFailure }
 
-export declare function validateTypeSourceFile(types: TypeSources, path: string): void throws { SourceLoadFailure }
-export declare function validateTypeSourceRoot(types: TypeSources, path: string): void throws { SourceLoadFailure }
-export declare function readPreparedTypeSource(types: TypeSources, index: u64, path: string): bool throws {
+export declare function validateTypeSourceFile(references: References, path: string): void throws { SourceLoadFailure }
+export declare function validateTypeSourceRoot(references: References, path: string): void throws { SourceLoadFailure }
+export declare function readPreparedTypeSource(references: References, index: u64, path: string): bool throws {
     SourceLoadFailure
 }
 
 export declare function loadPreparationDocuments(preparation: Preparation): bool throws { SourceLoadFailure }
 export declare function preparePhysicalRoot(preparation: Preparation): u64 throws { SourceLoadFailure }
 export declare function validatePreparedModule(preparation: Preparation, index: u64): void throws { SourceLoadFailure }
-export declare function collectPreparationTypes(preparation: Preparation): bool throws { SourceLoadFailure }
-export declare function reservePreparationRoots(preparation: Preparation): u64 throws { SourceLoadFailure }
+export declare function collectPreparationTypes(preparation: Preparation): u64? throws { SourceLoadFailure }
 export declare function registerPreparationRoot(preparation: Preparation, index: u64): void throws { SourceLoadFailure }
 export declare function loadPreparationRoot(preparation: Preparation, index: u64): LoadedRange? throws {
     SourceLoadFailure

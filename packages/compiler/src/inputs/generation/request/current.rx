@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Request" />
+
+    <Args in={Request.Current} out={bool} />
+
+    <If on={$in.digest != null}>
+        <Call fn="host.readGenerationStamp" in={$in.stamp_path} />
+
+        <Call
+            fn="current"
+            in={{
+                digest: $in.digest,
+                stamp: $ctx.readGenerationStamp
+            }}
+        />
+
+        <Return value={$ctx.current} />
+    </If>
+
+    <Return value={false} />
+</Module>

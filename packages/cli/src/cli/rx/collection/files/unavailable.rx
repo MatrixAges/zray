@@ -10,7 +10,13 @@
         </If>
     </If>
 
-    <Call fn="../index.reportCollectionFileFailure" in={$in.collection} />
+    <Call
+        fn="../index.writeCollectionDiagnostic"
+        in={[
+            $in.collection,
+            $in.problem
+        ]}
+    />
 
     <Return value={Collection.Readiness.Invalid} />
 </Module>

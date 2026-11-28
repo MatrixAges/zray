@@ -2,13 +2,12 @@ import integers from "std:integer"
 import { scalar_u64 } from "core/type_table/const"
 
 import { Route } from "../fields/model"
-import representative from "../forest/borrowed_root"
+import representative from "../forest/root"
 import find from "../known/find"
 import { Kind } from "../unification/model"
 import candidate from "./candidate"
 
 import type { State as Known } from "core/integer/map/model"
-import type { U32Buffer } from "memory"
 import type { Output as Field } from "../fields/model"
 import type { Kind as NodeKind } from "../unification/model"
 import type { Types } from "./candidate"
@@ -18,7 +17,7 @@ export type Input = {
     arguments: u32[],
     types: Types,
     allowed: u16?[],
-    parents: U32Buffer,
+    parents: u32[],
     known: Known,
     targets: u32[],
     values: u32[],

@@ -13,7 +13,6 @@ export {
     loadPreparationDocuments,
     preparePhysicalRoot,
     collectPreparationTypes,
-    reservePreparationRoots,
     loadPreparationRoot,
     collectPreparationLibraries,
     inferPreparedProject
@@ -23,7 +22,6 @@ export type {
     ModuleReference,
     Preparation,
     References,
-    TypeSources,
     Target,
     Role
 } from "rx_preparation_host"

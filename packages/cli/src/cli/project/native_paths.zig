@@ -6,8 +6,18 @@ const Native = std.meta.Child(@FieldType(Request, "native"));
 const Setup = std.meta.Child(@FieldType(Native, "setup"));
 const Columns = std.meta.Child(@FieldType(Setup, "settings"));
 const Views = std.meta.Child(@FieldType(Native, "abi_views"));
+const Modules = std.meta.Child(@FieldType(Native, "modules"));
 const settings_fields = .{ .names = "name", .roots = "root", .includes = "include_paths" };
-const abi_fields = .{ .names = "name", .targets = "module" };
+
+const module_fields = .{
+    .names = "name",
+    .includes = "include_paths",
+    .paths = "path",
+    .headers = "header",
+    .bundles = "bundle_files",
+};
+
+const abi_fields = .{ .names = "name", .targets = "module", .files = "path" };
 
 pub const Paths = struct {
     fields: memory.ReadFields(settings_fields),
@@ -33,5 +43,14 @@ pub const Abi = struct {
     pub fn init(self: *Abi, files: anytype) void {
         self.fields = memory.borrowReadFields(abi_fields, files);
         self.view = self.fields.bind(Views);
+    }
+};
+
+pub const NativeModules = struct {
+    fields: memory.ReadFields(module_fields),
+    view: Modules,
+    pub fn init(self: *NativeModules, loaded: *const project.Loaded) void {
+        self.fields = memory.borrowReadFields(module_fields, loaded.config.native_modules);
+        self.view = self.fields.bind(Modules);
     }
 };

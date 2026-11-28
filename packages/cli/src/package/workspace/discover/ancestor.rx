@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Workspace" />
 
-    <Args in={Workspace.Cursor.Pick("search", "directory")} out={bool} />
+    <Args in={Workspace.Cursor.Pick("search", "directory")} out={Workspace.Progress} />
 
     <Call
         fn="index.loadAncestor"
@@ -15,11 +15,11 @@
         <Call fn="member" in={$ctx.loadAncestor} />
 
         <If on={$ctx.member}>
-            <Call fn="index.selectAncestor" in={$in.search} />
+            <Return value={Workspace.Progress.Ancestor} />
         </If>
 
-        <Return value={$ctx.member} />
+        <Return value={Workspace.Progress.Advance} />
     </If>
 
-    <Return value={true} />
+    <Return value={Workspace.Progress.Stop} />
 </Module>

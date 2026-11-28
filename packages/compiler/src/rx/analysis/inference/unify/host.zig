@@ -55,7 +55,7 @@ const Target = struct {
         };
 
         self.view = .{
-            .parents = @ptrCast(&self.parents),
+            .parents = self.parents,
             .graph = &self.nodes,
             .types = &self.types,
             .kind_bytes = std.mem.sliceAsBytes(rows.items(.kind)),
@@ -109,7 +109,7 @@ pub fn prepareUnificationFrame(handle: *anyopaque, left: u32, right: u32, depth:
     const input: std.meta.Child(plan_rule.Input) = .{
         .graph = &target.nodes,
         .types = &target.types,
-        .parents = @ptrCast(&target.parents),
+        .parents = target.parents,
         .left = left,
         .right = right,
         .depth = depth,
@@ -142,7 +142,7 @@ pub noinline fn walkUnificationFrames(handle: *anyopaque, depth: u64) zx.Error!v
 
     state.view = .{
         .frame = &state.row,
-        .parents = @ptrCast(&target.parents),
+        .parents = target.parents,
         .known = &state.known,
     };
 
@@ -213,6 +213,7 @@ pub fn internUnificationType(handle: *anyopaque, type_id: u32) zx.Error!u32 {
 
     target.bind();
 
+    target.walk.view.parents = target.parents;
     target.walk.known = target.graph.pending.known_types.borrow(Known);
 
     return @backingInt(result);

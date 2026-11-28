@@ -17,7 +17,7 @@ pub const Result = struct {
     diagnostic: ?[]const u8 = null,
 };
 
-const State = struct {
+pub const State = struct {
     io: std.Io,
     allocator: std.mem.Allocator,
     scratch: std.mem.Allocator,
@@ -26,10 +26,11 @@ const State = struct {
     discovered: discover.Result = .{},
     graph: ?graph.Result = null,
     scopes: []compiler.project.PackageScope = &.{},
+    binding: scope.Storage = undefined,
     real: []const u8 = undefined,
     result: Result = .{},
     failure: effects.Failure = .{},
-    fn get(handle: *const anyopaque) *State {
+    pub fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);
     }
 };
@@ -48,12 +49,14 @@ pub fn loadWithInputs(io: std.Io, allocator: std.mem.Allocator, scratch: std.mem
 
     const reference = &state;
 
-    const outcome = rules.workspace_project.executeValue(scratch, &.{
+    const outcome = rules.workspace_project.executeIn(scratch, &.{
         .project = @ptrCast(&reference),
         .config_path = config_path,
     }) catch |err| return state.failure.unwrap(err);
 
-    if (outcome == .OutsidePackage) {
+    if (outcome.owner) |owner| {
+        try publishProject(&state, owner);
+    } else if (outcome.outside_package) {
         state.result.diagnostic = rules.workspace_project_constants.@"zx.constants".outside_package;
     }
 
@@ -74,7 +77,7 @@ pub fn findProjectConfiguration(handle: *const anyopaque) Error!?[]const u8 {
     return self.discovered.path;
 }
 
-pub fn loadProjectGraph(handle: *const anyopaque, path: []const u8) Error!bool {
+pub fn loadProjectGraph(handle: *const anyopaque, path: []const u8) Error!?u64 {
     const self = State.get(handle);
 
     self.graph = graph.loadPrepared(self.io, std.heap.smp_allocator, .{
@@ -87,19 +90,15 @@ pub fn loadProjectGraph(handle: *const anyopaque, path: []const u8) Error!bool {
     if (self.graph.?.diagnostic) |message| {
         self.result.diagnostic = self.allocator.dupe(u8, message) catch |err| return self.failure.save(err);
 
-        return false;
+        return null;
     }
 
-    return true;
-}
-
-pub fn bindProjectScopes(handle: *const anyopaque) Error!bool {
-    const self = State.get(handle);
     const project = &self.graph.?;
-    self.scopes = self.allocator.alloc(compiler.project.PackageScope, project.packages.len) catch |err| return self.failure.save(err);
-    self.result.diagnostic = scope.bind(self.allocator, self.scratch, project, self.scopes) catch |err| return self.failure.save(err);
 
-    return self.result.diagnostic == null;
+    self.scopes = self.allocator.alloc(compiler.project.PackageScope, project.packages.len) catch |err| return self.failure.save(err);
+    self.binding = scope.Storage.init(self.scratch, project) catch |err| return self.failure.save(err);
+
+    return self.scopes.len;
 }
 
 pub fn owningProjectScope(handle: *const anyopaque) Error!?u64 {
@@ -110,9 +109,8 @@ pub fn owningProjectScope(handle: *const anyopaque) Error!?u64 {
     return compiler.project.package_scope.owner(self.scopes, self.real);
 }
 
-pub fn publishProject(handle: *const anyopaque, owner: u64) Error!void {
-    const self = State.get(handle);
-    const manifests = self.scratch.alloc(Manifest, self.scopes.len) catch |err| return self.failure.save(err);
+fn publishProject(self: *State, owner: u64) !void {
+    const manifests = try self.scratch.alloc(Manifest, self.scopes.len);
 
     for (self.graph.?.packages, manifests) |package, *manifest| manifest.* = package.manifest;
 

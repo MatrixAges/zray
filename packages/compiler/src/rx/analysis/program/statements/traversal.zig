@@ -36,13 +36,15 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
 
     const binding_slots: zx.memory.ColumnLengths = &.{&self.builder.bindings.items.len};
 
+    var scopes: std.meta.Child(@FieldType(Input, "scopes")) = .{
+        .active = @ptrCast(&binding_slots),
+        .bindings = &.{},
+        .values = &.{},
+    };
+
     var input: Input = .{
         .control = &state.control,
-        .scopes = &.{
-            .active = @ptrCast(&binding_slots),
-            .bindings = @ptrCast(&state.scope_counts),
-            .values = @ptrCast(&state.scope_values),
-        },
+        .scopes = &scopes,
         .root = root,
         .expected = std.mem.bytesAsSlice(u32, std.mem.asBytes(&self.plan.size)),
         .implicit_return = self.plan.implicit_return,
@@ -75,6 +77,8 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
     errdefer self.restoreBindings(bindings);
 
     input.events = (try execute(allocator, &input)).events.?;
+    scopes.bindings = state.scope_counts;
+    scopes.values = state.scope_values;
     input.started = true;
 
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);

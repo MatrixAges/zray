@@ -1,6 +1,6 @@
-import type { SpecialLint } from "lint_workflow_host"
+import type { SemanticLint } from "lint_workflow_host"
 
 export type Input = {
-    check: SpecialLint,
+    check: SemanticLint,
     store: bool
 }

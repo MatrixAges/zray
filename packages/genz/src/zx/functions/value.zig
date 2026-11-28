@@ -6,88 +6,69 @@ const policy = @import("policy.zig");
 const state = @import("../state_value/root.zig");
 const scope = @import("../state_value/scope.zig");
 const generated = @import("genz_options").generated_analysis;
-const evaluation = @import("../expressions/evaluate.zig");
 const argument: ir.SymbolId = @fromBackingInt(0);
-const Representation = @typeInfo(@typeInfo(@TypeOf(state.enter)).@"fn".return_type.?).error_union.payload;
 const Error = Lower.Error;
-
-const Frame = struct {
-    lowering: *Lower,
-    name: []const u8,
-    representation: Representation = null,
-    argument_scope: bool = false,
-    output: ?scope.Frame(.Value) = null,
-    declaration: node.Declaration = undefined,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-    fn restore(self: *Frame) void {
-        if (self.output) |saved| saved.restore();
-        if (self.argument_scope) _ = self.lowering.state_symbols.remove(argument);
-        if (self.representation) |saved| saved.restore();
-    }
-};
+const Step = enum { Enter, Reuse, Bind, Open, Value, Abi, Prototype, Body };
 
 pub fn lower(self: *Lower, name: []const u8, comptime signature: bool) Error!node.Declaration {
     const mode = policy.value(self);
-    var frame: Frame = .{ .lowering = self, .name = name };
-    const body: *anyopaque = @ptrCast(&frame);
-
-    defer frame.restore();
 
     if (generated) {
         const entry = @import("generated_lower_value_function");
 
         const input: std.meta.Child(entry.Input) = .{
-            .body = @ptrCast(&frame),
             .signature = signature,
             .enter = mode.enter,
             .bind_input = mode.bind_input,
             .value_output = mode.value_output,
         };
 
-        try evaluation.execute(entry, &input);
-    } else {
-        if (mode.enter) try enterFunctionRepresentation(body);
-        try bindFunctionArgument(body, mode.bind_input);
+        var scratch = std.heap.ArenaAllocator.init(self.workspace);
+        var buffer: [256]u8 = undefined;
+        var allocator = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
 
-        setFunctionOutput(body, mode.value_output);
+        defer scratch.deinit();
 
-        if (signature) try emitValuePrototype(body) else try emitValueBody(body);
+        const steps = entry.executeIn(allocator.allocator(), &input) catch |err| return @import("../construction/publication.zig").failure(err);
+
+        return emit(self, name, steps);
     }
 
-    return frame.declaration;
+    const steps = [_]Step{
+        if (mode.enter) .Enter else .Reuse,
+        if (mode.bind_input) .Bind else .Open,
+        if (mode.value_output) .Value else .Abi,
+        if (signature) .Prototype else .Body,
+    };
+
+    return emit(self, name, &steps);
 }
 
-pub fn enterFunctionRepresentation(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
+fn emit(self: *Lower, name: []const u8, steps: anytype) Error!node.Declaration {
+    var representation: @typeInfo(@typeInfo(@TypeOf(state.enter)).@"fn".return_type.?).error_union.payload = null;
+    var argument_scope = false;
+    var output: ?scope.Frame(.Value) = null;
 
-    frame.representation = try state.enter(frame.lowering);
-}
+    defer {
+        if (output) |saved| saved.restore();
+        if (argument_scope) _ = self.state_symbols.remove(argument);
+        if (representation) |saved| saved.restore();
+    }
 
-pub fn bindFunctionArgument(handle: *anyopaque, bind: bool) Error!void {
-    const frame = Frame.borrow(handle);
-    const self = frame.lowering;
+    for (steps) |step| switch (step) {
+        .Enter => representation = try state.enter(self),
+        .Reuse => {},
+        .Bind => {
+            try self.state_symbols.put(self.allocator, argument, {});
 
-    if (bind) try self.state_symbols.put(self.allocator, argument, {});
+            argument_scope = true;
+        },
+        .Open => argument_scope = true,
+        .Value => output = scope.enter(self, .Value, .{ .value_output = true }),
+        .Abi => output = scope.enter(self, .Value, .{ .value_output = false }),
+        .Prototype => return .{ .function = try self.prototype(name, false) },
+        .Body => return self.function(name, false),
+    };
 
-    frame.argument_scope = true;
-}
-
-pub fn setFunctionOutput(handle: *anyopaque, value: bool) void {
-    const frame = Frame.borrow(handle);
-
-    frame.output = scope.enter(frame.lowering, .Value, .{ .value_output = value });
-}
-
-pub fn emitValuePrototype(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-
-    frame.declaration = .{ .function = try frame.lowering.prototype(frame.name, false) };
-}
-
-pub fn emitValueBody(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-
-    frame.declaration = try frame.lowering.function(frame.name, false);
+    unreachable;
 }

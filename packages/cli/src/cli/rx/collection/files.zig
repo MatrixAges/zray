@@ -3,14 +3,17 @@ const Text = @import("../../sources/text.zig");
 const state = @import("state.zig");
 const State = state.State;
 const Error = state.effects.Error;
-const Availability = state.Availability;
+const FileRead = state.FileRead;
 const PhysicalResolution = @import("cli_abi").layouts.@"zig:rx_collection_host".PhysicalResolution;
 
-pub fn selectCollectionPath(handle: *const anyopaque, row: u64) Error![]const u8 {
+pub fn selectCollectionPath(handle: *const anyopaque, row: u64) Error!?[]const u8 {
     const self = State.get(handle);
     const allocator = self.allocator;
     const root = self.project.root_dir;
     const options = self.options;
+
+    if (row >= self.queue.items.len) return null;
+
     _ = self.reference_memory.reset(.retain_capacity);
 
     const requested = self.queue.items[@intCast(row)];
@@ -31,12 +34,13 @@ pub fn resolveCollectionPhysicalPath(handle: *const anyopaque) Error!*const Phys
     if (options.inputs) |inputs| inputs.add(options.io, absolute) catch |err| return self.failure.save(err);
 
     self.file.real = std.Io.Dir.cwd().realPathFileAlloc(options.io, absolute, self.allocator) catch |err| {
-        const avail = self.fileUnavailable(err) catch |failure| return failure;
+        const problem = try self.fileUnavailable(err);
 
         self.physical_view = .{
-            .availability = avail,
+            .availability = problem.availability,
             .real = "",
             .relative = "",
+            .problem = problem.problem,
         };
 
         return &self.physical_view;
@@ -48,41 +52,36 @@ pub fn resolveCollectionPhysicalPath(handle: *const anyopaque) Error!*const Phys
         .availability = .Ready,
         .real = self.file.real,
         .relative = relative,
+        .problem = "",
     };
 
     return &self.physical_view;
 }
 
-pub fn readCollectionFile(handle: *const anyopaque, retained: bool) Error!Availability {
+pub fn readCollectionFile(handle: *const anyopaque, retained: bool) Error!*const FileRead {
     const self = State.get(handle);
     const options = self.options;
     const allocator = if (retained) options.retained_source_allocator orelse self.allocator else self.allocator;
     const documents = if (retained) options.texts else null;
     const absolute = self.file.absolute;
-    const text = Text.read(options.io, allocator, absolute, documents) catch |err| return self.fileUnavailable(err);
+
+    const text = Text.read(options.io, allocator, absolute, documents) catch |err| {
+        self.file_read = try self.fileUnavailable(err);
+
+        return &self.file_read;
+    };
 
     if (text.fresh) if (options.inputs) |inputs| inputs.record(options.io, absolute, text.bytes) catch |err| return self.failure.save(err);
 
     self.file.text = text;
     self.file.documents = documents;
+    self.file_read = .{ .availability = .Ready, .problem = "" };
 
-    return .Ready;
+    return &self.file_read;
 }
 
-pub fn reportCollectionFileFailure(handle: *const anyopaque) Error!void {
+pub fn writeCollectionDiagnostic(handle: *const anyopaque, message: []const u8) Error!void {
     const self = State.get(handle);
 
-    self.options.writer.print("{s}: {s}\n", .{ self.file.path, @errorName(self.file.problem) }) catch |err| return self.failure.save(err);
-}
-
-pub fn reportCollectionEscape(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    self.options.writer.print("{s}: physical module file escapes the project root\n", .{self.file.path}) catch |err| return self.failure.save(err);
-}
-
-pub fn reportCollectionAlias(handle: *const anyopaque, previous: []const u8) Error!void {
-    const self = State.get(handle);
-
-    self.options.writer.print("{s}: physical module file is already registered as {s}\n", .{ self.file.path, previous }) catch |err| return self.failure.save(err);
+    self.options.writer.print("{s}: {s}\n", .{ self.file.path, message }) catch |err| return self.failure.save(err);
 }

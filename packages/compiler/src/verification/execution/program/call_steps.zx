@@ -1,0 +1,21 @@
+import { Step } from "./model"
+
+export type Input = bool
+
+export type Output = Step[]
+
+export default function (in: Input): Output {
+    const stages: Step[] = [
+        Step.EnsureGraph,
+        Step.BeginCall,
+        Step.CallPreconditions,
+        Step.RunBody
+    ]
+
+    const checked = match in {
+        true => stages.push(Step.CheckUnit)[0].push(Step.AppendUnit)[0],
+        _ => stages
+    }
+
+    return checked.push(Step.Resolve)[0]
+}

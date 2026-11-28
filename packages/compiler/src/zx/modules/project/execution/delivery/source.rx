@@ -13,20 +13,27 @@
 
         <Case value={Host.ProjectSourceAction.Bind}>
             <Call
-                fn="index.prepareProjectSource"
-                in={[
-                    $in.frame,
-                    $ctx.selectProjectSource.row
-                ]}
+                module="bind"
+                in={{
+                    ...$in,
+                    target: {
+                        kind: Host.ProjectImportKind.Source,
+                        row: $ctx.selectProjectSource.row
+                    }
+                }}
             />
-
-            <Call module="bind" in={$in} />
         </Case>
 
         <Case value={Host.ProjectSourceAction.DeferSignature}>
-            <Call fn="index.prepareDeferredProjectSignature" in={$in.frame} />
-
-            <Call module="bind" in={$in} />
+            <Call
+                module="bind"
+                in={{
+                    ...$in,
+                    target: {
+                        kind: Host.ProjectImportKind.Deferred
+                    }
+                }}
+            />
         </Case>
 
         <Case value={Host.ProjectSourceAction.SkipSignature}>

@@ -49,10 +49,6 @@ pub const State = struct {
     }
 };
 
-pub fn missingLibraryExports(handle: *const anyopaque) Error!void {
-    return effects.state(State, handle).failure.save(error.MissingPublicModules);
-}
-
 pub fn loadCompiledLibrary(handle: *const anyopaque) Error!void {
     const self = effects.state(State, handle);
     self.result = @import("../compiled.zig").load(self.allocator, self.options.*) catch |err| return self.failure.save(err);

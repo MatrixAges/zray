@@ -4,8 +4,7 @@ const rx = @import("rx");
 const Inputs = @import("watch_inputs").Inputs;
 const Text = @import("../sources/text.zig");
 const refs = @import("preparation/references.zig");
-const effects = @import("../sources/effects.zig");
-const Error = effects.Error;
+const Error = @import("../sources/effects.zig").Error;
 const rule = @import("cli_source").prepare_rx_types;
 const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
 
@@ -27,15 +26,6 @@ pub const Options = struct {
     texts: ?*Text.Cache = null,
 };
 
-const State = struct {
-    options: *const Options,
-    cursor: *refs.Cursor,
-    result: std.ArrayList(rx.TextSource) = .empty,
-    fn get(handle: *const anyopaque) *State {
-        return effects.state(State, handle);
-    }
-};
-
 pub fn collect(allocator: std.mem.Allocator, options: Options) !?[]const rx.TextSource {
     var cursor: refs.Cursor = .{
         .allocator = allocator,
@@ -45,11 +35,10 @@ pub fn collect(allocator: std.mem.Allocator, options: Options) !?[]const rx.Text
         .stores = options.stores,
         .writer = options.writer,
         .inputs = options.inputs,
+        .texts = options.texts,
     };
 
-    var state: State = .{ .options = &options, .cursor = &cursor };
-
-    try state.result.appendSlice(allocator, options.functions);
+    try cursor.type_sources.appendSlice(allocator, options.functions);
 
     const initial_paths = try allocator.alloc([]const u8, options.functions.len);
 
@@ -57,7 +46,6 @@ pub fn collect(allocator: std.mem.Allocator, options: Options) !?[]const rx.Text
         initial_paths[index] = try std.fs.path.resolve(allocator, &.{ options.project.root_dir, source.path });
     }
 
-    const reference = &state;
     const references = &cursor;
 
     defer cursor.deinit();
@@ -70,27 +58,24 @@ pub fn collect(allocator: std.mem.Allocator, options: Options) !?[]const rx.Text
     var host: StoreHost = .{ .store_0 = &visited };
 
     const valid = rule.execute(&store_arena, &.{
-        .types = @ptrCast(&reference),
         .references = @ptrCast(&references),
         .module_count = options.modules.len + options.stores.len,
         .scoped = options.project.package_scopes.len != 0,
         .initial_paths = initial_paths,
     }, &host) catch |err| return cursor.failure.unwrap(err);
 
-    return if (valid) state.result.items else null;
+    return if (valid) cursor.type_sources.items else null;
 }
 
 pub fn validateTypeSourceFile(handle: *const anyopaque, path: []const u8) Error!void {
-    const self = State.get(handle);
-    const cursor = self.cursor;
+    const cursor = refs.Cursor.get(handle);
 
     if (cursor.inputs) |inputs| inputs.add(cursor.io, path) catch |err| return cursor.failure.save(err);
     @import("../../package/source.zig").validateWithInputs(cursor.io, cursor.allocator, path, cursor.project.package_scopes, cursor.inputs) catch |err| return cursor.failure.save(err);
 }
 
 pub fn validateTypeSourceRoot(handle: *const anyopaque, path: []const u8) Error!void {
-    const self = State.get(handle);
-    const cursor = self.cursor;
+    const cursor = refs.Cursor.get(handle);
     const io = cursor.io;
     const allocator = cursor.allocator;
     const root = std.Io.Dir.cwd().realPathFileAlloc(io, cursor.project.root_dir, allocator) catch |err| return cursor.failure.save(err);
@@ -101,11 +86,10 @@ pub fn validateTypeSourceRoot(handle: *const anyopaque, path: []const u8) Error!
 }
 
 pub fn readPreparedTypeSource(handle: *const anyopaque, index: u64, path: []const u8) Error!bool {
-    const self = State.get(handle);
-    const cursor = self.cursor;
+    const cursor = refs.Cursor.get(handle);
     const allocator = cursor.allocator;
 
-    const text = Text.read(cursor.io, allocator, path, self.options.texts) catch |err| {
+    const text = Text.read(cursor.io, allocator, path, cursor.texts) catch |err| {
         if (err == error.OutOfMemory or err == error.Canceled) return cursor.failure.save(err);
 
         try cursor.report(@intCast(index), @errorName(err));
@@ -115,7 +99,7 @@ pub fn readPreparedTypeSource(handle: *const anyopaque, index: u64, path: []cons
 
     if (text.fresh) if (cursor.inputs) |inputs| inputs.record(cursor.io, path, text.bytes) catch |err| return cursor.failure.save(err);
 
-    self.result.append(allocator, .{ .path = path, .source = text.bytes }) catch |err| return cursor.failure.save(err);
+    cursor.type_sources.append(allocator, .{ .path = path, .source = text.bytes }) catch |err| return cursor.failure.save(err);
 
     return true;
 }

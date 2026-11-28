@@ -1,4 +1,3 @@
-import memory from "memory"
 
 import { statement_lane } from "../const"
 
@@ -24,7 +23,7 @@ export type Output = {
 export default function (in: Input): Output {
     const { writer, kind, row, lane } = in
 
-    const statement = memory.readU32(writer.cells, statement_lane)
+    const statement = writer.cells[statement_lane]
 
     return {
         kind,

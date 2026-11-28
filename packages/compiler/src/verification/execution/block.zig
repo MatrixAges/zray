@@ -19,7 +19,7 @@ const Frame = struct {
     }
 };
 
-pub fn execute(conditions: *Conditions, statements: zx.ir.Block, environment: []?terms.Value, path: []const u8) zx.Error![]const u8 {
+pub fn execute(conditions: *Conditions, statements: zx.ir.Block, environment: []terms.Binding, path: []const u8) zx.Error![]const u8 {
     if (statements.len == 0) return path;
 
     const control = zx.columns.borrow(std.meta.Child(@FieldType(Scope, "control")), statements.control);
@@ -33,7 +33,7 @@ pub fn execute(conditions: *Conditions, statements: zx.ir.Block, environment: []
     return within(conditions, &scope, environment, statements.first, statements.len, path);
 }
 
-fn within(conditions: *Conditions, scope: *const Scope, environment: []?terms.Value, first: usize, count: usize, path: []const u8) zx.Error![]const u8 {
+fn within(conditions: *Conditions, scope: *const Scope, environment: []terms.Binding, first: usize, count: usize, path: []const u8) zx.Error![]const u8 {
     if (count == 0) return path;
 
     const checkpoint = conditions.scratch.checkpoint();
@@ -87,7 +87,10 @@ pub fn bindSymbolicStatement(handle: *anyopaque, symbol: u32, input: *const nati
     const frame = Frame.borrow(handle);
     const value = terms.Value.borrow(input.text, input.fields);
 
-    frame.evaluator.environment[symbol] = if (field) |index| value.fields[@intCast(index)] else value;
+    frame.evaluator.environment[symbol] = .{
+        .bound = true,
+        .value = if (field) |index| value.fields[@intCast(index)] else value,
+    };
 }
 
 pub fn publishSymbolicStatementReturn(handle: *anyopaque, path: []const u8, input: *const native.SymbolicOutcome) zx.Error!void {

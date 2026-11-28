@@ -1,17 +1,8 @@
 export type Stage = opaque
 
-export type NativeResources = opaque
-
-export type LibraryNativeModule = {
-    name: string,
-    includes?: string[],
-    has_bundle: bool,
-    has_header: bool
-}
-
 
 export declare function prepareStageAbi(stage: Stage): void throws { PublicationFailure }
-export declare function prepareStageLayout(stage: Stage): void throws { PublicationFailure }
+export declare function prepareStageLayout(stage: Stage, library_paths: string[]): void throws { PublicationFailure }
 export declare function collectStageInventory(stage: Stage): void throws { PublicationFailure }
 export declare function writeStageFile(stage: Stage, path: string, source: string): void throws { PublicationFailure }
 export declare function writeStageArtifact(stage: Stage): void throws { PublicationFailure }
@@ -19,19 +10,17 @@ export declare function writeStageManifest(stage: Stage): void throws { Publicat
 export declare function writeStageBuild(stage: Stage): void throws { PublicationFailure }
 export declare function writeStageInventory(stage: Stage): void throws { PublicationFailure }
 
-export declare function allocateNativeRows(resources: NativeResources): void throws { PublicationFailure }
-export declare function bindLibraryPaths(resources: NativeResources, paths: string[]): void
-export declare function libraryNativeModule(resources: NativeResources, index: u64): LibraryNativeModule
 export declare function bindLibraryModule(
-    resources: NativeResources,
+    stage: Stage,
+    index: u64,
     root: string,
     includes: string[]
 ): void
 export declare function bundleNativeModule(
-    resources: NativeResources,
+    resources: Stage,
     record_bundle: bool
 ): string[] throws { PublicationFailure }
-export declare function addExternalIncludes(resources: NativeResources, paths: string[]): void
+export declare function addExternalIncludes(resources: Stage, paths: string[]): void
     throws { PublicationFailure }
-export declare function writeLibraryNativeHeader(resources: NativeResources): void throws { PublicationFailure }
-export declare function writeLibraryNativeAdapter(resources: NativeResources): void throws { PublicationFailure }
+export declare function writeLibraryNativeHeader(resources: Stage): void throws { PublicationFailure }
+export declare function writeLibraryNativeAdapter(resources: Stage): void throws { PublicationFailure }

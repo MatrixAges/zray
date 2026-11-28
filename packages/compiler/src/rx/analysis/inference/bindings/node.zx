@@ -1,6 +1,6 @@
 import integers from "std:integer"
 
-import representative from "../forest/borrowed_root"
+import representative from "../forest/root"
 import status from "./status"
 
 import type { Status, Topology } from "./model"

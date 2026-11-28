@@ -1,24 +1,34 @@
 <Module>
     <Type from="model" as="Workflow" />
 
-    <Args in={Workflow.Basis} out={Workflow.BasisEffects} />
+    <Args in={Workflow.Basis} out={Workflow.BasisOutput} />
 
-    <Call fn="index.buildBasisSlots" in={$in.work} />
+    <If on={$in.flow != null}>
+        <Call fn="../../uniqueness/return_only" in={$in.functions} />
 
-    <If on={$in.persistent}>
-        <Call fn="index.hashBasis" in={$in.work} />
+        <Call
+            fn="../../uniqueness/sites/effects"
+            in={{
+                ...$in.flow,
+                return_only: $ctx.return_only
+            }}
+        />
+
+        <Return
+            value={{
+                effects: $ctx.effects
+            }}
+        />
     </If>
 
-    <Call fn="index.buildBasisFlow" in={$in.work} />
-    <Call fn="../../uniqueness/return_only" in={$in.functions} />
+    <Call module="../../uniqueness/slots/build" in={$in.types} />
 
-    <Call
-        fn="../../uniqueness/sites/effects"
-        in={{
-            ...$ctx.buildBasisFlow,
-            return_only: $ctx.return_only
+    <Return
+        value={{
+            plan: {
+                slots: $ctx.build,
+                hash: $in.persistent
+            }
         }}
     />
-
-    <Return value={$ctx.effects} />
 </Module>

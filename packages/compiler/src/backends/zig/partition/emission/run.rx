@@ -1,12 +1,50 @@
 <Module>
     <Type from="model" as="Partition" />
 
-    <Args in={Partition.Input} out={bool} />
+    <Args in={Partition.Input} out={Partition.Output} />
 
-    <Call fn="host.scanPartitionBodies" in={$in} />
-    <Call fn="host.scanPartitionSupport" in={$in} />
-    <Call fn="host.planPartitionLayout" in={$in} />
-    <Call fn="host.placePartitionFiles" in={$in} />
+    <Call fn="host.scanPartitionBodies" in={$in.workers} />
+    <Call fn="../scanning/batch" in={$in.support} />
 
-    <Return value={$ctx.placePartitionFiles != 0} />
+    <If on={$ctx.batch.status != Partition.Status.Valid}>
+        <Return
+            value={{
+                status: $ctx.batch.status
+            }}
+        />
+    </If>
+
+    <Call fn="support" in={$ctx.batch.rows} />
+
+    <Call
+        module="../layout/plan"
+        in={{
+            ...$ctx.scanPartitionBodies,
+            ...$ctx.support,
+            ...$in.pick([
+                "paths",
+                "sizes",
+                "count"
+            ])
+        }}
+    />
+
+    <Call
+        module="../placement/publish"
+        in={{
+            files: $in.files,
+            ...$ctx.plan.omit(["roots"])
+        }}
+    />
+
+    <Return
+        value={{
+            status: Partition.Status.Valid,
+            layout: $ctx.plan.pick([
+                "roots",
+                "placement"
+            ]),
+            files: $ctx.publish
+        }}
+    />
 </Module>

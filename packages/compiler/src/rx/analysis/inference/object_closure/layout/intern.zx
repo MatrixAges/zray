@@ -1,11 +1,9 @@
 import insert from "core/integer/index/insert"
 
-import representative from "../../forest/borrowed_root"
-
-import type { U32Buffer } from "memory"
+import representative from "../../forest/root"
 
 export type Input = {
-    parents: U32Buffer,
+    parents: u32[],
     keys: u32[],
     buckets: u32[],
     node: u32

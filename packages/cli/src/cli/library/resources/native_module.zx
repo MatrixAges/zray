@@ -1,0 +1,30 @@
+import memory from "memory"
+
+import type { NativeModules } from "../../command/scope/model"
+
+export type Input = {
+    modules: NativeModules,
+    index: u64
+}
+
+export type Output = {
+    name: string,
+    includes?: string[],
+    has_bundle: bool,
+    has_header: bool
+}
+
+export default function (in: Input): Output {
+    const { modules, index } = in
+
+    const path = memory.readOptionalTextColumn(modules.paths, index)
+    const header = memory.readOptionalTextColumn(modules.headers, index)
+    const bundle = memory.readTextListColumn(modules.bundles, index)
+
+    return {
+        name: memory.readTextColumn(modules.names, index),
+        includes: memory.readOptionalTextListColumn(modules.includes, index),
+        has_bundle: path != null || bundle.length != 0,
+        has_header: header != null
+    }
+}

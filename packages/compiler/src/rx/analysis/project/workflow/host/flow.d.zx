@@ -19,9 +19,9 @@ export declare function commitConstraintPort(
     task_end: u64
 ): void
 
-export declare function openConstraintDefaults(state: ConstraintCollection): void
+export declare function openConstraintDefaults(state: ConstraintCollection): u32[]
 
-export declare function defaultConstraintInput(state: ConstraintCollection, input: u32): void
+export declare function defaultConstraintInput(state: ConstraintCollection, input: u32): u32[]
     throws { OutOfMemory, InvalidSource }
 
 export declare function refreshFlowCursor(state: FlowTraversal, next: u64?): void

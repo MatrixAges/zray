@@ -23,6 +23,7 @@ pub const Value = struct {
 };
 
 pub const Evaluation = struct { value: Value, safe: []const u8 = "true" };
+pub const Binding = struct { bound: bool = false, value: Value = undefined };
 pub const Integer = struct { width: u16, signed: bool };
 
 pub fn integer(target: ir.Type) ?Integer {

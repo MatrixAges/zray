@@ -1,49 +1,21 @@
 <Module>
     <Type from="model" as="Visit" />
-    <Type from="../source" as="Source" />
 
     <Args in={Visit.State} out={Visit.State} />
+
+    <Store from="dependencies" as="dependencies" />
 
     <Call
         fn="../source"
         in={{
             owner: $in.owner ?? 0,
-            sources: $in.request.pick([
-                "zx_count",
-                "rx_end"
-            ])
+            sources: $in.sources
         }}
     />
 
-    <If on={$ctx.source.kind == Source.Kind.ZX}>
-        <Call
-            fn="host.readSourceGraphZX"
-            in={[
-                $in.request.target,
-                $ctx.source.owner
-            ]}
-        />
+    <Call fn="stage" setter={[$store.dependencies.publication]} />
 
-        <Else>
-            <Call
-                fn="host.readSourceGraphRX"
-                in={[
-                    $in.request.target,
-                    $ctx.source.owner,
-                    $ctx.source.row,
-                    $ctx.source.kind == Source.Kind.Store
-                ]}
-            />
-        </Else>
-    </If>
-
-    <Call
-        fn="host.publishSourceGraphDependencies"
-        in={[
-            $in.request.target,
-            $ctx.source.owner
-        ]}
-    />
+    <Call fn="targets" in={$store.dependencies.publication} />
 
     <Call
         fn="../frontier/publish"
@@ -51,8 +23,8 @@
             starts: $in.starts,
             ends: $in.ends,
             owner: $ctx.source.owner,
-            edge_start: $in.targets.length,
-            edge_end: $ctx.publishSourceGraphDependencies.length
+            edge_start: $in.edge_end,
+            edge_end: $ctx.targets.length
         }}
     />
 
@@ -62,8 +34,8 @@
             seen: $in.seen,
             queue: $in.queue,
             end: $in.end,
-            targets: $ctx.publishSourceGraphDependencies,
-            first: $in.targets.length
+            targets: $ctx.targets,
+            first: $in.edge_end
         }}
     />
 
@@ -78,12 +50,12 @@
 
     <Return
         value={{
-            request: $in.request,
+            sources: $in.sources,
             starts: $ctx.publish.starts,
             ends: $ctx.publish.ends,
             ...$ctx.enqueue,
             ...$ctx.select,
-            targets: $ctx.publishSourceGraphDependencies
+            edge_end: $ctx.targets.length
         }}
     />
 </Module>

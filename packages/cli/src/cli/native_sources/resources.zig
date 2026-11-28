@@ -16,24 +16,15 @@ const StoreHost = struct {
     }
 };
 
-const Walk = struct {
-    directory: Directory,
-    inputs: ?*Inputs,
-    entry_view: ResourceEntry = undefined,
-};
-
 pub fn files(io: std.Io, allocator: std.mem.Allocator, path: []const u8, inputs: ?*Inputs) ![]const []const u8 {
     var failure: effects.Failure = .{};
     var arena = std.heap.ArenaAllocator.init(allocator);
 
     defer arena.deinit();
 
-    var walk: Walk = .{
-        .directory = .{ .io = io, .allocator = arena.allocator(), .failure = &failure, .source = path },
-        .inputs = inputs,
-    };
+    var walk: Directory = .{ .io = io, .allocator = arena.allocator(), .failure = &failure, .source = path, .inputs = inputs };
 
-    defer walk.directory.deinit();
+    defer walk.deinit();
 
     const state = &walk;
     var discovered: StoreState = &.{ .paths = &.{} };
@@ -60,68 +51,55 @@ pub fn files(io: std.Io, allocator: std.mem.Allocator, path: []const u8, inputs:
 }
 
 pub fn resourceRoot(handle: *const anyopaque) Error!*const ResourceEntry {
-    const self = effects.state(Walk, handle);
-    const directory = &self.directory;
+    const directory = effects.state(Directory, handle);
 
-    if (self.inputs) |observed| observed.add(directory.io, directory.source) catch |err| return directory.failure.save(err);
+    if (directory.inputs) |observed| observed.add(directory.io, directory.source) catch |err| return directory.failure.save(err);
 
     const stat = std.Io.Dir.cwd().statFile(directory.io, directory.source, .{}) catch |err| return directory.failure.save(err);
 
-    self.entry_view = .{
+    directory.resource_view = .{
         .kind = classify(stat.kind),
         .path = directory.source,
     };
 
-    return &self.entry_view;
-}
-
-pub fn openResources(handle: *const anyopaque) Error!void {
-    const self = effects.state(Walk, handle);
-    const directory = &self.directory;
-
-    if (self.inputs) |observed| observed.addDirectory(directory.io, directory.source) catch |err| return directory.failure.save(err);
-
-    return directory.open(false);
+    return &directory.resource_view;
 }
 
 pub fn nextResource(handle: *const anyopaque) Error!*const ResourceEntry {
-    const self = effects.state(Walk, handle);
-    const directory = &self.directory;
+    const directory = effects.state(Directory, handle);
     const maybe_kind = try directory.advance();
 
     if (maybe_kind == null) {
-        self.entry_view = .{ .kind = .End, .path = "" };
+        directory.resource_view = .{ .kind = .End, .path = "" };
 
-        return &self.entry_view;
+        return &directory.resource_view;
     }
 
     const kind = maybe_kind.?;
 
-    const path = if (kind != .directory or self.inputs != null)
+    const path = if (kind != .directory or directory.inputs != null)
         std.fs.path.join(directory.allocator, &.{ directory.source, directory.path }) catch |err| return directory.failure.save(err)
 
     else
         "";
 
-    self.entry_view = .{
+    directory.resource_view = .{
         .kind = classify(kind),
         .path = path,
     };
 
-    return &self.entry_view;
+    return &directory.resource_view;
 }
 
 pub fn observeResource(handle: *const anyopaque, path: []const u8, is_directory: bool) Error!void {
-    const self = effects.state(Walk, handle);
-    const inputs = self.inputs orelse return;
-    const directory = &self.directory;
+    const directory = effects.state(Directory, handle);
+    const inputs = directory.inputs orelse return;
 
     (if (is_directory) inputs.addDirectory(directory.io, path) else inputs.add(directory.io, path)) catch |err| return directory.failure.save(err);
 }
 
 pub fn resourceLinkIsFile(handle: *const anyopaque, path: []const u8) Error!bool {
-    const self = effects.state(Walk, handle);
-    const directory = &self.directory;
+    const directory = effects.state(Directory, handle);
     const stat = std.Io.Dir.cwd().statFile(directory.io, path, .{}) catch |err| return directory.failure.save(err);
 
     return stat.kind == .file;

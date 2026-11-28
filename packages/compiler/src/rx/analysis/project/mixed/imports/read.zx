@@ -1,0 +1,9 @@
+import type { Effect, Rows } from "./model"
+
+export type Input = Effect
+
+export type Output = Rows?
+
+export default function (in: Input): Output {
+    return in.rows
+}

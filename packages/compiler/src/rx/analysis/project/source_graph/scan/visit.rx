@@ -3,6 +3,8 @@
 
     <Args in={Visit.Input} out={Visit.Output} />
 
+    <Store from="dependencies" as="dependencies" />
+
     <Call fn="../frontier/init" in={$in.end} />
 
     <Call
@@ -25,14 +27,11 @@
         }}
     />
 
-    <Call fn="../zeroes" in={0} />
-
     <Loop on={$in.owner != null}>
         <Call
             module="advance"
             in={{
-                request: $in.pick([
-                    "target",
+                sources: $in.pick([
                     "zx_count",
                     "rx_end"
                 ]),
@@ -40,16 +39,18 @@
                 ends: $ctx.init.ends,
                 ...$ctx.enqueue,
                 ...$ctx.select,
-                targets: $ctx.zeroes
+                edge_end: 0
             }}
         />
     </Loop>
+
+    <Call fn="targets" in={$store.dependencies.publication} />
 
     <Return
         value={{
             starts: $ctx.advance.starts,
             ends: $ctx.advance.ends,
-            targets: $ctx.advance.targets
+            targets: $ctx.targets
         }}
     />
 </Module>

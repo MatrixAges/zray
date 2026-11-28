@@ -1,12 +1,12 @@
-import type { ScopeBinding } from "package_workspace_host"
+import type { Project } from "package_workspace_host"
 
 export type Input = {
-    binding: ScopeBinding,
+    binding: Project,
     count: u64
 }
 
 export type Row = {
-    binding: ScopeBinding,
+    binding: Project,
     index: u64
 }
 

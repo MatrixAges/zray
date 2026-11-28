@@ -1,18 +1,28 @@
 <Module>
     <Type from="model" as="Delivery" />
+    <Type from="index" as="Host" />
 
-    <Args in={Delivery.Binding} out={void} />
+    <Args in={Delivery.ResolvedBinding} out={void} />
 
     <Call
         fn="index.bindProjectImport"
         in={[
             $in.frame,
-            $in.signature,
+            $in.target,
+            $in.signature &&
+                $in.target.kind != Host.ProjectImportKind.Native &&
+                $in.target.kind != Host.ProjectImportKind.Intrinsic,
             $in.exported
         ]}
     />
 
     <If on={!$in.signature}>
-        <Call fn="index.recordProjectImport" in={$in.frame} />
+        <Call
+            fn="index.recordProjectImport"
+            in={[
+                $in.frame,
+                $in.target
+            ]}
+        />
     </If>
 </Module>

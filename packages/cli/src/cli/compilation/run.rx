@@ -5,9 +5,7 @@
     <Args in={Compile.Request} out={IO.Status} />
 
     <If on={$in.settings.linting}>
-        <Call fn="index.runCompilationLint" in={$in.compilation} />
-
-        <Return value={$ctx.runCompilationLint} />
+        <Return value={IO.Status.Linting} />
     </If>
 
     <If on={$in.settings.formatting}>
@@ -16,18 +14,18 @@
         <Return value={$ctx.format} />
     </If>
 
-    <If on={$in.settings.library && !$in.watching}>
-        <Call fn="index.openCompilationInputs" in={$in.compilation} />
-    </If>
-
-    <Call fn="index.resolveCompilationEntry" in={$in.compilation} />
+    <Call
+        fn="index.resolveCompilationEntry"
+        in={[
+            $in.compilation,
+            $in.settings.library && !$in.watching
+        ]}
+    />
 
     <Call fn="../lint/is_rx" />
 
     <If on={$ctx.is_rx && !$in.settings.library}>
-        <Call fn="index.runCompilationRx" in={$in.compilation} />
-
-        <Return value={$ctx.runCompilationRx} />
+        <Return value={IO.Status.RunRx} />
     </If>
 
     <Call fn="index.loadCompilationProject" in={$in.compilation} />
@@ -39,21 +37,15 @@
     <Call fn="../lint/is_manifest" in={$ctx.resolveCompilationEntry} />
 
     <If on={$in.settings.verifying && $ctx.is_manifest}>
-        <Call fn="index.runCompilationLibraryProof" in={$in.compilation} />
-
-        <Return value={$ctx.runCompilationLibraryProof} />
+        <Return value={IO.Status.LibraryProof} />
     </If>
 
     <If on={$in.settings.native && $in.settings.library}>
-        <Call fn="index.runCompilationLibraryBuild" in={$in.compilation} />
-
-        <Return value={$ctx.runCompilationLibraryBuild} />
+        <Return value={IO.Status.LibraryBuild} />
     </If>
 
     <If on={$ctx.is_rx}>
-        <Call fn="index.runCompilationRx" in={$in.compilation} />
-
-        <Return value={$ctx.runCompilationRx} />
+        <Return value={IO.Status.RunRx} />
     </If>
 
     <Call module="application" in={$in} />

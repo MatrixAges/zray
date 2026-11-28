@@ -1,18 +1,45 @@
 <Module>
     <Type from="model" as="Mirror" />
 
-    <Args in={Mirror.Input} out={void} />
+    <Args in={Mirror.Input} out={Mirror.Output} />
 
-    <Call fn="host.hashBootstrapFiles" in={$in.target} />
+    <If on={$in.trimming != null}>
+        <Call
+            module="trim"
+            in={{
+                ...$in.trimming,
+                paths: $in.path_bytes
+            }}
+        />
+
+        <Return
+            value={{
+                folders: [],
+                changed: [],
+                prune: Mirror.Prune.None,
+                stale: $ctx.trim
+            }}
+        />
+    </If>
 
     <Call
         fn="../select"
         in={{
-            paths: $ctx.hashBootstrapFiles.path_bytes,
-            hashes: $ctx.hashBootstrapFiles.hashes,
-            previous_paths: $in.previous_bytes,
-            previous_hashes: $in.previous_hashes,
-            present: $in.previous_paths != null
+            paths: $in.path_bytes,
+            ...$in.pick([
+                "hashes",
+                "previous_hashes",
+                "present"
+            ]),
+            previous_paths: $in.previous_bytes
+        }}
+    />
+
+    <Call
+        fn="prune"
+        in={{
+            aligned: $ctx.select.aligned,
+            present: $in.present
         }}
     />
 
@@ -20,46 +47,27 @@
         <Call
             fn="../parents"
             in={{
-                paths: $ctx.hashBootstrapFiles.paths,
+                paths: $in.paths,
                 changed: $ctx.select.changed
             }}
         />
 
-        <Call
-            fn="host.createBootstrapFolders"
-            in={[
-                $in.target,
-                $ctx.parents
-            ]}
-        />
-
-        <Call
-            fn="host.writeBootstrapChanges"
-            in={[
-                $in.target,
-                $ctx.select.changed
-            ]}
-        />
-    </If>
-
-    <If on={!$ctx.select.aligned}>
-        <Call
-            module="trim"
-            in={{
-                target: $in.target,
-                paths: $ctx.hashBootstrapFiles.path_bytes,
-                previous_paths: $in.previous_paths
+        <Return
+            value={{
+                folders: $ctx.parents,
+                changed: $ctx.select.changed,
+                prune: $ctx.prune,
+                stale: []
             }}
         />
-
-        <Call
-            fn="host.deleteBootstrapFiles"
-            in={[
-                $in.target,
-                $ctx.trim
-            ]}
-        />
     </If>
 
-    <Call fn="host.commitBootstrapManifest" in={$in.target} />
+    <Return
+        value={{
+            folders: [],
+            changed: [],
+            prune: $ctx.prune,
+            stale: []
+        }}
+    />
 </Module>

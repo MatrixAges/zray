@@ -3,130 +3,86 @@ const ir = @import("zx").ir;
 const Analysis = @import("../function_analysis.zig");
 const Uniqueness = Analysis.Uniqueness;
 const facts = @import("generated.zig");
-const evaluation = @import("../expressions/evaluate.zig");
+const failure = @import("../construction/publication.zig").failure;
 const Error = std.mem.Allocator.Error;
 
-const Frame = struct {
-    basis: Analysis.BasisBuild,
-    exported: []const ir.FunctionId,
-    output: *Analysis,
-    thread: ?std.Thread = null,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-    fn collect(self: *Frame) Error!void {
-        const work = &self.basis;
-        const result = try facts.analyze(work.allocator, work.workspace, work.program.*, self.exported);
-
-        self.output.* = .{
-            .value = result.value,
-            .entry_flags = undefined,
-            .io = result.io,
-            .process = result.process,
-            .tasks = result.tasks,
-            .errors = result.errors,
-            .return_allocations = result.return_allocations,
-            .layout_types = result.layout_types,
-            .identity_free = result.identity_free,
-            .fresh_outputs = result.fresh_outputs,
-            .constructed_outputs = result.constructed_outputs,
-            .grows = result.grows,
-            .uniqueness = undefined,
-            .basis = work.source.basis(),
-        };
-    }
-
-    fn join(self: *Frame) void {
-        if (self.thread) |thread| {
-            thread.join();
-
-            self.thread = null;
-        }
-    }
-
-    fn plan(self: *Frame, comptime concurrent: bool) Error!void {
-        const work = &self.basis;
-        const run = if (concurrent) Uniqueness.analyzeConcurrent else Uniqueness.analyze;
-        self.output.uniqueness = try run(work.allocator, work.workspace, work.program.*, self.exported, self.output.basis, self.output.return_allocations, work.memo);
-    }
-};
-
 pub fn analyze(work: Analysis.BasisBuild, exported: []const ir.FunctionId, concurrent: bool) Error!Analysis {
-    var output: Analysis = undefined;
-    var frame: Frame = .{ .basis = work, .exported = exported, .output = &output };
-
-    defer frame.join();
-
     const entry = @import("generated_analysis_workflow");
+    const input: std.meta.Child(entry.Input) = .{ .build = work.source == .build, .concurrent = concurrent };
+    var scheduler = std.heap.ArenaAllocator.init(work.workspace);
 
-    const input: std.meta.Child(entry.Input) = .{
-        .work = @ptrCast(&frame),
-        .build = work.source == .build,
-        .concurrent = concurrent,
-    };
+    defer scheduler.deinit();
 
-    try evaluation.execute(entry, &input);
+    const steps = entry.executeIn(scheduler.allocator(), &input) catch |err| return failure(err);
+    var output: Analysis = undefined;
+
+    try run(work, exported, &output, steps);
 
     return output;
 }
 
 pub fn reentry(work: Analysis.BasisBuild, output: *Analysis) Error!void {
     const entry = @import("generated_analysis_reentry");
-    var frame: Frame = .{ .basis = work, .exported = &.{}, .output = output };
+    var scheduler = std.heap.ArenaAllocator.init(work.workspace);
 
-    try evaluation.execute(entry, @ptrCast(&frame));
+    defer scheduler.deinit();
+
+    const steps = entry.executeIn(scheduler.allocator(), {}) catch |err| return failure(err);
+
+    try run(work, &.{}, output, steps);
 }
 
-pub fn startAnalysisBasis(handle: *anyopaque) bool {
-    const frame = Frame.borrow(handle);
+fn run(work: Analysis.BasisBuild, exported: []const ir.FunctionId, output: *Analysis, steps: anytype) Error!void {
+    var basis = work;
+    var thread: ?std.Thread = null;
 
-    frame.thread = std.Thread.spawn(.{}, Analysis.BasisBuild.run, .{&frame.basis}) catch return false;
+    defer if (thread) |worker| worker.join();
 
-    return true;
+    for (steps) |step| switch (step) {
+        .StartBasis => {
+            thread = std.Thread.spawn(.{}, Analysis.BasisBuild.run, .{&basis}) catch null;
+
+            if (thread == null) basis.run();
+        },
+        .BuildBasis => basis.run(),
+        .CollectFacts => output.* = try collect(work, exported),
+        .JoinBasis => {
+            if (thread) |worker| worker.join();
+
+            thread = null;
+
+            try basis.result;
+        },
+        .PlanSerial => output.uniqueness = try Uniqueness.analyze(work.allocator, work.workspace, work.program.*, exported, output.basis, output.return_allocations, work.memo),
+        .PlanConcurrent => output.uniqueness = try Uniqueness.analyzeConcurrent(work.allocator, work.workspace, work.program.*, exported, output.basis, output.return_allocations, work.memo),
+        .AnalyzeFlags => output.entry_flags = try Analysis.Entry.analyze(work.workspace, work.program.*, .{
+            .local = output.value.local,
+            .pure = output.value.pure,
+            .io = output.io,
+            .process = output.process,
+            .tasks = output.tasks,
+        }),
+        .PlanEntry => output.uniqueness.entry = try Uniqueness.analyzeEntry(work.allocator, work.workspace, work.program.*, output.basis),
+    };
 }
 
-pub fn buildAnalysisBasis(handle: *anyopaque) void {
-    Frame.borrow(handle).basis.run();
-}
+fn collect(work: Analysis.BasisBuild, exported: []const ir.FunctionId) Error!Analysis {
+    const result = try facts.analyze(work.allocator, work.workspace, work.program.*, exported);
 
-pub fn collectAnalysisFacts(handle: *anyopaque) bool {
-    Frame.borrow(handle).collect() catch return false;
-
-    return true;
-}
-
-pub fn joinAnalysisBasis(handle: *anyopaque) bool {
-    const frame = Frame.borrow(handle);
-
-    frame.join();
-    frame.basis.result catch return false;
-
-    return true;
-}
-
-pub fn planAnalysis(handle: *anyopaque) Error!void {
-    return Frame.borrow(handle).plan(false);
-}
-
-pub fn planAnalysisConcurrent(handle: *anyopaque) Error!void {
-    return Frame.borrow(handle).plan(true);
-}
-
-pub fn analyzeEntryFlags(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-    const value = frame.output;
-
-    value.entry_flags = try Analysis.Entry.analyze(frame.basis.workspace, frame.basis.program.*, .{
-        .local = value.value.local,
-        .pure = value.value.pure,
-        .io = value.io,
-        .process = value.process,
-        .tasks = value.tasks,
-    });
-}
-
-pub fn analyzeIndependentEntry(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-    const work = &frame.basis;
-    frame.output.uniqueness.entry = try Uniqueness.analyzeEntry(work.allocator, work.workspace, work.program.*, frame.output.basis);
+    return .{
+        .value = result.value,
+        .entry_flags = undefined,
+        .io = result.io,
+        .process = result.process,
+        .tasks = result.tasks,
+        .errors = result.errors,
+        .return_allocations = result.return_allocations,
+        .layout_types = result.layout_types,
+        .identity_free = result.identity_free,
+        .fresh_outputs = result.fresh_outputs,
+        .constructed_outputs = result.constructed_outputs,
+        .grows = result.grows,
+        .uniqueness = undefined,
+        .basis = work.source.basis(),
+    };
 }

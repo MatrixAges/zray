@@ -1,5 +1,4 @@
 export {
     bindStoreRegistryAliases,
-    compileStoreRegistryEntry,
-    openStoreRegistryPublication
+    compileStoreRegistryEntry
 } from "rx_project_host"

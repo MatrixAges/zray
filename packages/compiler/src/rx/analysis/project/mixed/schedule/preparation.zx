@@ -1,5 +1,5 @@
 import type { MixedPreparation } from "rx_project_host"
-import type { Request as PriorBatch } from "../ahead/reset"
+import type { Input as PriorBatch } from "../ahead/reset"
 import type { Input as Preview, Output as Selected } from "./preview"
 
 export type Request = {

@@ -1,0 +1,22 @@
+<Module>
+    <Type from="model" as="Project" />
+
+    <Args in={Project.FunctionWalk} out={Project.FunctionWalk} />
+
+    <Call
+        fn="../index.checkFunction"
+        in={[
+            $in.check,
+            $in.index
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            valid: $ctx.checkFunction,
+            running: $ctx.checkFunction && $in.index + 1 < $in.count
+        }}
+    />
+</Module>

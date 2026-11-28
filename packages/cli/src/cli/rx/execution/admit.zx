@@ -1,0 +1,20 @@
+import { Status } from "rx_execution_host"
+
+import { library_entry } from "./const"
+
+import type { EntryOutcome } from "./model"
+
+export type Input = bool
+
+export type Output = EntryOutcome?
+
+export default function (in: Input): Output {
+    if (!in) {
+        return null
+    }
+
+    return {
+        status: Status.Failed,
+        diagnostic: library_entry
+    }
+}

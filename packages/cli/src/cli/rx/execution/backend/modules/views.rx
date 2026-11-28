@@ -1,13 +1,17 @@
 <Module>
     <Type from="../model" as="Model" />
 
-    <Args in={Model.ModuleWalk} out={Model.ModuleWalk} />
+    <Args in={Model.AbiWalk} out={Model.AbiWalk} />
+
+    <Call fn="view_file" in={$in} />
 
     <Call
-        fn="../index.appendAbiView"
+        fn="../index.appendSupportModule"
         in={[
             $in.build,
-            $in.index
+            $ctx.view_file.name,
+            $ctx.view_file.file,
+            $ctx.view_file.dependencies
         ]}
     />
 

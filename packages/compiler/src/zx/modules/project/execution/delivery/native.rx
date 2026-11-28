@@ -1,5 +1,6 @@
 <Module>
     <Type from="model" as="Delivery" />
+    <Type from="index" as="Host" />
 
     <Args in={Delivery.Binding} out={void} />
 
@@ -26,11 +27,12 @@
     </If>
 
     <Call
-        fn="index.bindProjectImport"
-        in={[
-            $in.frame,
-            false,
-            $in.exported
-        ]}
+        module="bind"
+        in={{
+            ...$in,
+            target: {
+                kind: Host.ProjectImportKind.Native
+            }
+        }}
     />
 </Module>

@@ -20,10 +20,6 @@ pub fn delay(handle: *const anyopaque, interval: @import("cli_abi").native.@"zig
     std.Io.sleep(self.io, .fromMilliseconds(@intCast(milliseconds)), .awake) catch |err| return self.fail(err);
 }
 
-pub fn checkCanceled(handle: *const anyopaque) Error!void {
-    if (interrupted(handle)) return State.get(handle).fail(error.Canceled);
-}
-
 pub fn scanInputs(handle: *const anyopaque, slot: storage.SnapshotSlot) Error!*const storage.ScanResult {
     const self = State.get(handle);
     const baseline = &self.snapshotSlot(slot).*.?;
@@ -31,19 +27,12 @@ pub fn scanInputs(handle: *const anyopaque, slot: storage.SnapshotSlot) Error!*c
     const unchanged = baseline.poll(self.io, self.allocator) catch |err| {
         if (err == error.OutOfMemory or err == error.Canceled) return self.fail(err);
 
-        self.scan = .{ .changed = false, .error_code = @intFromError(err) };
+        self.scan = .{ .changed = false, .error_name = @errorName(err) };
 
         return &self.scan;
     };
 
-    self.scan = .{ .changed = !unchanged, .error_code = null };
+    self.scan = .{ .changed = !unchanged, .error_name = null };
 
     return &self.scan;
-}
-
-pub fn reportScanError(handle: *const anyopaque, code: u16) Error!void {
-    const self = State.get(handle);
-
-    self.stderr.print("zxc watch: input scan: {s}\n", .{@errorName(@errorFromInt(code))}) catch |err| return self.fail(err);
-    self.stderr.flush() catch |err| return self.fail(err);
 }

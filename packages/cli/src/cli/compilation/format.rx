@@ -13,12 +13,17 @@
     />
 
     <If on={$ctx.is_configuration}>
-        <Call fn="index.runCompilationConfiguration" in={$in.compilation} />
-
-        <Return value={$ctx.runCompilationConfiguration} />
+        <Return value={IO.Status.Configuration} />
     </If>
 
-    <Call fn="index.resolveCompilationEntry" in={$in.compilation} />
+    <Call
+        fn="index.resolveCompilationEntry"
+        in={[
+            $in.compilation,
+            false
+        ]}
+    />
+
     <Call fn="index.readCompilationSource" in={$in.compilation} />
 
     <If on={!$ctx.readCompilationSource}>

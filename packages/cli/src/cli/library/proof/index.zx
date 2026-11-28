@@ -1,5 +1,4 @@
 export {
-    confirmProofInterface,
-    writeProofHeading,
+    writeProofMessage,
     verifyPublicExport
 } from "library_workflow_host"

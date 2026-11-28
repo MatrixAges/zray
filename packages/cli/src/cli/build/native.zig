@@ -33,11 +33,9 @@ pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBu
     const scratch = arena.allocator();
     const native_modules = project.config.native_modules;
     const native_names = try context.allocator.alloc([]const u8, native_modules.len);
-    const native_headers = try scratch.alloc(bool, native_modules.len);
 
     for (native_modules, 0..) |module, index| {
         native_names[index] = module.name;
-        native_headers[index] = module.header != null;
     }
 
     state.native_names = native_names;
@@ -59,9 +57,12 @@ pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBu
         observed_paths = observed_list;
     }
 
-    var paths: @import("../project/native_paths.zig").Paths = undefined;
+    const native_paths = @import("../project/native_paths.zig");
+    var paths: native_paths.Paths = undefined;
+    var module_columns: native_paths.NativeModules = undefined;
 
     paths.init(project, &context.allocator);
+    module_columns.init(project);
 
     const invocation: std.meta.Child(entry.Input) = .{
         .build = @ptrCast(&reference),
@@ -69,12 +70,12 @@ pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBu
         .observed = context.watch != null,
         .previous_backend = previous_backend,
         .observed_paths = observed_paths,
-        .native_headers = native_headers,
         .generated_count = bundle.modules.len,
         .native = &.{
             .build = @ptrCast(&reference),
             .observed = context.watch != null,
             .count = native_modules.len,
+            .modules = &module_columns.view,
             .setup = &paths.setup,
             .abi_views = &state.abi_views.view,
         },
@@ -84,7 +85,13 @@ pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBu
 
     const result = entry.executeIn(context.allocator, &invocation) catch |err| return state.failure.unwrap(err);
 
-    return status(result);
+    return switch (result) {
+        .Success => .success,
+        .Failed => .failed,
+        .BackendFailed => .backend_failed,
+        .Retry => .retry,
+        .IncompleteInputs => error.IncompleteBackendInputs,
+    };
 }
 
 pub fn status(result: anytype) Compile.Status {
@@ -232,10 +239,6 @@ pub fn reportObservedNativeBuild(handle: *const anyopaque) Error!?bool {
     if (!response.succeeded) return null;
 
     return response.inputs_complete;
-}
-
-pub fn rejectIncompleteBackendInputs(handle: *const anyopaque) Error!void {
-    return State.get(handle).failure.save(error.IncompleteBackendInputs);
 }
 
 pub fn publishObservedNativeBuild(handle: *const anyopaque) Error!bool {

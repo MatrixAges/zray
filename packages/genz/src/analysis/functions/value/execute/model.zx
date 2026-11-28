@@ -1,7 +1,15 @@
-import type { ValueFunction } from "lowering_host"
+export enum Step {
+    Enter,
+    Reuse,
+    Bind,
+    Open,
+    Value,
+    Abi,
+    Prototype,
+    Body
+}
 
 export type Input = {
-    body: ValueFunction,
     signature: bool,
     enter: bool,
     bind_input: bool,

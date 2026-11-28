@@ -21,11 +21,21 @@ pub fn run(value: *analysis.Result, allocator: std.mem.Allocator) !compiler.libr
 
     defer link.arena.deinit();
 
-    rules.library_link.executeIn(allocator, &.{
+    link.inputs = try link.arena.allocator().alloc(compiler.library.Input, value.modules.len);
+
+    const reuse_compiled = rules.library_link.executeIn(allocator, &.{
         .link = @ptrCast(&reference),
         .has_compiled = value.compiled != null,
         .count = value.modules.len,
     }) catch |err| return link.failure.unwrap(err);
+
+    if (reuse_compiled) {
+        const compiled = value.compiled.?;
+
+        value.compiled = null;
+
+        return compiled;
+    }
 
     return link.result;
 }
@@ -53,19 +63,6 @@ pub fn sources(modules: []const analysis.Module, allocator: std.mem.Allocator) !
     }
 
     return .fromOwnedSlice(items);
-}
-
-pub fn takeCompiledLibrary(handle: *const anyopaque) void {
-    const self = effects.state(Link, handle);
-
-    self.result = self.analysis.compiled.?;
-    self.analysis.compiled = null;
-}
-
-pub fn allocateLinkInputs(handle: *const anyopaque) Error!void {
-    const self = effects.state(Link, handle);
-
-    self.inputs = self.arena.allocator().alloc(compiler.library.Input, self.analysis.modules.len) catch |err| return self.failure.save(err);
 }
 
 pub fn prepareLibraryLinkInput(handle: *const anyopaque, index: u64) Error!void {

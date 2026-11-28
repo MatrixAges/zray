@@ -23,7 +23,6 @@ requests: ?*RequestsFrame = null,
 
 function: ?ir.FunctionId = null,
 result: Stored = undefined,
-suffix_info: if (generated) @import("../../expressions/evaluate.zig").Api.ModuleSuffix else void = undefined,
 pub fn init(lowering: *Lower) Self {
     return .{
         .lowering = lowering,
@@ -42,10 +41,6 @@ pub fn install(self: *Self) void {
     if (self.requests) |requests| lowering.function_requests = &requests.queue;
 }
 
-pub fn borrow(handle: *anyopaque) *Self {
-    return @ptrCast(@alignCast(handle));
-}
-
 pub fn deinit(self: *Self) void {
     if (generated) {
         self.output.deinit();
@@ -61,21 +56,17 @@ pub fn finishSeed(self: *Self, type_only: bool) Lower.Error!Stored {
     return self.tasks.assembleSeed(lowering.allocator, lowering.builder.nodes, &self.output, &self.suffix);
 }
 
-pub fn appendModuleAuxiliary(handle: *anyopaque) Lower.Error!void {
-    const frame = borrow(handle);
+pub fn appendModuleAuxiliary(frame: *Self) Lower.Error!void {
     const lowering = frame.lowering;
 
     try frame.output.spans.append(try frame.tasks.store(lowering.allocator, lowering.builder.nodes));
 }
 
-pub fn appendModuleSuffix(handle: *anyopaque) Lower.Error!void {
-    const frame = borrow(handle);
-
+pub fn appendModuleSuffix(frame: *Self) Lower.Error!void {
     try frame.output.spans.extend(&frame.suffix.spans);
 }
 
-pub fn finishModuleDeclarations(handle: *anyopaque) Lower.Error!void {
-    const frame = borrow(handle);
+pub fn finishModuleDeclarations(frame: *Self) Lower.Error!void {
     const lowering = frame.lowering;
 
     frame.result = try frame.output.spans.finish(lowering.allocator);

@@ -8,8 +8,8 @@ const Run = struct { path: []const u8, process: Backend };
 const Launch = struct { path: []const u8, argv: []const []const u8 = &.{} };
 
 active: ?Run = null,
+
 pending: ?Launch = null,
-termination: std.process.Child.Term = undefined,
 pub fn prepareApplication(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
     const temporary = self.turn.?.arena.allocator();
@@ -49,24 +49,27 @@ pub fn applicationFinished(handle: *const anyopaque) Error!bool {
     return running.process.finished() catch |err| return self.fail(err);
 }
 
-pub fn stopApplication(handle: *const anyopaque) Error!void {
+pub fn stopApplication(handle: *const anyopaque, report_exit: bool) Error!void {
     const self = State.get(handle);
     const running = if (self.application.active) |*application| application else return;
-    const protection = self.io.swapCancelProtection(.blocked);
-    defer _ = self.io.swapCancelProtection(protection);
-    const path = running.path;
 
-    self.application.termination = running.process.stop(self.io) catch |err| return self.fail(err);
-    self.application.active = null;
+    const term = stopped: {
+        const protection = self.io.swapCancelProtection(.blocked);
+        defer _ = self.io.swapCancelProtection(protection);
+        const path = running.path;
+        const termination = running.process.stop(self.io) catch |err| return self.fail(err);
 
-    removeCopy(self, path) catch |err| return self.fail(err);
-}
+        self.application.active = null;
 
-pub fn reportApplicationExit(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
+        removeCopy(self, path) catch |err| return self.fail(err);
 
-    self.stderr.print("zxc watch: application {f}; waiting for changes\n", .{self.application.termination}) catch |err| return self.fail(err);
-    self.stderr.flush() catch |err| return self.fail(err);
+        break :stopped termination;
+    };
+
+    if (report_exit) {
+        self.stderr.print("zxc watch: application {f}; waiting for changes\n", .{term}) catch |err| return self.fail(err);
+        self.stderr.flush() catch |err| return self.fail(err);
+    }
 }
 
 pub fn discardPending(self: *State) void {

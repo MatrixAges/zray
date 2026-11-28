@@ -16,9 +16,6 @@ pub const Scan = struct {
     owns_cache: bool,
     parsed: project.ParseCache.Prefetched = .{},
     reused: usize = 0,
-    fn borrow(handle: *anyopaque) *Scan {
-        return @ptrCast(@alignCast(handle));
-    }
     pub fn deinit(self: *Scan) void {
         self.finish(false);
     }
@@ -96,7 +93,20 @@ pub const Scan = struct {
     }
     fn collectRX(self: *Scan, owner: usize, module: rx.ModuleSource) Collector.Error!void {
         self.collector.begin(owner, "");
+
         try rx_edges.collect(self.collector, module);
+    }
+    pub fn collect(self: *Scan, request: anytype) Collector.Error![]const u64 {
+        const owner: usize = @intCast(request.owner);
+        const row: usize = @intCast(request.row);
+
+        switch (request.kind) {
+            .ZX => try self.collectZX(owner),
+            .RX => try self.collectRX(owner, self.modules[row]),
+            .Store => try self.collectRX(owner, self.stores[row]),
+        }
+
+        return self.publish(owner);
     }
     fn publish(self: *Scan, owner: usize) std.mem.Allocator.Error![]const u64 {
         const collector = self.collector;
@@ -108,18 +118,3 @@ pub const Scan = struct {
         return collector.targets.items;
     }
 };
-
-pub fn readSourceGraphZX(handle: *anyopaque, owner: u64) Collector.Error!void {
-    try Scan.borrow(handle).collectZX(@intCast(owner));
-}
-
-pub fn readSourceGraphRX(handle: *anyopaque, owner: u64, row: u64, store: bool) Collector.Error!void {
-    const scan = Scan.borrow(handle);
-    const index: usize = @intCast(row);
-
-    try scan.collectRX(@intCast(owner), if (store) scan.stores[index] else scan.modules[index]);
-}
-
-pub fn publishSourceGraphDependencies(handle: *anyopaque, owner: u64) std.mem.Allocator.Error![]const u64 {
-    return Scan.borrow(handle).publish(@intCast(owner));
-}

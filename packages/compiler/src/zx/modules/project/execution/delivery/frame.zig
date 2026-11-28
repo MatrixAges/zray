@@ -6,7 +6,6 @@ const input = @import("../../../module_input.zig");
 const indexed = @import("../../../parse_cache.zig").indexed_enabled;
 const Loading = @import("../../load/host.zig");
 const Target = @import("../../target/host.zig");
-const ModuleRecord = @import("../../../module_record.zig");
 const Self = @This();
 
 const Item = union(enum) {
@@ -23,14 +22,20 @@ duplicate: zx.ast.Name = undefined,
 resolved: Target.Resolved = undefined,
 selection: @import("project_execution_abi").layouts.@"zig:project_host".ProjectSourceSelection = undefined,
 imported: owner.Imported = undefined,
-deferred: @import("../../../source_signature.zig").Member = undefined,
-dependency: ModuleRecord.Target.Wire = undefined,
-identity: ?[]const u8 = null,
 path_buffer: [512]u8 = undefined,
 path_memory: std.heap.BufferFirstAllocator = undefined,
 path_started: bool = false,
 pub fn borrow(handle: *anyopaque) *Self {
     return @ptrCast(@alignCast(handle));
+}
+
+pub fn sourceUnit(self: *const Self, row: u64) *const owner.Unit {
+    const index: usize = @intCast(row);
+    const project = self.walk.project;
+
+    std.debug.assert(project.load_states[index] == .Done);
+
+    return &project.units[index];
 }
 
 pub fn run(walk: *load.Walk, row: usize, completed: ?u64) zx.Error!?u64 {

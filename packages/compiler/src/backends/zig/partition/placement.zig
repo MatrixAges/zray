@@ -1,6 +1,4 @@
 const std = @import("std");
-const layout = @import("layout.zig");
-const memory = @import("zx").memory;
 pub const File = struct { path: []const u8, source: []const u8 };
 
 pub const Job = struct {
@@ -13,39 +11,12 @@ pub const Job = struct {
 
 pub const Publication = struct { files: []File, jobs: []const Job };
 
-pub fn publish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, functions: []const File, paths: []const []const u8, plan: *const layout.Plan) std.mem.Allocator.Error!Publication {
-    const generated = @import("generated_partition_placement");
-    const Input = std.meta.Child(generated.Input);
-    const State = std.meta.Child(@FieldType(Input, "files"));
-    const files = try allocator.alloc(File, @intCast(plan.placement.length));
+pub fn materialize(temporary: std.mem.Allocator, placement: anytype, output: anytype) std.mem.Allocator.Error!Publication {
+    const files = try temporary.alloc(File, @intCast(placement.length));
 
-    errdefer allocator.free(files);
+    errdefer temporary.free(files);
 
-    const jobs = try temporary.alloc(Job, @intCast(plan.placement.jobs));
-
-    errdefer temporary.free(jobs);
-
-    const bodies = memory.borrowTextColumn("source", functions);
-    const state: State = .{ .paths = paths, .bodies = @ptrCast(&bodies) };
-
-    const counts: std.meta.Child(@FieldType(Input, "placement")) = .{
-        .first_stub = plan.placement.first_stub,
-        .first_root = plan.placement.first_root,
-        .length = plan.placement.length,
-        .jobs = plan.placement.jobs,
-    };
-
-    const input: Input = .{
-        .files = &state,
-        .members = plan.members,
-        .scopes = plan.scopes,
-        .placement = &counts,
-    };
-
-    const output = generated.executeValue(allocator, &input) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => std.debug.panic("invalid partition placement: {s}", .{@errorName(err)}),
-    };
+    const jobs = try temporary.alloc(Job, @intCast(placement.jobs));
 
     for (output.bodies, files[0..output.bodies.len]) |item, *slot| {
         slot.* = .{ .path = item.path, .source = item.source };
@@ -55,13 +26,13 @@ pub fn publish(allocator: std.mem.Allocator, temporary: std.mem.Allocator, funct
         slot.* = .{ .path = item.path, .source = item.source };
     }
 
-    const first_stub: usize = @intCast(plan.placement.first_stub);
+    const first_stub: usize = @intCast(placement.first_stub);
 
     for (output.stub_paths, files[first_stub..][0..output.stub_paths.len]) |path, *slot| {
         slot.path = path;
     }
 
-    const first_root: usize = @intCast(plan.placement.first_root);
+    const first_root: usize = @intCast(placement.first_root);
 
     for (output.root_paths, files[first_root..][0..output.root_paths.len]) |path, *slot| {
         slot.path = path;

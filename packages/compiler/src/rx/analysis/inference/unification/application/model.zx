@@ -1,5 +1,4 @@
 import type { State as KnownTypes } from "core/integer/map/model"
-import type { U32Buffer } from "memory"
 import type { Route, TypeColumns } from "../model"
 import type { Graph } from "../occurs/model"
 
@@ -59,6 +58,6 @@ export type PairOutput = {
 export type Advance = {
     pair: PairInput,
     known: KnownTypes,
-    parents: U32Buffer,
+    parents: u32[],
     depth: u64
 }

@@ -71,9 +71,6 @@ export declare function publishSymbolicStatementReturn(
 export declare function runSymbolicChild(block: SymbolicBlock, body: u32, path: string): string
     throws { OutOfMemory, InvalidSource }
 
-export declare function loadSymbolicReference(frame: SymbolicExpression, symbol: u32): void
-    throws { InvalidSource }
-
 export declare function evaluateSymbolicOperand(
     frame: SymbolicExpression,
     slot: SymbolicOperand,

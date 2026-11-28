@@ -1,6 +1,4 @@
-import type { OptionalU32Buffer, U32Buffer } from "memory"
-
 export type Cursor = {
-    parallel_symbols: OptionalU32Buffer,
-    cells: U32Buffer
+    parallel_symbols: u32?[],
+    cells: u32[]
 }

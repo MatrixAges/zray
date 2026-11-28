@@ -1,16 +1,14 @@
 <Module>
     <Type from="../model" as="Preparation" />
 
-    <Args in={Preparation.Request} out={void} />
-
-    <Call fn="../index.reservePreparationRoots" in={$in.preparation} />
+    <Args in={Preparation.SourcePass} out={void} />
 
     <Loop on={$in.index < $in.count}>
         <Call
             module="register"
             in={{
                 preparation: $in.preparation,
-                count: $ctx.reservePreparationRoots,
+                count: $in.count,
                 index: 0
             }}
         />
@@ -21,9 +19,8 @@
             module="roots"
             in={{
                 ...$in,
-                count: $ctx.reservePreparationRoots,
                 index: 0,
-                running: $ctx.reservePreparationRoots != 0
+                running: $in.count != 0
             }}
         />
     </Loop>

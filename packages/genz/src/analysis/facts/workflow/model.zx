@@ -1,19 +1,41 @@
 import type { Table as Functions } from "core/function_table/model"
-import type { AnalysisWork, BasisWork } from "lowering_host"
 import type { Effects } from "../../uniqueness/sites/model"
+import type { Plan, Types } from "../../uniqueness/slots/model"
 
-export type Work = AnalysisWork
+export enum Step {
+    StartBasis,
+    BuildBasis,
+    CollectFacts,
+    JoinBasis,
+    PlanSerial,
+    PlanConcurrent,
+    AnalyzeFlags,
+    PlanEntry
+}
 
 export type Analysis = {
-    work: Work,
     build: bool,
     concurrent: bool
 }
 
 export type Basis = {
-    work: BasisWork,
     persistent: bool,
-    functions: Functions
+    types: Types,
+    functions: Functions,
+    flow?: Flow
 }
 
-export type BasisEffects = Effects
+export type Flow = {
+    held: bool[][],
+    written: bool[][]
+}
+
+export type BasisPlan = {
+    slots: Plan,
+    hash: bool
+}
+
+export type BasisOutput = {
+    plan?: BasisPlan,
+    effects?: Effects
+}

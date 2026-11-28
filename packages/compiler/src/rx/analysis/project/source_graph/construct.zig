@@ -114,6 +114,21 @@ const Build = struct {
     }
     fn generate(self: *Build, explicit: anytype) Error!model.Value {
         const rule = @import("generated_rx_construct_source_graph");
+        const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
+
+        const Host = struct {
+            scanner: *Scan,
+            store_0: *StoreState,
+            snapshot: *std.meta.Child(StoreState),
+            pub fn commit(host: *@This(), pending: anytype) Error!void {
+                const next = pending.store_0 orelse return;
+                const targets = try host.scanner.collect(next);
+                host.snapshot.* = next.*;
+                host.snapshot.targets = targets;
+                host.store_0.* = host.snapshot;
+            }
+        };
+
         const memory = zx.memory;
         const opts = self.opts;
         const Element = std.meta.Elem(@TypeOf(explicit));
@@ -139,13 +154,15 @@ const Build = struct {
             .explicit_count = entries.len,
             .entry = opts.entry,
             .include_rx = opts.include_rx_modules,
-            .visit = @ptrCast(self.scanner),
             .setup = null,
             .retain_parses = opts.prefetched != null,
             .retain_dependencies = opts.retain_source_dependencies,
         };
 
-        const registered = rule.executeIn(self.allocator, &input) catch |err| return ruleError(err);
+        var snapshot: std.meta.Child(StoreState) = .{ .owner = 0, .kind = .ZX, .row = 0, .targets = &.{} };
+        var store: StoreState = &snapshot;
+        var host: Host = .{ .scanner = self.scanner, .store_0 = &store, .snapshot = &snapshot };
+        const registered = rule.executeIn(self.allocator, &input, &host) catch |err| return ruleError(err);
 
         if (registered.path_issue) |issue| return self.rejectRegistration(@intCast(issue.row), issue.normalized, issue.message);
         if (registered.root_issue) |issue| return self.reject(issue.path, root_location, issue.message);
@@ -156,7 +173,7 @@ const Build = struct {
 
         input.setup = setup;
 
-        const output = rule.executeIn(self.scratch, &input) catch |err| return ruleError(err);
+        const output = rule.executeIn(self.scratch, &input, &host) catch |err| return ruleError(err);
 
         if (output.cycle) |cycle| return self.rejectCycle(@intCast(cycle.owner), @intCast(cycle.edge));
 
