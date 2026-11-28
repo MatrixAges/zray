@@ -3,35 +3,47 @@
 
     <Args in={Lint.SourceInput} out={Lint.SourceResult} />
 
-    <Call fn="../is_rx" in={$in.input_path} />
+    <Call fn="../../workspace_files/index.fromText" in={$in.input_path} />
+
+    <Call fn="../is_rx" />
 
     <If on={$ctx.is_rx}>
         <Call
             module="rx"
             in={$in.pick([
-                "host",
+                "document",
+                "input_path",
                 "source"
             ])}
         />
 
+        <Return value={$ctx.rx} />
+    </If>
+
+    <Call
+        fn="../index.checkLintZx"
+        in={[
+            $in.source,
+            $in.input_path
+        ]}
+    />
+
+    <If on={$ctx.checkLintZx != null}>
         <Return
             value={{
-                status: $ctx.rx
+                status: Lint.SourceOutcome.Invalid,
+                issue: $ctx.checkLintZx
             }}
         />
     </If>
 
-    <Call fn="../index.checkLintZx" in={$in.host} />
-
-    <If on={!$ctx.checkLintZx}>
-        <Return
-            value={{
-                status: Lint.SourceOutcome.Invalid
-            }}
-        />
-    </If>
-
-    <Call fn="../index.formatLintZx" in={$in.host} />
+    <Call
+        fn="../index.formatLintZx"
+        in={[
+            $in.source,
+            $in.input_path
+        ]}
+    />
 
     <Call
         fn="same_format"

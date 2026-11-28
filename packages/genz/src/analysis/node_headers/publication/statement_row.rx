@@ -1,17 +1,17 @@
 <Module>
     <Type from="dense_model" as="Flow" />
-    <Type from="host" as="Host" />
 
     <Args in={Flow.StatementCursor} out={Flow.StatementCursor} />
 
+    <Store from="publication" as="publication" />
+
     <Call
-        fn="host.appendStatementRows"
-        in={[
-            $in.writer,
-            $in.statements[$in.row],
-            null,
-            Host.AstPayloadOwnership.Owned
-        ]}
+        fn="append"
+        in={{
+            statements: $in.statements[$in.row],
+            uses_allocator: false
+        }}
+        setter={[$store.publication.commit]}
     />
 
     <Return

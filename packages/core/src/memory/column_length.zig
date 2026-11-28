@@ -13,15 +13,6 @@ pub fn borrow(storage: anytype) [@typeInfo(std.meta.Child(@TypeOf(storage))).@"s
     return lengths;
 }
 
-pub fn borrowSlices(table: anytype) [@typeInfo(std.meta.Child(@TypeOf(table))).@"struct".field_names.len]*usize {
-    const fields = @typeInfo(std.meta.Child(@TypeOf(table))).@"struct".field_names;
-    var lengths: [fields.len]*usize = undefined;
-
-    inline for (fields, &lengths) |name, *length| length.* = &@field(table, name).len;
-
-    return lengths;
-}
-
 fn view(target: *const anyopaque) Lengths {
     const lengths: *const Lengths = @ptrCast(@alignCast(target));
 
@@ -38,12 +29,4 @@ pub inline fn read(target: *const anyopaque, index: u64) u64 {
 
 pub inline fn advance(target: *const anyopaque, index: u64, added: u64) void {
     view(target)[@intCast(index)].* += @intCast(added);
-}
-
-pub inline fn shrink(target: *const anyopaque, index: u64, limit: u64) void {
-    const length = view(target)[@intCast(index)];
-
-    std.debug.assert(limit <= length.*);
-
-    length.* = @intCast(limit);
 }

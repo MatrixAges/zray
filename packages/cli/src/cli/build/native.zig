@@ -1,6 +1,7 @@
 const std = @import("std");
 const backend = @import("backend_protocol");
 const compiler = @import("compiler");
+const builtin = @import("builtin");
 const Compile = @import("../compile.zig");
 const Loaded = @import("../project.zig").Loaded;
 const Paths = @import("../toolchain.zig").Paths;
@@ -9,6 +10,11 @@ const State = Build.State;
 const effects = @import("../sources/effects.zig");
 const memory = @import("zx").memory;
 const Error = effects.Error;
+const layouts = @import("cli_abi").layouts.@"zig:native_build_host";
+const NodeBindings = layouts.NodeBindings;
+const CommandDestination = layouts.CommandDestination;
+const ObservedResult = layouts.ObservedResult;
+const BackendCache = layouts.BackendCache;
 pub const preparation = @import("prepare.zig");
 pub const command = @import("arguments.zig");
 pub const modules = @import("modules.zig");
@@ -59,9 +65,28 @@ pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBu
     paths.init(project, &context.allocator);
     module_columns.init(project);
 
+    const options = context.options;
+    const host = @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag);
+
+    const target = options.target orelse if (!std.mem.eql(u8, host, @import("bundle").zig_host))
+        try builtin.target.zigTriple(scratch)
+    else
+        null;
+
     const invocation: std.meta.Child(entry.Input) = .{
         .build = @ptrCast(&reference),
-        .node = context.options.host == .node,
+        .node = options.host == .node,
+        .assembly = options.assembly,
+        .command = &.{
+            .tool = toolchain.executable,
+            .library = toolchain.library,
+            .optimize = @tagName(options.optimize),
+            .target = target,
+            .cpu = options.cpu,
+            .libraries = project.config.libraries,
+            .state = bundle.state_module,
+            .imports = bundle.entry.imports,
+        },
         .observed = context.watch != null,
         .previous_backend = previous_backend,
         .observed_paths = observed_paths,
@@ -83,7 +108,7 @@ pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBu
 
     defer state.deinit();
 
-    const result = entry.executeIn(context.allocator, &invocation, context.io) catch |err| return state.failure.unwrap(err);
+    const result = entry.executeIn(scratch, &invocation, context.io) catch |err| return state.failure.unwrap(err);
 
     return switch (result) {
         .Success => .success,
@@ -91,6 +116,8 @@ pub fn run(context: *const Compile.Context, bundle: *const compiler.zig.ModuleBu
         .BackendFailed => .backend_failed,
         .Retry => .retry,
         .IncompleteInputs => error.IncompleteBackendInputs,
+        .ConflictingOutputPaths => error.ConflictingOutputPaths,
+        .NodeBindingWouldOverwriteFile => error.NodeBindingWouldOverwriteFile,
     };
 }
 
@@ -116,21 +143,32 @@ pub fn sourceStatus(result: Compile.Status) Status {
     return sourceStatusAs(Status, result);
 }
 
-pub fn createStagedBindings(handle: *const anyopaque) Error!void {
+pub fn createBuildBindings(allocator: std.mem.Allocator, handle: *const anyopaque) (Error || std.mem.Allocator.Error)!*const NodeBindings {
     const self = State.get(handle);
-    const context = self.context;
-    const bindings = @import("../node/bindings.zig").create(context.allocator, self.bundle, context.options) catch |err| return self.failure.save(err);
+    const bindings = @import("../node/bindings.zig").create(allocator, self.bundle, self.context.options) catch |err| return self.failure.save(err);
+    const row = try allocator.create(NodeBindings);
 
-    bindings.check(context.io, context.allocator, context.options.assembly) catch |err| return self.failure.save(err);
+    row.* = .{
+        .module = bindings.module_path,
+        .declaration = bindings.declaration_path,
+        .module_source = bindings.module_source,
+        .declaration_source = bindings.declarations,
+    };
 
-    self.bindings = bindings;
+    return row;
 }
 
-pub fn openStagedOutput(handle: *const anyopaque) Error!void {
+pub fn openStagedOutput(allocator: std.mem.Allocator, handle: *const anyopaque) (Error || std.mem.Allocator.Error)!*const CommandDestination {
     const self = State.get(handle);
     const context = self.context;
+    const staged = @import("staged.zig").init(context.io, context.allocator, context.options) catch |err| return self.failure.save(err);
+    self.staged = staged;
 
-    self.staged = @import("staged.zig").init(context.io, context.allocator, context.options) catch |err| return self.failure.save(err);
+    const files = try allocator.create(CommandDestination);
+
+    files.* = .{ .binary = staged.binary, .assembly = staged.assembly };
+
+    return files;
 }
 
 pub fn openBackendEnvironment(handle: *const anyopaque) Error!void {
@@ -145,11 +183,17 @@ pub fn openBackendEnvironment(handle: *const anyopaque) Error!void {
     self.environment = .{ .allocator = allocator, .array_hash_map = entries };
 }
 
-pub fn openBackendTranslation(handle: *const anyopaque) Error!void {
+pub fn openBackendTranslation(allocator: std.mem.Allocator, handle: *const anyopaque) (Error || std.mem.Allocator.Error)!*const BackendCache {
     const self = State.get(handle);
     const context = self.context;
     const cache = Build.Observed.Cache.init(context.io, context.allocator, context.environment) catch |err| return self.failure.save(err);
     self.translation = .{ .arena = .init(context.allocator), .cache = cache };
+
+    const paths = try allocator.create(BackendCache);
+
+    paths.* = .{ .cwd = cache.cwd, .local = cache.local, .global = cache.global };
+
+    return paths;
 }
 
 pub fn reportStagedTranslationFailure(handle: *const anyopaque) Error!void {
@@ -176,15 +220,6 @@ pub fn spawnStagedBackend(handle: *const anyopaque, arguments: []const []const u
     return termination == .exited and termination.exited == 0;
 }
 
-pub fn retainStagedBindings(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-    const context = self.context;
-    const bindings = &self.bindings.?;
-
-    bindings.check(context.io, context.allocator, context.options.assembly) catch |err| return self.failure.save(err);
-    bindings.stage(context.io, context.allocator, std.fs.path.dirname(self.staged.?.binary).?) catch |err| return self.failure.save(err);
-}
-
 pub fn publishStagedBackend(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
     const context = self.context;
@@ -199,21 +234,14 @@ pub fn spawnObservedBackend(handle: *const anyopaque, arguments: []const []const
     self.response = backend.process.run(context.io, context.allocator, arguments, &self.environment.?, .application) catch |err| return self.failure.save(err);
 }
 
-pub fn takeTranslationFailure(handle: *const anyopaque) void {
-    const self = State.get(handle);
-
-    self.response = self.translation.?.pending.?;
-    self.translation.?.pending = null;
-}
-
-pub fn resolveObservedNativeInputs(handle: *const anyopaque) Error!void {
+pub fn resolveObservedNativeInputs(handle: *const anyopaque, translation_failed: bool) Error!void {
     const self = State.get(handle);
     const context = self.context;
     const translation = &self.translation.?;
     const watch = context.watch.?;
-
-    self.observed = Build.Observed.resolveBatches(context.io, &self.response.?, translation.responses.items, translation.cache, self.toolchain.library, context.options, watch.inputs, watch.backend_owner.allocator()) catch |err| return self.failure.save(err);
-    self.response = null;
+    const response = if (translation_failed) &translation.pending else &self.response;
+    self.observed = Build.Observed.resolveBatches(context.io, &response.*.?, translation.responses.items, translation.cache, self.toolchain.library, context.options, watch.inputs, watch.backend_owner.allocator()) catch |err| return self.failure.save(err);
+    response.* = null;
 
     translation.deinit();
 
@@ -222,28 +250,23 @@ pub fn resolveObservedNativeInputs(handle: *const anyopaque) Error!void {
     self.releaseEnvironment();
 }
 
-pub fn createObservedBindings(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-    const observed = &self.observed.?;
-
-    observed.bindings = @import("../node/bindings.zig").create(observed.response.arena.allocator(), self.bundle, self.context.options) catch |err| return self.failure.save(err);
-}
-
-pub fn reportObservedNativeBuild(handle: *const anyopaque) Error!?bool {
+pub fn reportObservedNativeBuild(allocator: std.mem.Allocator, handle: *const anyopaque) (Error || std.mem.Allocator.Error)!*const ObservedResult {
     const self = State.get(handle);
     const response = &self.observed.?.response;
     const writer = self.context.stderr;
 
     response.report(writer) catch |err| return self.failure.save(err);
 
-    if (!response.succeeded) return null;
+    const result = try allocator.create(ObservedResult);
 
-    return response.inputs_complete;
+    result.* = .{ .succeeded = response.succeeded, .inputs_complete = response.inputs_complete };
+
+    return result;
 }
 
-pub fn publishObservedNativeBuild(handle: *const anyopaque) Error!bool {
+pub fn publishObservedNativeBuild(handle: *const anyopaque, bindings: ?*const NodeBindings) Error!bool {
     const self = State.get(handle);
     const context = self.context;
 
-    return self.observed.?.publish(context.io, context.allocator, context.watch.?.inputs, context.options) catch |err| self.failure.save(err);
+    return self.observed.?.publish(context.io, context.allocator, context.watch.?.inputs, context.options, bindings) catch |err| self.failure.save(err);
 }

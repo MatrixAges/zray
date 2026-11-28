@@ -5,7 +5,8 @@ const effects = @import("effects.zig");
 const constants = @import("cli_source").publication_constants.@"zx.constants";
 const DirectoryEntry = abi.layouts.@"zig:publication_host".DirectoryEntry;
 const ResourceEntry = abi.layouts.@"zig:publication_host".ResourceEntry;
-const InventoryEntry = abi.layouts.@"zig:publication_host".InventoryEntry;
+const Kind = abi.native.@"zig:publication_host".ResourceKind;
+const Resource = abi.native.@"zig:publication_host".ResourceEntry;
 const Self = @This();
 
 io: std.Io,
@@ -21,7 +22,6 @@ walker: std.Io.Dir.Walker = undefined,
 path: []const u8 = &.{},
 entry_view: DirectoryEntry = undefined,
 resource_view: ResourceEntry = undefined,
-inventory_view: InventoryEntry = undefined,
 pub fn deinit(self: *Self) void {
     if (!self.opened) return;
 
@@ -33,6 +33,38 @@ pub fn deinit(self: *Self) void {
 
 pub fn copyPublishedFile(io: std.Io, source: []const u8, destination: []const u8) std.Io.Dir.CopyFileError!void {
     return std.Io.Dir.cwd().copyFile(source, .cwd(), destination, io, .{ .make_path = true });
+}
+
+pub fn listPublicationDirectory(allocator: std.mem.Allocator, io: std.Io, source: []const u8) ![]const Resource {
+    const directory = try std.Io.Dir.cwd().openDir(io, source, .{ .iterate = true });
+
+    defer directory.close(io);
+
+    var walker = try directory.walk(allocator);
+
+    defer walker.deinit();
+    defer while (walker.inner.stack.items.len != 0) walker.leave(io);
+
+    var rows: std.ArrayList(Resource) = .empty;
+
+    while (try nextWalkEntry(&walker, io)) |item| {
+        const row = try allocator.create(ResourceEntry);
+
+        row.* = .{ .kind = resourceKind(item.kind), .path = try allocator.dupe(u8, item.path) };
+
+        try rows.append(allocator, row);
+    }
+
+    return rows.toOwnedSlice(allocator);
+}
+
+pub fn resourceKind(kind: std.Io.File.Kind) Kind {
+    return switch (kind) {
+        .file => .Regular,
+        .directory => .Directory,
+        .sym_link => .Symlink,
+        else => .Other,
+    };
 }
 
 pub fn openDirectory(handle: *const anyopaque, follow_symlinks: bool) effects.Error!void {
@@ -53,13 +85,17 @@ pub fn open(self: *Self, follow_symlinks: bool) effects.Error!void {
 }
 
 pub fn advance(self: *Self) effects.Error!?std.Io.File.Kind {
-    // The macOS arm64 ReleaseSmall build can hoist the path-buffer pointer
-    // across its initial allocation when the walker is inlined here.
-    const item = (@call(.never_inline, std.Io.Dir.Walker.next, .{ &self.walker, self.io }) catch |err| return self.failure.save(err)) orelse return null;
+    const item = (nextWalkEntry(&self.walker, self.io) catch |err| return self.failure.save(err)) orelse return null;
 
     self.path = item.path;
 
     return item.kind;
+}
+
+fn nextWalkEntry(walker: *std.Io.Dir.Walker, io: std.Io) !?std.Io.Dir.Walker.Entry {
+    // The macOS arm64 ReleaseSmall build can hoist the path-buffer pointer
+    // across its initial allocation when the walker is inlined here.
+    return @call(.never_inline, std.Io.Dir.Walker.next, .{ walker, io });
 }
 
 pub fn nextEntry(handle: *const anyopaque, name: []const u8) effects.Error!*const DirectoryEntry {
@@ -91,11 +127,9 @@ pub fn copyDirectoryFile(handle: *const anyopaque, relative: []const u8, target:
     self.directory.copyFile(relative, .cwd(), target, self.io, .{ .make_path = true }) catch |err| return self.failure.save(err);
 }
 
-pub fn removeRetiredFile(handle: *const anyopaque, target: []const u8) effects.Error!void {
-    const self = effects.state(Self, handle);
-
-    std.Io.Dir.cwd().deleteFile(self.io, target) catch |err| switch (err) {
+pub fn removeRetiredFile(io: std.Io, target: []const u8) std.Io.Dir.DeleteFileError!void {
+    std.Io.Dir.cwd().deleteFile(io, target) catch |err| switch (err) {
         error.FileNotFound => {},
-        else => return self.failure.save(err),
+        else => return err,
     };
 }

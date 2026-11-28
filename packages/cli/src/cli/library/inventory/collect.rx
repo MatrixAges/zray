@@ -5,21 +5,15 @@
 
     <Store from="collected" as="state" />
 
-    <Call
-        fn="index.openDirectory"
-        in={[
-            $in.directory,
-            true
-        ]}
-    />
+    <Call fn="index.listPublicationDirectory" in={$in.directory} />
 
-    <Loop on={$in.running}>
+    <Loop on={$in.valid && $in.index < $in.entries.length}>
         <Call
             module="step"
             in={{
-                directory: $in.directory,
-                name: $in.name,
-                running: true,
+                ...$in,
+                entries: $ctx.listPublicationDirectory,
+                index: 0,
                 valid: true
             }}
         />

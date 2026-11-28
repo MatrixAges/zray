@@ -1,0 +1,17 @@
+import type { Pending as Input } from "./model"
+
+export type Output = string[]
+
+export default function (in: Input): Output {
+    return loop({
+        count: in.children.length,
+        pending: in.stack
+    }, {
+        while: state => state.count != 0,
+        next: state => {
+            state.count -= 1
+            state.pending = state.pending.push(in.children[state.count])[0]
+        },
+        return: state => state.pending
+    })
+}

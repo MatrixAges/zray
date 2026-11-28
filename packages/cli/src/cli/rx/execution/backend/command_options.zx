@@ -1,0 +1,32 @@
+import { artifact_name } from "../../../backend_dependencies/const"
+
+import type { CommandOptions } from "native_build_host"
+import type { CommandOptionsInput } from "./model"
+
+export type Input = CommandOptionsInput
+
+export type Output = CommandOptions
+
+export default function (in: Input): Output {
+    const { settings, cache, files } = in
+
+    return {
+        ...settings,
+        directory: in.directory,
+        module_paths: in.module_paths,
+        local: cache.local,
+        global: cache.global,
+        node_library: in.node_library,
+        files,
+        server: match {
+            files != null => null,
+            _ => ({
+                name: artifact_name,
+                root: cache.cwd,
+                local: cache.local,
+                global: cache.global,
+                assembly: in.assembly
+            })
+        }
+    }
+}

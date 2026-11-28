@@ -1,0 +1,42 @@
+<Module>
+    <Type from="model" as="Request" />
+
+    <Args in={Request.Refresh} out={Request.Summary} />
+
+    <If on={$in.current}>
+        <Return
+            value={{
+                text: "",
+                failure: null
+            }}
+        />
+    </If>
+
+    <If on={$in.observed}>
+        <Call fn="filesystem.unlinkIfExists" in={$in.stamp_path} />
+    </If>
+
+    <Call
+        module="analyze"
+        in={{
+            host: $in.host,
+            catalog: $in.catalog,
+            registered: $in.registered,
+            fingerprints: $in.fingerprints
+        }}
+    />
+
+    <If on={$ctx.analyze.failure == null && $in.observed}>
+        <Call fn="../stamp" in={$in.fingerprints.digest} />
+
+        <Call
+            fn="filesystem.writeText"
+            in={{
+                path: $in.stamp_path,
+                text: $ctx.stamp
+            }}
+        />
+    </If>
+
+    <Return value={$ctx.analyze} />
+</Module>

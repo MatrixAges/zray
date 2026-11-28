@@ -28,11 +28,6 @@ export declare function readMember(
 export declare function readRawList(frame: Lowering, operand: u32): u32?
     throws { OutOfMemory }
 
-export declare function readList(frame: Lowering, operand: u32): u32 throws { OutOfMemory }
-
-export declare function wrapLoweredList(frame: Lowering, subject: u32, items: u32): u32
-    throws { OutOfMemory }
-
 export declare function readElement(frame: Lowering, target_type: u32, value: u32): u32
     throws { OutOfMemory }
 

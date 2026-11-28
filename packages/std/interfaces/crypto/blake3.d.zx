@@ -1,0 +1,34 @@
+// Fixed-length snapshot of an unkeyed BLAKE3 computation.
+export type Blake3State = {
+    bytes: u8[]
+}
+
+export declare function blake3Init(
+    allocator,
+    in: u8[]
+): Blake3State throws { OutOfMemory } concurrent
+
+export declare function blake3Update(allocator, in: {
+    state: Blake3State,
+    data: u8[]
+}): Blake3State throws { InputTooLong, InvalidState, OutOfMemory } concurrent
+
+export declare function blake3UpdateFile(allocator, io, in: {
+    state: Blake3State,
+    path: string,
+    size: u64,
+    prefix?: u8[]
+}): Blake3State throws {
+    AccessDenied, AntivirusInterference, BadPathName, Canceled, DeviceBusy, FileBusy,
+    FileChanged, FileLocksUnsupported, FileNotFound, FileTooBig, InputOutput, InputTooLong,
+    InvalidPath, InvalidState, IsDir, LockViolation,
+    NameTooLong, NetworkNotFound, NoDevice, NoSpaceLeft, NotDir, NotOpenForReading,
+    OutOfMemory, PathAlreadyExists, PermissionDenied, PipeBusy, ProcessFdQuotaExceeded,
+    ReadOnlyFileSystem, Streaming, SymLinkLoop, SystemFdQuotaExceeded,
+    SystemResources, Unseekable, Unexpected, WouldBlock
+} concurrent
+
+export declare function blake3FinalHex(
+    allocator,
+    in: Blake3State
+): u8[] throws { InvalidState, OutOfMemory } concurrent

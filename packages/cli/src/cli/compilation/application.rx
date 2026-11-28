@@ -6,26 +6,39 @@
 
     <Call fn="index.readCompilationSource" in={$in.compilation} />
 
-    <If on={!$ctx.readCompilationSource}>
+    <If on={$ctx.readCompilationSource.failure != null}>
+        <Call fn="stage_diagnostic" in={$ctx.readCompilationSource.failure} />
+
         <Return
             value={{
-                status: IO.Status.Failed
+                status: IO.Status.Failed,
+                diagnostic: $ctx.stage_diagnostic,
+                defer_diagnostic_flush: true
             }}
         />
     </If>
 
-    <Call fn="index.openCompilationCaches" in={$in.compilation} />
-    <Call fn="index.readCompilationDependencies" in={$in.compilation} />
+    <Call
+        fn="index.readCompilationDependencies"
+        in={[
+            $in.compilation,
+            $ctx.readCompilationSource.bytes,
+            $in.settings.cache
+        ]}
+    />
 
-    <If on={$ctx.readCompilationDependencies == IO.Dependencies.Invalid}>
+    <If on={$ctx.readCompilationDependencies.failure != null}>
+        <Call fn="stage_diagnostic" in={$ctx.readCompilationDependencies.failure} />
+
         <Return
             value={{
-                status: IO.Status.Failed
+                status: IO.Status.Failed,
+                diagnostic: $ctx.stage_diagnostic
             }}
         />
     </If>
 
-    <If on={$ctx.readCompilationDependencies == IO.Dependencies.Rx}>
+    <If on={$ctx.readCompilationDependencies.has_rx}>
         <Return
             value={{
                 status: IO.Status.RunRx
@@ -38,7 +51,7 @@
         in={{
             ...$in,
             has_compiled_libraries:
-                $ctx.readCompilationDependencies == IO.Dependencies.WithLibraries
+                $ctx.readCompilationDependencies.has_compiled_libraries
         }}
     />
 
@@ -54,10 +67,14 @@
         <Return value={$ctx.query} />
     </If>
 
-    <Call fn="index.openCompilationGeneration" in={$in.compilation} />
-
     <If on={$in.settings.native}>
-        <Call module="native" in={$in} />
+        <Call
+            module="native"
+            in={{
+                ...$in,
+                source: $ctx.readCompilationSource.bytes
+            }}
+        />
 
         <Return
             value={{
@@ -66,7 +83,13 @@
         />
     </If>
 
-    <Call fn="index.emitCompilationText" in={$in.compilation} />
+    <Call
+        fn="index.emitCompilationText"
+        in={[
+            $in.compilation,
+            $ctx.readCompilationSource.bytes
+        ]}
+    />
 
     <If on={$ctx.emitCompilationText == null}>
         <Return

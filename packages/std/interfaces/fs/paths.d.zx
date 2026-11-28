@@ -4,6 +4,12 @@ export declare function unlink(io, in: string): void throws {
   ReadOnlyFileSystem, SymLinkLoop, SystemResources, Unexpected
 } concurrent
 
+export declare function unlinkIfExists(io, in: string): void throws {
+  AccessDenied, BadPathName, Canceled, FileBusy, FileSystem, InvalidPath, InvalidUtf8,
+  IsDir, NameTooLong, NetworkNotFound, NotDir, PermissionDenied, ReadOnlyFileSystem,
+  SymLinkLoop, SystemResources, Unexpected
+} concurrent
+
 export declare function rename(io, in: { from: string, to: string }): void throws {
   AccessDenied, AntivirusInterference, BadPathName, Canceled, CrossDevice, DirNotEmpty,
   DiskQuota, FileBusy, FileNotFound, HardwareFailure, InvalidPath, InvalidUtf8, IsDir,

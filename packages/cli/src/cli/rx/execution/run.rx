@@ -12,21 +12,31 @@
 
     <Call fn="index.loadRxApplication" in={$in.application} />
 
-    <If on={$ctx.loadRxApplication != null}>
+    <If on={$ctx.loadRxApplication.entry != null}>
         <Call
             module="loaded"
             in={{
                 ...$in,
-                entry: $ctx.loadRxApplication
+                entry: $ctx.loadRxApplication.entry
             }}
         />
 
         <Return value={$ctx.loaded} />
     </If>
 
+    <Call
+        fn="load_diagnostic"
+        in={{
+            path: $in.input_path,
+            message: $ctx.loadRxApplication.diagnostic,
+            error_name: $ctx.loadRxApplication.error_name
+        }}
+    />
+
     <Return
         value={{
-            status: IO.Status.Failed
+            status: IO.Status.Failed,
+            diagnostic: $ctx.load_diagnostic
         }}
     />
 </Module>

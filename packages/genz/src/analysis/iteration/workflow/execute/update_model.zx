@@ -53,6 +53,10 @@ export type Evaluation = Evaluate.Pick(
     "seed_name"
 )
 
+export type FirstCondition = Evaluation.Pick("frame", "schedule", "name", "seed_name")
+
+export type Evaluated = Update.Omit("mark")
+
 export type Declaration = Evaluate.Pick(
     "frame",
     "writer",

@@ -16,3 +16,17 @@ export type Stat = {
     ctime_ms: i64,
     atime_ms?: i64
 }
+
+// Signed nanoseconds since the Unix epoch, split into the high and low bits.
+export type TimestampNs = {
+    high: i32,
+    low: u64
+}
+
+export type DirectoryEntry = {
+    name: string,
+    kind: Kind,
+    inode?: u64,
+    size?: u64,
+    mtime_ns?: TimestampNs
+}

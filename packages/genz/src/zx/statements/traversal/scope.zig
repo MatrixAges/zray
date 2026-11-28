@@ -2,22 +2,17 @@ const std = @import("std");
 const ir = @import("zx").ir;
 const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
+const publication = @import("../../construction/publication.zig");
 const locals = @import("../../value_call/locals.zig");
 const Self = @This();
 
 values: ir.Block,
-starts: []u32,
-counts: []u32,
+spans: []u64,
 registered: ?locals.Registered = null,
 
 active: bool = false,
-pub const Buffer = struct {
-    starts: []u32,
-    counts: []u32,
-};
-
-pub fn open(lowering: *Lower, values: ir.Block, buffer: Buffer) Lower.Error!Self {
-    var scope: Self = .{ .values = values, .starts = buffer.starts, .counts = buffer.counts, .active = true };
+pub fn open(lowering: *Lower, values: ir.Block, spans: []u64) Lower.Error!Self {
+    var scope: Self = .{ .values = values, .spans = spans, .active = true };
 
     if (values.len == 0) return scope;
 
@@ -35,12 +30,11 @@ pub fn close(self: *Self, lowering: *Lower) void {
 }
 
 pub fn put(self: *Self, offset: usize, span: node.Block) void {
-    self.starts[offset] = span.start;
-    self.counts[offset] = span.len;
+    self.spans[offset] = publication.packSpan(span);
 }
 
 pub fn finish(self: *const Self, lowering: *Lower) Lower.Error!node.Block {
     if (self.values.len == 0) return .{};
 
-    return @import("../../../node/blocks.zig").join(lowering.allocator, lowering.builder.nodes, self.starts, self.counts);
+    return @import("../../../node/blocks.zig").joinStatementSpans(lowering.allocator, lowering.builder.nodes, self.spans, false);
 }

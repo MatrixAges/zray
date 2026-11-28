@@ -1,0 +1,18 @@
+import { SourceOutcome } from "../model"
+
+import type { CheckedItem, Failure } from "./model"
+
+export type Input = CheckedItem
+
+export type Output = Failure?
+
+export default function (in: Input): Output {
+    if (in.result.status == SourceOutcome.Valid) {
+        return null
+    }
+
+    return {
+        path: in.path,
+        result: in.result
+    }
+}

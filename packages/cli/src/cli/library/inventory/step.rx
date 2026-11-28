@@ -6,55 +6,48 @@
     <Store from="collected" as="state" />
 
     <Call
-        fn="index.nextEntry"
-        in={[
-            $in.directory,
-            $in.name
-        ]}
+        fn="classify_entry"
+        in={{
+            entry: $in.entries[$in.index],
+            name: $in.name
+        }}
     />
-
-    <Call fn="classify_entry" />
-
-    <If on={$ctx.classify_entry.action == Inventory.Action.Stop}>
-        <Return
-            value={{
-                ...$in,
-                running: false
-            }}
-        />
-    </If>
 
     <If on={$ctx.classify_entry.action == Inventory.Action.Invalid}>
         <Return
             value={{
                 ...$in,
-                running: false,
                 valid: false
             }}
         />
     </If>
 
-    <If on={$ctx.classify_entry.action == Inventory.Action.Keep}>
-        <If on={$ctx.classify_entry.path != null}>
-            <Call
-                fn="index.digestEntry"
-                in={[
-                    $in.directory,
-                    $ctx.classify_entry.path
-                ]}
-            />
+    <If on={$ctx.classify_entry.path != null}>
+        <Call
+            fn="../../standard/path/join"
+            in={[
+                $in.directory,
+                $in.entries[$in.index].path
+            ]}
+        />
 
-            <Call
-                fn="append_entry"
-                in={{
-                    entries: $store.state.entries,
-                    path: $ctx.digestEntry.path,
-                    digest: $ctx.digestEntry.digest
-                }}
-                setter={[$store.state.entries]}
-            />
-        </If>
+        <Call fn="index.digestPublishedFile" />
+
+        <Call
+            fn="append_entry"
+            in={{
+                entries: $store.state.entries,
+                path: $ctx.classify_entry.path,
+                digest: $ctx.digestPublishedFile
+            }}
+            setter={[$store.state.entries]}
+        />
     </If>
 
-    <Return value={$in} />
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1
+        }}
+    />
 </Module>

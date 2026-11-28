@@ -18,18 +18,18 @@
     <Call fn="index.writeStageArtifact" in={$in.stage} />
 
     <Call
-        fn="index.writeStageFile"
-        in={[
-            $in.stage,
-            $in.files.abi_path,
-            $in.files.abi
-        ]}
+        module="write_file"
+        in={{
+            directory: $in.resources.directory,
+            path: $in.files.abi_path,
+            source: $in.files.abi
+        }}
     />
 
     <Call
         module="write_files"
         in={{
-            stage: $in.stage,
+            directory: $in.resources.directory,
             files: $in.files.aliases
         }}
     />
@@ -37,7 +37,7 @@
     <Call
         module="write_files"
         in={{
-            stage: $in.stage,
+            directory: $in.resources.directory,
             files: $in.files.generated
         }}
     />
@@ -45,7 +45,7 @@
     <Call
         module="write_files"
         in={{
-            stage: $in.stage,
+            directory: $in.resources.directory,
             files: $in.files.public
         }}
     />
@@ -56,12 +56,12 @@
         <Call fn="index.renderStageBuild" in={$in.stage} />
 
         <Call
-            fn="index.writeStageFile"
-            in={[
-                $in.stage,
-                $in.files.build_path,
-                $ctx.renderStageBuild
-            ]}
+            module="write_file"
+            in={{
+                directory: $in.resources.directory,
+                path: $in.files.build_path,
+                source: $ctx.renderStageBuild
+            }}
         />
     </Task>
 

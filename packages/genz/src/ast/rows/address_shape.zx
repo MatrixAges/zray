@@ -1,0 +1,9 @@
+import type { ExpressionsKind } from "../../printer/model/expressions"
+
+export type AstFieldAddressRows = {
+    tags: ExpressionsKind[],
+    offsets: u32[],
+    field_target: u32[],
+    field_name: u8[][],
+    address_of: u32[]
+}

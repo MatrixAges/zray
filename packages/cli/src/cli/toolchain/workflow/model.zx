@@ -25,6 +25,7 @@ export type Input = {
     windows: bool,
     expected_marker: string,
     zip: bool,
+    zig_source_directory: string,
     standard_archive: u8[],
     standard_digest: string,
     zig_digest: string,
@@ -39,7 +40,6 @@ export type Output = {
 }
 
 export type Probe = {
-    toolchain: Toolchain,
     executable: string,
     suffixes: LibrarySuffixes
 }
@@ -49,7 +49,9 @@ export type CachePaths = {
     root: string,
     lock: string,
     staging: string,
-    marker: string
+    marker: string,
+    zig_source: string,
+    zig_destination: string
 }
 
 export type CacheInput = Input & {
@@ -57,3 +59,8 @@ export type CacheInput = Input & {
 }
 
 export type CacheOutput = Output.Pick("status", "root")
+
+export type Readiness =
+    Input.Pick("toolchain", "expected_marker", "override", "windows") & {
+        directory: string
+    }

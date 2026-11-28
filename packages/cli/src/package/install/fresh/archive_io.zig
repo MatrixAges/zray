@@ -24,10 +24,10 @@ pub fn findArchive(handle: *const anyopaque, first: u64, release: *const abi.Rel
     return view;
 }
 
-pub fn fetchArchive(handle: *const anyopaque, source: []const u8, release: *const abi.Release) host.Error![]const u8 {
+pub fn fetchArchive(allocator: std.mem.Allocator, io: std.Io, handle: *const anyopaque, base: []const u8, cache: []const u8, offline: bool, source: []const u8, release: *const abi.Release) host.Error![]const u8 {
     const session = host.Context.get(handle);
 
-    return session.fetch(releaseOf(release, source), session.root) catch |err| session.fail(err);
+    return @import("package_store").prepare(io, allocator, releaseOf(release, source), base, cache, offline) catch |err| session.fail(err);
 }
 
 pub fn readArchive(handle: *const anyopaque, path: []const u8) host.Error!*const abi.ArchiveIdentity {

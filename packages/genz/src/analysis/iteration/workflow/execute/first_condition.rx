@@ -1,0 +1,35 @@
+<Module>
+    <Type from="update_model" as="Loop" />
+
+    <Args in={Loop.FirstCondition} out={u32?} />
+
+    <Store from="state" as="loop_state" />
+
+    <If on={$in.schedule.first_test != null}>
+        <Call
+            fn="set_parameter_name"
+            in={$in.seed_name}
+            setter={[$store.loop_state.binding]}
+        />
+
+        <Call
+            fn="index.lowerExpression"
+            in={[
+                $in.frame,
+                $in.schedule.first_test,
+                false,
+                null
+            ]}
+        />
+
+        <Call
+            fn="set_parameter_name"
+            in={$in.name}
+            setter={[$store.loop_state.binding]}
+        />
+
+        <Return value={$ctx.lowerExpression} />
+    </If>
+
+    <Return value={null} />
+</Module>

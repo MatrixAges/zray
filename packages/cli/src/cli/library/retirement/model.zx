@@ -1,5 +1,4 @@
 import type { TextColumn } from "memory"
-import type { Retirement } from "publication_host"
 
 export type Kept = {
     paths: string[]
@@ -29,13 +28,22 @@ export type Entries = {
     native_only: bool
 }
 
+export type Observed = {
+    cwd: string,
+    logical: string[],
+    physical: string[]
+}
+
 export type Plan = {
-    retirement: Retirement,
+    directory: string,
+    physical_root: string,
+    managed: string[],
+    observed: Observed,
     previous: Entries,
     separator: u8
 }
 
-export type Candidate = Plan & {
+export type Candidate = Plan.Omit("managed") & {
     targets: string[],
     index: u64
 }
@@ -44,7 +52,9 @@ export enum Status {
     Ready,
     InvalidInventory,
     Modified,
-    OutsideOutput
+    OutsideOutput,
+    Overlap,
+    MissingParent
 }
 
 export type Walk = Candidate & {

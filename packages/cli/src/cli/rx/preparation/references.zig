@@ -12,7 +12,7 @@ const Role = abi.Role;
 const ModuleReferenceLayout = @import("cli_abi").layouts.@"zig:rx_preparation_host".ModuleReference;
 const ModuleReference = @import("cli_abi").native.@"zig:rx_preparation_host".ModuleReference;
 const ResolvedTarget = @import("cli_abi").layouts.@"zig:rx_preparation_host".ResolvedTarget;
-const Entry = rx.dependency_reference.Entry;
+const CompiledTarget = @import("cli_abi").layouts.@"zig:rx_preparation_host".CompiledTarget;
 
 pub const Cursor = struct {
     allocator: std.mem.Allocator,
@@ -26,14 +26,8 @@ pub const Cursor = struct {
     texts: ?*Text.Cache = null,
     type_sources: std.ArrayList(rx.TextSource) = .empty,
     failure: effects.Failure = .{},
-    module: *const rx.ModuleSource = undefined,
-    owner: []const u8 = undefined,
-    packages: []const compiler.project.Package = undefined,
-    entries: []const Entry = undefined,
     ref_items: []ModuleReferenceLayout = &.{},
     ref_ptrs: []ModuleReference = &.{},
-    target: compiler.project.ImportTarget = undefined,
-    resolved_view: ResolvedTarget = undefined,
     pub fn get(handle: *const anyopaque) *Cursor {
         return effects.state(Cursor, handle);
     }
@@ -45,10 +39,8 @@ pub const Cursor = struct {
         self.ref_items = &.{};
     }
 
-    pub fn report(self: *Cursor, index: usize, message: []const u8) Error!void {
-        const location = self.entries[index].attribute.?.value_location;
-
-        self.writer.print("{s}:{d}:{d}: module: {s}\n", .{ self.module.path, location.line, location.column, message }) catch |err| return self.failure.save(err);
+    pub fn report(self: *Cursor, reference: ModuleReference, message: []const u8) Error!void {
+        self.writer.print("{s}:{d}:{d}: module: {s}\n", .{ reference.path, reference.line, reference.column, message }) catch |err| return self.failure.save(err);
     }
 };
 
@@ -57,25 +49,27 @@ pub fn selectPreparationModule(handle: *const anyopaque, index: u64) Error![]con
     const row: usize = @intCast(index);
     const module = if (row < self.modules.len) &self.modules[row] else &self.stores[row - self.modules.len];
     const owner = std.fs.path.resolve(self.allocator, &.{ self.project.root_dir, module.path }) catch |err| return self.failure.save(err);
+    const packages = rx.module_reference.dependencies(self.project, owner);
+    const entries = module.indexedReferences() orelse unreachable;
 
-    self.module = module;
-    self.owner = owner;
-    self.packages = rx.module_reference.dependencies(self.project, owner);
-    self.entries = module.indexedReferences() orelse unreachable;
+    self.ref_items = self.allocator.realloc(self.ref_items, entries.len) catch |err| return self.failure.save(err);
+    self.ref_ptrs = self.allocator.realloc(self.ref_ptrs, entries.len) catch |err| return self.failure.save(err);
 
-    self.allocator.free(self.ref_ptrs);
-    self.allocator.free(self.ref_items);
-
-    self.ref_items = self.allocator.alloc(ModuleReferenceLayout, self.entries.len) catch |err| return self.failure.save(err);
-    self.ref_ptrs = self.allocator.alloc(ModuleReference, self.entries.len) catch |err| return self.failure.save(err);
-
-    for (self.entries, self.ref_items, self.ref_ptrs) |entry, *slot, *ptr| {
+    for (entries, self.ref_items, self.ref_ptrs) |entry, *slot, *ptr| {
         const role: Role = if (entry.role == .TypeImport) .TypeImport else if (entry.role == .Call and entry.target == .Module) .ModuleCall else .Other;
-        const is_package = if (role != .Other) rx.module_reference.isPackage(entry.attribute.?.value, self.packages) else false;
+        const attribute = entry.attribute;
+        const value = if (attribute) |item| item.value else "";
+        const location: rx.ast.Location = if (attribute) |item| item.value_location else .{ .line = 0, .column = 0, .offset = 0 };
 
         slot.* = .{
             .role = role,
-            .is_package = is_package,
+            .is_package = role != .Other and rx.module_reference.isPackage(value, packages),
+            .owner = owner,
+            .path = module.path,
+            .value = value,
+            .offset = location.offset,
+            .line = location.line,
+            .column = location.column,
         };
 
         ptr.* = slot;
@@ -84,43 +78,50 @@ pub fn selectPreparationModule(handle: *const anyopaque, index: u64) Error![]con
     return self.ref_ptrs;
 }
 
-pub fn resolvePreparationTarget(handle: *const anyopaque, index: u64, at_attribute: bool) Error!*const ResolvedTarget {
+pub fn resolvePreparationTarget(
+    allocator: std.mem.Allocator,
+    handle: *const anyopaque,
+    reference: ModuleReference,
+    at_attribute: bool,
+) (Error || std.mem.Allocator.Error)!*const ResolvedTarget {
     const self = Cursor.get(handle);
-    const ref_index: usize = @intCast(index);
-    const attribute = self.entries[ref_index].attribute orelse unreachable;
-    const offset = if (at_attribute) attribute.value_location.offset else 0;
+    const offset: usize = if (at_attribute) @intCast(reference.offset) else 0;
+    const result = try allocator.create(ResolvedTarget);
     var reporter: zx.Reporter = .{};
 
-    self.target = compiler.project.resolveModuleTarget(self.allocator, self.owner, attribute.value, self.project, &reporter, .{ .start = offset, .end = offset }) catch |err| {
-        if (err == error.OutOfMemory) return self.failure.save(err);
-        try self.report(ref_index, reporter.diagnostic.?.message);
+    const target = compiler.project.resolveModuleTarget(self.allocator, reference.owner, reference.value, self.project, &reporter, .{ .start = offset, .end = offset }) catch |err| {
+        if (err == error.OutOfMemory) return error.OutOfMemory;
 
-        self.resolved_view = .{ .target = .Invalid, .source_path = "" };
+        try self.report(reference, reporter.diagnostic.?.message);
 
-        return &self.resolved_view;
+        result.* = .{ .target = .Invalid, .source_path = "", .compiled = null };
+
+        return result;
     };
 
-    switch (self.target) {
+    switch (target) {
         .source => |source| {
-            const path = std.fs.path.resolve(self.allocator, &.{ self.project.root_dir, source }) catch |err| return self.failure.save(err);
+            const path = try std.fs.path.resolve(self.allocator, &.{ self.project.root_dir, source });
 
-            self.resolved_view = .{ .target = .Source, .source_path = path };
+            result.* = .{ .target = .Source, .source_path = path, .compiled = null };
         },
-        .compiled => {
-            self.resolved_view = .{ .target = .Compiled, .source_path = "" };
+        .compiled => |compiled| {
+            const view = try allocator.create(CompiledTarget);
+            view.* = .{ .name = compiled.name, .instance = compiled.instance, .artifact = compiled.artifact };
+            result.* = .{ .target = .Compiled, .source_path = "", .compiled = view };
         },
     }
 
-    return &self.resolved_view;
+    return result;
 }
 
-pub fn reportPreparationReference(handle: *const anyopaque, index: u64, message: []const u8) Error!void {
-    try Cursor.get(handle).report(@intCast(index), message);
+pub fn reportPreparationReference(handle: *const anyopaque, reference: ModuleReference, message: []const u8) Error!void {
+    try Cursor.get(handle).report(reference, message);
 }
 
-pub fn prepareCompiledReference(handle: *const anyopaque) Error!bool {
+pub fn prepareCompiledReference(handle: *const anyopaque, target: *const CompiledTarget) Error!bool {
     const self = Cursor.get(handle);
-    const exported = self.libraries.?.add(self.io, self.target.compiled, self.project, self.inputs) catch |err| return self.failure.save(err);
+    const exported = self.libraries.?.add(self.io, .{ .name = target.name, .instance = target.instance, .artifact = target.artifact }, self.project, self.inputs) catch |err| return self.failure.save(err);
 
     return exported.function != null;
 }

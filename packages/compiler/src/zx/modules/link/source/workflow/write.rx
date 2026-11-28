@@ -4,8 +4,6 @@
 
     <Args in={Source.Write} out={Source.Publication} />
 
-    <Store from="../../../artifact/materializing/publication/progress" as="progress" />
-
     <If on={$in.root != null}>
         <Call module="../../../artifact/materializing/publication/root" in={$in.root} />
 
@@ -16,15 +14,6 @@
                     in={$in.initializer}
                 />
 
-                <Call
-                    fn="settle"
-                    in={{
-                        lengths: $in.commit.lengths,
-                        completed: $store.progress.state.completed
-                    }}
-                    setter={[$store.progress.state]}
-                />
-
                 <Return
                     value={{
                         status: Source.Status.Ready,
@@ -33,30 +22,12 @@
                 />
             </If>
 
-            <Call
-                fn="settle"
-                in={{
-                    lengths: $in.commit.lengths,
-                    completed: $store.progress.state.completed
-                }}
-                setter={[$store.progress.state]}
-            />
-
             <Return
                 value={{
                     status: Source.Status.Ready
                 }}
             />
         </If>
-
-        <Call
-            fn="settle"
-            in={{
-                lengths: $in.commit.lengths,
-                completed: $store.progress.state.completed
-            }}
-            setter={[$store.progress.state]}
-        />
 
         <Return
             value={{
@@ -69,15 +40,6 @@
         <Call
             module="../../../artifact/materializing/publication/source"
             in={$in.batch}
-        />
-
-        <Call
-            fn="settle"
-            in={{
-                lengths: $in.commit.lengths,
-                completed: $store.progress.state.completed
-            }}
-            setter={[$store.progress.state]}
         />
 
         <If on={$ctx.source == Rows.PublicationStatus.Complete}>

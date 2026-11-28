@@ -3,8 +3,6 @@
 
     <Args in={Backend.CommandInvocation} out={string[]?} />
 
-    <Call fn="index.readBackendCommandOptions" in={$in.build} />
-
     <Call
         fn="modules/requires_libc"
         in={{
@@ -26,14 +24,14 @@
             module="../../../command/prefix/build"
             in={{
                 spec: {
-                    tool: $ctx.readBackendCommandOptions.tool,
-                    library: $ctx.readBackendCommandOptions.library,
+                    tool: $in.options.tool,
+                    library: $in.options.library,
                     node: $in.node,
                     wasm: $in.wasm,
-                    node_library: $ctx.readBackendCommandOptions.node_library,
-                    server: $ctx.readBackendCommandOptions.server,
-                    files: $ctx.readBackendCommandOptions.files,
-                    libraries: $ctx.readBackendCommandOptions.libraries,
+                    node_library: $in.options.node_library,
+                    server: $in.options.server,
+                    files: $in.options.files,
+                    libraries: $in.options.libraries,
                     library_paths: $ctx.paths,
                     libc: $ctx.requires_libc
                 }
@@ -45,9 +43,9 @@
         fn="../../../command/settings"
         in={{
             spec: {
-                optimize: $ctx.readBackendCommandOptions.optimize,
-                target: $ctx.readBackendCommandOptions.target,
-                cpu: $ctx.readBackendCommandOptions.cpu
+                optimize: $in.options.optimize,
+                target: $in.options.target,
+                cpu: $in.options.cpu
             }
         }}
     />
@@ -66,10 +64,10 @@
             in={{
                 spec: {
                     settings: $ctx.settings,
-                    directory: $ctx.readBackendCommandOptions.directory,
+                    directory: $in.options.directory,
                     node: $in.node,
-                    state: $ctx.readBackendCommandOptions.state,
-                    imports: $ctx.readBackendCommandOptions.imports,
+                    state: $in.options.state,
+                    imports: $in.options.imports,
                     natives: $ctx.native_names
                 }
             }}
@@ -80,7 +78,7 @@
         <Call
             module="modules/generated"
             in={{
-                options: $ctx.readBackendCommandOptions,
+                options: $in.options,
                 settings: $ctx.settings,
                 generated: $in.generated,
                 chunks: [
@@ -97,7 +95,7 @@
             module="modules/native"
             in={{
                 ...$in.native,
-                options: $ctx.readBackendCommandOptions,
+                options: $in.options,
                 settings: $ctx.settings,
                 chunks: $ctx.generated.chunks,
                 index: 0,
@@ -120,7 +118,7 @@
                 views: $in.native.abi_views,
                 view_count: $in.abi_count,
                 builtins: $ctx.support_modules,
-                directory: $ctx.readBackendCommandOptions.directory,
+                directory: $in.options.directory,
                 settings: $ctx.settings,
                 chunks: $ctx.native.chunks,
                 index: 0

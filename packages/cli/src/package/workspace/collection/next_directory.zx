@@ -1,0 +1,18 @@
+import queue from "./queue"
+
+import type { Directories as Output } from "./model"
+
+export type Input = Output & {
+    children: string[]
+}
+
+export default function (in: Input): Output {
+    return {
+        collection: in.collection,
+        patterns: in.patterns,
+        pending: queue({
+            stack: in.pending.pop()[0],
+            children: in.children
+        })
+    }
+}

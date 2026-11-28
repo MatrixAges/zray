@@ -3,43 +3,23 @@ import append from "./append"
 import type { Extend as Input, Extended as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { suffix, tail } = in
+    const first = in.first
 
-    const parts: u64[] = []
-
-    const progress = loop({
-        index: 0,
+    const head = append({
         last: in.last,
-        parts
-    }, {
-        while: state => state.index < suffix.length,
-        next: state => {
-            const step = append({
-                last: state.last,
-                span: suffix[state.index]
-            })
-
-            state.last = step.last
-
-            if (step.emit != null) {
-                state.parts = state.parts.push(step.emit)[0]
-            }
-
-            state.index += 1
-        },
-        return: state => ({
-            last: state.last,
-            parts: state.parts
-        })
+        span: first ?? in.tail
     })
 
-    const final = append({
-        last: progress.last,
-        span: tail
-    })
+    if (first == null) {
+        return {
+            last: head.last,
+            emit: head.emit
+        }
+    }
 
     return {
-        last: final.last,
-        parts: final.emit != null ? progress.parts.push(final.emit)[0] : progress.parts
+        last: in.tail,
+        emit: head.emit,
+        bridge: head.last
     }
 }

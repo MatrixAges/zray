@@ -17,6 +17,8 @@ export type TransferColumn = opaque
 
 export enum TransferLayout {
     Contiguous,
-    Projected,
-    Owned
+    Strided,
+    Repeated,
+    Owned,
+    BorrowingText
 }

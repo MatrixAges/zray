@@ -37,6 +37,9 @@
         fn="../effects.fetchArchive"
         in={[
             $in.session,
+            $in.root,
+            $in.fetch.cache,
+            $in.fetch.offline,
             $ctx.release.archive,
             $ctx.release
         ]}

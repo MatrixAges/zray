@@ -65,7 +65,7 @@ pub fn publish(types: *Types, scratch: std.mem.Allocator, functions: *ir.Functio
         .native_modules = .{ .indexed = &.{} },
     };
 
-    try publication.append(&nodes, functions, initial.program, temporary, &.{
+    try publication.append(&nodes, functions, initial.program, &.{
         .identity = initial.identity,
         .version = initial.schema_version,
         .function = selected.function,

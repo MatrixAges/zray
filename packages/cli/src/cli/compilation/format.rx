@@ -30,15 +30,25 @@
 
     <Call fn="index.readCompilationSource" in={$in.compilation} />
 
-    <If on={!$ctx.readCompilationSource}>
+    <If on={$ctx.readCompilationSource.failure != null}>
+        <Call fn="stage_diagnostic" in={$ctx.readCompilationSource.failure} />
+
         <Return
             value={{
-                status: IO.Status.Failed
+                status: IO.Status.Failed,
+                diagnostic: $ctx.stage_diagnostic,
+                defer_diagnostic_flush: true
             }}
         />
     </If>
 
-    <Call fn="index.formatCompilationSource" in={$in.compilation} />
+    <Call
+        fn="index.formatCompilationSource"
+        in={[
+            $in.compilation,
+            $ctx.readCompilationSource.bytes
+        ]}
+    />
 
     <If on={$ctx.formatCompilationSource == null}>
         <Return

@@ -1,0 +1,51 @@
+import { resolvePathParts as resolve } from "lexical_path"
+import { probeLibrary } from "toolchain_host"
+
+import join from "../../standard/path/join"
+import { library_probe } from "../const"
+
+import type { LibrarySuffixes } from "./model"
+
+export type Input = {
+    parent: string,
+    suffixes: LibrarySuffixes
+}
+
+export type Output = string?
+
+export default function (in: Input): Output {
+    const { parent, suffixes } = in
+
+    const candidates = [
+        suffixes.official,
+        suffixes.system,
+        suffixes.sibling
+    ]
+
+    const absent: string? = null
+
+    return loop({
+        index: 0,
+        found: absent
+    }, {
+        while: state => state.found == null && state.index < candidates.length,
+        next: state => {
+            const candidate = resolve([
+                parent,
+                candidates[state.index]
+            ])
+
+            const path = join([
+                candidate,
+                library_probe
+            ])
+
+            if (probeLibrary(path)) {
+                state.found = candidate
+            }
+
+            state.index += 1
+        },
+        return: state => state.found
+    })
+}

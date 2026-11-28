@@ -1,0 +1,98 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.ArgumentSource} out={Flow.Arguments} />
+
+    <If on={$in.kind == Flow.CollectionKind.Splice}>
+        <Task name="start" out={$ctx.bind_argument}>
+            <Call
+                module="bind_argument"
+                in={{
+                    ast: $in.ast,
+                    origin: $in.arguments[0]
+                }}
+            />
+        </Task>
+
+        <Task name="count" out={$ctx.bind_argument}>
+            <Call
+                module="bind_argument"
+                in={{
+                    ast: $in.ast,
+                    origin: $in.arguments[1]
+                }}
+            />
+        </Task>
+
+        <Call
+            module="bind_argument"
+            in={{
+                ast: $in.ast,
+                origin: $in.arguments[2]
+            }}
+        />
+
+        <Call
+            fn="argument_items"
+            in={{
+                ...$in.pick([
+                    "ast",
+                    "expression_types"
+                ]),
+                origin: $in.arguments[2],
+                value: $ctx.bind_argument
+            }}
+        />
+
+        <Return
+            value={{
+                first: $ctx.task.start,
+                second: $ctx.task.count,
+                third: $ctx.argument_items
+            }}
+        />
+    </If>
+
+    <If
+        on={$in.kind == Flow.CollectionKind.Push ||
+            $in.kind == Flow.CollectionKind.Concat}
+    >
+        <Call
+            module="bind_argument"
+            in={{
+                ast: $in.ast,
+                origin: $in.arguments[0]
+            }}
+        />
+
+        <Call
+            fn="list_argument"
+            in={{
+                ...$in.pick([
+                    "ast",
+                    "kind",
+                    "source_type",
+                    "expression_types"
+                ]),
+                origin: $in.arguments[0],
+                value: $ctx.bind_argument
+            }}
+        />
+
+        <Return
+            value={{
+                first: $ctx.list_argument,
+                second: 0,
+                third: 0
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            first: 0,
+            second: 0,
+            third: 0
+        }}
+    />
+</Module>

@@ -13,7 +13,9 @@ export {
     openLoopParameterContext,
     emitLoopRenewals,
     projectLoopAssignment,
-    renameIterationParameters,
+    enterLoopUpdate,
+    closeLoopUpdate,
+    lowerExpression,
     maskLoopBorrowedFields,
     declareProjectedLoopState,
     restoreLoopFields

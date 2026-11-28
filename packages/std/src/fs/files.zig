@@ -11,6 +11,36 @@ pub fn readFile(allocator: Allocator, io: std.Io, input: anytype) ![]const u8 {
     return std.Io.Dir.cwd().readFileAlloc(io, input.path, allocator, .limited64(max_bytes +| 1));
 }
 
+pub fn readFilePrefix(allocator: Allocator, io: std.Io, input: api.readFilePrefix.Input) !?[]const u8 {
+    try path.validate(input.path);
+
+    const file = std.Io.Dir.cwd().openFile(io, input.path, .{ .allow_directory = false }) catch |err| switch (err) {
+        error.FileNotFound => return null,
+        else => |failure| return failure,
+    };
+
+    defer file.close(io);
+
+    const limit = std.math.cast(usize, input.max_bytes) orelse return error.FileTooBig;
+    var reader = file.reader(io, &.{});
+    const bytes = try allocator.alloc(u8, limit);
+
+    errdefer allocator.free(bytes);
+
+    const length = reader.interface.readSliceShort(bytes) catch return reader.err.?;
+
+    return try allocator.realloc(bytes, length);
+}
+
+pub fn readFileOptional(allocator: Allocator, io: std.Io, input: []const u8) !?[]const u8 {
+    try path.validate(input);
+
+    return std.Io.Dir.cwd().readFileAlloc(io, input, allocator, .unlimited) catch |err| switch (err) {
+        error.FileNotFound => return null,
+        else => |failure| return failure,
+    };
+}
+
 pub fn readText(allocator: Allocator, io: std.Io, input: api.readText.Input) ![]const u8 {
     const bytes = try readFile(allocator, io, input);
 

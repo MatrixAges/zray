@@ -8,6 +8,28 @@ export declare function readFile(allocator, io, in: { path: string, max_bytes: u
   Unexpected, WouldBlock
 } concurrent
 
+export declare function readFilePrefix(
+    allocator,
+    io,
+    in: { path: string, max_bytes: u64 }
+): u8[]? throws {
+  AccessDenied, AntivirusInterference, BadPathName, Canceled, ConnectionResetByPeer,
+  DeviceBusy, FileBusy, FileLocksUnsupported, FileTooBig, InputOutput, InvalidPath,
+  InvalidUtf8, IsDir, LockViolation, NameTooLong, NetworkNotFound, NoDevice, NoSpaceLeft,
+  NotDir, NotOpenForReading, OutOfMemory, PathAlreadyExists, PermissionDenied, PipeBusy,
+  ProcessFdQuotaExceeded, ReadOnlyFileSystem, SocketUnconnected, SymLinkLoop,
+  SystemFdQuotaExceeded, SystemResources, Unexpected, WouldBlock
+} concurrent
+
+export declare function readFileOptional(allocator, io, in: string): u8[]? throws {
+  AccessDenied, AntivirusInterference, BadPathName, Canceled, ConnectionResetByPeer,
+  DeviceBusy, FileBusy, FileLocksUnsupported, FileTooBig, InputOutput, InvalidPath,
+  InvalidUtf8, IsDir, LockViolation, NameTooLong, NetworkNotFound, NoDevice, NoSpaceLeft,
+  NotDir, NotOpenForReading, OutOfMemory, PathAlreadyExists, PermissionDenied, PipeBusy,
+  ProcessFdQuotaExceeded, ReadOnlyFileSystem, SocketUnconnected, StreamTooLong, SymLinkLoop,
+  SystemFdQuotaExceeded, SystemResources, Unexpected, WouldBlock
+} concurrent
+
 export declare function readText(allocator, io, in: { path: string, max_bytes: u64 }): string throws {
   AccessDenied, AntivirusInterference, BadPathName, Canceled, ConnectionResetByPeer,
   DeviceBusy, FileBusy, FileLocksUnsupported, FileNotFound, FileTooBig, InputOutput,

@@ -87,21 +87,19 @@ pub fn adoptBackend(handle: *const anyopaque) void {
     turn.next_backend = .init(self.allocator);
 }
 
-pub fn adoptPublishedSnapshot(handle: *const anyopaque) bool {
+pub fn adoptPublishedSnapshot(handle: *const anyopaque) Error!?[]const ObservedEntry {
     const self = State.get(handle);
-    const snapshot = self.turn.?.inputs.takePublished() orelse return false;
+    const snapshot = self.turn.?.inputs.takePublished() orelse return null;
 
     self.replaceSnapshot(.Success, snapshot);
 
-    return true;
+    return observeEntries(&self.last_success.?) catch |err| self.fail(err);
 }
 
-pub fn snapshotEntries(handle: *const anyopaque, slot: storage.SnapshotSlot) Error![]const ObservedEntry {
-    const self = State.get(handle);
-    const snapshot = self.snapshotSlot(slot).* orelse return &.{};
-    const allocator = self.turn.?.arena.allocator();
-    const values = allocator.alloc(ObservedEntryLayout, snapshot.entries.len) catch |err| return self.fail(err);
-    const ptrs = allocator.alloc(ObservedEntry, snapshot.entries.len) catch |err| return self.fail(err);
+fn observeEntries(snapshot: *@import("watch_inputs").Snapshot) ![]const ObservedEntry {
+    const allocator = snapshot.arena.allocator();
+    const values = try allocator.alloc(ObservedEntryLayout, snapshot.entries.len);
+    const ptrs = try allocator.alloc(ObservedEntry, snapshot.entries.len);
 
     for (snapshot.entries, values, ptrs) |entry, *value, *ptr| {
         value.* = .{
@@ -124,11 +122,15 @@ pub fn reobservePath(handle: *const anyopaque, path: []const u8, directory: bool
     };
 }
 
-pub fn captureSnapshot(handle: *const anyopaque, slot: storage.SnapshotSlot) Error!void {
+pub fn captureSnapshot(handle: *const anyopaque, slot: storage.SnapshotSlot) Error![]const ObservedEntry {
     const self = State.get(handle);
     const next = self.turn.?.inputs.observed(self.allocator) catch |err| return self.fail(err);
 
     self.replaceSnapshot(slot, next);
+
+    if (slot == .Failure) return &.{};
+
+    return observeEntries(&self.last_success.?) catch |err| self.fail(err);
 }
 
 pub fn releaseSnapshot(handle: *const anyopaque, slot: storage.SnapshotSlot) void {

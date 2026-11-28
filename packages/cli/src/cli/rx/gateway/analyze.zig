@@ -8,7 +8,9 @@ const Inputs = @import("watch_inputs").Inputs;
 const Export = @import("../../../package/manifest/model.zig").Export;
 const effects = @import("../../sources/effects.zig");
 const Error = effects.Error;
-const GatewayRoutes = @import("cli_abi").layouts.@"zig:rx_execution_host".GatewayRoutes;
+const abi = @import("cli_abi");
+const GatewayRoutes = abi.layouts.@"zig:rx_execution_host".GatewayRoutes;
+const GatewayService = abi.native.@"zig:rx_execution_host".GatewayService;
 pub const Options = struct { io: std.Io, loaded: Loaded, writer: *std.Io.Writer, inputs: ?*Inputs = null, parse_cache: ?*compiler.project.ParseCache = null };
 
 pub const Result = struct {
@@ -35,15 +37,12 @@ const State = struct {
     loaded: ?collection.Result = null,
     gateway: ?gateway.Result = null,
     services: ?services.Result = null,
-    route_services: []const []const u8 = &.{},
-    routes_view: GatewayRoutes = undefined,
     failure: effects.Failure = .{},
     fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);
     }
     fn deinit(self: *State) void {
         if (self.services) |*service| service.deinit();
-        if (self.route_services.len != 0) self.allocator.free(self.route_services);
         if (self.gateway) |*analyzed| analyzed.deinit();
         if (self.loaded) |*loaded| loaded.deinit();
     }
@@ -60,10 +59,12 @@ const State = struct {
 pub fn run(allocator: std.mem.Allocator, options: Options) !?Result {
     var state: State = .{ .allocator = allocator, .options = &options };
     const reference = &state;
+    var arena = std.heap.ArenaAllocator.init(allocator);
 
+    defer arena.deinit();
     defer state.deinit();
 
-    const outcome = @import("cli_source").analyze_gateway_application.executeIn(allocator, &.{
+    const outcome = @import("cli_source").analyze_gateway_application.executeIn(arena.allocator(), &.{
         .analysis = @ptrCast(&reference),
         .has_library = options.loaded.config.library != null,
         .root = options.loaded.project.root_dir,
@@ -95,7 +96,7 @@ pub fn collectGatewayDocuments(handle: *const anyopaque, root: []const u8, owner
     return self.loaded != null;
 }
 
-pub fn analyzeGatewayDocument(handle: *const anyopaque) Error!?*const GatewayRoutes {
+pub fn analyzeGatewayDocument(allocator: std.mem.Allocator, handle: *const anyopaque) (Error || std.mem.Allocator.Error)!?*const GatewayRoutes {
     const self = State.get(handle);
     const loaded = &self.loaded.?;
     const source = loaded.data.gateway orelse return self.failure.save(error.ExpectedGateway);
@@ -113,31 +114,31 @@ pub fn analyzeGatewayDocument(handle: *const anyopaque) Error!?*const GatewayRou
     }
 
     const definition = &result.definition;
-    const route_services = self.allocator.alloc([]const u8, definition.routes.len) catch |err| return self.failure.save(err);
+    const route_services = try allocator.alloc([]const u8, definition.routes.len);
 
     for (definition.routes, 0..) |route, index| {
         route_services[index] = route.service;
     }
 
-    self.route_services = route_services;
+    const routes = try allocator.create(GatewayRoutes);
 
-    self.routes_view = .{
+    routes.* = .{
         .route_services = route_services,
         .service_routes = definition.service_routes,
     };
 
-    return &self.routes_view;
+    return routes;
 }
 
-pub fn analyzeGatewayServices(handle: *const anyopaque, service_names: []const []const u8) Error!bool {
+pub fn analyzeGatewayServices(handle: *const anyopaque, service_rows: []const GatewayService) Error!bool {
     const self = State.get(handle);
     const options = self.options;
-    const exports = self.allocator.alloc(Export, service_names.len) catch |err| return self.failure.save(err);
+    const exports = self.allocator.alloc(Export, service_rows.len) catch |err| return self.failure.save(err);
 
     defer self.allocator.free(exports);
 
-    for (service_names, 0..) |service, index| {
-        exports[index] = .{ .path = service, .source = service };
+    for (service_rows, 0..) |service, index| {
+        exports[index] = .{ .path = service.name, .source = service.source };
     }
 
     var configured = options.loaded;

@@ -3,15 +3,23 @@
 
     <Args
         in={Workspace.Patterns & {
-            path: string,
-            name: string
+            path: string
         }}
-        out={void}
+        out={string[]}
     />
 
     <Store from="state" as="state" />
 
-    <Call module="../choose" in={$in.omit(["collection"])} />
+    <Call fn="../../../standard/path/basename" in={$in.path} />
+
+    <Call
+        module="../choose"
+        in={{
+            patterns: $in.patterns,
+            path: $in.path,
+            name: $ctx.basename
+        }}
+    />
 
     <If on={$ctx.choose.included}>
         <Call
@@ -25,6 +33,16 @@
     </If>
 
     <If on={$ctx.choose.descendants}>
-        <Call fn="index.enterDirectory" in={$in.collection} />
+        <Call
+            fn="index.listWorkspaceDirectories"
+            in={[
+                $in.collection,
+                $in.path
+            ]}
+        />
+
+        <Return value={$ctx.listWorkspaceDirectories} />
     </If>
+
+    <Return value={[]} />
 </Module>

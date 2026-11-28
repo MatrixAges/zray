@@ -1,9 +1,10 @@
 <Module>
     <Type from="model" as="Collection" />
 
-    <Args in={Collection.Request} out={bool} />
+    <Args in={Collection.Request} out={Collection.Records?} />
 
     <Store from="physical" as="physical" />
+    <Store from="records" as="records" />
 
     <Call fn="kind" in={$in.entry} />
 
@@ -29,7 +30,15 @@
             />
         </Loop>
 
-        <Return value={$ctx.walk.valid} />
+        <Call
+            fn="selected_records"
+            in={{
+                valid: $ctx.walk.valid,
+                records: $store.records.selected
+            }}
+        />
+
+        <Return value={$ctx.selected_records} />
     </If>
 
     <Call
@@ -41,5 +50,5 @@
         ]}
     />
 
-    <Return value={false} />
+    <Return value={null} />
 </Module>

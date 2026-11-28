@@ -32,7 +32,7 @@ pub fn publish(io: std.Io, backing: std.mem.Allocator, staging: []const u8, outp
         .versioned = inputs.retain_versions,
         .observed = @ptrCast(&verification.observed),
         .separator = std.fs.path.sep,
-    }) catch |err| return failure.unwrap(err);
+    }, io) catch |err| return failure.unwrap(err);
 
     return switch (status) {
         .Changed => false,

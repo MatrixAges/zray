@@ -40,11 +40,13 @@
         <Call fn="../paths/portable" in={$in.path} />
 
         <Call
-            fn="index.publishMember"
-            in={[
-                $in.collection,
-                $ctx.portable
-            ]}
+            fn="accept_member"
+            in={{
+                accepted: $store.state.accepted,
+                path: $ctx.portable,
+                row: $ctx.readMember.row
+            }}
+            setter={[$store.state.accepted]}
         />
     </If>
 

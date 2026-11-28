@@ -10,12 +10,13 @@ const entry = @import("generated_statement_traversal");
 const execute = @import("generated_execute_statement_traversal");
 const Input = std.meta.Child(entry.Input);
 const Rows = std.meta.Child(@FieldType(Input, "rows"));
-const StatementStack = @import("../../expressions/evaluate.zig").Api.StatementStack;
+const Api = @import("../../expressions/evaluate.zig").Api;
+const StatementStack = Api.StatementStack;
 
 pub const Frame = struct {
     lowering: *Lower,
     control: @FieldType(ir.Block, "control"),
-    workspace: Scope.Buffer,
+    spans: []u64,
     scopes: []Scope,
     selections: []Selection,
     sequence: @import("../../../node/blocks.zig").Sequence,
@@ -45,9 +46,7 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     const plan = zx.columns.invoke(entry.executeValue, scratch, &input) catch |err| return failure(err);
     const capacity: usize = @intCast(plan.capacity);
     const depth: usize = @intCast(plan.depth);
-    const spans = try scratch.alloc(u32, std.math.mul(usize, capacity, 2) catch return error.OutOfMemory);
-    const starts: []u32 = spans[0..capacity];
-    const counts: []u32 = spans[capacity..];
+    const spans = try scratch.alloc(u64, capacity);
     const selection_depth: usize = if (plan.flat) 0 else @intCast(plan.selection_depth);
     var flat_scope: [1]Scope = undefined;
     const scopes: []Scope = if (plan.flat) &flat_scope else try scratch.alloc(Scope, depth);
@@ -59,10 +58,7 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     var frame: Frame = .{
         .lowering = self,
         .control = values.control,
-        .workspace = .{
-            .starts = starts,
-            .counts = counts,
-        },
+        .spans = spans,
         .scopes = scopes,
         .selections = selections,
         .sequence = self.builder.statementSequence(self.workspace),
@@ -135,31 +131,24 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
 
 pub fn openStatementScope(handle: *const anyopaque, slot: u64, first: u32, count: u32, placement: u64) ?*const StatementStack {
     const frame = Frame.borrow(handle);
-    const workspace = frame.workspace;
     const scope = &frame.scopes[@intCast(slot)];
     const start: usize = @intCast(placement);
     const range: ir.Block = .{ .control = frame.control, .first = first, .len = count };
-
-    scope.* = Scope.open(frame.lowering, range, .{
-        .starts = workspace.starts[start..][0..count],
-        .counts = workspace.counts[start..][0..count],
-    }) catch return null;
-
+    scope.* = Scope.open(frame.lowering, range, frame.spans[start..][0..count]) catch return null;
     const stack = frame.lowering.stack_symbols.current();
-
     frame.stack_view = .{ .stack_keys = stack.keys.items, .stack_buckets = stack.buckets.items };
 
     return &frame.stack_view;
 }
 
-pub fn finishStatementScope(handle: *const anyopaque, slot: u64, rows_to_store: []const u64, starts: []const u32, counts: []const u32, previous: []const ?u64) ?u64 {
+pub fn finishStatementScope(handle: *const anyopaque, slot: u64, writes: []const *const Api.StatementWrite) ?u64 {
     const frame = Frame.borrow(handle);
     const scope = &frame.scopes[@intCast(slot)];
 
-    for (rows_to_store, starts, counts, previous) |row, start, count, prior| {
-        scope.put(@intCast(row), .{ .start = start, .len = count });
+    for (writes) |write| {
+        scope.put(@intCast(write.row), .{ .start = write.start, .len = write.count });
 
-        if (prior) |index| scope.put(@intCast(index), .{});
+        if (write.previous) |index| scope.put(@intCast(index), .{});
     }
 
     frame.child = scope.finish(frame.lowering) catch return null;

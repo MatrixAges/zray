@@ -1,11 +1,10 @@
-import host from "publication_host"
+import { relativePathFrom, resolvePublicationPath } from "publication_host"
 
 import within from "../../native_sources/path/within"
-
-import type { Retirement } from "publication_host"
+import isAbsolute from "../../standard/path/absolute"
 
 export type Input = {
-    retirement: Retirement,
+    root: string,
     path: string,
     separator: u8
 }
@@ -16,11 +15,12 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { path, relative, absolute } = host.retirementPhysical(in.retirement, in.path)
+    const path = resolvePublicationPath(in.path, false)
+    const relative = relativePathFrom(in.root, path)
 
     const inside = within({
         path: relative,
-        absolute,
+        absolute: isAbsolute(relative),
         separator: in.separator
     })
 

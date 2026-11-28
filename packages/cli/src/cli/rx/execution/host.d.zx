@@ -7,6 +7,17 @@ export type GatewayRoutes = {
     service_routes: u32[]
 }
 
+export type GatewayService = {
+    name: string,
+    source: string
+}
+
+export type ApplicationLoad = {
+    entry?: string,
+    diagnostic?: string,
+    error_name?: string
+}
+
 export enum Status {
     Success,
     Failed,
@@ -19,7 +30,8 @@ export type ApplicationText = {
     abi: string
 }
 
-export declare function loadRxApplication(check: RxApplication): string? throws { SourceLoadFailure }
+export declare function loadRxApplication(allocator, check: RxApplication): ApplicationLoad
+    throws { SourceLoadFailure, OutOfMemory }
 export declare function analyzeRxApplication(check: RxApplication): u64? throws { SourceLoadFailure }
 export declare function verifyRxApplication(check: RxApplication): bool throws { SourceLoadFailure }
 export declare function generateRxFpga(check: RxApplication): bool throws { SourceLoadFailure }
@@ -39,8 +51,9 @@ export declare function collectGatewayDocuments(
     root: string,
     owner: string
 ): bool throws { SourceLoadFailure }
-export declare function analyzeGatewayDocument(check: GatewayAnalysis): GatewayRoutes? throws { SourceLoadFailure }
-export declare function analyzeGatewayServices(check: GatewayAnalysis, service_names: string[]): bool throws { SourceLoadFailure }
+export declare function analyzeGatewayDocument(allocator, check: GatewayAnalysis): GatewayRoutes?
+    throws { SourceLoadFailure, OutOfMemory }
+export declare function analyzeGatewayServices(check: GatewayAnalysis, services: GatewayService[]): bool throws { SourceLoadFailure }
 
 export declare function loadGatewayBuild(check: RxApplication): bool throws { SourceLoadFailure }
 export declare function linkGatewayBuild(check: RxApplication): bool throws { SourceLoadFailure }

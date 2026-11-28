@@ -1,0 +1,8 @@
+<Store name="collection_work" version={1}>
+    <Type from="work" as="Work" />
+
+    <Object name="pending">
+        <Field name="request" type={Work.Request?} value={null} />
+        <Field name="result" type={u32} value={0} />
+    </Object>
+</Store>

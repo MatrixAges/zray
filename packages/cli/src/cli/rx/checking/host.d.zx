@@ -48,6 +48,8 @@ export type SignatureCheck = {
     deferred_sources: string[]
 }
 
+export type StoreImport = [u64, u64]
+
 export declare function loadCheckProject(check: ProjectCheck): bool throws { SourceLoadFailure }
 export declare function collectCheckDocuments(check: ProjectCheck): bool throws { SourceLoadFailure }
 export declare function collectCheckTypes(check: ProjectCheck): CheckRows? throws { SourceLoadFailure }
@@ -67,8 +69,7 @@ export declare function checkCompiledModules(check: ProjectCheck): bool throws {
 export declare function checkModulePaths(check: ProjectCheck): bool throws { SourceLoadFailure }
 
 export declare function loadStoreCheckRoot(check: StoreCheck, index: u64): string[] throws { SourceLoadFailure }
-export declare function registerStoreCheckImport(check: StoreCheck, index: u64): void throws { SourceLoadFailure }
-export declare function buildStoreCheckGraph(check: StoreCheck): bool throws { SourceLoadFailure }
+export declare function buildStoreCheckGraph(check: StoreCheck, imports: StoreImport[]): bool throws { SourceLoadFailure }
 export declare function analyzeStoreCheckSignatures(check: StoreCheck): bool throws { SourceLoadFailure }
 export declare function checkStoreRegistry(check: StoreCheck): bool throws { SourceLoadFailure }
 

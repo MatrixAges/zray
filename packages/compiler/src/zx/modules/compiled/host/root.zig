@@ -79,8 +79,6 @@ pub fn load(allocator: std.mem.Allocator, library: model.Library, destination: D
     var host: StoreHost = .{ .store_0 = &state_ptr, .natives = &installation.natives };
     var publish_host: PublishStoreHost = .{ .store_0 = &publish_ptr, .interface = &installation.public, .allocator = installation.owner };
 
-    defer @import("../../column_lengths.zig").publish(&installation.functions.lengths, publish_ptr.completed);
-
     const request: std.meta.Child(generated.Input) = .{
         .plan = &input.input,
         .installation = &installation.input,
@@ -116,10 +114,14 @@ pub fn load(allocator: std.mem.Allocator, library: model.Library, destination: D
 
     errdefer if (installation.needs_interface) installation.public.release(installation.owner, plan.selection);
 
-    generated_publish.executeIn(installation.owner, &publication, &publish_host) catch |err| switch (@as(anyerror, err)) {
-        error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
-        else => return error.InvalidModule,
-    };
+    {
+        defer @import("../../column_lengths.zig").publish(destination.functions, publish_ptr.completed);
+
+        generated_publish.executeIn(installation.owner, &publication, &publish_host) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
+            else => return error.InvalidModule,
+        };
+    }
 
     types.publish();
 

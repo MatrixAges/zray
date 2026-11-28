@@ -1,6 +1,6 @@
-import memory from "memory"
 import columns from "memory/columns"
 
+import capacityFor from "./capacity"
 import reserve from "./reserve"
 
 import type { ColumnAllocator, RowBuffer } from "memory/columns"
@@ -17,30 +17,23 @@ export type Output = u64
 export default function (in: Input): Output {
     const [target, used, additional, owner] = in
 
-    const limit = columns.rowCapacityLimit()
-
-    memory.requireAllocation(additional <= limit - used)
-
-    const minimum = used + additional
     const current = columns.rowStorageCount(target)
 
-    if (minimum <= current) {
-        return current
-    }
-
-    const increment = minimum / 2 + columns.rowGrowthBase(target, current)
-
-    const capacity = match {
-        minimum <= limit - increment => minimum + increment,
-        _ => limit
-    }
-
-    reserve([
-        target,
+    const capacity = capacityFor({
+        current,
         used,
-        capacity,
-        owner
-    ])
+        additional,
+        base: columns.rowGrowthBase(target, current)
+    })
+
+    if (capacity != current) {
+        reserve([
+            target,
+            used,
+            capacity,
+            owner
+        ])
+    }
 
     return capacity
 }

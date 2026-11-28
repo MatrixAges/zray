@@ -8,6 +8,7 @@
             module="locked/replay"
             in={$in.pick([
                 "session",
+                "fetch",
                 "locked_workspace",
                 "locked_archives",
                 "root"
@@ -44,6 +45,7 @@
         module="fresh/resolve"
         in={$in.pick([
             "session",
+            "fetch",
             "members",
             "maximum_edges",
             "root"

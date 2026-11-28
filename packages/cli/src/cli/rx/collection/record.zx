@@ -1,0 +1,34 @@
+import { Kind } from "rx_collection_host"
+
+import type { RecordInput } from "./model"
+
+export type Input = RecordInput
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    const { records, kind, index } = in
+
+    const next = match kind {
+        Kind.Zx => ({
+            ...records,
+            functions: records.functions.push(index)[0]
+        }),
+        Kind.Module => ({
+            ...records,
+            modules: records.modules.push(index)[0]
+        }),
+        Kind.Store => ({
+            ...records,
+            stores: records.stores.push(index)[0]
+        }),
+        _ => ({
+            ...records,
+            gateway: index
+        }),
+    }
+
+    $store.records.selected = next
+}

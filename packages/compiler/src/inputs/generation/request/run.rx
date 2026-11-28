@@ -16,7 +16,8 @@
             module="current"
             in={{
                 stamp_path: $in.stamp_path,
-                digest: $ctx.observe.digest
+                digest: $ctx.observe.digest,
+                enabled: true
             }}
         />
 
@@ -48,61 +49,28 @@
         }}
     />
 
-    <If on={$ctx.observe.snapshot != null}>
-        <If on={$ctx.prepare.registered.failure == null}>
-            <Call
-                module="current"
-                in={{
-                    stamp_path: $in.stamp_path,
-                    digest: $ctx.prepare.fingerprints.digest
-                }}
-            />
-
-            <If on={$ctx.current}>
-                <Call
-                    fn="host.saveGenerationSnapshot"
-                    in={[
-                        $in.host,
-                        $ctx.observe.snapshot,
-                        $ctx.prepare.fingerprints.digest
-                    ]}
-                />
-
-                <Return
-                    value={{
-                        text: "",
-                        failure: null
-                    }}
-                />
-            </If>
-        </If>
-
-        <Call fn="host.invalidateGenerationStamp" in={$in.stamp_path} />
-    </If>
-
     <Call
-        module="analyze"
+        module="current"
         in={{
-            host: $in.host,
-            ...$ctx.prepare
+            stamp_path: $in.stamp_path,
+            digest: $ctx.prepare.fingerprints.digest,
+            enabled:
+                $ctx.observe.snapshot != null && $ctx.prepare.registered.failure == null
         }}
     />
 
-    <If on={$ctx.analyze.failure != null}>
-        <Return value={$ctx.analyze} />
-    </If>
+    <Call
+        module="refresh"
+        in={{
+            host: $in.host,
+            ...$ctx.prepare,
+            stamp_path: $in.stamp_path,
+            observed: $ctx.observe.snapshot != null,
+            current: $ctx.current
+        }}
+    />
 
-    <If on={$ctx.observe.snapshot != null}>
-        <Call fn="../stamp" in={$ctx.prepare.fingerprints.digest} />
-
-        <Call
-            fn="filesystem.writeText"
-            in={{
-                path: $in.stamp_path,
-                text: $ctx.stamp
-            }}
-        />
-
+    <If on={$ctx.refresh.failure == null && $ctx.observe.snapshot != null}>
         <Call
             fn="host.saveGenerationSnapshot"
             in={[
@@ -113,5 +81,5 @@
         />
     </If>
 
-    <Return value={$ctx.analyze} />
+    <Return value={$ctx.refresh} />
 </Module>

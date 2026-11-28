@@ -1,2 +1,16 @@
-export { mkdir, writeFileAtomic } from "std:fs"
+export { fromText } from "std:bytes"
+export { spawnBatchSync } from "std:child_process"
+export {
+    blake3FinalHex,
+    blake3Init,
+    blake3Update,
+    blake3UpdateFile
+} from "std:crypto/blake3"
+export {
+    mkdir,
+    readFileOptional,
+    readdirMetadata,
+    statBytes,
+    writeFileAtomic
+} from "std:fs"
 export { writeStderr } from "std:process"

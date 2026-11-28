@@ -1,3 +1,4 @@
+const std = @import("std");
 const compiler = @import("compiler");
 const rx = @import("rx");
 const analysis = @import("rx_analysis");
@@ -5,23 +6,22 @@ const Text = @import("../../sources/text.zig");
 const state = @import("state.zig");
 const State = state.State;
 const Error = state.effects.Error;
+const abi = @import("cli_abi");
+const XmlValidation = abi.native.@"zig:rx_collection_host".XmlValidation;
+const GatewayRoutes = abi.layouts.@"zig:rx_collection_host".GatewayRoutes;
 
 pub fn collectZxReferences(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
     const file = &self.file;
+
+    self.documents.items[file.row] = .{ .zx = .{ .path = file.path, .source = file.text.bytes } };
+
     const parsed = self.cache.getModule(file.text.bytes, file.absolute) catch |err| return self.failure.save(err);
 
     if (parsed.diagnostic() != null) return;
 
     self.startCollector(null);
     analysis.project.source_graph.references.collectZx(&self.collector, parsed) catch |err| return self.failure.save(err);
-}
-
-pub fn recordCollectionZx(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-    const file = &self.file;
-
-    self.functions.append(self.allocator, .{ .path = file.path, .source = file.text.bytes }) catch |err| return self.failure.save(err);
 }
 
 pub fn parseCollectionXml(handle: *const anyopaque) Error!bool {
@@ -36,49 +36,34 @@ pub fn parseCollectionXml(handle: *const anyopaque) Error!bool {
     const packages = scope.dependencies(self.project.packages);
 
     file.module = .{ .path = file.path, .node = parsed.value.node, .packages = packages, .references = document.references };
+    self.documents.items[file.row] = .{ .xml = .{ .module = file.module, .bytes = file.text.bytes } };
 
     self.startCollector(scope);
 
     return true;
 }
 
-pub fn validateCollectionXml(handle: *const anyopaque) Error!bool {
+pub fn validateCollectionXml(handle: *const anyopaque) Error!XmlValidation {
     const self = State.get(handle);
 
     self.checked = rx.validateSource(self.backing, &self.file.module) catch |err| return self.failure.save(err);
 
     const checked = &self.checked.?;
 
-    if (checked.value == .diagnostic) return diagnose(self, checked.value.diagnostic);
+    if (checked.value == .diagnostic) {
+        _ = try diagnose(self, checked.value.diagnostic);
 
-    return true;
+        return .Invalid;
+    }
+
+    const data = checked.value.data;
+
+    if (data == .gateway and (data.gateway.attributes.protocol orelse .http) == .http) return .HttpGateway;
+
+    return .Valid;
 }
 
-pub fn recordCollectionModule(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-    const file = &self.file;
-    const module = file.module;
-
-    self.sources.append(self.allocator, .{ .path = file.path, .source = file.text.bytes, .packages = module.packages }) catch |err| return self.failure.save(err);
-    self.modules.append(self.allocator, module) catch |err| return self.failure.save(err);
-}
-
-pub fn recordCollectionStore(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    self.stores.append(self.allocator, self.file.module) catch |err| return self.failure.save(err);
-}
-
-pub fn recordCollectionGateway(handle: *const anyopaque) bool {
-    const self = State.get(handle);
-    const file = &self.file;
-
-    self.gateway = .{ .path = file.path, .node = file.module.node };
-
-    return (self.checked.?.value.data.gateway.attributes.protocol orelse .http) == .http;
-}
-
-pub fn prepareCollectionGateway(handle: *const anyopaque) Error!?u64 {
+pub fn prepareCollectionGateway(allocator: std.mem.Allocator, handle: *const anyopaque) (Error || std.mem.Allocator.Error)!?*const GatewayRoutes {
     const self = State.get(handle);
     const file = &self.file;
     const attrs = self.checked.?.value.data.gateway.attributes;
@@ -91,7 +76,18 @@ pub fn prepareCollectionGateway(handle: *const anyopaque) Error!?u64 {
 
     const value = &self.result.gateway_analysis.?.value;
 
-    if (value.* != .diagnostic) return value.definition.service_routes.len;
+    if (value.* != .diagnostic) {
+        const definition = &value.definition;
+        const route_services = try allocator.alloc([]const u8, definition.routes.len);
+
+        for (definition.routes, route_services) |route, *service| service.* = route.service;
+
+        const routes = try allocator.create(GatewayRoutes);
+
+        routes.* = .{ .route_services = route_services, .service_routes = definition.service_routes };
+
+        return routes;
+    }
 
     const issue = value.diagnostic;
 
@@ -100,13 +96,10 @@ pub fn prepareCollectionGateway(handle: *const anyopaque) Error!?u64 {
     return null;
 }
 
-pub fn collectGatewayService(handle: *const anyopaque, row: u64) Error!void {
+pub fn collectGatewayService(handle: *const anyopaque, path: []const u8) Error!void {
     const self = State.get(handle);
-    const definition = &self.result.gateway_analysis.?.value.definition;
-    const index = definition.service_routes[@intCast(row)];
-    const route = &definition.routes[index];
 
-    self.collector.local(route.service, route.location, .dependency) catch |err| return self.failure.save(err);
+    self.collector.enqueue(path) catch |err| return self.failure.save(err);
 }
 
 pub fn collectXmlReferences(handle: *const anyopaque) Error!bool {

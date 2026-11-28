@@ -1,0 +1,8 @@
+<Store name="rx_collection_records" version={1}>
+    <Object name="selected">
+        <Field name="functions" type={u64[]} value={[]} />
+        <Field name="modules" type={u64[]} value={[]} />
+        <Field name="stores" type={u64[]} value={[]} />
+        <Field name="gateway" type={u64?} value={null} />
+    </Object>
+</Store>

@@ -2,15 +2,22 @@
     <Type from="index" as="IO" />
     <Type from="model" as="Compile" />
 
-    <Args in={Compile.Request} out={IO.Status} />
+    <Args in={Compile.NativeRequest} out={IO.Status} />
 
-    <Call fn="index.emitCompilationModules" in={$in.compilation} />
+    <Call
+        fn="index.emitCompilationModules"
+        in={[
+            $in.compilation,
+            $in.source,
+            $in.settings.cache
+        ]}
+    />
 
     <If on={!$ctx.emitCompilationModules}>
         <Return value={IO.Status.Failed} />
     </If>
 
-    <Call module="cache/finish" in={$in} />
+    <Call module="cache/finish" in={$in.omit(["source"])} />
 
     <Call fn="index.reportCompilationGeneration" in={$in.compilation} />
     <Call fn="index.resolveCompilationToolchain" in={$in.compilation} />

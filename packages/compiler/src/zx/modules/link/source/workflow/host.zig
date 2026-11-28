@@ -155,7 +155,7 @@ pub fn merge(comptime form: source.Form, program: *const ir.Program, origins: Or
 
     arena_alive = false;
 
-    const result = execute(rows.*, destination.functions, destination.temporary, &destination.allocator, &.{ .types = &mapped_types, .functions = &ids, .natives = &mapped_natives }, null, destination.allocator) catch |err| switch (@as(anyerror, err)) {
+    const result = execute(rows.*, destination.functions, &destination.allocator, &.{ .types = &mapped_types, .functions = &ids, .natives = &mapped_natives }, null, destination.allocator) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => return error.InvalidModule,
     };
@@ -172,12 +172,12 @@ pub fn merge(comptime form: source.Form, program: *const ir.Program, origins: Or
     };
 }
 
-pub fn append(nodes: *const Nodes, storage: *ir.FunctionStorage, value: anytype, temporary: std.mem.Allocator, initializer: ?*const InitializerRegistration, registry: ?*Registry) @import("../../../artifact/model.zig").Error!void {
+pub fn append(nodes: *const Nodes, storage: *ir.FunctionStorage, value: anytype, initializer: ?*const InitializerRegistration, registry: ?*Registry) @import("../../../artifact/model.zig").Error!void {
     const types = remap.typeMapping(Mapping, nodes.types);
     const ids = remap.idMapping(Mapping, nodes.functions);
     const natives = remap.idMapping(Mapping, nodes.native_modules);
 
-    const result = execute(value, storage, temporary, &nodes.allocator, &.{
+    const result = execute(value, storage, &nodes.allocator, &.{
         .types = &types,
         .functions = &ids,
         .natives = &natives,
@@ -220,13 +220,13 @@ fn requireReady(status: anytype) source.Error!void {
     }
 }
 
-fn execute(value: anytype, storage: *ir.FunctionStorage, scratch: std.mem.Allocator, owner: *const std.mem.Allocator, mappings: *const Mappings, initializer: ?*const InitializerRegistration, allocator: std.mem.Allocator) !generated.Output {
+fn execute(value: anytype, storage: *ir.FunctionStorage, owner: *const std.mem.Allocator, mappings: *const Mappings, initializer: ?*const InitializerRegistration, allocator: std.mem.Allocator) !generated.Output {
     const batch = @TypeOf(value) == ir.FunctionTable;
     const InputRow = if (batch) Batch else Single;
     var binding: tail.Storage(InputRow) = undefined;
-    var input = binding.init(storage, scratch);
+    var input = binding.init(storage);
 
-    defer binding.deinit();
+    defer @import("../../../column_lengths.zig").publish(storage, binding.completed);
 
     var external: if (batch) void else std.meta.Child(@typeInfo(@FieldType(Root, "external")).optional.child) = undefined;
     var attributes: if (batch) void else std.meta.Child(@FieldType(Root, "attributes")) = undefined;
@@ -235,10 +235,8 @@ fn execute(value: anytype, storage: *ir.FunctionStorage, scratch: std.mem.Alloca
 
     input.source = &input_rows;
     input.mappings = mappings;
-
     const reserve: Reservation = .{ .storage = input.target.storage, .shape = null, .resource = @ptrCast(owner), .count = count };
-    const commit: std.meta.Child(@FieldType(Write, "commit")) = .{ .lengths = @ptrCast(&binding.lengths) };
-    const write: Write = .{ .batch = if (batch) &input else null, .root = if (batch) null else &input, .initializer = initializer, .commit = &commit };
+    const write: Write = .{ .batch = if (batch) &input else null, .root = if (batch) null else &input, .initializer = initializer };
     var state_value: std.meta.Child(PublicationStoreState) = .{ .completed = 0 };
     var state_ptr: PublicationStoreState = &state_value;
     var host: PublicationStoreHost = .{ .completed = &binding.completed, .store_0 = &state_ptr };

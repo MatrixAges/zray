@@ -8,7 +8,14 @@ pub fn unlink(io: std.Io, input: []const u8) !void {
     try std.Io.Dir.cwd().deleteFile(io, input);
 }
 
-pub fn rename(io: std.Io, input: api.rename.Input) !void {
+pub fn unlinkIfExists(io: std.Io, input: []const u8) !void {
+    unlink(io, input) catch |err| switch (err) {
+        error.FileNotFound => {},
+        else => |failure| return failure,
+    };
+}
+
+pub fn rename(io: std.Io, input: anytype) !void {
     try path.validate(input.from);
     try path.validate(input.to);
     try std.Io.Dir.cwd().rename(input.from, .cwd(), input.to, io);

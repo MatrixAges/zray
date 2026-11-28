@@ -3,18 +3,42 @@
 
     <Args in={Cache.External} out={Cache.External} />
 
+    <Call fn="effects.fromText" in={$in.paths[$in.row]} />
+
+    <Call fn="effects.statBytes" />
+
+    <If on={$ctx.statBytes.kind == Cache.Kind.File}>
+        <Call
+            module="hash_file"
+            in={{
+                prefix: $in.prefix,
+                path: $in.paths[$in.row],
+                name: $in.paths[$in.row],
+                size: $ctx.statBytes.size
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                prefix: $ctx.hash_file,
+                row: $in.row + 1
+            }}
+        />
+    </If>
+
     <Call
-        fn="host.hashExternalInput"
-        in={[
-            $in.prefix,
-            $in.paths[$in.row]
-        ]}
+        module="hash_directory"
+        in={{
+            root: $in.paths[$in.row],
+            prefix: $in.prefix
+        }}
     />
 
     <Return
         value={{
             ...$in,
-            prefix: $ctx.hashExternalInput,
+            prefix: $ctx.hash_directory,
             row: $in.row + 1
         }}
     />

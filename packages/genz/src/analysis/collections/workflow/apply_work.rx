@@ -1,0 +1,17 @@
+<Module>
+    <Type from="work" as="Work" />
+
+    <Args in={Work.Request} out={u32} />
+
+    <Store from="work" as="work" />
+
+    <Call
+        fn="request_work"
+        in={$in}
+        setter={[$store.work.pending]}
+    />
+
+    <Call fn="work_result" in={$store.work.pending} />
+
+    <Return value={$ctx.work_result} />
+</Module>

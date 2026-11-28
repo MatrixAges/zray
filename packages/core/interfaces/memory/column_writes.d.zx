@@ -4,8 +4,6 @@ export declare function readLengthSlot(source: ColumnLengths, slot: u64): u64
 
 export declare function advanceLengthSlot(target: ColumnLengths, slot: u64, count: u64): void
 
-export declare function shrinkLengthSlot(target: ColumnLengths, slot: u64, count: u64): void
-
 export declare function borrowTransferGroup(
     groups: ColumnTransfers,
     group: u64,

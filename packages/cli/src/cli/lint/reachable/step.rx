@@ -5,69 +5,43 @@
 
     <Store from="seen" as="seen" />
 
+    <Call fn="item" in={$in} />
+
     <Call
         fn="admit_path"
         in={{
-            path: $in.items[$in.index].path,
+            path: $ctx.item.path,
             visited: $store.seen.visited
         }}
         setter={[$store.seen.visited]}
     />
 
     <If on={$ctx.admit_path}>
-        <Call fn="item" in={$in} />
+        <Call
+            module="check"
+            in={{
+                document: $in.document,
+                item: $ctx.item,
+                maximum_lines: $in.maximum_lines
+            }}
+        />
 
-        <If on={$ctx.item.source != null}>
-            <Call
-                fn="../index.checkReachableLintSource"
-                in={[
-                    $in.check,
-                    $ctx.item.path,
-                    $ctx.item.source
-                ]}
-            />
-
+        <If on={$ctx.check != null}>
             <Return
                 value={{
                     ...$in,
-                    index: $in.index + 1,
-                    valid: $ctx.checkReachableLintSource,
-                    running:
-                        $ctx.checkReachableLintSource &&
-                        $in.index + 1 < $in.items.length
+                    failure: $ctx.check,
+                    running: false
                 }}
             />
-
-            <Else>
-                <Call
-                    fn="../index.checkReachableLintStore"
-                    in={[
-                        $in.check,
-                        $ctx.item.path
-                    ]}
-                />
-
-                <Return
-                    value={{
-                        ...$in,
-                        index: $in.index + 1,
-                        valid: $ctx.checkReachableLintStore,
-                        running:
-                            $ctx.checkReachableLintStore &&
-                            $in.index + 1 < $in.items.length
-                    }}
-                />
-            </Else>
         </If>
-
-        <Else>
-            <Return
-                value={{
-                    ...$in,
-                    index: $in.index + 1,
-                    running: $in.index + 1 < $in.items.length
-                }}
-            />
-        </Else>
     </If>
+
+    <Return
+        value={{
+            ...$in,
+            index: $in.index + 1,
+            running: $in.index + 1 < $in.items.length
+        }}
+    />
 </Module>

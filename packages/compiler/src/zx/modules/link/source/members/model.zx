@@ -1,4 +1,4 @@
-import type { ReadColumn, TextColumn } from "memory"
+import type { ListColumn, ReadColumn, TextColumn } from "memory"
 import type { Mapping } from "../../../artifact/remapping/model"
 
 export type Names = {
@@ -11,6 +11,20 @@ export type Source = Names & {
     ids: ReadColumn,
     inputs: ReadColumn,
     outputs: ReadColumn
+}
+
+export type Lists = {
+    names: ListColumn,
+    intrinsics: ListColumn,
+    ids: ListColumn,
+    inputs: ListColumn,
+    outputs: ListColumn
+}
+
+export type Selection = {
+    lists: Lists,
+    row: u64,
+    count: u64
 }
 
 export type Row = {
@@ -31,6 +45,7 @@ export enum Anonymous {
 export type Input = {
     anonymous: Anonymous,
     source: Source,
+    selection?: Selection,
     rows: Row[],
     entry?: u32,
     type_ids: u32[],

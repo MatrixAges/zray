@@ -3,26 +3,21 @@
 
     <Args in={Workspace.Directories} out={Workspace.Directories} />
 
-    <Call fn="index.nextDirectory" in={$in.collection} />
-
-    <If on={$ctx.nextDirectory != null}>
-        <Call
-            module="visit"
-            in={{
-                collection: $in.collection,
-                patterns: $in.patterns,
-                path: $ctx.nextDirectory.path,
-                name: $ctx.nextDirectory.name
-            }}
-        />
-
-        <Return value={$in} />
-    </If>
-
-    <Return
-        value={{
-            ...$in,
-            running: false
+    <Call
+        module="visit"
+        in={{
+            ...$in.omit(["pending"]),
+            path: $in.pending[$in.pending.length - 1]
         }}
     />
+
+    <Call
+        fn="next_directory"
+        in={{
+            ...$in,
+            children: $ctx.visit
+        }}
+    />
+
+    <Return value={$ctx.next_directory} />
 </Module>

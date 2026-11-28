@@ -11,13 +11,16 @@ const sources = @import("../sources.zig");
 const toolchain = @import("../toolchain.zig");
 const library_build = @import("../library/build.zig");
 const library_proof = @import("../library/verify.zig");
-const Dependencies = @import("cli_abi").native.@"zig:compilation_host".Dependencies;
+const layouts = @import("cli_abi").layouts.@"zig:compilation_host";
+const StageFailure = layouts.StageFailure;
+const Source = layouts.CompilationSource;
+const Dependencies = layouts.CompilationDependencies;
+const StageError = Error || std.mem.Allocator.Error;
 
 pub const State = struct {
     context: Compile.Context,
     library_inputs: ?Inputs = null,
     loaded: Loaded = undefined,
-    source: ?[]const u8 = null,
     semantic: ?compiler.project.SemanticCache = null,
     storage: ?Disk = null,
     libraries: ?Libraries = null,
@@ -65,7 +68,6 @@ pub const State = struct {
         if (self.libraries) |*libraries| libraries.deinit();
         if (self.storage) |*storage| storage.deinit();
         if (self.semantic) |*semantic| semantic.deinit();
-        if (self.source) |source| allocator.free(source);
         if (self.library_inputs) |*observed| observed.deinit();
     }
 };
@@ -85,13 +87,16 @@ pub fn run(context: Compile.Context) !Compile.Status {
         .formatting_notice = @import("lint").source.formatting_required,
     };
 
+    var arena = std.heap.ArenaAllocator.init(context.allocator);
+
+    defer arena.deinit();
     defer state.deinit();
 
-    const result = entry.executeIn(context.allocator, &request, context.io) catch |err| return state.failure.unwrap(err);
+    const result = entry.executeIn(arena.allocator(), &request, context.io) catch |err| return state.failure.unwrap(err);
 
     if (result.diagnostic) |message| {
         try context.stderr.writeAll(message);
-        try context.stderr.flush();
+        if (!(result.defer_diagnostic_flush orelse false)) try context.stderr.flush();
     }
 
     if (result.stdout) |source| try context.stdout.writeAll(source);
@@ -127,29 +132,28 @@ pub fn resolveCompilationEntry(handle: *const anyopaque, track_library: bool) Er
     return path;
 }
 
-pub fn loadCompilationProject(handle: *const anyopaque) Error!bool {
+fn stageFailure(allocator: std.mem.Allocator, path: ?[]const u8, message: []const u8) std.mem.Allocator.Error!*const StageFailure {
+    const issue = try allocator.create(StageFailure);
+
+    issue.* = .{ .path = path, .message = message };
+
+    return issue;
+}
+
+pub fn loadCompilationProject(allocator: std.mem.Allocator, handle: *const anyopaque) StageError!?*const StageFailure {
     const self = State.get(handle);
     const context = &self.context;
     const options = &context.options;
-    const writer = context.stderr;
 
     self.loaded = @import("../project.zig").loadWithInputs(context.io, context.allocator, options.input, options.project, self.inputs()) catch |err| {
         if (err == error.OutOfMemory or err == error.Canceled) return self.failure.save(err);
 
-        writer.print("{s}: {s}\n", .{ options.project orelse "pkg.yaml", @errorName(err) }) catch |issue| return self.failure.save(issue);
-        writer.flush() catch |issue| return self.failure.save(issue);
-
-        return false;
+        return try stageFailure(allocator, options.project orelse "pkg.yaml", @errorName(err));
     };
 
-    if (self.loaded.diagnostic) |message| {
-        writer.print("{s}\n", .{message}) catch |err| return self.failure.save(err);
-        writer.flush() catch |err| return self.failure.save(err);
+    const diagnostic = self.loaded.diagnostic orelse return null;
 
-        return false;
-    }
-
-    return true;
+    return try stageFailure(allocator, null, diagnostic);
 }
 
 fn runLibraryProof(self: *State) !Compile.Status {
@@ -180,55 +184,63 @@ fn runLibraryBuild(self: *State) !Compile.Status {
     return result;
 }
 
-pub fn readCompilationSource(handle: *const anyopaque) Error!bool {
+pub fn readCompilationSource(allocator: std.mem.Allocator, handle: *const anyopaque) StageError!*const Source {
     const self = State.get(handle);
     const context = &self.context;
     const path = context.options.input;
+    const result = try allocator.create(Source);
 
-    self.source = std.Io.Dir.cwd().readFileAlloc(context.io, path, context.allocator, .limited(16 * 1024 * 1024)) catch |err| {
-        if (err == error.OutOfMemory) return self.failure.save(err);
+    const bytes = std.Io.Dir.cwd().readFileAlloc(context.io, path, allocator, .limited(16 * 1024 * 1024)) catch |err| {
+        if (err == error.OutOfMemory) return error.OutOfMemory;
 
-        context.stderr.print("{s}: {s}\n", .{ path, @errorName(err) }) catch |issue| return self.failure.save(issue);
+        result.* = .{ .bytes = &.{}, .failure = try stageFailure(allocator, path, @errorName(err)) };
 
-        return false;
+        return result;
     };
 
-    return true;
+    result.* = .{ .bytes = bytes, .failure = null };
+
+    return result;
 }
 
-pub fn openCompilationCaches(handle: *const anyopaque) Error!void {
+pub fn readCompilationDependencies(allocator: std.mem.Allocator, handle: *const anyopaque, source: []const u8, cache: bool) StageError!*const Dependencies {
     const self = State.get(handle);
     const context = &self.context;
 
     self.semantic = compiler.project.SemanticCache.init(context.backing);
-    self.storage = Disk.init(context.io, context.allocator, context.backing, self.loaded.project.root_dir) catch |err| return self.failure.save(err);
     self.libraries = .{ .allocator = context.allocator };
-}
 
-pub fn readCompilationDependencies(handle: *const anyopaque) Error!Dependencies {
-    const self = State.get(handle);
-    const context = &self.context;
+    if (cache) self.storage = Disk.init(context.io, context.allocator, context.backing, self.loaded.project.root_dir) catch |err| return self.failure.save(err);
 
-    const detected = sources.readDetectingRx(context.io, context.allocator, self.source.?, self.loaded.project, self.watchingParses() orelse &self.semantic.?.parse_cache, self.inputs(), &self.libraries.?) catch |err| {
-        if (err == error.OutOfMemory) return self.failure.save(err);
+    const result = try allocator.create(Dependencies);
 
-        context.stderr.print("{s}: source loading: {s}\n", .{ self.libraries.?.failure_path orelse context.options.input, @errorName(err) }) catch |issue| return self.failure.save(issue);
-        context.stderr.flush() catch |issue| return self.failure.save(issue);
+    const detected = sources.readDetectingRx(context.io, context.allocator, source, self.loaded.project, self.watchingParses() orelse &self.semantic.?.parse_cache, self.inputs(), &self.libraries.?) catch |err| {
+        if (err == error.OutOfMemory) return error.OutOfMemory;
 
-        return .Invalid;
+        const path = self.libraries.?.failure_path orelse context.options.input;
+        const message = try std.fmt.allocPrint(allocator, "source loading: {s}", .{@errorName(err)});
+        result.* = .{ .has_rx = false, .has_compiled_libraries = false, .failure = try stageFailure(allocator, path, message) };
+
+        return result;
     };
 
     self.sources = detected.sources;
 
-    if (detected.has_rx) return .Rx;
+    if (!detected.has_rx) {
+        if (self.watchingParses()) |parsed| {
+            std.mem.swap(compiler.project.ParseCache, parsed, &self.semantic.?.parse_cache);
 
-    if (self.watchingParses()) |parsed| {
-        std.mem.swap(compiler.project.ParseCache, parsed, &self.semantic.?.parse_cache);
+            self.swapped = true;
+        }
 
-        self.swapped = true;
+        self.loaded.project.compiled_libraries = self.libraries.?.libraries.items;
     }
 
-    self.loaded.project.compiled_libraries = self.libraries.?.libraries.items;
+    result.* = .{
+        .has_rx = detected.has_rx,
+        .has_compiled_libraries = !detected.has_rx and self.loaded.project.compiled_libraries.len != 0,
+        .failure = null,
+    };
 
-    return if (self.loaded.project.compiled_libraries.len == 0) .Zx else .WithLibraries;
+    return result;
 }

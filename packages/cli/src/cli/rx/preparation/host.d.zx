@@ -14,9 +14,16 @@ export enum Target {
     Invalid
 }
 
+export type CompiledTarget = {
+    instance: string,
+    artifact: string,
+    name: string
+}
+
 export type ResolvedTarget = {
     target: Target,
-    source_path: string
+    source_path: string,
+    compiled?: CompiledTarget
 }
 
 export type LoadedRange = {
@@ -26,27 +33,34 @@ export type LoadedRange = {
 
 export type ModuleReference = {
     role: Role,
-    is_package: bool
+    is_package: bool,
+    owner: string,
+    path: string,
+    value: string,
+    offset: u64,
+    line: u64,
+    column: u64
 }
 
 export declare function selectPreparationModule(references: References, index: u64): ModuleReference[] throws {
     SourceLoadFailure
 }
 export declare function resolvePreparationTarget(
+    allocator,
     references: References,
-    index: u64,
+    reference: ModuleReference,
     at_attribute: bool
-): ResolvedTarget throws { SourceLoadFailure }
+): ResolvedTarget throws { SourceLoadFailure, OutOfMemory }
 export declare function reportPreparationReference(
     references: References,
-    index: u64,
+    reference: ModuleReference,
     message: string
 ): void throws { SourceLoadFailure }
-export declare function prepareCompiledReference(references: References): bool throws { SourceLoadFailure }
+export declare function prepareCompiledReference(references: References, target: CompiledTarget): bool throws { SourceLoadFailure }
 
 export declare function validateTypeSourceFile(references: References, path: string): void throws { SourceLoadFailure }
 export declare function validateTypeSourceRoot(references: References, path: string): void throws { SourceLoadFailure }
-export declare function readPreparedTypeSource(references: References, index: u64, path: string): bool throws {
+export declare function readPreparedTypeSource(references: References, reference: ModuleReference, path: string): bool throws {
     SourceLoadFailure
 }
 

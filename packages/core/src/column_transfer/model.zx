@@ -1,5 +1,19 @@
 import type { Allocator, ColumnTransfers, TransferGroup } from "memory"
 
+export enum Mode {
+    Owned,
+    BorrowingText,
+    Borrowed,
+    Selected
+}
+
+export { TransferLayout as ColumnLayout } from "memory"
+
+export type Span = {
+    first: u64,
+    count: u64
+}
+
 export type Group = {
     groups: ColumnTransfers,
     index: u64
@@ -13,9 +27,7 @@ export type Reservation = Extent & {
     allocator: Allocator
 }
 
-export type Copy = Reservation & {
-    first: u64
-}
+export type Copy = Reservation & Span
 
 export type Payload = {
     allocator: Allocator,

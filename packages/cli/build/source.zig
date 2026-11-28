@@ -173,7 +173,6 @@ pub fn backend(b: *std.Build, core: *std.Build.Module, target: std.Build.Resolve
     });
 
     cli_source.addImport("backend_process", protocol);
-    cli_source.addImport("backend_frames", protocol);
 
     return protocol;
 }

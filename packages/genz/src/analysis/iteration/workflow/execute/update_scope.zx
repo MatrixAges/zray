@@ -1,0 +1,14 @@
+import { LoopUpdateScope } from "lowering_host"
+
+import { Assignment } from "../../step/model"
+
+export type Input = Assignment
+
+export type Output = LoopUpdateScope
+
+export default function (in: Input): Output {
+    return match in {
+        Assignment.Projected => LoopUpdateScope.Projected,
+        _ => LoopUpdateScope.Ordinary
+    }
+}

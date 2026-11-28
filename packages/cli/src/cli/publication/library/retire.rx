@@ -3,13 +3,7 @@
 
     <Args in={Model.Retire} out={Model.Retire} />
 
-    <Call
-        fn="../index.removeRetiredFile"
-        in={[
-            $in.directory,
-            $in.paths[$in.index]
-        ]}
-    />
+    <Call fn="../index.removeRetiredFile" in={$in.paths[$in.index]} />
 
     <Return
         value={{

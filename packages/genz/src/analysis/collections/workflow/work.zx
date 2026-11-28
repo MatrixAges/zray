@@ -1,0 +1,33 @@
+export type Clip = {
+    target: u32,
+    value: u32
+}
+
+export type Pop = {
+    source_type: u32,
+    result_type: u32,
+    items: u32,
+    value: u32,
+    header: u32,
+    element: u32,
+    length: u32,
+    retract: bool
+}
+
+export type Construct = {
+    type_id: u32,
+    value: u32,
+    layout?: u32
+}
+
+export type Request = {
+    target?: u32,
+    clip?: Clip,
+    pop?: Pop,
+    construct?: Construct
+}
+
+export type State = {
+    request?: Request,
+    result: u32
+}

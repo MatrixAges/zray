@@ -21,7 +21,7 @@ fn initEmptyStore(comptime Pointer: type) std.meta.Child(Pointer) {
         return .{ .has_last = false, .last = "" };
     }
 
-    return .{ .has_success = false, .has_failure = false };
+    return .{ .has_success = false, .has_failure = false, .observed = &.{} };
 }
 
 pub fn run(io: std.Io, allocator: std.mem.Allocator, options: Options, environment: *const std.process.Environ.Map, stdout: *std.Io.Writer, stderr: *std.Io.Writer) !void {
@@ -47,7 +47,7 @@ pub fn run(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
         .windows = @import("builtin").os.tag == .windows,
         .input_path = options.input,
         .output_path = options.output.?,
-    }, &host) catch |err| return if (err == error.WatchFailure) state.failure.? else err;
+    }, &host, io) catch |err| return if (err == error.WatchFailure) state.failure.? else err;
 
     if (canceled) return error.Canceled;
 }

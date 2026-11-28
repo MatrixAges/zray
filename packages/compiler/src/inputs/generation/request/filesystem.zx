@@ -1,1 +1,1 @@
-export { writeText } from "std:fs"
+export { readFilePrefix, unlinkIfExists, writeText } from "std:fs"

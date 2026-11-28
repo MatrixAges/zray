@@ -4,7 +4,6 @@ const Directory = @import("../publication/directory.zig");
 const effects = @import("../publication/effects.zig");
 const rule = @import("cli_source").native_directory_files;
 const abi = @import("publication_abi");
-const Kind = abi.native.@"zig:publication_host".ResourceKind;
 const ResourceEntry = abi.layouts.@"zig:publication_host".ResourceEntry;
 const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
 const Error = effects.Error;
@@ -58,7 +57,7 @@ pub fn resourceRoot(handle: *const anyopaque) Error!*const ResourceEntry {
     const stat = std.Io.Dir.cwd().statFile(directory.io, directory.source, .{}) catch |err| return directory.failure.save(err);
 
     directory.resource_view = .{
-        .kind = classify(stat.kind),
+        .kind = Directory.resourceKind(stat.kind),
         .path = directory.source,
     };
 
@@ -84,7 +83,7 @@ pub fn nextResource(handle: *const anyopaque) Error!*const ResourceEntry {
         "";
 
     directory.resource_view = .{
-        .kind = classify(kind),
+        .kind = Directory.resourceKind(kind),
         .path = path,
     };
 
@@ -103,13 +102,4 @@ pub fn resourceLinkIsFile(handle: *const anyopaque, path: []const u8) Error!bool
     const stat = std.Io.Dir.cwd().statFile(directory.io, path, .{}) catch |err| return directory.failure.save(err);
 
     return stat.kind == .file;
-}
-
-fn classify(kind: std.Io.File.Kind) Kind {
-    return switch (kind) {
-        .file => .Regular,
-        .directory => .Directory,
-        .sym_link => .Symlink,
-        else => .Other,
-    };
 }

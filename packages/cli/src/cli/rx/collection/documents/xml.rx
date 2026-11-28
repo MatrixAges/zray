@@ -1,55 +1,42 @@
 <Module>
     <Type from="../index" as="IO" />
-    <Type from="../model" as="Collection" />
 
-    <Args in={Collection.Document} out={bool} />
+    <Args in={IO.Collection} out={bool} />
 
-    <Call fn="../index.parseCollectionXml" in={$in.collection} />
+    <Call fn="../index.parseCollectionXml" in={$in} />
 
     <If on={!$ctx.parseCollectionXml}>
         <Return value={false} />
     </If>
 
-    <Call fn="../index.validateCollectionXml" in={$in.collection} />
+    <Call fn="../index.validateCollectionXml" in={$in} />
 
-    <If on={!$ctx.validateCollectionXml}>
+    <If on={$ctx.validateCollectionXml == IO.XmlValidation.Invalid}>
         <Return value={false} />
     </If>
 
-    <If on={$in.kind == IO.Kind.Gateway}>
-        <Call fn="../index.recordCollectionGateway" in={$in.collection} />
+    <If on={$ctx.validateCollectionXml == IO.XmlValidation.HttpGateway}>
+        <Call fn="../index.prepareCollectionGateway" in={$in} />
 
-        <If on={$ctx.recordCollectionGateway}>
-            <Call fn="../index.prepareCollectionGateway" in={$in.collection} />
+        <If on={$ctx.prepareCollectionGateway != null}>
+            <Loop on={$in.index < $in.routes.service_routes.length}>
+                <Call
+                    module="services"
+                    in={{
+                        collection: $in,
+                        routes: $ctx.prepareCollectionGateway,
+                        index: 0
+                    }}
+                />
+            </Loop>
 
-            <If on={$ctx.prepareCollectionGateway != null}>
-                <Loop on={$in.index < $in.count}>
-                    <Call
-                        module="services"
-                        in={{
-                            collection: $in.collection,
-                            count: $ctx.prepareCollectionGateway,
-                            index: 0
-                        }}
-                    />
-                </Loop>
-
-                <Return value={true} />
-            </If>
-
-            <Return value={false} />
+            <Return value={true} />
         </If>
+
+        <Return value={false} />
     </If>
 
-    <If on={$in.kind == IO.Kind.Store}>
-        <Call fn="../index.recordCollectionStore" in={$in.collection} />
-    </If>
-
-    <If on={$in.kind == IO.Kind.Module}>
-        <Call fn="../index.recordCollectionModule" in={$in.collection} />
-    </If>
-
-    <Call fn="../index.collectXmlReferences" in={$in.collection} />
+    <Call fn="../index.collectXmlReferences" in={$in} />
 
     <Return value={$ctx.collectXmlReferences} />
 </Module>

@@ -1,0 +1,49 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.DirectoryHash} out={Cache.HashState} />
+
+    <Loop on={$in.row < $in.directories.length}>
+        <Call
+            module="directory_step"
+            in={{
+                root: $in.root,
+                directories: [""],
+                files: [],
+                row: 0
+            }}
+        />
+    </Loop>
+
+    <Call fn="../external_order" in={$ctx.directory_step.files} />
+
+    <Call
+        fn="../external"
+        in={{
+            path: $in.root,
+            size: null
+        }}
+    />
+
+    <Call
+        fn="effects.blake3Update"
+        in={{
+            state: $in.prefix,
+            data: $ctx.external
+        }}
+    />
+
+    <Loop on={$in.row < $in.files.length}>
+        <Call
+            module="hash_directory_file"
+            in={{
+                root: $in.root,
+                files: $ctx.external_order,
+                prefix: $ctx.blake3Update,
+                row: 0
+            }}
+        />
+    </Loop>
+
+    <Return value={$ctx.hash_directory_file.prefix} />
+</Module>

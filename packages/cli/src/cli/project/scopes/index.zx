@@ -14,8 +14,7 @@ export {
     publishNativeScopeSettings,
     reserveNativeScopeDeclarations,
     reserveNativeScopeIndex,
-    reserveNativeScopeInterfaces,
-    reserveNativeScopeModules
+    reserveNativeScopeInterfaces
 } from "native_scope_host"
 
 export { default as resolvePath } from "../standard/path/resolve"

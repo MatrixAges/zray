@@ -35,26 +35,6 @@ export type AstAccessRows = {
     builtin_name: ExpressionsBuiltinName[]
 }
 
-export type AstFieldAddressRows = {
-    tags: ExpressionsKind[],
-    offsets: u32[],
-    field_target: u32[],
-    field_name: u8[][],
-    address_of: u32[]
-}
-
-export type CollectionRows = {
-    first: u32,
-    second: u32,
-    third: u32,
-    items: u32,
-    value: u32,
-    header: u32,
-    element: u32,
-    length: u32,
-    unit: u32
-}
-
 export enum StateValueMode {
     Borrow,
     Value,

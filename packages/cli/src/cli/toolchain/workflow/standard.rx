@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Toolchain" />
 
-    <Args in={Toolchain.Input} out={Toolchain.Status} />
+    <Args in={Toolchain.CacheInput} out={Toolchain.Status} />
 
     <Call
         fn="hash"
@@ -15,7 +15,13 @@
         <Return value={Toolchain.Status.CorruptBundledToolchain} />
     </If>
 
-    <Call fn="index.extractStandard" in={$in.toolchain} />
+    <Call
+        fn="index.extractStandard"
+        in={[
+            $in.toolchain,
+            $in.paths.staging
+        ]}
+    />
 
     <Return value={Toolchain.Status.Ready} />
 </Module>

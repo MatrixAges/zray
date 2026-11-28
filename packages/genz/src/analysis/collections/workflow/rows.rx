@@ -3,20 +3,44 @@
 
     <Args in={Flow.Rows} out={u32} />
 
+    <Store from="comparisons" as="comparisons" />
+
     <If on={$in.kind == Flow.CollectionKind.Sort}>
         <Call
-            fn="host.collectionCompare"
-            in={[
-                $in.ast.lower,
-                $in.source_type
-            ]}
+            fn="comparison"
+            in={{
+                types: $in.ast.elements.types,
+                registered: $store.comparisons.registered.types,
+                source_type: $in.source_type,
+                named: $in.named
+            }}
+        />
+
+        <If on={$ctx.comparison.next != null}>
+            <Call
+                fn="register_comparison"
+                in={{
+                    types: $store.comparisons.registered.types,
+                    next: $ctx.comparison.next
+                }}
+                setter={[$store.comparisons.registered]}
+            />
+        </If>
+
+        <Call
+            fn="../../comparison/name"
+            in={$ctx.comparison.pick([
+                "type_id",
+                "scalar",
+                "named"
+            ])}
         />
 
         <Call
             module="publish_rows"
             in={{
                 ...$in,
-                compare: $ctx.collectionCompare
+                compare: $ctx.name
             }}
         />
 

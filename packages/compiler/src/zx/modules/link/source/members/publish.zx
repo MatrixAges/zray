@@ -8,7 +8,9 @@ import type { Input, Result } from "./model"
 export type Output = Result?
 
 export default function (in: Input): Output {
-    const { source, type_ids, functions } = in
+    const { source, selection, type_ids, functions } = in
+
+    const count = selection != null ? selection.count : source.count
 
     return loop({
         row: 0,
@@ -16,12 +18,24 @@ export default function (in: Input): Output {
         entry: in.entry,
         valid: true
     }, {
-        while: state => state.valid && state.row < source.count,
+        while: state => state.valid && state.row < count,
         next: state => {
             const index = state.row
-            const intrinsic = memory.readColumnOptionalU8(source.intrinsics, index)
+            const intrinsic = match {
+                selection != null =>
+                    memory.readListOptionalU8(
+                        selection.lists.intrinsics,
+                        selection.row,
+                        index
+                    ),
+                _ => memory.readColumnOptionalU8(source.intrinsics, index)
+            }
 
-            const name = memory.readTextColumn(source.names, index)
+            const name = match {
+                selection != null =>
+                    memory.readListText(selection.lists.names, selection.row, index),
+                _ => memory.readTextColumn(source.names, index)
+            }
             state.row += 1
 
             const keep = (
@@ -31,11 +45,39 @@ export default function (in: Input): Output {
             )
 
             if (keep) {
+                const id = match {
+                    selection != null =>
+                        memory.readListOptionalU32(
+                            selection.lists.ids,
+                            selection.row,
+                            index
+                        ),
+                    _ => memory.readColumnOptionalU32(source.ids, index)
+                }
+                const input_type = match {
+                    selection != null =>
+                        memory.readListOptionalU32(
+                            selection.lists.inputs,
+                            selection.row,
+                            index
+                        ),
+                    _ => memory.readColumnOptionalU32(source.inputs, index)
+                }
+                const output_type = match {
+                    selection != null =>
+                        memory.readListOptionalU32(
+                            selection.lists.outputs,
+                            selection.row,
+                            index
+                        ),
+                    _ => memory.readColumnOptionalU32(source.outputs, index)
+                }
+
                 const member = map({
                     name,
-                    id: memory.readColumnOptionalU32(source.ids, index),
-                    input_type: memory.readColumnOptionalU32(source.inputs, index),
-                    output_type: memory.readColumnOptionalU32(source.outputs, index),
+                    id,
+                    input_type,
+                    output_type,
                     intrinsic: intrinsic != null,
                     type_ids,
                     functions

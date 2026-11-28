@@ -3,40 +3,19 @@
 
     <Args in={Toolchain.Probe} out={string?} />
 
-    <Call
-        fn="index.probeLibrary"
-        in={[
-            $in.toolchain,
-            $in.executable,
-            $in.suffixes.official
-        ]}
-    />
+    <Call fn="index.pathParent" in={$in.executable} />
 
-    <If on={$ctx.probeLibrary != null}>
-        <Return value={$ctx.probeLibrary} />
+    <If on={$ctx.pathParent != null}>
+        <Call
+            fn="find_library"
+            in={{
+                parent: $ctx.pathParent,
+                suffixes: $in.suffixes
+            }}
+        />
+
+        <Return value={$ctx.find_library} />
     </If>
 
-    <Call
-        fn="index.probeSystemLibrary"
-        in={[
-            $in.toolchain,
-            $in.executable,
-            $in.suffixes.system
-        ]}
-    />
-
-    <If on={$ctx.probeSystemLibrary != null}>
-        <Return value={$ctx.probeSystemLibrary} />
-    </If>
-
-    <Call
-        fn="index.probeSiblingLibrary"
-        in={[
-            $in.toolchain,
-            $in.executable,
-            $in.suffixes.sibling
-        ]}
-    />
-
-    <Return value={$ctx.probeSiblingLibrary} />
+    <Return value={null} />
 </Module>

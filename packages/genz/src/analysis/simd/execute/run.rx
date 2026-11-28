@@ -50,11 +50,7 @@
 
     <Call
         module="../../node_headers/publication/dense"
-        in={{
-            lower: $in.frame,
-            writer: $in.writer,
-            fragment: $ctx.build.omit(["root"])
-        }}
+        in={$ctx.build.omit(["root"])}
     />
 
     <If on={$in.analysis.consumer == null}>

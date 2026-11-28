@@ -34,4 +34,4 @@ export type Copy = {
     index: u64
 }
 
-export type Retire = Copy.Omit("prefix")
+export type Retire = Copy.Pick("paths", "index")

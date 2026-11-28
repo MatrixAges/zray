@@ -28,6 +28,8 @@
             in={{
                 ...$in.pick([
                     "session",
+                    "fetch",
+                    "root",
                     "catalog",
                     "release"
                 ]),
@@ -43,6 +45,8 @@
         in={{
             ...$in.pick([
                 "session",
+                "fetch",
+                "root",
                 "catalog",
                 "release"
             ]),

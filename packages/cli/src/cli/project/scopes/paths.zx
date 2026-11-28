@@ -1,16 +1,14 @@
-import { resolveNativeScopePath } from "native_scope_host"
-
-import type { NativeScopeLoad } from "native_scope_host"
+import { resolvePathParts as resolve } from "lexical_path"
 
 export type Input = {
-    frame: NativeScopeLoad,
+    root: string,
     source: string[]
 }
 
 export type Output = string[]
 
 export default function (in: Input): Output {
-    const { frame, source } = in
+    const { root, source } = in
 
     const empty: string[] = []
 
@@ -20,7 +18,10 @@ export default function (in: Input): Output {
     }, {
         while: state => state.row < source.length,
         next: state => {
-            const path = resolveNativeScopePath(frame, source[state.row])
+            const path = resolve([
+                root,
+                source[state.row]
+            ])
 
             state.items = state.items.push(path)[0]
             state.row += 1

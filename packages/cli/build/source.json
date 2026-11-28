@@ -734,16 +734,8 @@
             "module": "artifact_io"
         },
         {
-            "path": "package_manifest/layout/scanner.d.zx",
-            "module": "manifest_yaml_scanner"
-        },
-        {
             "path": "package_manifest/decode/document.d.zx",
             "module": "manifest_yaml_document"
-        },
-        {
-            "path": "backend_dependencies/host.d.zx",
-            "module": "backend_input_host"
         },
         {
             "path": "library/workflow/host.d.zx",
@@ -871,11 +863,6 @@
         {
             "path": "backend_source/process/host.d.zx",
             "module": "backend_process",
-            "resolve_members": true
-        },
-        {
-            "path": "backend_source/frames/host.d.zx",
-            "module": "backend_frames",
             "resolve_members": true
         }
     ]

@@ -322,7 +322,10 @@ const GenerationIO = struct {
                 return "";
             }
 
-            try invalidateGenerationStamp(io, stamp_path);
+            std.Io.Dir.cwd().deleteFile(io, stamp_path) catch |err| switch (err) {
+                error.FileNotFound => {},
+                else => return err,
+            };
         }
 
         const previous = if (interfaces.failure == null) self.resident.exactAnalysis(&digests.output) else null;
@@ -489,25 +492,6 @@ fn readStamp(io: std.Io, path: []const u8, buffer: []u8) !?[]const u8 {
     return std.Io.Dir.cwd().readFile(io, path, buffer) catch |err| switch (err) {
         error.FileNotFound => null,
         else => err,
-    };
-}
-
-pub fn readGenerationStamp(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !?[]const u8 {
-    const buffer = try allocator.alloc(u8, publication.stamp_width + 1);
-
-    errdefer allocator.free(buffer);
-
-    if (try readStamp(io, path, buffer)) |recorded| return recorded;
-
-    allocator.free(buffer);
-
-    return null;
-}
-
-pub fn invalidateGenerationStamp(io: std.Io, path: []const u8) !void {
-    std.Io.Dir.cwd().deleteFile(io, path) catch |err| switch (err) {
-        error.FileNotFound => {},
-        else => return err,
     };
 }
 

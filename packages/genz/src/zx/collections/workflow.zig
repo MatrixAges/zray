@@ -17,6 +17,36 @@ const Conversion = std.meta.Child(@FieldType(Input, "conversion"));
 const ConversionSource = std.meta.Child(@FieldType(Conversion, "source"));
 const element_emission = @import("../state_value/element_emission.zig");
 const Error = Lower.Error;
+const Work = @import("branch.zig");
+const generated = @import("genz_options").generated_analysis;
+const ComparisonRows = if (generated) std.meta.Child(@FieldType(entry.zx_pending, "store_1")) else void;
+
+pub const Comparisons = struct {
+    rows: std.ArrayList(ir.TypeId) = .empty,
+    view: if (generated) std.meta.Child(ComparisonRows) else void = if (generated) .{
+        .types = &.{},
+        .next = null,
+    } else {},
+    pub fn append(self: *Comparisons, allocator: std.mem.Allocator, child: ir.TypeId) Error!void {
+        try self.rows.append(allocator, child);
+        if (generated) self.view.types = @ptrCast(self.rows.items);
+    }
+};
+
+const Host = struct {
+    owner: *Comparisons,
+    work: *Work,
+    allocator: std.mem.Allocator,
+    store_0: *const Work.View,
+    store_1: *const ComparisonRows,
+    pub fn commit(self: Host, pending: anytype) Error!void {
+        try self.work.runCollectionWork(pending.store_0);
+
+        const rows = pending.store_1 orelse return;
+
+        if (rows.next) |child| try self.owner.append(self.allocator, @fromBackingInt(child));
+    }
+};
 
 pub fn run(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_only: bool) Error!node.ExpressionId {
     const row = self.program.expression(id);
@@ -92,10 +122,24 @@ pub fn run(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_only
         .capacity = if (context != null) &capacity else null,
         .state_active = self.state_active,
         .result_selected = self.state_active and self.state_plan.selected[@backingInt(row.type_id)],
+        .named = self.type_names != null,
         .layout = if (layout) |target| @backingInt(target) else null,
     };
 
-    return @fromBackingInt(entry.executeIn(memory.allocator(), &input) catch |err| return publication.failure(err));
+    const comparisons = self.comparisons;
+    const comparison_view: ComparisonRows = &comparisons.view;
+    var work: Work = .{ .lowering = self, .sequence = &body };
+    const work_view: Work.View = &work.state;
+
+    const host: Host = .{
+        .owner = comparisons,
+        .work = &work,
+        .allocator = self.allocator,
+        .store_0 = &work_view,
+        .store_1 = &comparison_view,
+    };
+
+    return @fromBackingInt(entry.executeIn(memory.allocator(), &input, host) catch |err| return publication.failure(err));
 }
 
 pub fn clipCollectionTarget(frame: *anyopaque, body: *anyopaque, target: u32, value: u32) Error!u32 {

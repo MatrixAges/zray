@@ -40,8 +40,6 @@
         />
     </If>
 
-    <Call fn="index.openRxApplicationCache" in={$in.application} />
-
     <If on={$in.settings.native}>
         <Call
             module="build"

@@ -4,7 +4,6 @@ export {
     resolveCompilationEntry,
     loadCompilationProject,
     readCompilationSource,
-    openCompilationCaches,
     readCompilationDependencies,
     writeCompilationDiagnostic,
     loadCompilationCache,
@@ -25,11 +24,11 @@ export {
     lowerFpgaProgram,
     renderFpgaProgram,
     encodeFpgaManifest,
-    Dependencies,
     Status
 } from "compilation_host"
 
 export type {
     Compilation,
-    FpgaProgram
+    FpgaProgram,
+    StageFailure
 } from "compilation_host"

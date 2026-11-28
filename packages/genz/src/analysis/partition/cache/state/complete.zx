@@ -1,6 +1,8 @@
+import type { BatchFailure } from "std:child_process"
+
 export type Input = {
     pending: u32[],
-    failures: string?[]
+    failures: BatchFailure?[]
 }
 
 export type Output = {

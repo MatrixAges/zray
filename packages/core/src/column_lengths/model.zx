@@ -1,6 +1,9 @@
-import type { ColumnLengths } from "memory"
-
 export type Extent = {
-    target: ColumnLengths,
+    first: u64,
     count: u64
+}
+
+export type Prefix = {
+    count: u64,
+    limit: u64
 }

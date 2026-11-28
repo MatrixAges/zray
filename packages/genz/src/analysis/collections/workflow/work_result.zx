@@ -1,0 +1,9 @@
+import type { State } from "./work"
+
+export type Input = State
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    return in.result
+}

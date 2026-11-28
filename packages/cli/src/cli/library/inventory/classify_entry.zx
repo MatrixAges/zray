@@ -1,30 +1,26 @@
 import path from "std:path"
 import string from "std:string"
+import { ResourceKind } from "publication_host"
 
 import admit from "../../native_sources/inventory/admit"
 import { backslash, slash } from "../../package/workspace/const"
-import {
-    directory_entry,
-    end_of_directory,
-    named_regular_entry,
-    regular_entry
-} from "../../publication/const"
 import { Action } from "./model"
 
-import type { DirectoryEntry } from "publication_host"
+import type { ResourceEntry } from "publication_host"
 import type { Decision as Output } from "./model"
 
-export type Input = DirectoryEntry
+export type Input = {
+    entry: ResourceEntry,
+    name: string
+}
 
 export default function (in: Input): Output {
-    if (in.kind == end_of_directory) {
-        return {
-            action: Action.Stop
-        }
-    }
+    const { entry, name } = in
 
-    if (in.kind == regular_entry) {
-        const portable = string.replaceAll(in.path, backslash, slash)
+    const regular = entry.kind == ResourceKind.Regular
+
+    if (regular && entry.path != name) {
+        const portable = string.replaceAll(entry.path, backslash, slash)
 
         const valid = admit({
             path: portable,
@@ -44,7 +40,7 @@ export default function (in: Input): Output {
         }
     }
 
-    const skipped = in.kind == directory_entry || in.kind == named_regular_entry
+    const skipped = entry.kind == ResourceKind.Directory || regular
 
     return {
         action: skipped ? Action.Skip : Action.Invalid

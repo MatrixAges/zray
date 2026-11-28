@@ -74,35 +74,27 @@ fn install(allocator: std.mem.Allocator, index: usize, library: *const compiled.
 
     errdefer names.deinit(allocator);
 
-    var buffer: memory.RowBuffer = .empty(compiled.StoreInitializer);
-    buffer.bytes = std.mem.sliceAsBytes(initializers.allocatedSlice());
-    const first = initializers.items.len;
+    const used = initializers.items.len;
     const count = library.store_initializers.len;
-    var published = first;
-
-    defer {
-        const rows = buffer.rows(compiled.StoreInitializer);
-
-        if (rows.len != 0) {
-            initializers.items = rows[0..published];
-            initializers.capacity = rows.len;
-        }
-    }
-
     var scratch_buffer: [256]u8 = undefined;
     var scratch = std.heap.FixedBufferAllocator.init(&scratch_buffer);
 
     const reserved = try execute(scratch.allocator(), &.{
         .added = null,
         .inherited = null,
-        .initializers = &.{ .rows = @ptrCast(&buffer), .owner = @ptrCast(&allocator), .first = first, .count = count },
+        .initializers = &.{
+            .current = initializers.capacity,
+            .used = used,
+            .additional = count,
+            .base = @max(1, std.atomic.cache_line / @sizeOf(compiled.StoreInitializer)),
+        },
     });
 
-    const rows = buffer.rows(compiled.StoreInitializer);
+    try initializers.ensureTotalCapacityPrecise(allocator, @intCast(reserved.capacity.?));
 
     const linked = @import("host/root.zig").load(allocator, library.*, destination, .{
         .export_buckets = names.storage,
-        .initializer_tail = rows[first..][0..count],
+        .initializer_tail = initializers.unusedCapacitySlice()[0..count],
     }) catch |err| return if (err == error.OutOfMemory) error.OutOfMemory else error.InvalidLibrary;
 
     const added = cache.getOrPutAssumeCapacity(index);
@@ -110,7 +102,7 @@ fn install(allocator: std.mem.Allocator, index: usize, library: *const compiled.
     std.debug.assert(!added.found_existing);
 
     added.value_ptr.* = .{ .exports = linked.exports, .names = names };
-    published = @intCast(reserved.published.?);
+    initializers.items.len = used + count;
 
     return added.value_ptr;
 }

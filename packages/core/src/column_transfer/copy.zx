@@ -1,7 +1,7 @@
 import memory from "memory"
-import { TransferLayout } from "memory"
 
 import copyProjected from "./copy_projected"
+import { ColumnLayout } from "./model"
 import retain from "./retain"
 import rollback from "./rollback"
 
@@ -29,14 +29,17 @@ export default function (in: Input): Output {
         next: state => {
             const layout = memory.transferLayout(group, state.column, null)
 
-            if (layout == TransferLayout.Contiguous) {
+            if (layout == ColumnLayout.Contiguous) {
                 memory.copyTransferRange(group, state.column, first, count)
-            } else if (layout == TransferLayout.Projected) {
+            } else if (
+                layout == ColumnLayout.Strided || layout == ColumnLayout.Repeated
+            ) {
                 copyProjected({
                     group,
                     column: state.column,
                     first,
-                    count
+                    count,
+                    repeated: layout == ColumnLayout.Repeated
                 })
             } else {
                 state.valid = retain({

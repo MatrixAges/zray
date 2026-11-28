@@ -30,7 +30,7 @@ export type ObservedEntry = {
 
 export declare function writeWatchNotice(watch: Watch, prefix: string, detail: string, flush_now: bool): void throws { WatchFailure }
 export declare function interrupted(watch: Watch): bool
-export declare function delay(watch: Watch, milliseconds: u64): void throws { WatchFailure }
+export declare function delay(io, milliseconds: u64): void throws { Canceled }
 export declare function applicationFinished(watch: Watch): bool throws { WatchFailure }
 export declare function prepareApplication(watch: Watch): string? throws { WatchFailure }
 export declare function stopApplication(watch: Watch, report_exit: bool): string? throws { WatchFailure }
@@ -49,12 +49,11 @@ export declare function writeWatchDiagnostic(
     message: string,
     key: string
 ): string throws { WatchFailure }
-export declare function adoptPublishedSnapshot(watch: Watch): bool
-export declare function captureSnapshot(watch: Watch, slot: SnapshotSlot): void throws { WatchFailure }
-export declare function releaseSnapshot(watch: Watch, slot: SnapshotSlot): void
-export declare function snapshotEntries(watch: Watch, slot: SnapshotSlot): ObservedEntry[] throws {
+export declare function adoptPublishedSnapshot(watch: Watch): ObservedEntry[]? throws {
     WatchFailure
 }
+export declare function captureSnapshot(watch: Watch, slot: SnapshotSlot): ObservedEntry[] throws { WatchFailure }
+export declare function releaseSnapshot(watch: Watch, slot: SnapshotSlot): void
 export declare function reobservePath(
     watch: Watch,
     path: string,

@@ -15,7 +15,6 @@ export {
     adoptPublishedSnapshot,
     captureSnapshot,
     releaseSnapshot,
-    snapshotEntries,
     reobservePath,
     flush,
     releaseTurn

@@ -26,35 +26,47 @@
     <Call fn="index.openBackendTranslation" in={$in.build} />
     <Call fn="index.openBackendEnvironment" in={$in.build} />
 
-    <Call module="prepare" in={$in} />
+    <Call
+        module="prepare"
+        in={{
+            ...$in,
+            cache: $ctx.openBackendTranslation
+        }}
+    />
 
-    <If on={$ctx.prepare == null}>
-        <Call fn="index.takeTranslationFailure" in={$in.build} />
+    <If on={$ctx.prepare != null}>
+        <Call
+            fn="index.writeBackendCommand"
+            in={[
+                $in.build,
+                $ctx.prepare
+            ]}
+        />
 
-        <Else>
-            <Call
-                fn="index.writeBackendCommand"
-                in={[
-                    $in.build,
-                    $ctx.prepare
-                ]}
-            />
-
-            <Call
-                fn="index.spawnObservedBackend"
-                in={[
-                    $in.build,
-                    $ctx.prepare
-                ]}
-            />
-        </Else>
+        <Call
+            fn="index.spawnObservedBackend"
+            in={[
+                $in.build,
+                $ctx.prepare
+            ]}
+        />
     </If>
 
-    <Call fn="index.resolveObservedNativeInputs" in={$in.build} />
+    <Call
+        fn="index.resolveObservedNativeInputs"
+        in={[
+            $in.build,
+            $ctx.prepare == null
+        ]}
+    />
 
-    <If on={$in.node}>
-        <Call fn="index.createObservedBindings" in={$in.build} />
-    </If>
+    <Call
+        module="bindings/create"
+        in={$in.pick([
+            "build",
+            "node"
+        ])}
+    />
 
     <Loop on={$in.index < $in.paths.length}>
         <Call
@@ -70,15 +82,21 @@
     <Call fn="index.publishBackendPaths" in={$in.build} />
     <Call fn="index.reportObservedNativeBuild" in={$in.build} />
 
-    <If on={$ctx.reportObservedNativeBuild == null}>
+    <If on={!$ctx.reportObservedNativeBuild.succeeded}>
         <Return value={IO.Status.BackendFailed} />
     </If>
 
-    <If on={$ctx.reportObservedNativeBuild == false}>
+    <If on={!$ctx.reportObservedNativeBuild.inputs_complete}>
         <Return value={IO.Status.IncompleteInputs} />
     </If>
 
-    <Call fn="index.publishObservedNativeBuild" in={$in.build} />
+    <Call
+        fn="index.publishObservedNativeBuild"
+        in={[
+            $in.build,
+            $ctx.create
+        ]}
+    />
 
     <If on={!$ctx.publishObservedNativeBuild}>
         <Return value={IO.Status.Retry} />

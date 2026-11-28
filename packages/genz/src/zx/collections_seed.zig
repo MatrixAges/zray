@@ -121,7 +121,7 @@ pub fn lower(self: *Lower, id: ir.ExprId, layout: ?node.ExpressionId, removed_on
             const call = if (operation.kind == .reverse) try intrinsic.standard(self, &.{ "mem", "reverse" }, &.{ child_type, mutable }, false) else blk: {
                 var found = false;
 
-                for (self.comparisons.items) |previous| {
+                for (self.comparisons.rows.items) |previous| {
                     if (previous == child) found = true;
                 }
 

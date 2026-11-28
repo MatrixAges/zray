@@ -38,10 +38,13 @@
 
     <Call fn="index.loadCompilationProject" in={$in.compilation} />
 
-    <If on={!$ctx.loadCompilationProject}>
+    <If on={$ctx.loadCompilationProject != null}>
+        <Call fn="stage_diagnostic" in={$ctx.loadCompilationProject} />
+
         <Return
             value={{
-                status: IO.Status.Failed
+                status: IO.Status.Failed,
+                diagnostic: $ctx.stage_diagnostic
             }}
         />
     </If>

@@ -5,13 +5,7 @@
 
     <Call fn="delay_interval" in={false} />
 
-    <Call
-        fn="index.delay"
-        in={[
-            $in.watch,
-            $ctx.delay_interval
-        ]}
-    />
+    <Call fn="index.delay" />
 
     <Call fn="index.interrupted" in={$in.watch} />
 

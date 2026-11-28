@@ -1,10 +1,14 @@
 import { key, scalar, block_mapping_start } from "./const"
 import classify from "./token"
 
-import type { TokenColumns } from "manifest_yaml_scanner"
 import type { Token } from "./token"
 
-export type Input = TokenColumns
+export type Input = {
+    kinds: i32[],
+    starts: u64[],
+    ends: u64[],
+    block_scalars: bool[]
+}
 
 export type Field = {
     start: u64,

@@ -1,6 +1,7 @@
 const std = @import("std");
 const api = @import("zxc_abi").native.@"std:fs";
 const path = @import("path.zig");
+const metadata = @import("metadata.zig");
 const Allocator = std.mem.Allocator;
 
 pub fn mkdir(io: std.Io, input: api.mkdir.Input) !void {
@@ -36,6 +37,69 @@ pub fn readdir(allocator: Allocator, io: std.Io, input: []const u8) ![]const []c
     }
 
     return entries.toOwnedSlice(allocator);
+}
+
+pub fn readdirMetadata(allocator: Allocator, io: std.Io, input: []const u8) ![]const api.DirectoryEntry {
+    try path.validateBytes(input);
+
+    const directory = try std.Io.Dir.cwd().openDir(io, input, .{ .iterate = true });
+
+    defer directory.close(io);
+
+    var entries: std.ArrayList(api.DirectoryEntry) = .empty;
+
+    errdefer {
+        for (entries.items) |entry| {
+            if (entry.mtime_ns) |modified| allocator.destroy(modified);
+
+            allocator.free(entry.name);
+            allocator.destroy(entry);
+        }
+
+        entries.deinit(allocator);
+    }
+
+    var iterator = directory.iterate();
+
+    while (try iterator.next(io)) |entry| {
+        const info: ?std.Io.File.Stat = directory.statFile(io, entry.name, .{ .follow_symlinks = false }) catch |err| switch (err) {
+            error.FileNotFound => null,
+            else => |failure| return failure,
+        };
+
+        try entries.ensureUnusedCapacity(allocator, 1);
+
+        const value = try allocator.create(@typeInfo(api.DirectoryEntry).pointer.child);
+
+        errdefer allocator.destroy(value);
+
+        const name = try allocator.dupe(u8, entry.name);
+
+        errdefer allocator.free(name);
+
+        value.* = .{
+            .name = name,
+            .kind = metadata.kind(entry.kind),
+            .inode = if (info) |stat| stat.inode else if (entry.inode != 0) entry.inode else null,
+            .size = if (info) |stat| stat.size else null,
+            .mtime_ns = if (info) |stat| try timestamp(allocator, stat.mtime.nanoseconds) else null,
+        };
+
+        entries.appendAssumeCapacity(value);
+    }
+
+    return entries.toOwnedSlice(allocator);
+}
+
+fn timestamp(allocator: Allocator, nanoseconds: i96) !api.TimestampNs {
+    const value = try allocator.create(@typeInfo(api.TimestampNs).pointer.child);
+
+    value.* = .{
+        .high = @intCast(nanoseconds >> 64),
+        .low = @truncate(@as(u96, @bitCast(nanoseconds))),
+    };
+
+    return value;
 }
 
 pub fn rmdir(io: std.Io, input: []const u8) !void {

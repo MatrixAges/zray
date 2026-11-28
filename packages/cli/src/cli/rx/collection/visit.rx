@@ -2,37 +2,31 @@
     <Type from="index" as="IO" />
     <Type from="model" as="Collection" />
 
-    <Args in={Collection.Visit} out={bool} />
-
-    <Call fn="kind" in={$in.path} />
+    <Args in={Collection.Visit} out={Collection.Readiness} />
 
     <Call
         module="files/read"
         in={{
             collection: $in.collection,
-            kind: $ctx.kind,
+            kind: $in.kind,
             path: $in.path,
             first: $in.first
         }}
     />
 
     <If on={$ctx.read != Collection.Readiness.Ready}>
-        <Return value={$ctx.read == Collection.Readiness.Skipped} />
+        <Return value={$ctx.read} />
     </If>
 
-    <If on={$ctx.kind == IO.Kind.Zx}>
-        <Call module="documents/zx" in={$in.collection} />
+    <If on={$in.kind == IO.Kind.Zx}>
+        <Call fn="index.collectZxReferences" in={$in.collection} />
 
-        <Return value={true} />
+        <Return value={Collection.Readiness.Ready} />
     </If>
 
-    <Call
-        module="documents/xml"
-        in={{
-            collection: $in.collection,
-            kind: $ctx.kind
-        }}
+    <Call module="documents/xml" in={$in.collection} />
+
+    <Return
+        value={$ctx.xml ? Collection.Readiness.Ready : Collection.Readiness.Invalid}
     />
-
-    <Return value={$ctx.xml} />
 </Module>

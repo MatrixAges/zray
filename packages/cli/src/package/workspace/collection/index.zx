@@ -1,10 +1,1 @@
-export {
-    readRoot,
-    openDirectory,
-    nextDirectory,
-    enterDirectory,
-    readMember,
-    publishMember
-} from "package_workspace_host"
-
-export type { Collection, RootManifest } from "package_workspace_host"
+export { listWorkspaceDirectories, readMember } from "package_workspace_host"

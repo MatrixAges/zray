@@ -1,4 +1,4 @@
-import type { Availability, Collection, Kind } from "rx_collection_host"
+import type { Availability, Collection, GatewayRoutes, Kind } from "rx_collection_host"
 
 export type Request = {
     collection: Collection,
@@ -35,11 +35,10 @@ export type PhysicalRegistrationResult = {
 
 export type ServicesInput = {
     collection: Collection,
-    count: u64
+    routes: GatewayRoutes
 }
 
-export type Visit = {
-    collection: Collection,
+export type Visit = Document & {
     path: string,
     first: bool
 }
@@ -68,5 +67,18 @@ export type Walk = {
 }
 
 export type ServiceWalk = ServicesInput & {
+    index: u64
+}
+
+export type Records = {
+    functions: u64[],
+    modules: u64[],
+    stores: u64[],
+    gateway?: u64
+}
+
+export type RecordInput = {
+    records: Records,
+    kind: Kind,
     index: u64
 }

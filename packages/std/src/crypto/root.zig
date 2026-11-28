@@ -10,6 +10,7 @@ const ChaCha = aead.Module(std.crypto.aead.chacha_poly.ChaCha20Poly1305, (1 << 3
 pub const sha256 = hash.sha256;
 pub const sha256Parts = hash.sha256Parts;
 pub const sha512 = hash.sha512;
+pub const blake3 = @import("blake3.zig");
 pub const hmacSha256 = Sha256.hmac;
 pub const hmacSha512 = Sha512.hmac;
 pub const verifyHmacSha256 = Sha256.verifyHmac;

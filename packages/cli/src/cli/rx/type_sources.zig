@@ -6,6 +6,7 @@ const Text = @import("../sources/text.zig");
 const refs = @import("preparation/references.zig");
 const Error = @import("../sources/effects.zig").Error;
 const rule = @import("cli_source").prepare_rx_types;
+const ModuleReference = @import("cli_abi").native.@"zig:rx_preparation_host".ModuleReference;
 const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
 
 const StoreHost = struct {
@@ -85,14 +86,14 @@ pub fn validateTypeSourceRoot(handle: *const anyopaque, path: []const u8) Error!
     if (@import("collection.zig").outside(relative)) return cursor.failure.save(error.RxSourceOutsideProject);
 }
 
-pub fn readPreparedTypeSource(handle: *const anyopaque, index: u64, path: []const u8) Error!bool {
+pub fn readPreparedTypeSource(handle: *const anyopaque, reference: ModuleReference, path: []const u8) Error!bool {
     const cursor = refs.Cursor.get(handle);
     const allocator = cursor.allocator;
 
     const text = Text.read(cursor.io, allocator, path, cursor.texts) catch |err| {
         if (err == error.OutOfMemory or err == error.Canceled) return cursor.failure.save(err);
 
-        try cursor.report(@intCast(index), @errorName(err));
+        try cursor.report(reference, @errorName(err));
 
         return false;
     };

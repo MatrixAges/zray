@@ -70,7 +70,7 @@ fn drain(comptime entry: type, allocator: std.mem.Allocator, frame: *Frame, orig
 fn appendSuffix(comptime entry: type, allocator: std.mem.Allocator, frame: *Frame, original: std.meta.Child(entry.Input)) Error!void {
     var input = original;
 
-    input.suffix = &.{ .uses_parallel = frame.lowering.uses_parallel, .comparisons = frame.comparisons.items.len };
+    input.suffix = &.{ .uses_parallel = frame.lowering.uses_parallel, .comparisons = frame.comparisons.rows.items.len };
     const plan = entry.executeIn(allocator, &input) catch |err| return failure(err);
 
     for (plan.steps) |step| switch (step) {

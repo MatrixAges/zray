@@ -1,0 +1,14 @@
+import { resolvePathParts as resolve } from "lexical_path"
+
+import type { Plan } from "./model"
+
+export type Input = Plan.Pick("directory", "managed")
+
+export type Output = string[]
+
+export default function (in: Input): Output {
+    return in.managed.map(path => resolve([
+        in.directory,
+        path
+    ]))[0]
+}

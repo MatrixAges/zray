@@ -9,6 +9,7 @@ const Libraries = @import("../library/inputs.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
 const rule = @import("cli_source").check_store_types;
+const StoreImport = @import("cli_abi").native.@"zig:rx_checking_host".StoreImport;
 const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
 
 const StoreHost = struct {
@@ -27,8 +28,8 @@ const State = struct {
     writer: *std.Io.Writer,
     cache: compiler.project.ParseCache,
     libraries: Libraries,
-    sources: std.ArrayList(compiler.project.Source) = .empty,
-    imports: []const compiler.project.Source = &.{},
+    sources: []const compiler.project.Source = &.{},
+    batches: [][]const compiler.project.Source,
     import_paths: [][]const u8 = &.{},
     paths: compiler.project.source_index.Map = .empty,
     prefetched: compiler.project.ParseCache.Prefetched = .{},
@@ -47,8 +48,10 @@ const State = struct {
 
         self.paths.deinit(self.allocator);
         self.allocator.free(self.import_paths);
-        self.allocator.free(self.imports);
-        self.sources.deinit(self.allocator);
+        for (self.batches) |batch| self.allocator.free(batch);
+
+        self.allocator.free(self.batches);
+        self.allocator.free(self.sources);
         self.libraries.deinit();
         self.cache.deinit();
     }
@@ -57,11 +60,16 @@ const State = struct {
 pub fn validate(io: std.Io, allocator: std.mem.Allocator, collection: Collection, functions: []const rx.TextSource, project: compiler.project.Options, writer: *std.Io.Writer) !bool {
     if (collection.stores.len == 0) return true;
 
+    const batches = try allocator.alloc([]const compiler.project.Source, functions.len);
+
+    @memset(batches, &.{});
+
     var state: State = .{
         .io = io,
         .allocator = allocator,
         .collection = collection,
         .functions = functions,
+        .batches = batches,
         .project = project,
         .writer = writer,
         .cache = .{ .allocator = allocator },
@@ -76,7 +84,7 @@ pub fn validate(io: std.Io, allocator: std.mem.Allocator, collection: Collection
 
     defer arena.deinit();
 
-    var visited_value: std.meta.Child(StoreState) = .{ .paths = &.{} };
+    var visited_value: std.meta.Child(StoreState) = .{ .paths = &.{}, .imports = &.{} };
     var visited: StoreState = &visited_value;
     var host: StoreHost = .{ .store_0 = &visited };
 
@@ -95,14 +103,16 @@ pub fn loadStoreCheckRoot(handle: *const anyopaque, index: u64) Error![]const []
     options.entry = std.fs.path.resolve(allocator, &.{ options.root_dir, function.path }) catch |err| return self.failure.save(err);
 
     allocator.free(self.import_paths);
-    allocator.free(self.imports);
 
     self.import_paths = &.{};
-    self.imports = &.{};
-    self.imports = @import("../sources.zig").readWithLibraries(self.io, allocator, function.source, options, &self.cache, null, &self.libraries) catch |err| return self.failure.save(err);
-    const paths = allocator.alloc([]const u8, self.imports.len) catch |err| return self.failure.save(err);
 
-    for (self.imports, 0..) |source, row| {
+    const sources = @import("../sources.zig").readWithLibraries(self.io, allocator, function.source, options, &self.cache, null, &self.libraries) catch |err| return self.failure.save(err);
+
+    self.batches[@intCast(index)] = sources;
+
+    const paths = allocator.alloc([]const u8, sources.len) catch |err| return self.failure.save(err);
+
+    for (sources, 0..) |source, row| {
         paths[row] = source.path;
     }
 
@@ -111,17 +121,16 @@ pub fn loadStoreCheckRoot(handle: *const anyopaque, index: u64) Error![]const []
     return paths;
 }
 
-pub fn registerStoreCheckImport(handle: *const anyopaque, index: u64) Error!void {
-    const self = State.get(handle);
-    const source = self.imports[@intCast(index)];
-
-    self.sources.append(self.allocator, source) catch |err| return self.failure.save(err);
-}
-
-pub fn buildStoreCheckGraph(handle: *const anyopaque) Error!bool {
+pub fn buildStoreCheckGraph(handle: *const anyopaque, imports: []const StoreImport) Error!bool {
     const self = State.get(handle);
     const collection = self.collection;
+    const sources = self.allocator.alloc(compiler.project.Source, imports.len) catch |err| return self.failure.save(err);
 
+    for (imports, sources) |selected, *source| {
+        source.* = self.batches[@intCast(selected.@"0")][@intCast(selected.@"1")];
+    }
+
+    self.sources = sources;
     self.project.compiled_libraries = self.libraries.libraries.items;
 
     self.graph_result = graph.build(self.allocator, .{
@@ -129,7 +138,7 @@ pub fn buildStoreCheckGraph(handle: *const anyopaque) Error!bool {
         .include_rx_modules = true,
         .modules = collection.modules,
         .stores = collection.stores,
-        .sources = self.sources.items,
+        .sources = self.sources,
         .project = self.project,
         .parse_cache = &self.cache,
         .prefetched = &self.prefetched,
@@ -157,7 +166,7 @@ pub fn analyzeStoreCheckSignatures(handle: *const anyopaque) Error!bool {
     if (result.* != .diagnostic) return true;
 
     const issue = result.diagnostic;
-    const source = if (issue.source_index) |index| self.sources.items[index] else null;
+    const source = if (issue.source_index) |index| self.sources[index] else null;
     const location: zx.source.Location = if (source) |value| zx.source.locate(value.source, issue.span.start) else .{ .line = 1, .column = 1 };
     const path = if (source) |value| value.path else self.collection.stores[0].path;
 

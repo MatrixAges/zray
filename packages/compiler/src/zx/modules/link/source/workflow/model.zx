@@ -1,5 +1,4 @@
 import type { Modules } from "core/native_module_table/model"
-import type { ColumnLengths } from "memory"
 import type {
     Append as TypeRegistration,
     Registration
@@ -40,15 +39,10 @@ export type Check = {
     natives?: Native,
 }
 
-export type Commit = {
-    lengths: ColumnLengths
-}
-
 export type Write = {
     batch?: Batch,
     root?: RootRequest,
     initializer?: Initializer,
-    commit: Commit
 }
 
 export type Input = {

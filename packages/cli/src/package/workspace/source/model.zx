@@ -1,4 +1,4 @@
-import type { Source } from "package_workspace_host"
+import type { Registration } from "snapshot_host"
 
 export enum Status {
     Valid,
@@ -8,13 +8,13 @@ export enum Status {
 }
 
 export type Input = {
-    source: Source,
+    registration?: Registration,
     path: string,
     root?: string
 }
 
 export type Scan = {
-    source: Source,
+    registration?: Registration,
     directory: string,
     root: string
 }

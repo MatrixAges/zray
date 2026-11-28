@@ -1,0 +1,7 @@
+<Store name="dense_ast_publication" version={1}>
+    <Type from="fragment" as="Ast" />
+
+    <Object name="commit">
+        <Field name="append" type={Ast.Append?} value={null} />
+    </Object>
+</Store>

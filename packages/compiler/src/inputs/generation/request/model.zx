@@ -17,6 +17,7 @@ export type Input = {
 
 export type Current = {
     stamp_path: string,
+    enabled: bool,
     digest?: u8[]
 }
 
@@ -37,6 +38,12 @@ export type Prepared = {
 
 export type Analyze = Prepared & {
     host: GenerationIO
+}
+
+export type Refresh = Analyze & {
+    stamp_path: string,
+    observed: bool,
+    current: bool
 }
 
 export type Load = Input.Pick("host", "roots") & {

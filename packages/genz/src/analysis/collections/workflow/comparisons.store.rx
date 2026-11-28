@@ -1,0 +1,6 @@
+<Store name="collection_comparisons" version={1}>
+    <Object name="registered">
+        <Field name="types" type={u32[]} value={[]} />
+        <Field name="next" type={u32?} value={null} />
+    </Object>
+</Store>

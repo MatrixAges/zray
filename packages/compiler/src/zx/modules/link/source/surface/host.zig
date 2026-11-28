@@ -123,6 +123,7 @@ pub fn publish(body: *const Source.Body, nodes: *Nodes, tail: *const ir.Function
 
     const members: Members = .{
         .anonymous = .Entry,
+        .selection = null,
         .source = &member_rows.bind(std.meta.Child(@FieldType(Members, "source"))),
         .type_ids = if (member_source.len == 0) &.{} else @ptrCast(nodes.types.mapped),
         .functions = zx.columns.pointer(@FieldType(Members, "functions"), &functions),

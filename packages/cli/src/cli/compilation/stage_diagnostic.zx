@@ -1,0 +1,13 @@
+import type { StageFailure } from "./index"
+
+export type Input = StageFailure
+
+export type Output = string
+
+export default function (in: Input): Output {
+    if (in.path != null) {
+        return `${in.path}: ${in.message}\n`
+    }
+
+    return `${in.message}\n`
+}

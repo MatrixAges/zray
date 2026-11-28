@@ -4,13 +4,10 @@
     <Args in={Update.Input} out={Update.Evaluated} />
 
     <Call
-        fn="../workflow/host.lowerExpression"
-        in={[
-            $in.ast.lower,
-            $in.target,
-            false,
-            null
-        ]}
+        module="../workflow/apply_work"
+        in={{
+            target: $in.target
+        }}
     />
 
     <Call
@@ -18,19 +15,21 @@
         in={{
             ast: $in.ast,
             target: $in.target,
-            evaluated: $ctx.lowerExpression,
+            evaluated: $ctx.apply_work,
             represented: $in.represented,
             clip: $in.represented
         }}
     />
 
-    <Call
-        fn="operand"
-        in={{
-            ast: $in.ast,
-            origin: $in.index
-        }}
-    />
+    <Task name="index" out={$ctx.bind_argument}>
+        <Call
+            module="../workflow/bind_argument"
+            in={{
+                ast: $in.ast,
+                origin: $in.index
+            }}
+        />
+    </Task>
 
     <Call fn="../../statements/rows.readAstOrigin" in={$in.ast.writer} />
     <Call fn="../../statements/rows.astFieldCount" in={$in.ast.writer} />
@@ -43,7 +42,7 @@
                 field_base: $ctx.astFieldCount
             },
             items: $ctx.bind_target.items,
-            index: $ctx.operand
+            index: $ctx.task.index
         }}
     />
 
@@ -64,10 +63,18 @@
     />
 
     <Call
+        module="../workflow/bind_argument"
+        in={{
+            ast: $in.ast,
+            origin: $in.value
+        }}
+    />
+
+    <Call
         fn="convert"
         in={{
             ast: $in.ast,
-            origin: $in.value,
+            value: $ctx.bind_argument,
             source_type: $in.source_type
         }}
     />
@@ -85,7 +92,7 @@
         value={{
             items: $ctx.bind_target.items,
             target: $ctx.bind_target.value,
-            index: $ctx.operand,
+            index: $ctx.task.index,
             value: $ctx.convert,
             element: $ctx.materialize_type
         }}

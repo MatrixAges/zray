@@ -1,0 +1,15 @@
+import integer from "std:integer"
+
+import type { ServiceWalk } from "../model"
+
+export type Input = ServiceWalk.Pick("routes", "index")
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { routes, index } = in
+
+    const service = integer.widen(routes.service_routes[index])
+
+    return routes.route_services[service]
+}

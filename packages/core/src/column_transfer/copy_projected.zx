@@ -1,21 +1,21 @@
 import memory from "memory"
 
 import type { TransferGroup } from "memory"
+import type { Span } from "./model"
 
-export type Input = {
+export type Input = Span & {
     group: TransferGroup,
     column: u64,
-    first: u64,
-    count: u64
+    repeated: bool
 }
 
 export type Output = void
 
 export default function (in: Input): Output {
-    const { group, column, first, count } = in
+    const { group, column, first, count, repeated } = in
 
     const target = memory.transferColumn(group, column, null)
-    const stride = memory.transferColumnStride(target)
+    const stride = repeated ? 0 : memory.transferColumnStride(target)
     const offset = first * stride
 
     const copied = loop(0, {

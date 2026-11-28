@@ -61,14 +61,6 @@
     </If>
 
     <If on={!$in.original.type_only}>
-        <Call
-            fn="../../../../core/column_lengths/truncate"
-            in={{
-                target: $in.lengths,
-                count: $in.linked_count - 1
-            }}
-        />
-
         <Return value={$in.linked_count - 1} />
     </If>
 

@@ -12,7 +12,7 @@
                     references: $in.references,
                     scoped: $in.scoped,
                     diagnostic: $in.diagnostic,
-                    ref_index: $in.index - 1
+                    reference: $in.items[$in.index - 1]
                 }}
             />
 

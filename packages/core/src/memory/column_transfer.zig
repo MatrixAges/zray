@@ -200,7 +200,9 @@ pub fn publishOne(target: *const anyopaque, index: u64, count: u64) void {
 pub inline fn layout(target: *const anyopaque, index: u64, shape: anytype) std.meta.Child(@TypeOf(shape)) {
     return switch (groupColumns(target)[@intCast(index)].kind) {
         .value => .Contiguous,
-        .strided, .repeated => .Projected,
+        .strided => .Strided,
+        .repeated => .Repeated,
+        .text_views, .optional_text_views => .BorrowingText,
         else => .Owned,
     };
 }

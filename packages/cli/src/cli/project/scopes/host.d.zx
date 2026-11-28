@@ -75,10 +75,6 @@ export declare function publishNativeScopeLibraryPaths(
     frame: NativeScopeLoad,
     paths: string[]
 ): void throws { OutOfMemory }
-export declare function resolveNativeScopePath(frame: NativeScopeLoad, path: string): string
-    throws { OutOfMemory }
-export declare function reserveNativeScopeModules(frame: NativeScopeLoad): void
-    throws { OutOfMemory }
 export declare function prepareNativeScopeModule(
     frame: NativeScopeLoad,
     row: u64,

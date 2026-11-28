@@ -40,7 +40,6 @@ pub fn main(init: std.process.Init) !void {
         .objects = request.objects,
         .offsets = selected.offsets,
         .paths = listed.paths,
-        .prefix = @ptrCast(&@import("cache_key.zig").initial_hash),
         .modified = @bitCast(@as(i64, @truncate(executable.mtime.nanoseconds))),
         .signatures = signatures,
         .size = executable.size,
@@ -50,9 +49,3 @@ pub fn main(init: std.process.Init) !void {
 
     if (try Driver.execute(allocator, init.io, &input)) return error.PartitionCompileFailed;
 }
-
-pub const extendPartitionHash = @import("cache_key.zig").extendPartitionHash;
-pub const hashExternalInput = @import("cache_key.zig").hashExternalInput;
-pub const digestPartitionKey = @import("cache_key.zig").digestPartitionKey;
-pub const loadPartitionState = @import("state.zig").loadPartitionState;
-pub const compilePartitionObjects = @import("workers.zig").compilePartitionObjects;

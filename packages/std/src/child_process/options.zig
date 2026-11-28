@@ -47,3 +47,11 @@ fn validate(value: []const u8) !void {
     if (std.mem.indexOfScalar(u8, value, 0) != null) return error.InvalidProcessArgument;
     if (!std.unicode.utf8ValidateSlice(value)) return error.InvalidUtf8;
 }
+
+pub fn validateArgv(argv: []const []const u8) error{ EmptyCommand, InvalidProcessArgument }!void {
+    if (argv.len == 0) return error.EmptyCommand;
+
+    for (argv) |argument| {
+        if (std.mem.indexOfScalar(u8, argument, 0) != null) return error.InvalidProcessArgument;
+    }
+}

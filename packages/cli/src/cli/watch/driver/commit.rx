@@ -8,7 +8,7 @@
     <If on={$in.status == Driver.Status.Success}>
         <Call fn="index.adoptPublishedSnapshot" in={$in.watch} />
 
-        <If on={!$ctx.adoptPublishedSnapshot}>
+        <If on={$ctx.adoptPublishedSnapshot == null}>
             <Call
                 fn="index.captureSnapshot"
                 in={[
@@ -16,6 +16,26 @@
                     Driver.SnapshotSlot.Success
                 ]}
             />
+
+            <Call
+                fn="record_snapshot"
+                in={{
+                    snapshots: $store.watch_state.snapshots,
+                    observed: $ctx.captureSnapshot
+                }}
+                setter={[$store.watch_state.snapshots]}
+            />
+
+            <Else>
+                <Call
+                    fn="record_snapshot"
+                    in={{
+                        snapshots: $store.watch_state.snapshots,
+                        observed: $ctx.adoptPublishedSnapshot
+                    }}
+                    setter={[$store.watch_state.snapshots]}
+                />
+            </Else>
         </If>
 
         <Call
@@ -26,21 +46,12 @@
             ]}
         />
 
-        <Call
-            fn="record_snapshot"
-            in={{
-                snapshots: $store.watch_state.snapshots,
-                success: true
-            }}
-            setter={[$store.watch_state.snapshots]}
-        />
-
         <Else>
             <Call
                 module="restore"
                 in={{
                     watch: $in.watch,
-                    has_success: $store.watch_state.snapshots.has_success
+                    observed: $store.watch_state.snapshots.observed
                 }}
             />
 
@@ -55,8 +66,7 @@
             <Call
                 fn="record_snapshot"
                 in={{
-                    snapshots: $store.watch_state.snapshots,
-                    success: false
+                    snapshots: $store.watch_state.snapshots
                 }}
                 setter={[$store.watch_state.snapshots]}
             />

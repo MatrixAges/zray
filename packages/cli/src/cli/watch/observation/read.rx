@@ -1,11 +1,11 @@
 <Module>
     <Type from="model" as="Snapshot" />
 
-    <Args in={Snapshot.ReadInput} out={void} />
+    <Args in={Snapshot.ReadInput} out={Snapshot.Classification?} />
 
-    <Call fn="index.classify" in={$in.observation} />
+    <Call fn="index.classify" in={$in.path} />
 
-    <Switch on={$ctx.classify}>
+    <Switch on={$ctx.classify.kind}>
         <Case value={Snapshot.PathKind.Directory}>
             <Call
                 fn="index.readDirectory"
@@ -14,10 +14,16 @@
                     $in.directory_entries
                 ]}
             />
+
+            <Return value={null} />
         </Case>
 
         <Case value={Snapshot.PathKind.File}>
             <Call fn="index.readFile" in={$in.observation} />
+
+            <Return value={null} />
         </Case>
     </Switch>
+
+    <Return value={$ctx.classify} />
 </Module>

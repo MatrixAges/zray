@@ -3,7 +3,13 @@
 
     <Args in={Cache.Diagnostics} out={Cache.Diagnostics} />
 
-    <Call fn="diagnostic" in={$in.messages[$in.row]} />
+    <Call
+        fn="diagnostic"
+        in={{
+            partition: $in.pending[$in.row],
+            failure: $in.failures[$in.row]
+        }}
+    />
 
     <If on={$ctx.diagnostic != null}>
         <Call fn="effects.writeStderr" in={$ctx.diagnostic} />

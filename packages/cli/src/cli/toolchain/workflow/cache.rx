@@ -36,7 +36,8 @@
             in={{
                 base: $ctx.root.path,
                 digest: $in.expected_marker,
-                resources_only: $in.override != null
+                resources_only: $in.override != null,
+                zig_source_directory: $in.zig_source_directory
             }}
         />
 
@@ -58,7 +59,18 @@
         />
 
         <If on={$ctx.openCache}>
-            <Call fn="ready" in={$in} />
+            <Call
+                fn="ready"
+                in={{
+                    ...$in.pick([
+                        "toolchain",
+                        "expected_marker",
+                        "override",
+                        "windows"
+                    ]),
+                    directory: $ctx.locations.root
+                }}
+            />
 
             <If on={!$ctx.ready}>
                 <Return
@@ -67,8 +79,6 @@
                     }}
                 />
             </If>
-
-            <Call fn="index.closeDirectory" in={$in.toolchain} />
 
             <Else>
                 <Call
@@ -88,8 +98,6 @@
                 </If>
             </Else>
         </If>
-
-        <Call fn="index.unlock" in={$in.toolchain} />
 
         <Return
             value={{

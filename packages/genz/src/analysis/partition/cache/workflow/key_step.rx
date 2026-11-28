@@ -15,18 +15,20 @@
     />
 
     <Call
-        fn="host.digestPartitionKey"
-        in={[
-            $in.prefix,
-            $ctx.members
-        ]}
+        fn="effects.blake3Update"
+        in={{
+            state: $in.prefix,
+            data: $ctx.members
+        }}
     />
+
+    <Call fn="effects.blake3FinalHex" />
 
     <Call
         fn="keys"
         in={{
             keys: $in,
-            digest: $ctx.digestPartitionKey
+            digest: $ctx.blake3FinalHex
         }}
     />
 

@@ -1,7 +1,7 @@
 import type { AstOrigin } from "ast_rows"
 import type { Columns as Expressions } from "../../../ast/expressions/model"
 import type { Columns as Statements } from "../../../ast/statements/model"
-import type { Fragment } from "../../node_headers/publication/dense_model"
+import type { Fragment } from "../../node_headers/publication/fragment"
 import type { Node } from "../model"
 
 export type Input = AstOrigin & {

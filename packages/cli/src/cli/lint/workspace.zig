@@ -4,33 +4,28 @@ const workspace = @import("../../package/workspace.zig");
 const graph = @import("../../package/graph.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
-const memory = @import("zx").memory;
 const rule = @import("cli_source").lint_workspace;
-const Rows = std.meta.Child(@FieldType(std.meta.Child(rule.Input), "members"));
+const abi = @import("cli_abi").layouts.@"zig:lint_workflow_host";
+const Plan = abi.WorkspacePlan;
+const Member = abi.WorkspaceMember;
 
 const State = struct {
     context: *const Compile.Context,
     workspace: ?workspace.Result = null,
     graph: ?graph.Result = null,
-    root_manifest: ?[]const u8 = null,
-    rows: Rows = undefined,
-    paths: memory.TextColumn = undefined,
-    entries: memory.ReadColumn = undefined,
-    exports: memory.ListColumn = undefined,
     failure: effects.Failure = .{},
     fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);
     }
     fn deinit(self: *State) void {
-        if (self.root_manifest) |path| self.context.allocator.free(path);
         if (self.graph) |*resolved| resolved.deinit();
         if (self.workspace) |*discovered| discovered.deinit();
     }
-    fn memberContext(self: *const State, path: []const u8) Compile.Context {
+    fn memberContext(self: *const State, path: []const u8, root_manifest: []const u8) Compile.Context {
         var context = self.context.*;
 
         context.options.input = path;
-        context.options.project = self.root_manifest.?;
+        context.options.project = root_manifest;
         context.options.workspace_lint = false;
         context.options.semantic_lint = true;
 
@@ -50,13 +45,14 @@ pub fn run(context: Compile.Context) !Compile.Status {
 fn execute(context: Compile.Context) !Compile.Status {
     var state: State = .{ .context = &context };
     const reference = &state;
+    var arena = std.heap.ArenaAllocator.init(context.allocator);
 
+    defer arena.deinit();
     defer state.deinit();
 
-    const outcome = rule.executeIn(context.allocator, &.{
+    const outcome = rule.executeIn(arena.allocator(), &.{
         .host = @ptrCast(&reference),
         .input_path = context.options.input,
-        .members = &state.rows,
     }) catch |err| return state.failure.unwrap(err);
 
     return switch (outcome) {
@@ -81,7 +77,7 @@ pub fn discoverLintWorkspace(handle: *const anyopaque) Error!bool {
     return true;
 }
 
-pub fn resolveLintWorkspace(handle: *const anyopaque) Error!?[]const u8 {
+pub fn resolveLintWorkspace(allocator: std.mem.Allocator, handle: *const anyopaque) (Error || std.mem.Allocator.Error)!?*const Plan {
     const self = State.get(handle);
     const context = self.context;
 
@@ -93,34 +89,37 @@ pub fn resolveLintWorkspace(handle: *const anyopaque) Error!?[]const u8 {
         return null;
     }
 
-    self.root_manifest = std.Io.Dir.cwd().realPathFileAlloc(context.io, context.options.input, context.allocator) catch |err| return self.failure.save(err);
+    const root_manifest = std.Io.Dir.cwd().realPathFileAlloc(context.io, context.options.input, allocator) catch |err| return self.failure.save(err);
+    const packages = self.workspace.?.packages;
+    const values = try allocator.alloc(Member, packages.len);
+    const rows = try allocator.alloc(*const Member, packages.len);
 
-    const members = self.workspace.?.packages;
+    for (packages, values, rows) |member, *value, *row| {
+        value.* = .{ .path = member.path, .entry = member.manifest.entry, .export_count = member.manifest.exports.len };
+        row.* = value;
+    }
 
-    self.paths = memory.borrowTextColumn("path", members);
-    self.entries = memory.borrowNestedColumn(?[]const u8, &.{ "manifest", "entry" }, members);
-    self.exports = memory.borrowListPath([]const u8, &.{ "manifest", "exports" }, &.{"path"}, members);
+    const plan = try allocator.create(Plan);
 
-    self.rows = .{
-        .paths = @ptrCast(&self.paths),
-        .entries = @ptrCast(&self.entries),
-        .exports = @ptrCast(&self.exports),
-        .count = members.len,
+    plan.* = .{
+        .root = self.graph.?.root,
+        .root_manifest = root_manifest,
+        .members = rows,
     };
 
-    return self.graph.?.root;
+    return plan;
 }
 
-pub fn lintMemberSemantics(handle: *const anyopaque, path: []const u8) Error!bool {
+pub fn lintMemberSemantics(handle: *const anyopaque, path: []const u8, root_manifest: []const u8) Error!bool {
     const self = State.get(handle);
-    const status = @import("semantic.zig").run(self.memberContext(path)) catch |err| return self.failure.save(err);
+    const status = @import("semantic.zig").run(self.memberContext(path, root_manifest)) catch |err| return self.failure.save(err);
 
     return status == .success;
 }
 
-pub fn lintMemberConfiguration(handle: *const anyopaque, path: []const u8) Error!bool {
+pub fn lintMemberConfiguration(handle: *const anyopaque, path: []const u8, root_manifest: []const u8) Error!bool {
     const self = State.get(handle);
-    const status = @import("../configuration/root.zig").run(self.memberContext(path)) catch |err| return self.failure.save(err);
+    const status = @import("../configuration/root.zig").run(self.memberContext(path, root_manifest)) catch |err| return self.failure.save(err);
 
     return status == .success;
 }

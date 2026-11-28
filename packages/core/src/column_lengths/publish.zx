@@ -1,25 +1,9 @@
-import memory from "memory"
-
 import type { Extent } from "./model"
 
 export type Input = Extent
 
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
-    const { target, count } = in
-
-    if (count == 0) {
-        return
-    }
-
-    const columns = memory.lengthSlotCount(target)
-
-    const published = loop(0, {
-        while: slot => slot < columns,
-        next: slot => {
-            memory.advanceLengthSlot(target, slot, count)
-            slot += 1
-        }
-    })
+    return in.first + in.count
 }

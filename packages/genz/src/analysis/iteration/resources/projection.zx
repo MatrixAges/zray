@@ -52,8 +52,10 @@ export default function (in: Input): Output {
                     ),
             }
 
-            const stamp =
-                host.reserveIterationProjection(context, plan.fresh[state.row])
+            const stamp = host.readIterationProjection(context)
+            const next_serial = stamp.serial + plan.fresh[state.row]
+
+            host.finishGeneratedAst(frame, next_serial, false)
 
             state.prepared = state.prepared.push(value)[0]
             state.serials = state.serials.push(stamp.serial)[0]

@@ -40,7 +40,7 @@
         fn="../index.readPreparedTypeSource"
         in={[
             $in.references,
-            $in.ref_index,
+            $in.reference,
             $in.path
         ]}
     />

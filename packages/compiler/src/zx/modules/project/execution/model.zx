@@ -73,12 +73,14 @@ export type RecordedBody = {
 
 export type Entry = {
     publication?: EntryPublication,
-    verified: ColumnLengths,
+    verified: u64,
     cache?: EntryCache
 }
 
 export type EntryResult = {
-    cache?: CacheStep
+    cache?: CacheStep,
+    visible_count?: u64,
+    verified_count?: u64
 }
 
 export type EntryCache = {
@@ -101,7 +103,6 @@ export type CacheStep = {
 
 export type EntryPublication = {
     functions: LinkedFunctions,
-    lengths: ColumnLengths,
     linked_count: u64,
     original: EntryBody
 }

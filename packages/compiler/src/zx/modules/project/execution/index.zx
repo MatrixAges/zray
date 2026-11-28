@@ -1,5 +1,1 @@
-export {
-    readLengthSlot,
-    shrinkLengthSlot,
-    advanceLengthSlot
-} from "memory"
+export { advanceLengthSlot } from "memory"

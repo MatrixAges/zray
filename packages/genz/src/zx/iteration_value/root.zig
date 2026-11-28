@@ -20,8 +20,8 @@ symbols: @import("../members.zig") = .empty,
 cache: @import("../expression_map.zig").Map(ir.ExprId) = .empty,
 reads: @import("../counter.zig") = .empty,
 transfers: @import("../transfers.zig") = .empty,
-projection_stamp: if (generated) @import("../expressions/evaluate.zig").Api.IterationProjectionStamp else void = undefined,
 argument: ?struct { id: ir.ExprId, value: node.ExpressionId } = null,
+
 active_body: ?*Statements = null,
 argument_binding: ?@import("../expression_map.zig").Map(ir.ExprId).Binding = null,
 pub fn represented(self: *const Self, id: ir.TypeId) bool {

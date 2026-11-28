@@ -1,13 +1,13 @@
 import integer from "std:integer"
 
-import type { GatewayRoutes } from "rx_execution_host"
+import type { GatewayRoutes, GatewayService } from "rx_execution_host"
 
 export type Input = GatewayRoutes
 
-export type Output = string[]
+export type Output = GatewayService[]
 
 export default function (in: Input): Output {
-    const empty: string[] = []
+    const empty: GatewayService[] = []
 
     return loop({
         index: 0,
@@ -17,7 +17,12 @@ export default function (in: Input): Output {
         next: row => {
             const route = integer.widen(in.service_routes[row.index])
 
-            row.services = row.services.push(in.route_services[route])[0]
+            const service = in.route_services[route]
+
+            row.services = row.services.push({
+                name: service,
+                source: service
+            })[0]
             row.index += 1
         },
         return: row => row.services

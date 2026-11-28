@@ -9,7 +9,7 @@
         fn="../index.resolvePreparationTarget"
         in={[
             $in.references,
-            $in.ref_index,
+            $in.reference,
             true
         ]}
     />
@@ -26,7 +26,7 @@
                 module="read"
                 in={{
                     references: $in.references,
-                    ref_index: $in.ref_index,
+                    reference: $in.reference,
                     scoped: $in.scoped,
                     path: $ctx.resolvePreparationTarget.source_path
                 }}
@@ -40,7 +40,7 @@
         fn="../index.reportPreparationReference"
         in={[
             $in.references,
-            $in.ref_index,
+            $in.reference,
             $in.diagnostic
         ]}
     />

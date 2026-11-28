@@ -19,7 +19,13 @@
         </Loop>
     </If>
 
-    <Call fn="../index.buildStoreCheckGraph" in={$in.check} />
+    <Call
+        fn="../index.buildStoreCheckGraph"
+        in={[
+            $in.check,
+            $store.seen.visited.imports
+        ]}
+    />
 
     <If on={!$ctx.buildStoreCheckGraph}>
         <Return value={false} />

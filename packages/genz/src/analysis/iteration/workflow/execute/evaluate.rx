@@ -24,7 +24,7 @@
         />
 
         <Call
-            fn="evaluate_step"
+            module="evaluate_step"
             in={$in.pick([
                 "frame",
                 "loop_frame",
@@ -44,7 +44,7 @@
     </If>
 
     <Call
-        fn="evaluate_step"
+        module="evaluate_step"
         in={$in.pick([
             "frame",
             "loop_frame",

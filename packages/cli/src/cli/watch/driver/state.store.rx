@@ -1,4 +1,6 @@
-<Store name="watch_driver" version={1}>
+<Store name="watch_driver" version={2}>
+    <Type from="observation" as="Observation" />
+
     <Object name="diagnostics">
         <Field name="has_last" type={bool} value={false} />
         <Field name="last" type={string} value={""} />
@@ -7,5 +9,6 @@
     <Object name="snapshots">
         <Field name="has_success" type={bool} value={false} />
         <Field name="has_failure" type={bool} value={false} />
+        <Field name="observed" type={Observation.Entry[]} value={[]} />
     </Object>
 </Store>

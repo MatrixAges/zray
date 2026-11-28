@@ -1,8 +1,0 @@
-<Module>
-    <Type from="../index" as="IO" />
-
-    <Args in={IO.Collection} out={void} />
-
-    <Call fn="../index.collectZxReferences" in={$in} />
-    <Call fn="../index.recordCollectionZx" in={$in} />
-</Module>

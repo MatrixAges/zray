@@ -6,6 +6,7 @@ const Response = @import("backend_protocol").Result;
 const Self = @This();
 const host = @import("backend_input_host");
 const source = @import("cli_source");
+const NodeBindings = @import("cli_abi").layouts.@"zig:native_build_host".NodeBindings;
 const constants = source.backend_cache_constants.@"zx.constants";
 
 pub const artifact_name = constants.artifact_name;
@@ -43,7 +44,6 @@ input_paths: []const []const u8,
 new_inputs: bool,
 binary: ?[]const u8,
 assembly: ?[]const u8,
-bindings: ?@import("publication_host").bindings = null,
 pub fn deinit(self: *Self) void {
     self.response.deinit();
 
@@ -122,7 +122,7 @@ pub fn resolveBatches(io: std.Io, response: *Response, translations: []const Res
     return .{ .response = result, .input_paths = observation.paths, .new_inputs = observation.new_inputs, .binary = binary, .assembly = assembly };
 }
 
-pub fn publish(self: *const Self, io: std.Io, allocator: std.mem.Allocator, inputs: *Inputs, options: Options) !bool {
+pub fn publish(self: *const Self, io: std.Io, allocator: std.mem.Allocator, inputs: *Inputs, options: Options, bindings: ?*const NodeBindings) !bool {
     const host_publication = @import("publication_host");
     var failure: host_publication.Failure = .{};
 
@@ -144,11 +144,11 @@ pub fn publish(self: *const Self, io: std.Io, allocator: std.mem.Allocator, inpu
     const Entry = source.publish_observed;
     const Binding = std.meta.Child(std.meta.Child(@FieldType(std.meta.Child(Entry.Input), "bindings")));
 
-    const bindings: Binding = if (self.bindings) |files| .{
-        .module = files.module_path,
-        .declaration = files.declaration_path,
+    const binding: Binding = if (bindings) |files| .{
+        .module = files.module,
+        .declaration = files.declaration,
         .module_source = files.module_source,
-        .declaration_source = files.declarations,
+        .declaration_source = files.declaration_source,
     } else undefined;
 
     const result = Entry.executeIn(arena.allocator(), &.{
@@ -161,7 +161,7 @@ pub fn publish(self: *const Self, io: std.Io, allocator: std.mem.Allocator, inpu
         .succeeded = self.response.succeeded,
         .complete = self.response.inputs_complete,
         .new_inputs = self.new_inputs,
-        .bindings = if (self.bindings != null) &bindings else null,
+        .bindings = if (bindings != null) &binding else null,
     }, io) catch |err| return failure.unwrap(err);
 
     return switch (result) {

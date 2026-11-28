@@ -1,0 +1,11 @@
+export type CollectionRows = {
+    first: u32,
+    second: u32,
+    third: u32,
+    items: u32,
+    value: u32,
+    header: u32,
+    element: u32,
+    length: u32,
+    unit: u32
+}

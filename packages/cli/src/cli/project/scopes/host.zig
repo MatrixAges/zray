@@ -70,7 +70,7 @@ pub fn readNativeScopeInterface(handle: *const anyopaque, row: u64) effects.Erro
     const self = State.get(handle);
     const index: usize = @intCast(row);
     const declaration = &self.config().native_interfaces[index];
-    const path = resolveNativeScopePath(handle, declaration.path) catch |err| return self.failure.save(err);
+    const path = std.fs.path.resolve(self.allocator, &.{ self.scope().root, declaration.path }) catch |err| return self.failure.save(err);
 
     if (self.inputs) |observed| observed.add(self.io, path) catch |err| return self.failure.save(err);
 
@@ -202,19 +202,8 @@ pub fn finishNativeScopeDeclarations(handle: *const anyopaque, declarations: []c
 pub fn publishNativeScopeLibraryPaths(handle: *const anyopaque, paths: []const []const u8) std.mem.Allocator.Error!void {
     const self = State.get(handle);
 
-    try self.library_paths.appendSlice(self.allocator, paths);
-}
-
-pub fn resolveNativeScopePath(handle: *const anyopaque, path: []const u8) std.mem.Allocator.Error![]const u8 {
-    const self = State.get(handle);
-
-    return std.fs.path.resolve(self.allocator, &.{ self.scope().root, path });
-}
-
-pub fn reserveNativeScopeModules(handle: *const anyopaque) std.mem.Allocator.Error!void {
-    const self = State.get(handle);
-
-    try self.modules.ensureUnusedCapacity(self.allocator, self.config().native_modules.len);
+    try self.library_paths.ensureUnusedCapacity(self.allocator, paths.len);
+    for (paths) |path| self.library_paths.appendAssumeCapacity(try dupeText(self.allocator, path));
 }
 
 pub fn prepareNativeScopeModule(handle: *const anyopaque, row: u64, name: []const u8, path: ?[]const u8, dependencies: []const []const u8, includes: []const []const u8) std.mem.Allocator.Error!void {
@@ -223,7 +212,7 @@ pub fn prepareNativeScopeModule(handle: *const anyopaque, row: u64, name: []cons
 
     self.module = self.config().native_modules[index];
     self.module.name = name;
-    self.module.path = path;
+    self.module.path = if (path) |value| try dupeText(self.allocator, value) else null;
 
     if (dependencies.len == 0) {
         self.module.dependencies = &.{};
@@ -235,7 +224,15 @@ pub fn prepareNativeScopeModule(handle: *const anyopaque, row: u64, name: []cons
         self.module.dependencies = deps;
     }
 
-    self.module.include_paths = if (includes.len == 0) &.{} else try self.allocator.dupe([]const u8, includes);
+    if (includes.len == 0) {
+        self.module.include_paths = &.{};
+    } else {
+        const paths = try self.allocator.alloc([]const u8, includes.len);
+
+        for (includes, paths) |include, *target| target.* = try dupeText(self.allocator, include);
+
+        self.module.include_paths = paths;
+    }
 }
 
 pub fn prepareNativeScopeAliases(handle: *const anyopaque) void {
@@ -263,7 +260,7 @@ pub fn publishNativeScopeModule(handle: *const anyopaque, names: []const []const
     module.abi_aliases = ownAliases(self.allocator, names, specifiers, self.compiled != null, module.abi_aliases == null) catch |err| return self.failure.save(err);
     self.alias_active = false;
 
-    self.modules.appendAssumeCapacity(module.*);
+    self.modules.append(self.allocator, module.*) catch |err| return self.failure.save(err);
 }
 
 fn ownAliases(allocator: std.mem.Allocator, names: []const []const u8, specifiers: []const []const u8, compiled: bool, implicit_names: bool) std.mem.Allocator.Error![]const Alias {

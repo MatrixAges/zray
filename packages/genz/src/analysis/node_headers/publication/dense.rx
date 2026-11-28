@@ -1,37 +1,36 @@
 <Module>
     <Type from="dense_model" as="Dense" />
-    <Type from="host" as="Host" />
 
-    <Args in={Dense.Input} out={void} />
+    <Args in={Dense.Fragment} out={void} />
+
+    <Store from="publication" as="publication" />
 
     <Call
-        fn="host.appendExpressionRows"
-        in={[
-            $in.writer,
-            $in.fragment.expressions,
-            null,
-            Host.AstPayloadOwnership.Owned
-        ]}
+        fn="append"
+        in={{
+            expressions: $in.expressions,
+            uses_allocator: false
+        }}
+        setter={[$store.publication.commit]}
     />
 
     <Loop on={$in.running}>
         <Call
             module="statement_row"
             in={{
-                writer: $in.writer,
-                statements: $in.fragment.statements,
+                statements: $in.statements,
                 row: 0,
-                running: $in.fragment.statements.length != 0
+                running: $in.statements.length != 0
             }}
         />
     </Loop>
 
     <Call
-        fn="host.finishGeneratedAst"
-        in={[
-            $in.lower,
-            $in.fragment.serial,
-            $in.fragment.uses_allocator
-        ]}
+        fn="append"
+        in={{
+            serial: $in.serial,
+            uses_allocator: $in.uses_allocator
+        }}
+        setter={[$store.publication.commit]}
     />
 </Module>

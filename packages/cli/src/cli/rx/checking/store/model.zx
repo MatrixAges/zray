@@ -1,7 +1,8 @@
-import type { StoreCheck } from "rx_checking_host"
+import type { StoreCheck, StoreImport } from "rx_checking_host"
 
 export type Visited = {
-    paths: string[]
+    paths: string[],
+    imports: StoreImport[]
 }
 
 export type Input = {
@@ -17,15 +18,7 @@ export type RootStep = {
 }
 
 export type AdmitInput = {
+    batch: u64,
     visited: Visited,
     paths: string[]
-}
-
-export type RegisterInput = {
-    check: StoreCheck,
-    indices: u64[]
-}
-
-export type ImportWalk = RegisterInput & {
-    index: u64
 }

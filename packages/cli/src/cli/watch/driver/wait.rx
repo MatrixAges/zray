@@ -6,13 +6,7 @@
     <If on={$in.status == Driver.Status.Retry}>
         <Call fn="delay_interval" in={true} />
 
-        <Call
-            fn="index.delay"
-            in={[
-                $in.watch,
-                $ctx.delay_interval
-            ]}
-        />
+        <Call fn="index.delay" />
 
         <Return value={Driver.WaitOutcome.Idle} />
     </If>

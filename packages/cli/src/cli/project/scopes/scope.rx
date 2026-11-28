@@ -130,7 +130,7 @@
     <Call
         fn="paths"
         in={{
-            frame: $in.frame,
+            root: $ctx.openNativeScope.scope.owner,
             source: $ctx.openNativeScope.library_paths
         }}
     />
@@ -142,8 +142,6 @@
             $ctx.paths
         ]}
     />
-
-    <Call fn="index.reserveNativeScopeModules" in={$in.frame} />
 
     <If on={$ctx.openNativeScope.modules != 0}>
         <Call module="modules" in={$in.workspace.traversal} />

@@ -7,6 +7,15 @@ export declare function stat(allocator, io, in: string): Stat throws {
   TimestampOutOfRange, Unexpected, WouldBlock
 } concurrent
 
+export declare function statBytes(allocator, io, in: u8[]): Stat throws {
+  AccessDenied, AntivirusInterference, BadPathName, Canceled, DeviceBusy, FileBusy,
+  FileLocksUnsupported, FileNotFound, FileTooBig, InvalidPath, IsDir, NameTooLong,
+  NetworkNotFound, NoDevice, NoSpaceLeft, NotDir, OutOfMemory, PathAlreadyExists,
+  PermissionDenied, PipeBusy, ProcessFdQuotaExceeded, ReadOnlyFileSystem, Streaming,
+  SymLinkLoop, SystemFdQuotaExceeded, SystemResources, TimestampOutOfRange, Unexpected,
+  WouldBlock
+} concurrent
+
 export declare function lstat(allocator, io, in: string): Stat throws {
   AccessDenied, AntivirusInterference, BadPathName, Canceled, DeviceBusy, FileBusy,
   FileLocksUnsupported, FileNotFound, FileTooBig, InvalidPath, InvalidUtf8, IsDir,

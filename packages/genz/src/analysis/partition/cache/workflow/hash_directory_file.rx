@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.DirectoryFiles} out={Cache.DirectoryFiles} />
+
+    <Call
+        fn="append_path"
+        in={{
+            parent: $in.root,
+            child: $in.files[$in.row].path
+        }}
+    />
+
+    <Call
+        module="hash_file"
+        in={{
+            prefix: $in.prefix,
+            path: $ctx.append_path,
+            name: $in.files[$in.row].path,
+            size: $in.files[$in.row].size
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            prefix: $ctx.hash_file,
+            row: $in.row + 1
+        }}
+    />
+</Module>

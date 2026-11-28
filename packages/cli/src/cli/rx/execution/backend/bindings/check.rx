@@ -1,0 +1,28 @@
+<Module>
+    <Type from="../index" as="IO" />
+    <Type from="../model" as="Backend" />
+    <Type from="../../../../publication/bindings/check" as="BindingTargets" />
+
+    <Args in={Backend.BindingCheck} out={IO.Status} />
+
+    <Call
+        fn="../../../../publication/bindings/check"
+        in={{
+            module: $in.bindings.module,
+            declaration: $in.bindings.declaration,
+            assembly: $in.assembly
+        }}
+    />
+
+    <Switch on={$ctx.check}>
+        <Case value={BindingTargets.Status.ConflictingPaths}>
+            <Return value={IO.Status.ConflictingOutputPaths} />
+        </Case>
+
+        <Case value={BindingTargets.Status.ForeignFile}>
+            <Return value={IO.Status.NodeBindingWouldOverwriteFile} />
+        </Case>
+    </Switch>
+
+    <Return value={IO.Status.Success} />
+</Module>

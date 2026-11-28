@@ -2,7 +2,7 @@ export { PathKind, Reuse } from "snapshot_host"
 
 import type { Observation, Registration } from "snapshot_host"
 
-export type { Registration } from "snapshot_host"
+export type { Classification, Registration } from "snapshot_host"
 
 export type ScanInput = {
     scan: Observation,
@@ -16,6 +16,7 @@ export type ScanRows = ScanInput.Omit("consistent")
 
 export type ReadInput = {
     observation: Observation,
+    path: string,
     directory_entries: bool
 }
 

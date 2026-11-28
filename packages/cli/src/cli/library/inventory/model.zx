@@ -1,22 +1,19 @@
-import type { Directory } from "publication_host"
+import type { ResourceEntry } from "publication_host"
 
 export enum Action {
-    Stop,
     Keep,
     Skip,
     Invalid
 }
 
 export type Input = {
-    directory: Directory,
-    name: string,
-    running: bool
+    directory: string,
+    name: string
 }
 
-export type Step = {
-    directory: Directory,
-    name: string,
-    running: bool,
+export type Step = Input & {
+    entries: ResourceEntry[],
+    index: u64,
     valid: bool
 }
 

@@ -5,34 +5,35 @@ const artifacts = @import("../artifacts.zig");
 const process = @import("backend_protocol").process;
 const Error = @import("../sources/effects.zig").Error;
 
-pub fn spawnNativeTranslation(handle: *const anyopaque, arguments: []const []const u8) Error!?[]const u8 {
+pub fn spawnNativeTranslation(
+    allocator: std.mem.Allocator,
+    handle: *const anyopaque,
+    arguments: []const []const u8,
+    observed: bool,
+) (Error || std.mem.Allocator.Error)!?[]const u8 {
     const self = State.get(handle);
     const translation = &self.translation.?;
+    var result = process.run(self.context.io, translation.arena.child_allocator, arguments, &self.environment.?, .translation) catch |err| return self.failure.save(err);
+    var transferred = false;
 
-    translation.pending = process.run(self.context.io, translation.arena.child_allocator, arguments, &self.environment.?, .translation) catch |err| return self.failure.save(err);
+    defer if (!transferred) result.deinit();
 
-    if (!translation.pending.?.succeeded) return null;
+    if (!result.succeeded) {
+        translation.pending = result;
+        transferred = true;
 
-    self.translation_hash = std.fmt.bytesToHex(translation.pending.?.digest.?, .lower);
+        return null;
+    }
 
-    return &self.translation_hash;
-}
+    const digest = try allocator.dupe(u8, &result.digest.?);
 
-pub fn retainNativeTranslation(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-    const translation = &self.translation.?;
+    if (observed) {
+        try translation.responses.append(translation.arena.allocator(), result);
 
-    translation.responses.append(translation.arena.allocator(), translation.pending.?) catch |err| return self.failure.save(err);
+        transferred = true;
+    }
 
-    translation.pending = null;
-}
-
-pub fn releaseNativeTranslation(handle: *const anyopaque) void {
-    const translation = &State.get(handle).translation.?;
-
-    translation.pending.?.deinit();
-
-    translation.pending = null;
+    return digest;
 }
 
 pub fn writeNativeAdapter(handle: *const anyopaque, path: []const u8) Error!void {

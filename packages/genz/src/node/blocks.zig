@@ -65,22 +65,27 @@ fn Spans(comptime Span: type, comptime field: []const u8) type {
         }
         pub fn extend(self: *Self, suffix: *const Self) std.mem.Allocator.Error!void {
             const entry = @import("generated_node_span_extend");
-            var arena = std.heap.ArenaAllocator.init(self.scratch);
-
-            defer arena.deinit();
-
-            var buffer: [512]u8 = undefined;
-            var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+            const source_count = suffix.parts.items.len;
+            const first = if (source_count != 0) suffix.parts.items[0] else null;
 
             const input: std.meta.Child(entry.Input) = .{
                 .last = self.last,
-                .suffix = suffix.parts.items,
+                .first = first,
                 .tail = suffix.last,
             };
 
-            const result = entry.executeIn(scratch.allocator(), &input) catch |err| return failure(err);
+            var fixed = std.heap.FixedBufferAllocator.init(&.{});
+            const result = zx.columns.invoke(entry.executeValue, fixed.allocator(), &input) catch unreachable;
+            const remaining = source_count - @intFromBool(first != null);
 
-            try self.parts.appendSlice(self.scratch, result.parts);
+            try self.parts.ensureUnusedCapacity(
+                self.scratch,
+                remaining + @as(usize, @intFromBool(result.emit != null)) + @as(usize, @intFromBool(result.bridge != null)),
+            );
+
+            if (result.emit) |span| self.parts.appendAssumeCapacity(span);
+            if (result.bridge) |span| self.parts.appendAssumeCapacity(span);
+            if (remaining != 0) self.parts.appendSliceAssumeCapacity(suffix.parts.items[1..][0..remaining]);
 
             self.last = result.last;
         }

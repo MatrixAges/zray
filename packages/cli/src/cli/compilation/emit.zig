@@ -87,8 +87,9 @@ pub fn flushCompilationDiagnostics(handle: *const anyopaque) Error!void {
 
 pub fn openCompilationGeneration(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
+    const context = &self.context;
 
-    self.generation = generation.init(self.context.io, self.context.allocator, self.loaded.project.root_dir) catch |err| return self.failure.save(err);
+    self.generation = generation.init(context.io, context.allocator, self.loaded.project.root_dir) catch |err| return self.failure.save(err);
 }
 
 fn configuration(self: *State) compiler.CompileOptions {
@@ -102,7 +103,7 @@ fn configuration(self: *State) compiler.CompileOptions {
         .project = self.loaded.project,
         .parse_cache = if (options.cache) null else &self.semantic.?.parse_cache,
         .semantic_cache = if (options.cache) &self.semantic.? else null,
-        .generation_cache = if (options.native and options.cache) &self.generation.? else null,
+        .generation_cache = if (self.generation) |*cache| cache else null,
         .solver = options.solver,
         .verification_allocator = verification.workspace_allocator,
         .writer = context.stderr,
@@ -110,10 +111,10 @@ fn configuration(self: *State) compiler.CompileOptions {
     };
 }
 
-fn report(self: *State, issue: compiler.Diagnostic) Error!bool {
+fn report(self: *State, original: []const u8, issue: compiler.Diagnostic) Error!bool {
     defer issue.deinit();
 
-    const source = if (issue.source_index) |index| self.sources[index].original orelse self.sources[index].source else self.source.?;
+    const source = if (issue.source_index) |index| self.sources[index].original orelse self.sources[index].source else original;
     const path = if (issue.source_index) |index| self.sources[index].path else self.options().input;
     const location = zx.source.locate(source, issue.span.start);
     const writer = self.context.stderr;
@@ -124,9 +125,9 @@ fn report(self: *State, issue: compiler.Diagnostic) Error!bool {
     return false;
 }
 
-fn acceptText(self: *State, result: compiler.Result) Error!?*const Text {
+fn acceptText(self: *State, original: []const u8, result: compiler.Result) Error!?*const Text {
     if (result == .diagnostic) {
-        _ = try report(self, result.diagnostic);
+        _ = try report(self, original, result.diagnostic);
 
         return null;
     }
@@ -137,31 +138,34 @@ fn acceptText(self: *State, result: compiler.Result) Error!?*const Text {
         .source = result.source,
         .abi = self.abi.written(),
         .input_path = self.options().input,
-        .original = self.source.?,
+        .original = original,
     };
 
     return &self.text_view;
 }
 
-pub fn formatCompilationSource(handle: *const anyopaque) Error!?*const Text {
+pub fn formatCompilationSource(handle: *const anyopaque, original: []const u8) Error!?*const Text {
     const self = State.get(handle);
-    const result = compiler.format(self.context.allocator, self.source.?, self.options().input) catch |err| return self.failure.save(err);
+    const result = compiler.format(self.context.allocator, original, self.options().input) catch |err| return self.failure.save(err);
 
-    return acceptText(self, result);
+    return acceptText(self, original, result);
 }
 
-pub fn emitCompilationText(handle: *const anyopaque) Error!?*const Text {
+pub fn emitCompilationText(handle: *const anyopaque, original: []const u8) Error!?*const Text {
     const self = State.get(handle);
     const result = compiler.compileProjectVerified(self.context.allocator, configuration(self)) catch |err| return self.failure.save(err);
 
-    return acceptText(self, result);
+    return acceptText(self, original, result);
 }
 
-pub fn emitCompilationModules(handle: *const anyopaque) Error!bool {
+pub fn emitCompilationModules(handle: *const anyopaque, original: []const u8, cache: bool) Error!bool {
     const self = State.get(handle);
+
+    if (cache) try openCompilationGeneration(handle);
+
     const result = compiler.compileProjectModulesVerified(self.context.allocator, configuration(self)) catch |err| return self.failure.save(err);
 
-    if (result == .diagnostic) return report(self, result.diagnostic);
+    if (result == .diagnostic) return report(self, original, result.diagnostic);
 
     self.bundle = result.bundle;
 
@@ -171,7 +175,11 @@ pub fn emitCompilationModules(handle: *const anyopaque) Error!bool {
 pub fn reportCompilationGeneration(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
 
-    generation.report(&self.generation.?, self.options().*, self.context.stderr) catch |err| return self.failure.save(err);
+    if (self.generation) |*cache| {
+        generation.report(cache, self.options().*, self.context.stderr) catch |err| return self.failure.save(err);
+    } else if (self.options().cache_stats) {
+        self.context.stderr.writeAll("zxc generation: disabled\n") catch |err| return self.failure.save(err);
+    }
 }
 
 pub fn resolveCompilationToolchain(handle: *const anyopaque) Error!bool {

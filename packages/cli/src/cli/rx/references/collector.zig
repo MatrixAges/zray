@@ -38,6 +38,10 @@ pub fn fail(self: *Self, location: rx.ast.Location, message: []const u8) Error {
 }
 
 pub fn local(self: *Self, path: []const u8, _: rx.ast.Location, _: Reference) Error!void {
+    return self.enqueue(path);
+}
+
+pub fn enqueue(self: *Self, path: []const u8) Error!void {
     const absolute = try std.fs.path.resolve(self.allocator, &.{ self.options.root_dir, path });
     const found = try self.queued.getOrPut(self.allocator, absolute);
 

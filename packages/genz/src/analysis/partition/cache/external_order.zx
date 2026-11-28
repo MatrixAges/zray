@@ -6,15 +6,24 @@ import {
     sort_less
 } from "../../uniqueness/replay/ordered/const"
 
-export type Input = string[]
+export type File = {
+    path: string,
+    size?: u64
+}
 
-export type Output = string[]
+export type Input = File[]
+
+export type Output = File[]
 
 export default function (in: Input): Output {
     return in.sort(
         (left, right) => match {
-            left == right => sort_equal,
-            bytes.lessThan(bytes.fromText(left), bytes.fromText(right)) => sort_less,
+            left.path == right.path => sort_equal,
+            bytes.lessThan(
+                bytes.fromText(left.path),
+                bytes.fromText(right.path)
+            ) =>
+                sort_less,
             _ => sort_greater
         }
     )[0]

@@ -1,0 +1,24 @@
+<Module>
+    <Type from="../index" as="IO" />
+    <Type from="../model" as="Backend" />
+
+    <Args in={Backend.BindingStage} out={IO.Status} />
+
+    <Call module="check" in={$in.omit(["binary"])} />
+
+    <If on={$ctx.check != IO.Status.Success}>
+        <Return value={$ctx.check} />
+    </If>
+
+    <Call fn="files" in={$in.omit(["assembly"])} />
+
+    <Task name="module">
+        <Call module="../../../../workspace_files/write_artifact" in={$ctx.files[0]} />
+    </Task>
+
+    <Task name="declaration">
+        <Call module="../../../../workspace_files/write_artifact" in={$ctx.files[1]} />
+    </Task>
+
+    <Return value={IO.Status.Success} />
+</Module>

@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Backend" />
 
-    <Args in={Backend.Invocation} out={string[]?} />
+    <Args in={Backend.Preparation} out={string[]?} />
 
     <Call fn="index.validateNativePorts" in={$in.build} />
 
@@ -31,24 +31,38 @@
 
     <Call fn="index.writeBackendWorkspace" in={$in.build} />
 
-    <If on={$in.node}>
-        <Call
-            fn="index.retainNodeResources"
-            in={[
-                $in.build,
-                $ctx.target.node
-            ]}
-        />
-    </If>
+    <Call
+        module="resources"
+        in={{
+            build: $in.build,
+            node: $in.node,
+            target: $ctx.target.node
+        }}
+    />
 
     <If on={!$in.observed}>
         <Call fn="index.prepareStagedParents" in={$in.build} />
     </If>
 
     <Call
+        fn="command_options"
+        in={{
+            ...$ctx.writeBackendWorkspace,
+            settings: $in.command,
+            cache: $in.cache,
+            files: $in.files,
+            node_library: $ctx.resources,
+            assembly: $in.assembly != null
+        }}
+    />
+
+    <Call
         module="command"
         in={{
-            ...$in,
+            node: $in.node,
+            native: $in.native,
+            generated: $in.generated,
+            options: $ctx.command_options,
             wasm: $ctx.target.wasm,
             abi_count: $ctx.prepareBackendAbi
         }}

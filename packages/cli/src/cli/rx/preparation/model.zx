@@ -22,12 +22,12 @@ export type TypeModuleState = {
 }
 
 export type TypeReference = TypeModuleState & {
-    ref_index: u64
+    reference: ModuleReference
 }
 
 export type TypeRead = {
     references: References,
-    ref_index: u64,
+    reference: ModuleReference,
     scoped: bool,
     path: string
 }
@@ -83,7 +83,7 @@ export type CompiledModuleState = {
 }
 
 export type CompiledReference = CompiledModuleState & {
-    ref_index: u64
+    reference: ModuleReference
 }
 
 export type RootWalk = Root & Range & {

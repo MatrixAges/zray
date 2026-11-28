@@ -1,0 +1,51 @@
+import { Kind } from "std:fs"
+
+import append from "./append_path"
+
+import type { DirectoryEntry } from "std:fs"
+import type { DirectoryScan as Output } from "./model"
+
+export type Input = {
+    scan: Output,
+    entries: DirectoryEntry[]
+}
+
+export default function (in: Input): Output {
+    const { scan, entries } = in
+
+    const parent = scan.directories[scan.row]
+
+    return loop({
+        ...scan,
+        entry: 0
+    }, {
+        while: state => state.entry < entries.length,
+        next: state => {
+            const entry = entries[state.entry]
+
+            if (entry.kind == Kind.Directory || entry.kind == Kind.File) {
+                const child = append({
+                    parent,
+                    child: entry.name
+                })
+
+                if (entry.kind == Kind.Directory) {
+                    state.directories = state.directories.push(child)[0]
+                } else {
+                    state.files = state.files.push({
+                        path: child,
+                        size: entry.size
+                    })[0]
+                }
+            }
+
+            state.entry += 1
+        },
+        return: state => ({
+            root: state.root,
+            directories: state.directories,
+            files: state.files,
+            row: state.row + 1
+        })
+    })
+}

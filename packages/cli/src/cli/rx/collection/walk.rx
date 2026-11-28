@@ -3,6 +3,8 @@
 
     <Args in={State.Walk} out={State.Walk} />
 
+    <Store from="records" as="records" />
+
     <Call
         fn="index.selectCollectionPath"
         in={[
@@ -13,21 +15,36 @@
     />
 
     <If on={$ctx.selectCollectionPath != null}>
+        <Call fn="kind" in={$ctx.selectCollectionPath} />
+
         <Call
             module="visit"
             in={{
                 collection: $in.collection,
                 path: $ctx.selectCollectionPath,
+                kind: $ctx.kind,
                 first: $in.index == 0
             }}
         />
+
+        <If on={$ctx.visit == State.Readiness.Ready}>
+            <Call
+                fn="record"
+                in={{
+                    records: $store.records.selected,
+                    kind: $ctx.kind,
+                    index: $in.index
+                }}
+                setter={[$store.records.selected]}
+            />
+        </If>
 
         <Return
             value={{
                 ...$in,
                 index: $in.index + 1,
-                valid: $ctx.visit,
-                running: $ctx.visit
+                valid: $ctx.visit != State.Readiness.Invalid,
+                running: $ctx.visit != State.Readiness.Invalid
             }}
         />
     </If>

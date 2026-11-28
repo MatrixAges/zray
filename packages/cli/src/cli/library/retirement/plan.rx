@@ -5,24 +5,26 @@
 
     <Store from="kept" as="kept" />
 
-    <Call fn="index.readRetirement" in={$in.retirement} />
+    <Call
+        fn="targets"
+        in={{
+            directory: $in.directory,
+            managed: $in.managed
+        }}
+    />
 
-    <If on={$ctx.readRetirement != null}>
-        <Loop on={$in.running}>
-            <Call
-                module="walk"
-                in={{
-                    ...$in,
-                    targets: $ctx.readRetirement,
-                    index: 0,
-                    status: Retirement.Status.Ready,
-                    running: $in.previous.count != 0
-                }}
-            />
-        </Loop>
+    <Loop on={$in.running}>
+        <Call
+            module="walk"
+            in={{
+                ...$in.omit(["managed"]),
+                targets: $ctx.targets,
+                index: 0,
+                status: Retirement.Status.Ready,
+                running: $in.previous.count != 0
+            }}
+        />
+    </Loop>
 
-        <Return value={$ctx.walk.status} />
-    </If>
-
-    <Return value={Retirement.Status.Ready} />
+    <Return value={$ctx.walk.status} />
 </Module>

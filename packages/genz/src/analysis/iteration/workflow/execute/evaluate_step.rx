@@ -1,0 +1,61 @@
+<Module>
+    <Type from="update_model" as="Loop" />
+
+    <Args in={Loop.Evaluation} out={Loop.Evaluated} />
+
+    <Call
+        module="first_condition"
+        in={$in.pick([
+            "frame",
+            "schedule",
+            "name",
+            "seed_name"
+        ])}
+    />
+
+    <Call fn="update_scope" in={$in.schedule.assignment} />
+
+    <Call
+        fn="index.enterLoopUpdate"
+        in={[
+            $in.loop_frame,
+            $ctx.update_scope,
+            $in.renewals.delayed
+        ]}
+    />
+
+    <Call
+        fn="index.lowerExpression"
+        in={[
+            $in.frame,
+            $in.schedule.condition,
+            false,
+            null
+        ]}
+    />
+
+    <Call
+        fn="evaluate_value"
+        in={{
+            frame: $in.frame,
+            step: $in.schedule.step,
+            by_value: $in.schedule.by_value
+        }}
+    />
+
+    <Call
+        fn="index.closeLoopUpdate"
+        in={[
+            $in.loop_frame,
+            $ctx.update_scope
+        ]}
+    />
+
+    <Return
+        value={{
+            condition: $ctx.lowerExpression,
+            value: $ctx.evaluate_value,
+            first: $ctx.first_condition
+        }}
+    />
+</Module>

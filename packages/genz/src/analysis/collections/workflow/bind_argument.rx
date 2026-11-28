@@ -1,0 +1,24 @@
+<Module>
+    <Type from="model" as="Flow" />
+
+    <Args in={Flow.Argument} out={u32} />
+
+    <Call
+        module="apply_work"
+        in={{
+            target: $in.origin
+        }}
+    />
+
+    <Call
+        fn="../../aggregate/execute/bind_operand"
+        in={{
+            frame: $in.ast.lower,
+            writer: $in.ast.writer,
+            sequence: $in.ast.sequence,
+            value: $ctx.apply_work
+        }}
+    />
+
+    <Return value={$ctx.bind_operand} />
+</Module>

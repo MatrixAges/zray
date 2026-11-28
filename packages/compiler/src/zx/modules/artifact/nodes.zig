@@ -57,20 +57,20 @@ pub fn function(self: *Self, value: ir.Function) Error!ir.Function {
     return (try self.functionEntry(value, null, .unchecked)).body;
 }
 
-pub fn appendFunctions(self: *Self, storage: *ir.FunctionStorage, table: ir.FunctionTable, temporary: std.mem.Allocator) Error!void {
+pub fn appendFunctions(self: *Self, storage: *ir.FunctionStorage, table: ir.FunctionTable, _: std.mem.Allocator) Error!void {
     const count = table.count();
 
     if (count == 0) return;
 
     if (comptime generated) {
-        try @import("../link/source/workflow/host.zig").append(self, storage, table, temporary, null, null);
+        try @import("../link/source/workflow/host.zig").append(self, storage, table, null, null);
     } else {
         for (0..count) |row| try storage.append(self.allocator, try self.function(table.at(row)));
     }
 }
 
-pub fn appendProgram(self: *Self, storage: *ir.FunctionStorage, program: *const ir.Program, temporary: std.mem.Allocator) Error!void {
-    if (comptime generated) return @import("../link/source/workflow/host.zig").append(self, storage, program, temporary, null, null);
+pub fn appendProgram(self: *Self, storage: *ir.FunctionStorage, program: *const ir.Program, _: std.mem.Allocator) Error!void {
+    if (comptime generated) return @import("../link/source/workflow/host.zig").append(self, storage, program, null, null);
     try storage.append(self.allocator, try self.function(@import("../function_body.zig").value(program.*)));
 }
 

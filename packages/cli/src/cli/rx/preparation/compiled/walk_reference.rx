@@ -11,7 +11,7 @@
                 in={{
                     references: $in.references,
                     diagnostic: $in.diagnostic,
-                    ref_index: $in.index
+                    reference: $in.items[$in.index]
                 }}
             />
 

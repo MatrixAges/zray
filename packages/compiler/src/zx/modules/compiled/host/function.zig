@@ -8,16 +8,11 @@ const Target = std.meta.Child(@FieldType(Input, "target"));
 const Source = std.meta.Child(@FieldType(Input, "source"));
 
 pub const View = struct {
-    slots: [@typeInfo(ir.FunctionStorage).@"struct".field_names.len]*usize,
-    lengths: zx.memory.ColumnLengths,
     tail: columns.Tail(Target),
     target: Target,
     source: Source,
     input: Input,
     pub fn init(self: *View, functions: *ir.FunctionStorage, source: ir.FunctionTable, first: usize, instance: []const u8) void {
-        self.slots = zx.memory.borrowColumnLengths(functions);
-        self.lengths = &self.slots;
-
         self.tail.init(functions);
 
         self.target = .{

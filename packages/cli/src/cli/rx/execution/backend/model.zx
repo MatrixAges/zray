@@ -1,5 +1,13 @@
 import type { ReadColumn, TextColumn } from "memory"
-import type { CommandOptions, NativeBuild } from "native_build_host"
+import type {
+    BackendCache,
+    CommandDestination,
+    CommandOptions,
+    NativeBuild,
+    NodeBindings,
+    NodeTarget,
+    WorkspaceFiles
+} from "native_build_host"
 import type { NativeModules, Setup, Views } from "../../../command/scope/model"
 
 export type BuildMode = {
@@ -9,15 +17,51 @@ export type BuildMode = {
 
 export type Invocation = BuildMode & {
     node: bool,
+    assembly?: string,
+    command: CommandSettings,
     native: NativeWalk,
     previous_backend: string[],
     observed_paths: string[],
     generated: Generated
 }
 
-export type CommandInvocation = Invocation & {
+export type Preparation = Invocation & {
+    cache: BackendCache,
+    files?: CommandDestination
+}
+
+export type CommandSettings = CommandOptions.Pick(
+    "tool",
+    "library",
+    "optimize",
+    "target",
+    "cpu",
+    "libraries",
+    "state",
+    "imports"
+)
+
+export type CommandOptionsInput = WorkspaceFiles & {
+    settings: CommandSettings,
+    cache: BackendCache,
+    files?: CommandDestination,
+    node_library?: string,
+    assembly: bool
+}
+
+export type CommandInvocation = {
+    native: NativeWalk,
+    generated: Generated,
+    node: bool,
     wasm: bool,
-    abi_count: u64
+    abi_count: u64,
+    options: CommandOptions
+}
+
+export type NodeResources = {
+    build: NativeBuild,
+    node: bool,
+    target: NodeTarget
 }
 
 export type NativeWalk = {
@@ -94,3 +138,25 @@ export type SupportModule = {
     file: string,
     dependencies: string[]
 }
+
+export type BindingRequest = {
+    build: NativeBuild,
+    node: bool
+}
+
+export type BindingCheck = {
+    bindings: NodeBindings,
+    assembly?: string
+}
+
+export type BindingFiles = {
+    bindings: NodeBindings,
+    binary: string
+}
+
+export type BindingArtifact = {
+    path: string,
+    source: string
+}
+
+export type BindingStage = BindingCheck & BindingFiles

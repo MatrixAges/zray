@@ -1,5 +1,5 @@
+import { resolvePathParts as resolve } from "lexical_path"
 import memory from "memory"
-import { resolveNativeScopePath } from "native_scope_host"
 
 import paths from "./paths"
 import resolveDependencies from "./rules/dependency"
@@ -18,13 +18,16 @@ export type Output = Prepared?
 export default function (in: Input): Output {
     const { binding, row, sources } = in
 
-    const { frame } = binding.window
+    const root = binding.window.scope.owner
 
     const original = memory.readOptionalTextColumn(sources.paths, row)
     const explicit = memory.readOptionalTextListColumn(sources.includes, row)
 
     const path: string? = match {
-        original != null => resolveNativeScopePath(frame, original),
+        original != null => resolve([
+            root,
+            original
+        ]),
         _ => null
     }
 
@@ -38,7 +41,7 @@ export default function (in: Input): Output {
     }
 
     const includes = paths({
-        frame,
+        root,
         source: explicit ?? sources.default_includes
     })
 

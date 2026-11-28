@@ -1,5 +1,6 @@
 <Store name="rx_store_check" version={1}>
     <Object name="visited">
         <Field name="paths" type={string[]} value={[]} />
+        <Field name="imports" type={[u64, u64][]} value={[]} />
     </Object>
 </Store>

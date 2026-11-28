@@ -9,7 +9,9 @@ const native = @import("../build/native.zig");
 const gateway = @import("gateway/compile.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
-const Text = @import("cli_abi").layouts.@"zig:rx_execution_host".ApplicationText;
+const layouts = @import("cli_abi").layouts.@"zig:rx_execution_host";
+const Text = layouts.ApplicationText;
+const ApplicationLoad = layouts.ApplicationLoad;
 
 pub const State = struct {
     context: *const Compile.Context,
@@ -107,12 +109,16 @@ pub fn run(context: Compile.Context) !Compile.Status {
 
     const request: std.meta.Child(entry.Input) = .{
         .application = @ptrCast(&reference),
+        .input_path = context.options.input,
         .settings = &settings,
     };
 
+    var arena = std.heap.ArenaAllocator.init(context.allocator);
+
+    defer arena.deinit();
     defer state.deinit();
 
-    const outcome = entry.executeIn(context.allocator, &request, context.io) catch |err| {
+    const outcome = entry.executeIn(arena.allocator(), &request, context.io) catch |err| {
         const cause = state.failure.unwrap(err);
 
         if (state.gateway == null) return cause;
@@ -128,23 +134,26 @@ pub fn run(context: Compile.Context) !Compile.Status {
     return native.status(outcome.status);
 }
 
-pub fn loadRxApplication(handle: *const anyopaque) Error!?[]const u8 {
+pub fn loadRxApplication(allocator: std.mem.Allocator, handle: *const anyopaque) (Error || std.mem.Allocator.Error)!*const ApplicationLoad {
     const self = State.get(handle);
     const context = self.context;
+    const result = try allocator.create(ApplicationLoad);
 
     self.loaded = project.loadWithInputs(context.io, context.allocator, context.options.input, context.options.project, self.inputs()) catch |err| {
-        _ = try self.reportFailure(err);
+        if (err == error.OutOfMemory or err == error.Canceled) return self.failure.save(err);
 
-        return null;
+        result.* = .{ .entry = null, .diagnostic = null, .error_name = @errorName(err) };
+
+        return result;
     };
 
     if (self.loaded.diagnostic) |message| {
-        context.stderr.print("{s}\n", .{message}) catch |err| return self.failure.save(err);
-
-        return null;
+        result.* = .{ .entry = null, .diagnostic = message, .error_name = null };
+    } else {
+        result.* = .{ .entry = self.loaded.project.entry, .diagnostic = null, .error_name = null };
     }
 
-    return self.loaded.project.entry;
+    return result;
 }
 
 pub fn analyzeRxApplication(handle: *const anyopaque) Error!?u64 {

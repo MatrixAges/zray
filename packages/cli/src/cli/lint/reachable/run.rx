@@ -1,26 +1,24 @@
 <Module>
     <Type from="model" as="Reachable" />
 
-    <Args in={Reachable.Input} out={bool} />
+    <Args in={Reachable.Input} out={Reachable.Failure?} />
 
     <Store from="seen" as="seen" />
 
     <If on={$in.items.length == 0}>
-        <Return value={true} />
+        <Return value={null} />
     </If>
 
     <Loop on={$in.running}>
         <Call
             module="step"
             in={{
-                check: $in.check,
-                items: $in.items,
+                ...$in,
                 index: 0,
-                valid: true,
                 running: true
             }}
         />
     </Loop>
 
-    <Return value={$ctx.step.valid} />
+    <Return value={$ctx.step.failure} />
 </Module>

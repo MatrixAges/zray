@@ -1,0 +1,12 @@
+export type Input = {
+    types: u32[],
+    next?: u32
+}
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.comparisons.registered = in
+}

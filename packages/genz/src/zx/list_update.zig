@@ -4,6 +4,7 @@ const node = @import("../node.zig");
 const Lower = @import("lower.zig");
 const publication = @import("construction/publication.zig");
 const Error = Lower.Error;
+const Work = @import("collections/branch.zig");
 
 pub fn lower(self: *Lower, id: ir.ExprId) Error!node.ExpressionId {
     if (comptime !@import("genz_options").generated_analysis) return @import("list_update_seed.zig").lower(self, id);
@@ -46,5 +47,9 @@ pub fn lower(self: *Lower, id: ir.ExprId) Error!node.ExpressionId {
         .value = @backingInt(update.value),
     };
 
-    return @fromBackingInt(entry.executeIn(memory.allocator(), &input) catch |err| return publication.failure(err));
+    var work: Work = .{ .lowering = self, .sequence = &body };
+    const view: Work.View = &work.state;
+    const host: Work.Host = .{ .work = &work, .store_0 = &view };
+
+    return @fromBackingInt(entry.executeIn(memory.allocator(), &input, host) catch |err| return publication.failure(err));
 }

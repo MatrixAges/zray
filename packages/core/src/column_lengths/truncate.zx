@@ -1,21 +1,12 @@
-import memory from "memory"
+import type { Prefix } from "./model"
 
-import type { Extent } from "./model"
+export type Input = Prefix
 
-export type Input = Extent
-
-export type Output = void
+export type Output = u64
 
 export default function (in: Input): Output {
-    const { target, count } = in
-
-    const columns = memory.lengthSlotCount(target)
-
-    const truncated = loop(0, {
-        while: slot => slot < columns,
-        next: slot => {
-            memory.shrinkLengthSlot(target, slot, count)
-            slot += 1
-        }
-    })
+    return match {
+        in.count < in.limit => in.count,
+        _ => in.limit
+    }
 }

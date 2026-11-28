@@ -4,7 +4,6 @@ export {
     download,
     createStaging,
     unpack,
-    checkStaging,
     publishStaging
 } from "package_cache_host"
-export { cached as winnerAvailable } from "package_cache_host"
+export { cached as checkStaging, cached as winnerAvailable } from "package_cache_host"

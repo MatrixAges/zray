@@ -1,5 +1,3 @@
-import memory from "memory"
-
 import resolvePathParts from "../../standard/path/resolve"
 import { manifest_file } from "../const"
 
@@ -11,19 +9,18 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { members, index, root } = in
+    const { plan, index } = in
+
+    const member = plan.members[index]
 
     const path = resolvePathParts([
-        root,
-        memory.readTextColumn(members.paths, index),
+        plan.root,
+        member.path,
         manifest_file
     ])
 
-    const entry = memory.readOptionalTextColumn(members.entries, index)
-    const exports = memory.listLength(members.exports, index)
-
     return {
         path,
-        semantic: entry != null || exports != 0
+        semantic: member.entry != null || member.export_count != 0
     }
 }

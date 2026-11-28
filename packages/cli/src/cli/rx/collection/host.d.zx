@@ -25,19 +25,26 @@ export type FileRead = {
     problem: string
 }
 
+export enum XmlValidation {
+    Invalid,
+    Valid,
+    HttpGateway
+}
+
+export type GatewayRoutes = {
+    route_services: string[],
+    service_routes: u32[]
+}
+
 export declare function selectCollectionPath(collection: Collection, row: u64, first: string): string? throws { SourceLoadFailure }
 export declare function resolveCollectionPhysicalPath(collection: Collection): PhysicalResolution throws { SourceLoadFailure }
 export declare function readCollectionFile(collection: Collection, retained: bool): FileRead throws { SourceLoadFailure }
 export declare function writeCollectionDiagnostic(collection: Collection, path: string, message: string): void throws { SourceLoadFailure }
 
 export declare function collectZxReferences(collection: Collection): void throws { SourceLoadFailure }
-export declare function recordCollectionZx(collection: Collection): void throws { SourceLoadFailure }
 
 export declare function parseCollectionXml(collection: Collection): bool throws { SourceLoadFailure }
-export declare function validateCollectionXml(collection: Collection): bool throws { SourceLoadFailure }
-export declare function recordCollectionModule(collection: Collection): void throws { SourceLoadFailure }
-export declare function recordCollectionStore(collection: Collection): void throws { SourceLoadFailure }
-export declare function recordCollectionGateway(collection: Collection): bool
-export declare function prepareCollectionGateway(collection: Collection): u64? throws { SourceLoadFailure }
-export declare function collectGatewayService(collection: Collection, row: u64): void throws { SourceLoadFailure }
+export declare function validateCollectionXml(collection: Collection): XmlValidation throws { SourceLoadFailure }
+export declare function prepareCollectionGateway(allocator, collection: Collection): GatewayRoutes? throws { SourceLoadFailure, OutOfMemory }
+export declare function collectGatewayService(collection: Collection, path: string): void throws { SourceLoadFailure }
 export declare function collectXmlReferences(collection: Collection): bool throws { SourceLoadFailure }

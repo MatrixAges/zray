@@ -1,0 +1,15 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.FileSize} out={u64} />
+
+    <If on={$in.size != null}>
+        <Return value={$in.size} />
+    </If>
+
+    <Call fn="effects.fromText" in={$in.path} />
+
+    <Call fn="effects.statBytes" />
+
+    <Return value={$ctx.statBytes.size} />
+</Module>

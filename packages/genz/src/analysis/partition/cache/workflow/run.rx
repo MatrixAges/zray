@@ -17,20 +17,14 @@
         }}
     />
 
-    <Call
-        fn="host.extendPartitionHash"
-        in={[
-            $in.prefix,
-            $ctx.prefix
-        ]}
-    />
+    <Call fn="effects.blake3Init" />
 
     <Loop on={$in.row < $in.paths.length}>
         <Call
             module="external_step"
             in={{
                 paths: $in.external,
-                prefix: $ctx.extendPartitionHash,
+                prefix: $ctx.blake3Init,
                 row: 0
             }}
         />
@@ -54,12 +48,16 @@
     </Loop>
 
     <Call
-        fn="host.loadPartitionState"
-        in={[
-            $in.objects,
-            "state"
-        ]}
+        fn="append_path"
+        in={{
+            parent: $in.objects,
+            child: "state"
+        }}
     />
+
+    <Call fn="effects.readFileOptional" />
+
+    <Call fn="effects.fromText" in={$ctx.append_path} />
 
     <Call
         fn="effects.mkdir"
@@ -92,7 +90,7 @@
         module="../state/schedule"
         in={{
             state: {
-                previous: $ctx.loadPartitionState.previous,
+                previous: $ctx.readFileOptional ?? [],
                 digests: $ctx.key_step.digests,
                 present: $ctx.presence_step.present
             },
@@ -121,14 +119,14 @@
         <Call
             module="publish"
             in={{
-                path: $ctx.loadPartitionState.path,
+                path: $ctx.fromText,
                 digests: $ctx.key_step.digests
             }}
         />
     </If>
 
     <Call
-        fn="host.compilePartitionObjects"
+        fn="commands"
         in={{
             zig: $in.zig,
             pending: $ctx.schedule.pending,
@@ -137,11 +135,13 @@
         }}
     />
 
+    <Call fn="effects.spawnBatchSync" />
+
     <Call
         fn="../state/complete"
         in={{
             pending: $ctx.schedule.pending,
-            failures: $ctx.compilePartitionObjects
+            failures: $ctx.spawnBatchSync
         }}
     />
 
@@ -154,11 +154,12 @@
         setter={[$store.state.objects]}
     />
 
-    <Loop on={$in.row < $in.messages.length}>
+    <Loop on={$in.row < $in.failures.length}>
         <Call
             module="report_step"
             in={{
-                messages: $ctx.compilePartitionObjects,
+                pending: $ctx.schedule.pending,
+                failures: $ctx.spawnBatchSync,
                 row: 0
             }}
         />
@@ -167,7 +168,7 @@
     <Call
         module="publish"
         in={{
-            path: $ctx.loadPartitionState.path,
+            path: $ctx.fromText,
             digests: $ctx.key_step.digests
         }}
     />

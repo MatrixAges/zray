@@ -1,9 +1,9 @@
 const std = @import("std");
 const Compile = @import("../compile.zig");
 const Module = @import("../library/analyze.zig").Module;
-const effects = @import("../sources/effects.zig");
-const Error = effects.Error;
-const State = @import("source.zig").State;
+const source_lint = @import("source.zig");
+const lint = @import("lint");
+const rx = @import("rx");
 const reachable = @import("cli_source").lint_reachable;
 const StoreState = std.meta.Child(@FieldType(reachable.zx_pending, "store_0"));
 
@@ -46,13 +46,26 @@ pub fn check(context: Compile.Context, modules: []const Module, root: []const u8
         }
     }
 
-    var state: State = .{ .context = &context };
-    const reference = &state;
     var visited: StoreState = &.{ .paths = &.{} };
     var host: StoreHost = .{ .store_0 = &visited };
-    const valid = reachable.execute(&arena, &.{ .check = @ptrCast(&reference), .items = items }, &host) catch |err| return state.failure.unwrap(err);
+    var parsed: ?rx.document.Parsed = null;
+    const document = &parsed;
 
-    return if (valid) .success else .failed;
+    defer rx.document.release(&parsed);
+
+    const failure = (try reachable.execute(&arena, &.{
+        .document = @ptrCast(&document),
+        .maximum_lines = context.options.max_lines orelse lint.length.default_maximum,
+        .items = items,
+    }, &host, context.io)) orelse return .success;
+
+    if (failure.error_name) |name| {
+        try context.stderr.print("{s}: semantic lint: {s}\n", .{ context.options.input, name });
+
+        return .failed;
+    }
+
+    return source_lint.report(context.stderr, failure.path, failure.result.?);
 }
 
 fn buildItem(allocator: std.mem.Allocator, comptime Slot: type, comptime Item: type, path: []const u8, source: ?[]const u8) !Slot {
@@ -65,22 +78,6 @@ fn buildItem(allocator: std.mem.Allocator, comptime Slot: type, comptime Item: t
     slot.* = value;
 
     return slot;
-}
-
-pub fn checkReachableLintSource(handle: *const anyopaque, path: []const u8, source: []const u8) Error!bool {
-    const self = State.get(handle);
-    var selected = self.context.*;
-    selected.options.input = path;
-    const status = @import("../lint.zig").checkSource(selected, source) catch |err| return self.failure.save(err);
-
-    return status == .success;
-}
-
-pub fn checkReachableLintStore(handle: *const anyopaque, path: []const u8) Error!bool {
-    const self = State.get(handle);
-    const status = file(self.context.*, path) catch |err| return self.failure.save(err);
-
-    return status == .success;
 }
 
 pub fn file(context: Compile.Context, path: []const u8) !Compile.Status {

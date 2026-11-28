@@ -2,7 +2,7 @@ import integers from "std:integer"
 
 import { ExpressionsKind } from "../../../../printer/model/expressions"
 
-import type { AstFieldAddressRows } from "ast_rows"
+import type { AstFieldAddressRows } from "../../../../ast/rows/address_shape"
 
 export type Input = {
     seed: u32,

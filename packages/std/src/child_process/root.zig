@@ -6,6 +6,7 @@ pub const EnvironmentEntry = api.EnvironmentEntry;
 pub const Options = api.Options;
 pub const InputOptions = api.InputOptions;
 pub const Result = api.Result;
+pub const spawnBatchSync = @import("batch.zig").spawnBatchSync;
 
 pub fn spawnSync(allocator: std.mem.Allocator, io: std.Io, input: Options) !Result {
     return execute(allocator, io, input, null);
@@ -32,11 +33,7 @@ fn execute(allocator: std.mem.Allocator, io: std.Io, input: Options, bytes: ?[]c
 }
 
 pub fn spawnSyncBytes(allocator: std.mem.Allocator, io: std.Io, input: api.ByteArguments) !Result {
-    if (input.argv.len == 0) return error.EmptyCommand;
-
-    for (input.argv) |argument| {
-        if (std.mem.indexOfScalar(u8, argument, 0) != null) return error.InvalidProcessArgument;
-    }
+    try Arguments.validateArgv(input.argv);
 
     return capture(allocator, io, .{
         .argv = input.argv,

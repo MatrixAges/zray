@@ -6,12 +6,6 @@ const storage = @import("storage.zig");
 const State = storage.State;
 const Error = storage.Error;
 
-pub fn writeStageFile(handle: *const anyopaque, path: []const u8, source: []const u8) Error!void {
-    const self = State.get(handle);
-
-    self.disk.writeFile(path, source) catch |err| return self.failure.save(err);
-}
-
 pub fn writeStageArtifact(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
 

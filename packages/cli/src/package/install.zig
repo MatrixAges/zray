@@ -56,6 +56,7 @@ fn install(io: std.Io, allocator: std.mem.Allocator, options: Options, environme
 
     const result = @import("cli_source").workflow.executeIn(allocator, &.{
         .session = @ptrCast(&reference),
+        .fetch = &.{ .cache = session.cache, .offline = options.offline },
         .members = session.members.len,
         .maximum_edges = pkgs.Lock.maximum_dependencies,
         .maximum_bytes = files.maximum_bytes,

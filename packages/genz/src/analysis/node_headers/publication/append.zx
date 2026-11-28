@@ -1,0 +1,13 @@
+import type { Append } from "./fragment"
+
+export type Input = Append
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.publication.commit = {
+        append: in
+    }
+}

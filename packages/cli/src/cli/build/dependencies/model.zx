@@ -1,6 +1,12 @@
-import type { Roots } from "backend_input_host"
 import type { ReadColumn, TextColumn } from "memory"
 import type { Registration } from "snapshot_host"
+
+export type Roots = {
+    cwd: string,
+    library: string,
+    local: string,
+    global: string
+}
 
 export type Batch = {
     paths: TextColumn,

@@ -1,45 +1,63 @@
 <Module>
-    <Type from="index" as="IO" />
+    <Type from="model" as="Workspace" />
 
-    <Args in={IO.Collection} out={string?} />
+    <Args in={Workspace.Input} out={Workspace.Output} />
 
     <Store from="state" as="state" />
 
-    <Call fn="index.readRoot" in={$in} />
-
-    <If on={$ctx.readRoot.patterns.length > 0}>
-        <Call fn="../glob/invalid" in={$ctx.readRoot.patterns} />
+    <If on={$in.patterns.length > 0}>
+        <Call fn="../glob/invalid" in={$in.patterns} />
 
         <If on={$ctx.invalid != null}>
             <Call
                 fn="invalid_pattern"
                 in={{
-                    path: $ctx.readRoot.path,
-                    pattern: $ctx.readRoot.patterns[$ctx.invalid]
+                    path: $in.path,
+                    pattern: $in.patterns[$ctx.invalid]
                 }}
             />
 
-            <Return value={$ctx.invalid_pattern} />
+            <Return
+                value={{
+                    paths: [],
+                    rows: [],
+                    diagnostic: $ctx.invalid_pattern
+                }}
+            />
         </If>
 
         <Call
             fn="seed_seen"
             in={{
                 seen: $store.state.seen,
-                root_name: $ctx.readRoot.root_name
+                root_name: $in.root_name
             }}
             setter={[$store.state.seen]}
         />
 
-        <Call fn="index.openDirectory" in={$in} />
+        <Call
+            fn="index.listWorkspaceDirectories"
+            in={[
+                $in.collection,
+                ""
+            ]}
+        />
 
-        <Loop on={$in.running}>
+        <Call
+            fn="queue"
+            in={{
+                stack: [],
+                children: $ctx.listWorkspaceDirectories
+            }}
+        />
+
+        <Loop on={$in.pending.length != 0}>
             <Call
                 module="walk"
                 in={{
-                    collection: $in,
-                    patterns: $ctx.readRoot.patterns,
-                    running: true
+                    collection: $in.collection,
+                    patterns: $in.patterns,
+                    pending: $ctx.queue
                 }}
             />
         </Loop>
@@ -50,7 +68,7 @@
             <Call
                 module="members"
                 in={{
-                    collection: $in,
+                    collection: $in.collection,
                     paths: $ctx.sort_paths,
                     index: 0,
                     running: $ctx.sort_paths.length != 0
@@ -58,8 +76,20 @@
             />
         </Loop>
 
-        <Return value={$ctx.members.diagnostic} />
+        <Call fn="result" in={$store.state.accepted} />
+
+        <Return
+            value={{
+                ...$ctx.result,
+                diagnostic: $ctx.members.diagnostic
+            }}
+        />
     </If>
 
-    <Return value={null} />
+    <Return
+        value={{
+            paths: [],
+            rows: []
+        }}
+    />
 </Module>

@@ -1,0 +1,24 @@
+import { writeCollectionElement } from "ast_rows"
+
+import items from "./argument_items"
+import { CollectionKind } from "./model"
+
+import type { Input as Items } from "./argument_items"
+import type { ArgumentSource } from "./model"
+
+export type Input = Items & ArgumentSource.Pick("kind", "source_type")
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { ast, kind, source_type, value } = in
+
+    if (kind == CollectionKind.Push) {
+        return writeCollectionElement(ast.writer, ast.sequence, source_type, value)
+    }
+
+    return items(in.omit([
+        "kind",
+        "source_type"
+    ]))
+}

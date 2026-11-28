@@ -1,15 +1,11 @@
-import type { ListColumn, TextColumn } from "memory"
-import type {
-    ListProjection
-} from "memory/columns"
+import type { TextColumn } from "memory"
 import type {
     Input as Publication,
-    Source
+    Lists
 } from "../../zx/modules/link/source/members/model"
 
 export type Records = {
     paths: TextColumn,
-    names: ListColumn,
     count: u64,
     entry_path: string
 }
@@ -17,6 +13,5 @@ export type Records = {
 export type Input = {
     public_members: Publication.Omit("rows", "entry"),
     records: Records,
-    projection: ListProjection,
-    members: Source.Omit("count")
+    members: Lists
 }

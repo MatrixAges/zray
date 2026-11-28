@@ -4,32 +4,31 @@ const path = @import("path.zig");
 const Allocator = std.mem.Allocator;
 
 pub fn stat(allocator: Allocator, io: std.Io, input: []const u8) !api.Stat {
+    try path.validate(input);
+
+    return read(allocator, io, input, true);
+}
+
+pub fn statBytes(allocator: Allocator, io: std.Io, input: []const u8) !api.Stat {
+    try path.validateBytes(input);
+
     return read(allocator, io, input, true);
 }
 
 pub fn lstat(allocator: Allocator, io: std.Io, input: []const u8) !api.Stat {
+    try path.validate(input);
+
     return read(allocator, io, input, false);
 }
 
 fn read(allocator: Allocator, io: std.Io, input: []const u8, follow: bool) !api.Stat {
-    try path.validate(input);
-
     const metadata = try std.Io.Dir.cwd().statFile(io, input, .{ .follow_symlinks = follow });
     const result = try allocator.create(api.stat.OutputValue);
 
     errdefer allocator.destroy(result);
 
     result.* = .{
-        .kind = switch (metadata.kind) {
-            .file => .File,
-            .directory => .Directory,
-            .sym_link => .SymbolicLink,
-            .block_device => .BlockDevice,
-            .character_device => .CharacterDevice,
-            .named_pipe => .Fifo,
-            .unix_domain_socket => .Socket,
-            else => .Unknown,
-        },
+        .kind = kind(metadata.kind),
         .size = metadata.size,
         .mtime_ms = try milliseconds(metadata.mtime),
         .ctime_ms = try milliseconds(metadata.ctime),
@@ -37,6 +36,19 @@ fn read(allocator: Allocator, io: std.Io, input: []const u8, follow: bool) !api.
     };
 
     return result;
+}
+
+pub fn kind(value: std.Io.File.Kind) api.Kind {
+    return switch (value) {
+        .file => .File,
+        .directory => .Directory,
+        .sym_link => .SymbolicLink,
+        .block_device => .BlockDevice,
+        .character_device => .CharacterDevice,
+        .named_pipe => .Fifo,
+        .unix_domain_socket => .Socket,
+        else => .Unknown,
+    };
 }
 
 fn milliseconds(time: std.Io.Timestamp) !i64 {

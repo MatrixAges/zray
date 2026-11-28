@@ -8,6 +8,7 @@ const artifacts = @import("../artifacts.zig");
 const node_resources = @import("../node/resources.zig");
 const Error = @import("../sources/effects.zig").Error;
 const BackendTarget = @import("cli_abi").layouts.@"zig:native_build_host".BackendTarget;
+const WorkspaceFiles = @import("cli_abi").layouts.@"zig:native_build_host".WorkspaceFiles;
 const NodeTarget = @import("cli_abi").native.@"zig:native_build_host".NodeTarget;
 
 pub fn validateNativePorts(handle: *const anyopaque) Error!void {
@@ -98,16 +99,21 @@ pub fn generateWasmRunner(handle: *const anyopaque) Error!void {
     self.runner = compiler.zig.host.wasm(self.context.allocator, self.bundle.state_module != null, .{ .types = signature.types, .id = signature.output }) catch |err| return self.failure.save(err);
 }
 
-pub fn writeBackendWorkspace(handle: *const anyopaque) Error!void {
+pub fn writeBackendWorkspace(allocator: std.mem.Allocator, handle: *const anyopaque) (Error || std.mem.Allocator.Error)!*const WorkspaceFiles {
     const self = State.get(handle);
     const context = self.context;
 
     defer self.releaseRunner();
 
     self.workspace = artifacts.prepare(context.io, context.allocator, self.bundle, self.runner, self.configuration, self.abi, context.options.result == .json) catch |err| return self.failure.save(err);
+
+    const view = try allocator.create(WorkspaceFiles);
+    view.* = .{ .directory = self.workspace.directory, .module_paths = self.workspace.module_paths };
+
+    return view;
 }
 
-pub fn retainNodeResources(handle: *const anyopaque, target: NodeTarget) Error!void {
+pub fn retainNodeResources(handle: *const anyopaque, target: NodeTarget) Error!?[]const u8 {
     const self = State.get(handle);
     const context = self.context;
 
@@ -117,9 +123,11 @@ pub fn retainNodeResources(handle: *const anyopaque, target: NodeTarget) Error!v
         .NodeImportLibraryRequired => return self.failure.save(error.NodeImportLibraryRequired),
     }
 
-    if (context.options.node_library) |path| {
-        self.node_library = std.fs.path.resolve(context.allocator, &.{path}) catch |err| return self.failure.save(err);
-    }
+    const node_library = if (context.options.node_library) |path|
+        std.fs.path.resolve(context.allocator, &.{path}) catch |err| return self.failure.save(err)
+
+    else
+        null;
 
     const native = &self.node_sources.?;
 
@@ -138,6 +146,8 @@ pub fn retainNodeResources(handle: *const anyopaque, target: NodeTarget) Error!v
         .node = &.{ .count = node.len, .paths = @ptrCast(&node_paths), .sources = @ptrCast(&node_sources) },
         .napi = &.{ .count = napi.len, .paths = @ptrCast(&napi_paths), .sources = @ptrCast(&napi_sources) },
     }, context.io) catch |err| return self.failure.save(err);
+
+    return node_library;
 }
 
 pub fn prepareStagedParents(handle: *const anyopaque) Error!void {

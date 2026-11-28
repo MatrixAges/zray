@@ -1,0 +1,30 @@
+import path from "std:path"
+
+import type { BindingArtifact, BindingFiles } from "../model"
+
+export type Input = BindingFiles
+
+export type Output = [BindingArtifact, BindingArtifact]
+
+export default function (in: Input): Output {
+    const directory = path.dirname(in.binary)
+
+    const { bindings } = in
+
+    return [
+        {
+            path: path.join([
+                directory,
+                path.basename(bindings.module)
+            ]),
+            source: bindings.module_source
+        },
+        {
+            path: path.join([
+                directory,
+                path.basename(bindings.declaration)
+            ]),
+            source: bindings.declaration_source
+        }
+    ]
+}

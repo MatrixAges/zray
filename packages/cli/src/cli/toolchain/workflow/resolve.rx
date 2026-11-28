@@ -20,7 +20,6 @@
             <Call
                 module="library"
                 in={{
-                    toolchain: $in.toolchain,
                     executable: $ctx.executable,
                     suffixes: $in.library_suffixes
                 }}

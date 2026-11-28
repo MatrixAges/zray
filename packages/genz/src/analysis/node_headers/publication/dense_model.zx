@@ -1,21 +1,9 @@
-import type { AstWriter, ExpressionRows, StatementRows } from "ast_rows"
-import type { Lowering } from "lowering_host"
+import type { Columns as Statements } from "../../../ast/statements/model"
 
-export type Fragment = {
-    expressions: ExpressionRows,
-    statements: StatementRows[],
-    serial: u64,
-    uses_allocator: bool
-}
+export type { Fragment } from "./fragment"
 
-export type Input = {
-    lower: Lowering,
-    writer: AstWriter,
-    fragment: Fragment
-}
-
-export type StatementCursor = Input.Pick("writer") & {
-    statements: StatementRows[],
+export type StatementCursor = {
+    statements: Statements[],
     row: u64,
     running: bool
 }

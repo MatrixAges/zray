@@ -1,14 +1,16 @@
 import { SnapshotSlot, Status } from "watch_host"
 
-import type { ObservedEntry, ScanResult, Watch } from "watch_host"
+import type { ScanResult, Watch } from "watch_host"
+import type { Entry as ObservedEntry } from "./observation"
 
 export { SnapshotSlot, Status } from "watch_host"
 
-export type { ObservedEntry, ScanResult, Watch } from "watch_host"
+export type { ScanResult, Watch } from "watch_host"
 
 export type SnapshotStore = {
     has_success: bool,
-    has_failure: bool
+    has_failure: bool,
+    observed: ObservedEntry[]
 }
 
 export type PreviousInput = {
@@ -18,7 +20,7 @@ export type PreviousInput = {
 
 export type RecordSnapshotInput = {
     snapshots: SnapshotStore,
-    success: bool
+    observed?: ObservedEntry[]
 }
 
 export type ReobserveStep = {
@@ -30,7 +32,7 @@ export type ReobserveStep = {
 
 export type RestoreInput = {
     watch: Watch,
-    has_success: bool
+    observed: ObservedEntry[]
 }
 
 export type WatchInput = {

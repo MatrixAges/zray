@@ -36,25 +36,33 @@ pub const Context = struct {
 pub fn observe(self: *Context, directory_entries: bool) !void {
     const handle = self;
 
-    rule.executeValue(self.allocator, &.{ .observation = @ptrCast(&handle), .directory_entries = directory_entries }) catch |err| return if (err == error.ObservationFailure) self.failure.? else err;
+    const classified = rule.executeIn(self.allocator, &.{
+        .observation = @ptrCast(&handle),
+        .path = self.path,
+        .directory_entries = directory_entries,
+    }, self.io) catch |err| return if (err == error.ObservationFailure) self.failure.? else err;
+
+    if (classified) |value| {
+        self.result = switch (value.kind) {
+            .Missing => .missing,
+            .Other => .{ .other = @fromBackingInt(@intCast(value.tag)) },
+            else => unreachable,
+        };
+    }
 }
 
-pub fn classify(handle: *const anyopaque) Error!storage.PathKind {
-    const self = Context.get(handle);
-
-    const stat = (statPath(self.io, self.path) catch |err| return self.fail(err)) orelse {
-        self.result = .missing;
-
-        return .Classified;
-    };
+pub fn classify(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !*const storage.Classification {
+    const stat = (try statPath(io, path)) orelse return &.{ .kind = .Missing, .tag = 0 };
 
     return switch (stat.kind) {
-        .file => .File,
-        .directory => .Directory,
-        else => blk: {
-            self.result = .{ .other = stat.kind };
+        .file => &.{ .kind = .File, .tag = 0 },
+        .directory => &.{ .kind = .Directory, .tag = 0 },
+        else => |kind| other: {
+            const info = try allocator.create(storage.Classification);
 
-            break :blk .Classified;
+            info.* = .{ .kind = .Other, .tag = @backingInt(kind) };
+
+            break :other info;
         },
     };
 }

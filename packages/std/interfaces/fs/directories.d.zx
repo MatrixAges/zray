@@ -13,6 +13,15 @@ export declare function readdir(allocator, io, in: string): string[] throws {
   ProcessFdQuotaExceeded, SymLinkLoop, SystemFdQuotaExceeded, SystemResources, Unexpected
 } concurrent
 
+// Keeps directory iteration order and reads metadata without following child symlinks.
+export declare function readdirMetadata(allocator, io, in: string): DirectoryEntry[] throws {
+  AccessDenied, AntivirusInterference, BadPathName, Canceled, DeviceBusy, FileBusy,
+  FileLocksUnsupported, FileNotFound, FileTooBig, InvalidPath, IsDir,
+  NameTooLong, NetworkNotFound, NoDevice, NoSpaceLeft, NotDir, OutOfMemory,
+  PathAlreadyExists, PermissionDenied, PipeBusy, ProcessFdQuotaExceeded, ReadOnlyFileSystem,
+  Streaming, SymLinkLoop, SystemFdQuotaExceeded, SystemResources, Unexpected, WouldBlock
+} concurrent
+
 export declare function rmdir(io, in: string): void throws {
   AccessDenied, BadPathName, Canceled, DirNotEmpty, FileBusy, FileNotFound, FileSystem,
   InvalidPath, InvalidUtf8, NameTooLong, NetworkNotFound, NotDir, PermissionDenied,

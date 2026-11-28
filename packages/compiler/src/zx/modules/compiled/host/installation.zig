@@ -20,7 +20,6 @@ owner: std.mem.Allocator,
 first: usize,
 needs_interface: bool,
 reserve: std.meta.Child(@FieldType(Layout, "reserve")),
-commit: std.meta.Child(@FieldType(Layout, "commit")),
 input: Layout,
 pub fn init(self: *Self, allocator: *const std.mem.Allocator, input: *const Input, library: *const model.Library, destination: load.Destination, call_scratch: ?load.CallScratch, initializer_tail: ?[]model.StoreInitializer) void {
     self.owner = if (call_scratch) |scratch| scratch.functions else allocator.*;
@@ -46,7 +45,7 @@ pub fn init(self: *Self, allocator: *const std.mem.Allocator, input: *const Inpu
     if (self.needs_interface) self.public.init(input, library.instance, self.first, initializer_tail);
 
     self.reserve = .{ .storage = self.functions.target.storage, .resource = @ptrCast(&self.owner), .shape = null, .count = source.count() };
-    self.commit = .{ .lengths = @ptrCast(&self.functions.lengths) };
+
     const types: *const TypeView.Target = &self.types.target;
     const natives: *const @TypeOf(self.natives.destination) = &self.natives.destination;
 
@@ -56,7 +55,6 @@ pub fn init(self: *Self, allocator: *const std.mem.Allocator, input: *const Inpu
         .reserve = &self.reserve,
         .functions = &self.functions.input,
         .interface = if (self.needs_interface) &self.public.request else null,
-        .commit = &self.commit,
     };
 }
 

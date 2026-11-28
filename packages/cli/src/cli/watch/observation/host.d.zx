@@ -38,9 +38,15 @@ export type Slot = {
 }
 
 export enum PathKind {
-    Classified,
+    Missing,
+    Other,
     Directory,
     File
+}
+
+export type Classification = {
+    kind: PathKind,
+    tag: u32
 }
 
 export enum Reuse {
@@ -55,7 +61,13 @@ export declare function readRow(scan: Observation, index: u64, versioned: bool):
 }
 export declare function acceptVersion(scan: Observation, index: u64): void
 
-export declare function classify(observation: Observation): PathKind throws { ObservationFailure }
+export declare function classify(allocator, io, path: string): Classification throws {
+    AccessDenied, AntivirusInterference, BadPathName, Canceled, DeviceBusy, FileBusy,
+    FileLocksUnsupported, FileNotFound, FileTooBig, IsDir, NameTooLong, NetworkNotFound,
+    NoDevice, NoSpaceLeft, NotDir, OutOfMemory, PathAlreadyExists, PermissionDenied, PipeBusy,
+    ProcessFdQuotaExceeded, ReadOnlyFileSystem, Streaming, SymLinkLoop, SystemFdQuotaExceeded,
+    SystemResources, Unexpected, WouldBlock
+}
 export declare function readDirectory(
     observation: Observation,
     all_entries: bool

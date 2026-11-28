@@ -1,15 +1,9 @@
 export type Directory = opaque
 export type Verification = opaque
-export type Retirement = opaque
 
 export type DirectoryEntry = {
     kind: u8,
     path: string
-}
-
-export type InventoryEntry = {
-    path: string,
-    digest: string
 }
 
 export enum ResourceKind {
@@ -23,12 +17,6 @@ export enum ResourceKind {
 export type ResourceEntry = {
     kind: ResourceKind,
     path: string
-}
-
-export type RetirementPath = {
-    path: string,
-    relative: string,
-    absolute: bool
 }
 
 export enum PublicationFileKind {
@@ -60,10 +48,18 @@ export declare function copyDirectoryFile(
     relative: string,
     target: string
 ): void throws { PublicationFailure }
-export declare function removeRetiredFile(directory: Directory, target: string): void
-    throws { PublicationFailure }
-export declare function digestEntry(directory: Directory, path: string): InventoryEntry
-    throws { PublicationFailure }
+export declare function removeRetiredFile(io, target: string): void throws {
+    AccessDenied, AntivirusInterference, BadPathName, Canceled, DeviceBusy, FileBusy,
+    FileNotFound, IsDir, NameTooLong, NetworkNotFound, NoDevice, NotDir, PermissionDenied,
+    ReadOnlyFileSystem, FileSystem, SymLinkLoop, SystemResources, Unexpected
+}
+export declare function listPublicationDirectory(allocator, io, path: string): ResourceEntry[]
+    throws {
+        AccessDenied, AntivirusInterference, BadPathName, Canceled, DeviceBusy, FileBusy,
+        FileNotFound, FileSystem, InputOutput, IsDir, NameTooLong, NetworkNotFound, NoDevice,
+        NotDir, OperationUnsupported, OutOfMemory, PermissionDenied, PipeBusy, ProcessFdQuotaExceeded,
+        ReadOnlyFileSystem, SymLinkLoop, SystemFdQuotaExceeded, SystemResources, Unexpected
+    }
 
 export declare function capture(verification: Verification): u64 throws { PublicationFailure }
 export declare function verify(verification: Verification, versioned: bool): bool throws { PublicationFailure }
@@ -95,6 +91,14 @@ export declare function resolvePublicationPath(
     SystemResources, Unexpected, UnrecognizedVolume
 }
 
+export declare function publicationPathMatches(io, path: string, physical: string): bool throws {
+    AccessDenied, AntivirusInterference, BadPathName, Canceled, DeviceBusy, FileBusy,
+    FileNotFound, FileSystem, FileTooBig, InputOutput, IsDir, NameTooLong, NetworkNotFound,
+    NoDevice, NoSpaceLeft, NotDir, OperationUnsupported, OutOfMemory, PathAlreadyExists,
+    PermissionDenied, PipeBusy, ProcessFdQuotaExceeded, SymLinkLoop, SystemFdQuotaExceeded,
+    SystemResources, Unexpected, UnrecognizedVolume
+}
+
 export declare function readPublicationFileKind(io, path: string): PublicationFileKind throws {
     AccessDenied, AntivirusInterference, BadPathName, Canceled, DeviceBusy, FileBusy,
     FileLocksUnsupported, FileTooBig, IsDir, NameTooLong, NetworkNotFound, NoDevice,
@@ -113,18 +117,11 @@ export declare function observeResource(
 export declare function resourceLinkIsFile(walk: Directory, path: string): bool
     throws { PublicationFailure }
 
-export declare function readRetirement(plan: Retirement): string[]? throws { PublicationFailure }
-
-export declare function retirementSpelling(plan: Retirement, path: string): RetirementPath
-    throws { PublicationFailure }
-export declare function retirementPhysical(plan: Retirement, path: string): RetirementPath
-    throws { PublicationFailure }
-export declare function retirementPhysicalMatches(
-    plan: Retirement,
-    target: string,
-    physical: string
-): bool throws { PublicationFailure }
-export declare function checkRetirementInput(plan: Retirement, path: string): void
-    throws { PublicationFailure }
-export declare function retirementDigest(plan: Retirement, path: string): string
-    throws { PublicationFailure }
+export declare function digestPublishedFile(allocator, io, path: string): string throws {
+    AccessDenied, AntivirusInterference, BadPathName, Canceled, ConnectionResetByPeer,
+    DeviceBusy, FileBusy, FileLocksUnsupported, FileNotFound, FileTooBig, InputOutput, IsDir,
+    LockViolation, NameTooLong, NetworkNotFound, NoDevice, NoSpaceLeft, NotDir,
+    NotOpenForReading, OutOfMemory, PathAlreadyExists, PermissionDenied, PipeBusy,
+    ProcessFdQuotaExceeded, ReadOnlyFileSystem, SocketUnconnected, Streaming, SymLinkLoop,
+    SystemFdQuotaExceeded, SystemResources, Unexpected, WouldBlock
+}

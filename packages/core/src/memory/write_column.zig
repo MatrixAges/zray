@@ -16,15 +16,6 @@ pub const RowBuffer = struct {
     columns: []Column,
     const Field = struct { offset: usize, width: usize };
 
-    pub fn empty(comptime Row: type) RowBuffer {
-        return .{
-            .stride = @sizeOf(Row),
-            .alignment = .of(Row),
-            .fields = &.{},
-            .columns = &.{},
-        };
-    }
-
     fn init(comptime Row: type, comptime fields: []const Field, columns: *[fields.len]Column) RowBuffer {
         return .{
             .stride = @sizeOf(Row),

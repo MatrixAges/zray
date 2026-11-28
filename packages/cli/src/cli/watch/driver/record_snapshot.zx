@@ -5,8 +5,16 @@ export type Output = void
 export default function (in: Input, {
     $store
 }): Output {
-    $store.watch_state.snapshots = {
-        has_success: in.success || in.snapshots.has_success,
-        has_failure: !in.success
+    if (in.observed == null) {
+        $store.watch_state.snapshots = {
+            ...in.snapshots,
+            has_failure: true
+        }
+    } else {
+        $store.watch_state.snapshots = {
+            has_success: true,
+            has_failure: false,
+            observed: in.observed
+        }
     }
 }

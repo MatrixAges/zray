@@ -8,10 +8,8 @@ pub fn interrupted(_: *const anyopaque) bool {
     return interrupt.requested();
 }
 
-pub fn delay(handle: *const anyopaque, milliseconds: u64) Error!void {
-    const self = State.get(handle);
-
-    std.Io.sleep(self.io, .fromMilliseconds(@intCast(milliseconds)), .awake) catch |err| return self.fail(err);
+pub fn delay(io: std.Io, milliseconds: u64) std.Io.Cancelable!void {
+    try std.Io.sleep(io, .fromMilliseconds(@intCast(milliseconds)), .awake);
 }
 
 pub fn scanInputs(handle: *const anyopaque, slot: storage.SnapshotSlot) Error!*const storage.ScanResult {

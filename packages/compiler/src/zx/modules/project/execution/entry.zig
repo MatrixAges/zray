@@ -41,14 +41,10 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
         const Original = std.meta.Child(@FieldType(Publication, "original"));
         const functions = zx.columns.view(std.meta.Child(@FieldType(Publication, "functions")), &program.functions);
         const symbols = zx.columns.pointer(@FieldType(Original, "symbols"), @as(*const zx.ir.SymbolTable, &program.symbols));
-        const length_slots = zx.memory.borrowSliceLengths(&program.functions);
-        const lengths: zx.memory.ColumnLengths = &length_slots;
-        const verified: zx.memory.ColumnLengths = &.{&project.verified.functions};
 
         var input: Input = .{
             .publication = &.{
                 .functions = &functions,
-                .lengths = @ptrCast(&lengths),
                 .linked_count = program.functions.count(),
                 .original = &.{
                     .file = program.file_name,
@@ -60,7 +56,7 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
                     .calls = program.expressions.call_functions,
                 },
             },
-            .verified = @ptrCast(&verified),
+            .verified = project.verified.functions,
             .cache = null,
         };
 
@@ -84,7 +80,10 @@ pub fn run(project: *Project, root: usize) std.mem.Allocator.Error!Analysis.Resu
         var store_value: std.meta.Child(StoreState) = .{ .selected = null, .forwarded = null, .recursive = null };
         var store_ptr: StoreState = &store_value;
         var host: StoreHost = .{ .allocator = project.allocator, .result = &state.result, .store_0 = &store_ptr };
-        _ = try execute(entry, project.allocator, &input, &host);
+        const published = try execute(entry, project.allocator, &input, &host);
+
+        program.functions = program.functions.prefix(@intCast(published.visible_count.?));
+        project.verified.functions = @intCast(published.verified_count.?);
 
         if (try validate(&state) and project.cache_records.items.len != 0) {
             input.publication = null;

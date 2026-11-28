@@ -6,19 +6,13 @@ export declare function lockCache(toolchain: Toolchain, parent: string, path: st
 export declare function openCache(toolchain: Toolchain, path: string): bool throws {
     ToolchainHostFailure
 }
-export declare function marker(toolchain: Toolchain): string throws { ToolchainHostFailure }
-export declare function regularFile(toolchain: Toolchain, path: string): bool throws {
+export declare function marker(allocator, toolchain: Toolchain, directory: string): string throws { ToolchainHostFailure }
+export declare function regularFile(toolchain: Toolchain, directory: string, path: string): bool throws {
     ToolchainHostFailure
 }
-export declare function closeDirectory(toolchain: Toolchain): void
 export declare function createStaging(toolchain: Toolchain, path: string): void throws { ToolchainHostFailure }
 export declare function loadZig(toolchain: Toolchain): u8[] throws { ToolchainHostFailure }
-export declare function extractZip(toolchain: Toolchain, archive: u8[]): void throws { ToolchainHostFailure }
-export declare function extractTar(toolchain: Toolchain, archive: u8[]): void throws { ToolchainHostFailure }
-export declare function renameZig(toolchain: Toolchain): void throws { ToolchainHostFailure }
-export declare function extractStandard(toolchain: Toolchain): void throws { ToolchainHostFailure }
-export declare function publish(toolchain: Toolchain, path: string): void throws { ToolchainHostFailure }
-export declare function unlock(toolchain: Toolchain): void
-export declare function probeLibrary(toolchain: Toolchain, executable: string, suffix: string): string? throws {
-    ToolchainHostFailure
-}
+export declare function extractZip(toolchain: Toolchain, directory: string, archive: u8[]): void throws { ToolchainHostFailure }
+export declare function extractTar(toolchain: Toolchain, directory: string, archive: u8[]): void throws { ToolchainHostFailure }
+export declare function extractStandard(toolchain: Toolchain, directory: string): void throws { ToolchainHostFailure }
+export declare function probeLibrary(io, path: string): bool

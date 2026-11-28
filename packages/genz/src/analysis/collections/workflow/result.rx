@@ -20,13 +20,14 @@
     <Call module="convert" in={$in} />
 
     <Call
-        fn="host.constructValue"
-        in={[
-            $in.ast.lower,
-            $in.result_type,
-            $ctx.convert,
-            $in.layout
-        ]}
+        module="apply_work"
+        in={{
+            construct: {
+                type_id: $in.result_type,
+                value: $ctx.convert,
+                layout: $in.layout
+            }
+        }}
     />
 
     <Call
@@ -35,7 +36,7 @@
             frame: $in.ast.lower,
             writer: $in.ast.writer,
             sequence: $in.ast.sequence,
-            value: $ctx.constructValue
+            value: $ctx.apply_work
         }}
     />
 

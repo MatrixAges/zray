@@ -4,6 +4,7 @@
 
     <Args in={Execution.Build} out={IO.Status} />
 
+    <Call fn="index.openRxApplicationCache" in={$in.application} />
     <Call fn="index.emitRxApplicationModules" in={$in.application} />
 
     <If on={!$ctx.emitRxApplicationModules}>

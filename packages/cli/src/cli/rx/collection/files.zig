@@ -30,7 +30,9 @@ pub fn selectCollectionPath(handle: *const anyopaque, row: u64, first: []const u
     const absolute = if (std.mem.endsWith(u8, candidate, ".zx")) @import("../../sources/module_path.zig").select(options.io, allocator, candidate, options.inputs) catch |err| return self.failure.save(err) else candidate;
     const path = std.fs.path.relative(allocator, root, null, root, absolute) catch |err| return self.failure.save(err);
 
-    self.file = .{ .absolute = absolute, .path = path };
+    self.documents.append(self.backing, .pending) catch |err| return self.failure.save(err);
+
+    self.file = .{ .row = @intCast(row), .absolute = absolute, .path = path };
 
     return path;
 }

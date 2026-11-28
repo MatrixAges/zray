@@ -14,11 +14,8 @@ pub const State = struct {
     bytes: ?[]const u8 = null,
     downloaded: ?transfer.Downloaded = null,
     staging: ?[]const u8 = null,
-    directory: ?std.Io.Dir = null,
     failure: ?anyerror = null,
     pub fn deinit(self: *State) void {
-        self.close();
-
         if (self.staging) |staging| std.Io.Dir.cwd().deleteTree(self.io, staging) catch {};
 
         if (self.downloaded) |*payload| {
@@ -26,12 +23,6 @@ pub const State = struct {
         } else if (self.bytes) |bytes| {
             self.allocator.free(bytes);
         }
-    }
-
-    fn close(self: *State) void {
-        if (self.directory) |directory| directory.close(self.io);
-
-        self.directory = null;
     }
 
     fn get(handle: *const anyopaque) *State {
@@ -99,13 +90,12 @@ pub fn createStaging(handle: *const anyopaque, root: []const u8) Error![]const u
     return staging;
 }
 
-pub fn unpack(handle: *const anyopaque, bytes: []const u8, hex: []const u8) Error![]const u8 {
+pub fn unpack(handle: *const anyopaque, staging: []const u8, bytes: []const u8, hex: []const u8) Error![]const u8 {
     const self = State.get(handle);
     const io = self.io;
-    const directory = std.Io.Dir.cwd().openDir(io, self.staging.?, .{}) catch |err| return self.fail(err);
+    const directory = std.Io.Dir.cwd().openDir(io, staging, .{ .follow_symlinks = false }) catch |err| return self.fail(err);
 
-    self.directory = directory;
-
+    defer directory.close(io);
     directory.createDir(io, constants.package_directory, .default_dir) catch |err| return self.fail(err);
 
     var package = directory.openDir(io, constants.package_directory, .{}) catch |err| return self.fail(err);
@@ -119,17 +109,9 @@ pub fn unpack(handle: *const anyopaque, bytes: []const u8, hex: []const u8) Erro
     return std.json.Stringify.valueAlloc(self.temporary, receipt.Receipt{ .archive_sha256 = hex, .files = extracted.files }, .{}) catch |err| self.fail(err);
 }
 
-pub fn checkStaging(handle: *const anyopaque, hex: []const u8) Error!void {
-    const self = State.get(handle);
-
-    defer self.close();
-    receipt.verify(self.io, self.allocator, self.directory.?, hex) catch |err| return self.fail(err);
-}
-
-pub fn publishStaging(handle: *const anyopaque, destination: []const u8) Error!bool {
+pub fn publishStaging(handle: *const anyopaque, staging: []const u8, destination: []const u8) Error!bool {
     const self = State.get(handle);
     const io = self.io;
-    const staging = self.staging.?;
 
     const moved: std.Io.Dir.RenamePreserveError!void = if (builtin.os.tag == .windows or builtin.os.tag == .linux)
         std.Io.Dir.cwd().renamePreserve(staging, .cwd(), destination, io)

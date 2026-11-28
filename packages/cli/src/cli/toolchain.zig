@@ -28,6 +28,7 @@ pub fn resolve(io: std.Io, allocator: std.mem.Allocator, environment: *const std
         .windows = windows,
         .expected_marker = if (zig != null) bundle.resources_digest else bundle.digest,
         .zip = bundle.zig_format == .zip,
+        .zig_source_directory = bundle.zig_directory,
         .standard_archive = bundle.archive,
         .standard_digest = bundle.resources_digest,
         .zig_digest = bundle.zig_digest,
@@ -49,6 +50,8 @@ pub fn resolve(io: std.Io, allocator: std.mem.Allocator, environment: *const std
         .InvalidUserCacheDirectory => return error.InvalidUserCacheDirectory,
     }
 
+    state.staging = null;
+
     const root = try allocator.dupe(u8, outcome.root.?);
 
     return .{
@@ -57,7 +60,10 @@ pub fn resolve(io: std.Io, allocator: std.mem.Allocator, environment: *const std
             try allocator.dupeSentinel(u8, path, 0)
         else
             try std.fs.path.join(allocator, &.{ root, constants.zig_directory, if (windows) constants.windows_zig_executable else constants.zig_directory }),
-        .library = outcome.library orelse try std.fs.path.join(allocator, &.{ root, constants.zig_directory, constants.official_lib }),
+        .library = if (outcome.library) |path|
+            try allocator.dupe(u8, path)
+        else
+            try std.fs.path.join(allocator, &.{ root, constants.zig_directory, constants.official_lib }),
         .standard = try std.fs.path.join(allocator, &.{ root, constants.standard_directory }),
     };
 }

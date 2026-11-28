@@ -1,0 +1,18 @@
+import { lowerExpression, lowerValueExpression } from "lowering_host"
+
+import type { Lowering } from "lowering_host"
+
+export type Input = {
+    frame: Lowering,
+    step: u32,
+    by_value: bool
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    return match {
+        in.by_value => lowerValueExpression(in.frame, in.step),
+        _ => lowerExpression(in.frame, in.step, false, null)
+    }
+}

@@ -77,7 +77,6 @@
         <Call
             module="retire"
             in={{
-                directory: $in.directory,
                 paths: $ctx.prepareRetirement,
                 index: 0
             }}

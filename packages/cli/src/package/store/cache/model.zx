@@ -32,3 +32,8 @@ export type Payload = {
 export type Stage = Input.Pick("cache", "root", "hex") & {
     bytes: u8[]
 }
+
+export type StageResult = {
+    status: Status,
+    staging: string
+}

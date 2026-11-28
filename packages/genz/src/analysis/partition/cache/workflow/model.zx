@@ -1,5 +1,9 @@
-import type { PartitionHash } from "partition_host"
+import type { BatchFailure } from "std:child_process"
+import type { Blake3State as State } from "std:crypto/blake3"
+import type { File } from "../external_order"
 import type { Member } from "../selection/model"
+
+export { Kind } from "std:fs"
 
 export type Files = {
     paths: string[],
@@ -9,7 +13,6 @@ export type Files = {
 }
 
 export type Input = Files & {
-    prefix: PartitionHash,
     zig: string,
     generated: string,
     objects: string,
@@ -23,13 +26,13 @@ export type Input = Files & {
 
 export type External = {
     paths: string[],
-    prefix: PartitionHash,
+    prefix: State,
     row: u64
 }
 
 export type Keys = {
     files: Files,
-    prefix: PartitionHash,
+    prefix: State,
     digests: u8[][],
     row: u64
 }
@@ -41,7 +44,8 @@ export type Presence = {
 }
 
 export type Diagnostics = {
-    messages: string?[],
+    pending: u32[],
+    failures: BatchFailure?[],
     row: u64
 }
 
@@ -49,3 +53,33 @@ export type Publish = {
     path: u8[],
     digests: u8[][]
 }
+
+export type FileHash = {
+    prefix: State,
+    path: string,
+    name: string,
+    size?: u64
+}
+
+export type FileSize = FileHash.Pick("path", "size")
+
+export type DirectoryHash = {
+    root: string,
+    prefix: State
+}
+
+export type DirectoryScan = {
+    root: string,
+    directories: string[],
+    files: File[],
+    row: u64
+}
+
+export type DirectoryFiles = {
+    root: string,
+    files: File[],
+    prefix: State,
+    row: u64
+}
+
+export type HashState = State

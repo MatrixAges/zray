@@ -14,11 +14,13 @@ const Input = if (generated) std.meta.Child(entry.Input) else void;
 const RenewalSource = if (generated) std.meta.Child(std.meta.Child(@FieldType(Input, "renewal_source"))) else void;
 const StoreState = if (generated) std.meta.Child(@FieldType(entry.zx_pending, "store_0")) else void;
 const StoreParameters = if (generated) std.meta.Child(@FieldType(entry.zx_pending, "store_1")) else void;
+const StoreBinding = if (generated) std.meta.Child(@FieldType(entry.zx_pending, "store_2")) else void;
 
 const StoreHost = if (generated) struct {
     frame: *Frame,
     store_0: *StoreState,
     store_1: *StoreParameters,
+    store_2: *StoreBinding,
     pub fn commit(self: *@This(), pending: anytype) error{}!void {
         if (pending.store_0) |next| {
             self.store_0.* = next;
@@ -39,6 +41,18 @@ const StoreHost = if (generated) struct {
                 };
 
                 self.frame.parameters.previous = .{ next.previous_condition, next.previous_step };
+            }
+        }
+
+        if (pending.store_2) |next| {
+            self.store_2.* = next;
+
+            if (next.name) |name| {
+                const iteration = self.frame.iteration;
+                const names = self.frame.lowering.names;
+
+                names[@backingInt(iteration.condition_parameter)] = name;
+                names[@backingInt(iteration.parameter)] = name;
             }
         }
     }
@@ -140,7 +154,16 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
     };
 
     var store_1_ptr: StoreParameters = &store_1_value;
-    var host: StoreHost = .{ .frame = frame, .store_0 = &store_ptr, .store_1 = &store_1_ptr };
+    var binding: std.meta.Child(StoreBinding) = .{ .name = null };
+    var binding_ptr: StoreBinding = &binding;
+
+    var host: StoreHost = .{
+        .frame = frame,
+        .store_0 = &store_ptr,
+        .store_1 = &store_1_ptr,
+        .store_2 = &binding_ptr,
+    };
+
     const Facts = std.meta.Child(@FieldType(Input, "assignment_facts"));
     const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Facts, "types")), self.program.types);
     const facts: Facts = .{ .types = &types, .selected = self.state_plan.selected };

@@ -17,7 +17,7 @@ pub const RequestsFrame = struct {
 lowering: *Lower,
 output: publication.Output,
 suffix: publication.Output,
-comparisons: std.ArrayList(ir.TypeId) = .empty,
+comparisons: @import("../../collections/workflow.zig").Comparisons = .{},
 tasks: Auxiliary,
 requests: ?*RequestsFrame = null,
 

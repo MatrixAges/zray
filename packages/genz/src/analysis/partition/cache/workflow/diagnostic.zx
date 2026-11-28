@@ -1,12 +1,32 @@
 import bytes from "std:bytes"
 
-export type Input = string?
+import type { BatchFailure } from "std:child_process"
+
+export type Input = {
+    partition: u32,
+    failure?: BatchFailure
+}
 
 export type Output = u8[]?
 
 export default function (in: Input): Output {
-    return match {
-        in != null => bytes.fromText(in),
-        _ => null
+    const failure = in.failure
+
+    if (failure == null) {
+        return null
     }
+
+    const name = failure.spawn_error
+
+    if (name != null) {
+        return bytes.fromText(name)
+    }
+
+    const termination = failure.termination ?? ""
+    const prefix = `partition ${in.partition}: Zig terminated with ${termination}\n`
+
+    return bytes.join(bytes.fromText(""), [
+        bytes.fromText(prefix),
+        failure.stderr
+    ])
 }

@@ -22,30 +22,29 @@ pub fn View(comptime Input: type) type {
 
     return struct {
         const Self = @This();
+
         paths: memory.TextColumn,
         direct: memory.ReadFields(fields),
         lists: memory.ListFields(fields),
-        projected: memory.ReadFields(fields),
         source: Source,
         members: Members,
         records: Records,
         mapping: Mapping,
-        projection: memory.ListProjection,
         publication: Publication,
         input: Input,
         pub fn init(self: *Self, analysis: *const frontend.AnalysisResult, entry_path: []const u8, nodes: *const Nodes) void {
             self.direct = memory.borrowReadFields(fields, analysis.public_functions);
             self.lists = memory.borrowListFields(&.{ "reexports", "functions" }, fields, analysis.modules);
             self.source = self.direct.bind(Source);
-            self.members = self.projected.bind(Members);
+            self.members = self.lists.bind(Members);
             self.paths = memory.borrowTextColumn("path", analysis.modules);
-            self.projection = .{ .sources = &self.lists.columns, .target = &self.projected.columns };
             const range = nodes.functions.range;
             self.mapping = .{ .kind = .Range, .dense = &.{}, .sparse = &.{}, .planned = &.{}, .first = range.first, .prefix = range.prefix, .count = range.count };
-            self.records = .{ .paths = @ptrCast(&self.paths), .names = @ptrCast(self.lists.column("names")), .count = analysis.modules.len, .entry_path = entry_path };
+            self.records = .{ .paths = @ptrCast(&self.paths), .count = analysis.modules.len, .entry_path = entry_path };
 
             self.publication = .{
                 .source = &self.source,
+                .selection = null,
                 .type_ids = @ptrCast(nodes.types.mapped),
                 .functions = &self.mapping,
                 .anonymous = .Keep,
@@ -55,7 +54,6 @@ pub fn View(comptime Input: type) type {
                 .public_members = &self.publication,
                 .records = &self.records,
                 .members = &self.members,
-                .projection = @ptrCast(&self.projection),
             };
         }
     };

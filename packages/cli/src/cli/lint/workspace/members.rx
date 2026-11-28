@@ -16,7 +16,7 @@
             ...$in,
             index: $in.index + 1,
             valid: $ctx.member && $in.valid,
-            running: $in.index + 1 < $in.members.count
+            running: $in.index + 1 < $in.plan.members.length
         }}
     />
 </Module>

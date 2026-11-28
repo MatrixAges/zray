@@ -77,14 +77,6 @@
     />
 
     <Call
-        fn="index.renameIterationParameters"
-        in={[
-            $in.loop_frame,
-            $in.name
-        ]}
-    />
-
-    <Call
         fn="set_parameters"
         in={{
             ...$ctx.capture,
@@ -94,6 +86,12 @@
             ])
         }}
         setter={[$store.loop_state.parameters]}
+    />
+
+    <Call
+        fn="set_parameter_name"
+        in={$in.name}
+        setter={[$store.loop_state.binding]}
     />
 
     <If on={$ctx.parameter_layout != Native.LoopParameterLayout.Plain}>

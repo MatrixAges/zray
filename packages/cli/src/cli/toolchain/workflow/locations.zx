@@ -4,7 +4,8 @@ import {
     ready_file,
     resources_prefix,
     staging_suffix,
-    toolchains
+    toolchains,
+    zig_directory
 } from "../const"
 
 import type { CachePaths as Output } from "./model"
@@ -12,7 +13,8 @@ import type { CachePaths as Output } from "./model"
 export type Input = {
     base: string,
     digest: string,
-    resources_only: bool
+    resources_only: bool,
+    zig_source_directory: string
 }
 
 export default function (in: Input): Output {
@@ -23,7 +25,8 @@ export default function (in: Input): Output {
 
     const parent = joinNativeParts([
         in.base,
-        toolchains
+        toolchains,
+        zig_directory
     ])
 
     const root = joinNativeParts([
@@ -41,6 +44,14 @@ export default function (in: Input): Output {
         marker: joinNativeParts([
             staging,
             ready_file
+        ]),
+        zig_source: joinNativeParts([
+            staging,
+            in.zig_source_directory
+        ]),
+        zig_destination: joinNativeParts([
+            staging,
+            zig_directory
         ])
     }
 }

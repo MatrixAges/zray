@@ -62,21 +62,6 @@ export declare function fingerprintGenerationInputs(
     interfaces_loaded: bool
 ): PreparedGeneration throws { GenerationRequestFailed }
 
-export declare function readGenerationStamp(allocator, io, path: string): u8[]? throws {
-    AccessDenied, AntivirusInterference, BadPathName, Canceled, ConnectionResetByPeer,
-    DeviceBusy, FileBusy, FileLocksUnsupported, FileNotFound, FileTooBig, InputOutput, IsDir,
-    LockViolation, NameTooLong, NetworkNotFound, NoDevice, NoSpaceLeft, NotDir,
-    NotOpenForReading, OutOfMemory, PathAlreadyExists, PermissionDenied, PipeBusy,
-    ProcessFdQuotaExceeded, ReadOnlyFileSystem, SocketUnconnected, SymLinkLoop,
-    SystemFdQuotaExceeded, SystemResources, Unexpected, WouldBlock
-}
-
-export declare function invalidateGenerationStamp(io, path: string): void throws {
-    AccessDenied, BadPathName, Canceled, FileBusy, FileNotFound, FileSystem, IsDir,
-    NameTooLong, NetworkNotFound, NotDir, PermissionDenied, ReadOnlyFileSystem, SymLinkLoop,
-    SystemResources, Unexpected
-}
-
 export declare function restoreGenerationAnalysis(
     io,
     host: GenerationIO,

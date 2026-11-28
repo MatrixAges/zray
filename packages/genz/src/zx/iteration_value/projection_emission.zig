@@ -74,13 +74,14 @@ pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.E
     return @fromBackingInt(root);
 }
 
-pub fn reserveIterationProjection(handle: *anyopaque, fresh: u64) Lower.Error!*const Api.IterationProjectionStamp {
-    const context: *Context = @ptrCast(@alignCast(handle));
-    const self = context.lowering;
-    const serial = self.serial;
-    const reserved = std.math.cast(usize, fresh) orelse return error.OutOfMemory;
-    self.serial = std.math.add(usize, serial, reserved) catch return error.OutOfMemory;
-    context.projection_stamp = .{ .serial = serial, .history_count = context.transfers.len() };
+pub fn readIterationProjection(allocator: std.mem.Allocator, handle: *anyopaque) Lower.Error!*const Api.IterationProjectionStamp {
+    const context: *const Context = @ptrCast(@alignCast(handle));
+    const stamp = try allocator.create(Api.IterationProjectionStamp);
 
-    return &context.projection_stamp;
+    stamp.* = .{
+        .serial = context.lowering.serial,
+        .history_count = context.transfers.len(),
+    };
+
+    return stamp;
 }

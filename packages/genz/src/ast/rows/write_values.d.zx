@@ -70,19 +70,6 @@ export declare function writeCollectionElement(
     value: u32
 ): u32 throws { OutOfMemory }
 
-export declare function emitCollectionPop(
-    writer: AstWriter,
-    body: AstSequence,
-    id: u32,
-    source_type: u32,
-    result_type: u32,
-    items: u32,
-    value: u32,
-    header: u32,
-    element: u32,
-    length: u32
-): u32 throws { OutOfMemory }
-
 export declare function emitLoweredCall(
     writer: AstWriter,
     body: AstSequence,

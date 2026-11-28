@@ -80,6 +80,7 @@ fn standardModule(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std
         .optimize = optimize,
         .imports = &.{
             .{ .name = "zxc_abi", .module = abi },
+            .{ .name = "sha256_backend", .module = standard.module("sha256_backend") },
             .{ .name = "bytes_backend", .module = standard.module("bytes_backend") },
         },
     });

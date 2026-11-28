@@ -1,0 +1,25 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.DirectoryScan} out={Cache.DirectoryScan} />
+
+    <Call
+        fn="append_path"
+        in={{
+            parent: $in.root,
+            child: $in.directories[$in.row]
+        }}
+    />
+
+    <Call fn="effects.readdirMetadata" />
+
+    <Call
+        fn="directory_entries"
+        in={{
+            scan: $in,
+            entries: $ctx.readdirMetadata
+        }}
+    />
+
+    <Return value={$ctx.directory_entries} />
+</Module>

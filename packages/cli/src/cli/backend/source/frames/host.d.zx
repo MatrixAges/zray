@@ -1,4 +1,0 @@
-export type DiagnosticBundle = {
-    words: u32[],
-    strings: u8[]
-}

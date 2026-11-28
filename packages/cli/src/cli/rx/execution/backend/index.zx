@@ -1,18 +1,15 @@
 export {
     preloadBackendPath,
     expireBackendPath,
-    createStagedBindings,
+    createBuildBindings,
     openStagedOutput,
     openBackendEnvironment,
     openBackendTranslation,
     reportStagedTranslationFailure,
     spawnStagedBackend,
-    retainStagedBindings,
     publishStagedBackend,
     spawnObservedBackend,
-    takeTranslationFailure,
     resolveObservedNativeInputs,
-    createObservedBindings,
     publishBackendPaths,
     reportObservedNativeBuild,
     publishObservedNativeBuild,
@@ -26,13 +23,10 @@ export {
     writeBackendWorkspace,
     retainNodeResources,
     prepareStagedParents,
-    readBackendCommandOptions,
     writeBackendCommand,
     spawnNativeTranslation,
-    retainNativeTranslation,
-    releaseNativeTranslation,
     writeNativeAdapter,
     Status
 } from "native_build_host"
 
-export type { CommandOptions, NativeBuild } from "native_build_host"
+export type { CommandOptions, NativeBuild, NodeBindings } from "native_build_host"

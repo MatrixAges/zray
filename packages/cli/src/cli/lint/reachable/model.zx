@@ -1,28 +1,45 @@
-import type { SourceLint } from "lint_workflow_host"
+import type { SourceLint } from "../index"
+import type { SourceResult } from "../model"
 
 export type Visited = {
-    paths: u8[][]
+    paths: string[]
 }
 
 export type Item = {
-    path: u8[],
+    path: string,
     source?: u8[]
 }
 
 export type Input = {
-    check: SourceLint,
+    document: SourceLint,
+    maximum_lines: u64,
     items: Item[]
 }
 
-export type Walk = {
-    check: SourceLint,
-    items: Item[],
+export type Walk = Input & {
     index: u64,
-    valid: bool,
+    failure?: Failure,
     running: bool
 }
 
 export type AdmitInput = {
-    path: u8[],
+    path: string,
     visited: Visited
+}
+
+export type Failure = {
+    path: string,
+    result?: SourceResult,
+    error_name?: string
+}
+
+export type Check = {
+    document: SourceLint,
+    item: Item,
+    maximum_lines: u64
+}
+
+export type CheckedItem = {
+    path: string,
+    result: SourceResult
 }

@@ -1,5 +1,9 @@
-import type { DiagnosticBundle } from "backend_frames"
 import type { U64U32Map } from "memory/maps"
+
+export type DiagnosticBundle = {
+    words: u32[],
+    strings: u8[]
+}
 
 export enum Status {
     Success,

@@ -77,12 +77,12 @@ pub fn emitModuleParallelAllocator(frame: *Frame) Error!void {
 
 pub fn emitModuleComparison(frame: *Frame, index: u64) Error!void {
     const self = frame.lowering;
-    const type_id = frame.comparisons.items[@intCast(index)];
+    const type_id = frame.comparisons.rows.items[@intCast(index)];
 
     try frame.suffix.append(self.allocator, try @import("../../comparison.zig").ordering(self, type_id));
 }
 
 pub fn suffixSeed(frame: *Frame) Error!void {
     if (frame.lowering.uses_parallel) try emitModuleParallelAllocator(frame);
-    for (0..frame.comparisons.items.len) |index| try emitModuleComparison(frame, index);
+    for (0..frame.comparisons.rows.items.len) |index| try emitModuleComparison(frame, index);
 }

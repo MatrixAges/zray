@@ -16,7 +16,7 @@
             <Call
                 module="scan"
                 in={{
-                    source: $in.source,
+                    registration: $in.registration,
                     directory: $ctx.parent,
                     root: $in.root
                 }}

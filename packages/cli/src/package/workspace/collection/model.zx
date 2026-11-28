@@ -5,8 +5,33 @@ export type Patterns = {
     patterns: string[]
 }
 
+export type Input = Patterns & {
+    root_name: string,
+    path: string
+}
+
 export type Directories = Patterns & {
-    running: bool
+    pending: string[]
+}
+
+export type Pending = {
+    stack: string[],
+    children: string[]
+}
+
+export type Accepted = {
+    paths: string[],
+    rows: u64[]
+}
+
+export type AcceptedMember = {
+    accepted: Accepted,
+    path: string,
+    row: u64
+}
+
+export type Output = Accepted & {
+    diagnostic?: string
 }
 
 export type Discovered = {

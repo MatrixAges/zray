@@ -31,12 +31,6 @@ pub fn read(io: std.Io, allocator: std.mem.Allocator, directory: []const u8) !?s
     return parsed;
 }
 
-pub fn makePortable(path: []u8) void {
-    if (std.fs.path.sep == '\\') for (path) |*byte| if (byte.* == '\\') {
-        byte.* = '/';
-    };
-}
-
 pub fn digest(io: std.Io, dir: std.Io.Dir, path: []const u8) ![Sha256.digest_length]u8 {
     const file = try dir.openFile(io, path, .{ .allow_directory = @import("builtin").os.tag != .windows });
 

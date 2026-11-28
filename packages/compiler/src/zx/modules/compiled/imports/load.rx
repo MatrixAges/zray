@@ -5,18 +5,13 @@
 
     <If on={$in.initializers != null}>
         <Call
-            fn="../../../../core/row_buffer/reserve_append"
-            in={[
-                $in.initializers.rows,
-                $in.initializers.first,
-                $in.initializers.count,
-                $in.initializers.owner
-            ]}
+            fn="../../../../core/row_buffer/capacity"
+            in={$in.initializers}
         />
 
         <Return
             value={{
-                published: $in.initializers.first + $in.initializers.count,
+                capacity: $ctx.capacity,
                 inherited: false
             }}
         />

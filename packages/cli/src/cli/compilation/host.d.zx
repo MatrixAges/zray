@@ -26,11 +26,20 @@ export enum Status {
     LibraryBuild
 }
 
-export enum Dependencies {
-    Invalid,
-    Rx,
-    Zx,
-    WithLibraries
+export type StageFailure = {
+    path?: string,
+    message: string
+}
+
+export type CompilationSource = {
+    bytes: u8[],
+    failure?: StageFailure
+}
+
+export type CompilationDependencies = {
+    has_rx: bool,
+    has_compiled_libraries: bool,
+    failure?: StageFailure
 }
 
 export type CompilationText = {
@@ -49,10 +58,9 @@ export enum BuildStatus {
 }
 
 export declare function resolveCompilationEntry(check: Compilation, track_library: bool): u8[] throws { SourceLoadFailure }
-export declare function loadCompilationProject(check: Compilation): bool throws { SourceLoadFailure }
-export declare function readCompilationSource(check: Compilation): bool throws { SourceLoadFailure }
-export declare function openCompilationCaches(check: Compilation): void throws { SourceLoadFailure }
-export declare function readCompilationDependencies(check: Compilation): Dependencies throws { SourceLoadFailure }
+export declare function loadCompilationProject(allocator, check: Compilation): StageFailure? throws { SourceLoadFailure, OutOfMemory }
+export declare function readCompilationSource(allocator, check: Compilation): CompilationSource throws { SourceLoadFailure, OutOfMemory }
+export declare function readCompilationDependencies(allocator, check: Compilation, source: u8[], cache: bool): CompilationDependencies throws { SourceLoadFailure, OutOfMemory }
 
 export declare function writeCompilationDiagnostic(check: Compilation, message: string): void throws { SourceLoadFailure }
 export declare function loadCompilationCache(check: Compilation): void throws { SourceLoadFailure }
@@ -63,9 +71,9 @@ export declare function verifyCompilationProgram(check: Compilation): bool throw
 export declare function generateCompilationFpga(check: Compilation): bool throws { SourceLoadFailure }
 export declare function flushCompilationDiagnostics(check: Compilation): void throws { SourceLoadFailure }
 export declare function openCompilationGeneration(check: Compilation): void throws { SourceLoadFailure }
-export declare function formatCompilationSource(check: Compilation): CompilationText? throws { SourceLoadFailure }
-export declare function emitCompilationText(check: Compilation): CompilationText? throws { SourceLoadFailure }
-export declare function emitCompilationModules(check: Compilation): bool throws { SourceLoadFailure }
+export declare function formatCompilationSource(check: Compilation, source: u8[]): CompilationText? throws { SourceLoadFailure }
+export declare function emitCompilationText(check: Compilation, source: u8[]): CompilationText? throws { SourceLoadFailure }
+export declare function emitCompilationModules(check: Compilation, source: u8[], cache: bool): bool throws { SourceLoadFailure }
 export declare function reportCompilationGeneration(check: Compilation): void throws { SourceLoadFailure }
 export declare function resolveCompilationToolchain(check: Compilation): bool throws { SourceLoadFailure }
 export declare function buildCompilationModules(check: Compilation): Status throws { SourceLoadFailure }

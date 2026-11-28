@@ -27,10 +27,7 @@ export declare function emitStatementBinding(
 export declare function finishStatementScope(
     traversal: StatementTraversal,
     scope: u64,
-    rows: u64[],
-    starts: u32[],
-    counts: u32[],
-    previous: u64?[]
+    writes: StatementWrite[]
 ): u64?
 
 export declare function openStatementSelection(

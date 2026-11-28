@@ -31,6 +31,7 @@
                 fn="index.extractZip"
                 in={[
                     $in.toolchain,
+                    $in.paths.staging,
                     $ctx.loadZig
                 ]}
             />
@@ -40,22 +41,27 @@
                     fn="index.extractTar"
                     in={[
                         $in.toolchain,
+                        $in.paths.staging,
                         $ctx.loadZig
                     ]}
                 />
             </Else>
         </If>
 
-        <Call fn="index.renameZig" in={$in.toolchain} />
+        <Call
+            fn="index.rename"
+            in={{
+                from: $in.paths.zig_source,
+                to: $in.paths.zig_destination
+            }}
+        />
     </If>
 
-    <Call module="standard" in={$in.omit(["paths"])} />
+    <Call module="standard" in={$in} />
 
     <If on={$ctx.standard != Toolchain.Status.Ready}>
         <Return value={$ctx.standard} />
     </If>
-
-    <Call fn="index.closeDirectory" in={$in.toolchain} />
 
     <Call
         module="../../workspace_files/write_artifact"
@@ -77,20 +83,29 @@
         <Return value={Toolchain.Status.IncompleteToolchainCache} />
     </If>
 
-    <Call fn="ready" in={$in.omit(["paths"])} />
+    <Call
+        fn="ready"
+        in={{
+            ...$in.pick([
+                "toolchain",
+                "expected_marker",
+                "override",
+                "windows"
+            ]),
+            directory: $in.paths.staging
+        }}
+    />
 
     <If on={!$ctx.ready}>
         <Return value={Toolchain.Status.IncompleteToolchainCache} />
     </If>
 
-    <Call fn="index.closeDirectory" in={$in.toolchain} />
-
     <Call
-        fn="index.publish"
-        in={[
-            $in.toolchain,
-            $in.paths.root
-        ]}
+        fn="index.rename"
+        in={{
+            from: $in.paths.staging,
+            to: $in.paths.root
+        }}
     />
 
     <Return value={Toolchain.Status.Ready} />

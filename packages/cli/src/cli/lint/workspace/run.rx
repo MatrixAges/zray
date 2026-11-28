@@ -23,11 +23,10 @@
                 module="members"
                 in={{
                     check: $in.host,
-                    root: $ctx.resolveLintWorkspace,
-                    members: $in.members,
+                    plan: $ctx.resolveLintWorkspace,
                     index: 0,
                     valid: true,
-                    running: $in.members.count != 0
+                    running: $ctx.resolveLintWorkspace.members.length != 0
                 }}
             />
         </Loop>

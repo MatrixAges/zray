@@ -1,5 +1,6 @@
 <Module>
     <Type from="model" as="Retirement" />
+    <Type from="../../publication/target/model" as="Target" />
 
     <Args in={Retirement.Candidate} out={Retirement.Status} />
 
@@ -30,7 +31,7 @@
     <Call
         fn="physical"
         in={{
-            retirement: $in.retirement,
+            root: $in.physical_root,
             path: $ctx.candidate.path,
             separator: $in.separator
         }}
@@ -43,7 +44,6 @@
     <Call
         fn="search"
         in={{
-            retirement: $in.retirement,
             targets: $in.targets,
             physical: $ctx.physical.path
         }}
@@ -54,17 +54,28 @@
     </If>
 
     <Call
-        fn="index.checkRetirementInput"
-        in={[
-            $in.retirement,
-            $ctx.candidate.path
-        ]}
+        module="../../publication/target/check"
+        in={{
+            cwd: $in.observed.cwd,
+            path: $ctx.candidate.path,
+            logical_inputs: $in.observed.logical,
+            physical_inputs: $in.observed.physical
+        }}
     />
+
+    <Switch on={$ctx.check.status}>
+        <Case value={Target.Status.Overlap}>
+            <Return value={Retirement.Status.Overlap} />
+        </Case>
+
+        <Case value={Target.Status.MissingParent}>
+            <Return value={Retirement.Status.MissingParent} />
+        </Case>
+    </Switch>
 
     <Call
         fn="verify"
         in={{
-            retirement: $in.retirement,
             previous: $in.previous,
             index: $in.index,
             path: $ctx.candidate.path

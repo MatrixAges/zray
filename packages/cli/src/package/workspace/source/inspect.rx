@@ -5,13 +5,19 @@
 
     <Call fn="../paths/manifest" in={$in.directory} />
 
-    <Call
-        fn="index.hasPackageManifest"
-        in={[
-            $in.source,
-            $ctx.manifest
-        ]}
-    />
+    <If on={$in.registration != null}>
+        <Call
+            module="../../../observation/add"
+            in={{
+                registration: $in.registration,
+                path: $ctx.manifest,
+                directory_entries: false,
+                backend_input: false
+            }}
+        />
+    </If>
+
+    <Call fn="index.hasPackageManifest" in={$ctx.manifest} />
 
     <If on={$ctx.hasPackageManifest}>
         <Return

@@ -51,7 +51,12 @@ export declare function findArchive(
 ): ArchiveLookup throws { InstallHostFailure }
 
 export declare function fetchArchive(
+    allocator,
+    io,
     session: InstallIO,
+    base: string,
+    cache: string,
+    offline: bool,
     source: string,
     release: Release
 ): string throws { InstallHostFailure }

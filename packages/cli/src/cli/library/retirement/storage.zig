@@ -5,40 +5,16 @@ const effects = @import("../../publication/effects.zig");
 const Verification = @import("../../publication/verification.zig");
 const output = @import("../../watch/output.zig");
 const rule = @import("cli_source").library_retirement_plan;
-const zx = @import("zx");
-const abi = @import("publication_abi");
-const Path = abi.layouts.@"zig:publication_host".RetirementPath;
-const Input = std.meta.Child(rule.Input);
-const Entries = std.meta.Child(@FieldType(Input, "previous"));
-const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
+const memory = @import("zx").memory;
 const history = .{ .paths = "path", .digests = "sha256" };
 const Error = effects.Error;
-const Sha256 = std.crypto.hash.sha2.Sha256;
+const StoreState = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
 
 const StoreHost = struct {
     store_0: *StoreState,
     pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
         if (pending.store_0) |next| self.store_0.* = next;
     }
-};
-
-const Plan = struct {
-    io: std.Io,
-    allocator: std.mem.Allocator,
-    backing: std.mem.Allocator,
-    directory: []const u8,
-    current: []const []const u8,
-    inputs: *Inputs,
-    planning: std.heap.ArenaAllocator,
-    row: std.heap.ArenaAllocator,
-    failure: effects.Failure = .{},
-    previous: ?std.json.Parsed(inventory.Inventory) = null,
-    physical_root: []const u8 = undefined,
-    entries: Entries = undefined,
-    borrowed: zx.memory.ReadFields(history) = undefined,
-    spelling: Path = undefined,
-    physical: Path = undefined,
-    hex: [Sha256.digest_length * 2]u8 = undefined,
 };
 
 pub fn prepareRetirement(allocator: std.mem.Allocator, handle: *const anyopaque, destination: []const u8, managed: []const []const u8) Error![]const []const u8 {
@@ -48,35 +24,39 @@ pub fn prepareRetirement(allocator: std.mem.Allocator, handle: *const anyopaque,
 }
 
 fn retired(io: std.Io, allocator: std.mem.Allocator, backing: std.mem.Allocator, directory: []const u8, current: []const []const u8, inputs: *Inputs) ![]const []const u8 {
-    var plan: Plan = .{
-        .io = io,
-        .allocator = allocator,
-        .backing = backing,
-        .directory = directory,
-        .current = current,
-        .inputs = inputs,
-        .planning = .init(backing),
-        .row = .init(backing),
-    };
+    var previous = (try inventory.read(io, backing, directory)) orelse return &.{};
 
-    defer plan.planning.deinit();
-    defer plan.row.deinit();
-    defer if (plan.previous) |*previous| previous.deinit();
+    defer previous.deinit();
 
     var arena = std.heap.ArenaAllocator.init(backing);
 
     defer arena.deinit();
 
-    var kept_value: std.meta.Child(StoreState) = .{ .paths = &.{} };
-    var kept: StoreState = &kept_value;
+    const scratch = arena.allocator();
+    const physical_root = try std.Io.Dir.cwd().realPathFileAlloc(io, directory, scratch);
+    const managed = previous.value.managed_files;
+    const borrowed = memory.borrowReadFields(history, managed orelse previous.value.bundled_files);
+    const observed = try output.collectPaths(scratch, inputs);
+    var kept: StoreState = &.{ .paths = &.{} };
     var host: StoreHost = .{ .store_0 = &kept };
-    const state = &plan;
 
-    const raw = rule.execute(&arena, &.{
-        .retirement = @ptrCast(&state),
-        .previous = &plan.entries,
+    const raw = try rule.execute(&arena, &.{
+        .directory = directory,
+        .physical_root = physical_root,
+        .managed = current,
+        .observed = &.{
+            .cwd = inputs.cwd,
+            .logical = observed.logical,
+            .physical = observed.physical,
+        },
+        .previous = &.{
+            .paths = @ptrCast(borrowed.column("paths")),
+            .digests = @ptrCast(borrowed.column("digests")),
+            .count = borrowed.count,
+            .native_only = managed == null,
+        },
         .separator = std.fs.path.sep,
-    }, &host, io) catch |err| return plan.failure.unwrap(err);
+    }, &host, io);
 
     const status = if (@typeInfo(@TypeOf(raw)) == .pointer) raw.* else raw;
 
@@ -85,6 +65,8 @@ fn retired(io: std.Io, allocator: std.mem.Allocator, backing: std.mem.Allocator,
         .InvalidInventory => return error.InvalidLibraryInventory,
         .Modified => return error.LibraryResourceModified,
         .OutsideOutput => return error.LibraryResourceOutsideOutput,
+        .Overlap => return error.OutputOverlapsInput,
+        .MissingParent => return error.FileNotFound,
     }
 
     const paths = try allocator.alloc([]const u8, kept.paths.len);
@@ -104,90 +86,9 @@ fn retired(io: std.Io, allocator: std.mem.Allocator, backing: std.mem.Allocator,
     return paths;
 }
 
-pub fn readRetirement(handle: *const anyopaque) Error!?[]const []const u8 {
-    const self = effects.state(Plan, handle);
+pub fn digestPublishedFile(allocator: std.mem.Allocator, io: std.Io, path: []const u8) ![]const u8 {
+    const hash = try inventory.digest(io, .cwd(), path);
+    const hex = std.fmt.bytesToHex(hash, .lower);
 
-    self.previous = inventory.read(self.io, self.backing, self.directory) catch |err| return self.failure.save(err);
-
-    const previous = self.previous orelse return null;
-    const managed = previous.value.managed_files;
-
-    self.borrowed = zx.memory.borrowReadFields(history, managed orelse previous.value.bundled_files);
-
-    self.entries = .{
-        .paths = @ptrCast(self.borrowed.column("paths")),
-        .digests = @ptrCast(self.borrowed.column("digests")),
-        .count = self.borrowed.count,
-        .native_only = managed == null,
-    };
-
-    const memory = self.planning.allocator();
-
-    self.physical_root = std.Io.Dir.cwd().realPathFileAlloc(self.io, self.directory, memory) catch |err| return self.failure.save(err);
-
-    const targets = memory.alloc([]const u8, self.current.len) catch |err| return self.failure.save(err);
-
-    for (self.current, 0..) |item, index| {
-        targets[index] = std.fs.path.resolve(memory, &.{ self.directory, item }) catch |err| return self.failure.save(err);
-    }
-
-    return targets;
-}
-
-pub fn retirementSpelling(handle: *const anyopaque, entry: []const u8) Error!*const Path {
-    const self = effects.state(Plan, handle);
-
-    _ = self.row.reset(.retain_capacity);
-
-    const memory = self.row.allocator();
-    const path = std.fs.path.resolve(self.planning.allocator(), &.{ self.directory, entry }) catch |err| return self.failure.save(err);
-    const relative = std.fs.path.relative(memory, self.directory, null, self.directory, path) catch |err| return self.failure.save(err);
-
-    inventory.makePortable(relative);
-
-    self.spelling = .{
-        .path = path,
-        .relative = relative,
-        .absolute = std.fs.path.isAbsolute(relative),
-    };
-
-    return &self.spelling;
-}
-
-pub fn retirementPhysical(handle: *const anyopaque, spelling: []const u8) Error!*const Path {
-    const self = effects.state(Plan, handle);
-    const memory = self.row.allocator();
-    const path = std.Io.Dir.cwd().realPathFileAlloc(self.io, spelling, memory) catch |err| return self.failure.save(err);
-    const relative = std.fs.path.relative(memory, self.physical_root, null, self.physical_root, path) catch |err| return self.failure.save(err);
-
-    self.physical = .{
-        .path = path,
-        .relative = relative,
-        .absolute = std.fs.path.isAbsolute(relative),
-    };
-
-    return &self.physical;
-}
-
-pub fn retirementPhysicalMatches(handle: *const anyopaque, target: []const u8, physical: []const u8) Error!bool {
-    const self = effects.state(Plan, handle);
-    var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const length = std.Io.Dir.cwd().realPathFile(self.io, target, &buffer) catch |err| return self.failure.save(err);
-
-    return std.mem.eql(u8, physical, buffer[0..length]);
-}
-
-pub fn checkRetirementInput(handle: *const anyopaque, path: []const u8) Error!void {
-    const self = effects.state(Plan, handle);
-
-    _ = output.check(self.io, self.row.allocator(), self.inputs, path) catch |err| return self.failure.save(err);
-}
-
-pub fn retirementDigest(handle: *const anyopaque, path: []const u8) Error![]const u8 {
-    const self = effects.state(Plan, handle);
-    const hash = inventory.digest(self.io, .cwd(), path) catch |err| return self.failure.save(err);
-
-    self.hex = std.fmt.bytesToHex(hash, .lower);
-
-    return &self.hex;
+    return allocator.dupe(u8, &hex);
 }

@@ -1,0 +1,36 @@
+import integers from "std:integer"
+
+import type { Table } from "core/type_table/model"
+
+export type Input = {
+    types: Table,
+    registered: u32[],
+    source_type: u32,
+    named: bool
+}
+
+export type Output = {
+    type_id: u32,
+    scalar: u32,
+    named: bool,
+    next?: u32
+}
+
+export default function (in: Input): Output {
+    const id = in.types.first[integers.widen(in.source_type)]
+    const scalar = in.types.first[integers.widen(id)]
+
+    const seen = loop(0, {
+        while: row => row < in.registered.length && in.registered[row] != id,
+        next: row => {
+            row += 1
+        }
+    })
+
+    return {
+        type_id: id,
+        scalar,
+        named: in.named,
+        next: seen == in.registered.length ? id : null
+    }
+}

@@ -1,0 +1,64 @@
+<Module>
+    <Type from="model" as="Reachable" />
+
+    <Args in={Reachable.Check} out={Reachable.Failure?} />
+
+    <If on={$in.item.source != null}>
+        <Call
+            module="../source/run"
+            in={{
+                document: $in.document,
+                input_path: $in.item.path,
+                source: $in.item.source,
+                maximum_lines: $in.maximum_lines
+            }}
+        />
+
+        <Call
+            fn="failure"
+            in={{
+                path: $in.item.path,
+                result: $ctx.run
+            }}
+        />
+
+        <Return value={$ctx.failure} />
+    </If>
+
+    <Call
+        fn="../index.readConfiguration"
+        in={[
+            $in.item.path,
+            16 * 1024 * 1024
+        ]}
+    />
+
+    <If on={$ctx.readConfiguration.bytes != null}>
+        <Call
+            module="../source/run"
+            in={{
+                document: $in.document,
+                input_path: $in.item.path,
+                source: $ctx.readConfiguration.bytes,
+                maximum_lines: $in.maximum_lines
+            }}
+        />
+
+        <Call
+            fn="failure"
+            in={{
+                path: $in.item.path,
+                result: $ctx.run
+            }}
+        />
+
+        <Return value={$ctx.failure} />
+    </If>
+
+    <Return
+        value={{
+            path: $in.item.path,
+            error_name: $ctx.readConfiguration.error_name
+        }}
+    />
+</Module>

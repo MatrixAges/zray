@@ -1,0 +1,35 @@
+import render from "../arguments/render"
+
+export type Input = {
+    zig: string,
+    pending: u32[],
+    arguments: string[],
+    indexed: u32[]
+}
+
+export type Output = string[][]
+
+export default function (in: Input): Output {
+    const executable = [in.zig]
+    const commands: Output = []
+
+    return loop({
+        row: 0,
+        commands
+    }, {
+        while: state => state.row < in.pending.length,
+        next: state => {
+            const index = in.pending[state.row]
+            const arguments = render({
+                values: in.arguments,
+                indexed: in.indexed,
+                index
+            })
+
+            state.commands =
+                state.commands.push(executable.concat(arguments)[0])[0]
+            state.row += 1
+        },
+        return: state => state.commands
+    })
+}

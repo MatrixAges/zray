@@ -5,14 +5,16 @@ export {
     readCollectionFile,
     writeCollectionDiagnostic,
     collectZxReferences,
-    recordCollectionZx,
     parseCollectionXml,
     validateCollectionXml,
-    recordCollectionModule,
-    recordCollectionStore,
-    recordCollectionGateway,
     prepareCollectionGateway,
     collectXmlReferences
 } from "rx_collection_host"
 
-export type { Collection, Kind, Availability } from "rx_collection_host"
+export type {
+    Collection,
+    Kind,
+    Availability,
+    GatewayRoutes,
+    XmlValidation
+} from "rx_collection_host"

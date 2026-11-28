@@ -37,6 +37,19 @@ export type Result = {
     code: u32
 }
 
+export type BatchFailure = {
+    spawn_error?: string,
+    termination?: string,
+    stderr: u8[]
+}
+
+// Slots follow argv order. A successful command has a null slot.
+export declare function spawnBatchSync(
+    allocator,
+    io,
+    in: string[][]
+): BatchFailure?[] throws { Canceled, OutOfMemory } concurrent
+
 export declare function spawnSync(allocator, io, in: Options): Result throws {
   AccessDenied, AntivirusInterference, BadPathName, BrokenPipe, Canceled,
   ConcurrencyUnavailable, ConnectionResetByPeer, DeviceBusy, DiskQuota, EmptyCommand,

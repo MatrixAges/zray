@@ -14,4 +14,8 @@
         <Field name="remove_stack_condition" type={bool} value={false} />
         <Field name="remove_stack_step" type={bool} value={false} />
     </Object>
+
+    <Object name="binding">
+        <Field name="name" type={u8[]?} value={null} />
+    </Object>
 </Store>

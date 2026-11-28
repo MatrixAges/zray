@@ -33,7 +33,8 @@
         fn="../index.spawnNativeTranslation"
         in={[
             $in.build,
-            $ctx.translation
+            $ctx.translation,
+            $in.observed
         ]}
     />
 
@@ -41,22 +42,16 @@
         <Return value={null} />
 
         <Else>
+            <Call fn="../translation_digest" in={$ctx.spawnNativeTranslation} />
+
             <Call
                 fn="../../../../backend_dependencies/cache_path"
                 in={{
                     root: $in.options.local,
-                    hash: $ctx.spawnNativeTranslation,
+                    hash: $ctx.translation_digest,
                     stem: $in.name
                 }}
             />
-
-            <If on={$in.observed}>
-                <Call fn="../index.retainNativeTranslation" in={$in.build} />
-
-                <Else>
-                    <Call fn="../index.releaseNativeTranslation" in={$in.build} />
-                </Else>
-            </If>
 
             <Call
                 fn="../../../../workspace_files/native_path"

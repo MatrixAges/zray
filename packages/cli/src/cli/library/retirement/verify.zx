@@ -1,19 +1,19 @@
 import bytes from "std:bytes"
 import memory from "memory"
-import host from "publication_host"
+import { digestPublishedFile } from "publication_host"
 
 import type { Candidate } from "./model"
 
-export type Input = Candidate.Pick("retirement", "previous", "index") & {
+export type Input = Candidate.Pick("previous", "index") & {
     path: string
 }
 
 export type Output = bool
 
 export default function (in: Input): Output {
-    const { retirement, previous, index, path } = in
+    const { previous, index, path } = in
 
-    const actual = host.retirementDigest(retirement, path)
+    const actual = digestPublishedFile(path)
     const expected = memory.readTextColumn(previous.digests, index)
 
     return actual.length == expected.length &&

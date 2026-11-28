@@ -5,6 +5,13 @@ export type StatementStack = {
     stack_buckets: u32[]
 }
 
+export type StatementWrite = {
+    row: u64,
+    start: u32,
+    count: u32,
+    previous?: u64
+}
+
 export type Lowering = mutable_opaque
 
 export enum Representation {

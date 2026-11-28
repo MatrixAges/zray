@@ -1,6 +1,0 @@
-export type TokenColumns = {
-    kinds: i32[],
-    starts: u64[],
-    ends: u64[],
-    block_scalars: bool[]
-}

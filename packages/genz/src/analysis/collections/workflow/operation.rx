@@ -14,7 +14,7 @@
     />
 
     <Call
-        fn="arguments"
+        module="arguments"
         in={$in.pick([
             "source_type",
             "ast",
@@ -45,22 +45,22 @@
 
     <If on={$in.kind == Flow.CollectionKind.Pop}>
         <Call
-            fn="host.emitCollectionPop"
-            in={[
-                $in.ast.writer,
-                $in.ast.sequence,
-                $in.id,
-                $in.source_type,
-                $in.result_type,
-                $in.items,
-                $in.value,
-                $ctx.header,
-                $ctx.materialize_type,
-                $ctx.emit_length
-            ]}
+            module="apply_work"
+            in={{
+                pop: {
+                    retract: $in.retract,
+                    source_type: $in.source_type,
+                    result_type: $in.result_type,
+                    items: $in.items,
+                    value: $in.value,
+                    header: $ctx.header,
+                    element: $ctx.materialize_type,
+                    length: $ctx.emit_length
+                }
+            }}
         />
 
-        <Return value={$ctx.emitCollectionPop} />
+        <Return value={$ctx.apply_work} />
     </If>
 
     <Call
@@ -71,6 +71,7 @@
                 "ast",
                 "kind",
                 "source_type",
+                "named",
                 "represented",
                 "removed_only",
                 "capacity",

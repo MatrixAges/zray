@@ -25,6 +25,7 @@
                 in={{
                     ...$in.pick([
                         "session",
+                        "fetch",
                         "catalog",
                         "root",
                         "members"

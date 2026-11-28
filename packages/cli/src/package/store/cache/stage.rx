@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Cache" />
 
-    <Args in={Cache.Stage} out={Cache.Status} />
+    <Args in={Cache.Stage} out={Cache.StageResult} />
 
     <Call
         fn="verify"
@@ -12,7 +12,12 @@
     />
 
     <If on={$ctx.verify != Cache.Status.Ready}>
-        <Return value={$ctx.verify} />
+        <Return
+            value={{
+                status: $ctx.verify,
+                staging: ""
+            }}
+        />
     </If>
 
     <Call
@@ -29,6 +34,7 @@
         fn="index.unpack"
         in={[
             $in.cache,
+            $ctx.createStaging,
             $in.bytes,
             $in.hex
         ]}
@@ -46,9 +52,24 @@
         fn="index.checkStaging"
         in={[
             $in.cache,
+            $ctx.createStaging,
             $in.hex
         ]}
     />
 
-    <Return value={Cache.Status.Ready} />
+    <If on={!$ctx.checkStaging}>
+        <Return
+            value={{
+                status: Cache.Status.CorruptPackageStore,
+                staging: ""
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            status: Cache.Status.Ready,
+            staging: $ctx.createStaging
+        }}
+    />
 </Module>

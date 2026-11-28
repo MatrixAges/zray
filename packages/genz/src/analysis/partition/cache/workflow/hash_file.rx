@@ -1,0 +1,33 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.FileHash} out={Cache.HashState} />
+
+    <Call
+        module="file_size"
+        in={$in.pick([
+            "path",
+            "size"
+        ])}
+    />
+
+    <Call
+        fn="../external"
+        in={{
+            path: $in.name,
+            size: $ctx.file_size
+        }}
+    />
+
+    <Call
+        fn="effects.blake3UpdateFile"
+        in={{
+            state: $in.prefix,
+            path: $in.path,
+            size: $ctx.file_size,
+            prefix: $ctx.external
+        }}
+    />
+
+    <Return value={$ctx.blake3UpdateFile} />
+</Module>

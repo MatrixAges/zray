@@ -1,11 +1,16 @@
 const std = @import("std");
-const memory = @import("zx").memory;
+const Storage = @import("zx").ir.FunctionStorage;
 const generated = @import("generated_column_lengths_publish");
 
-pub fn publish(target: *const memory.ColumnLengths, count: u64) void {
+pub fn publish(target: *Storage, count: u64) void {
     if (count == 0) return;
 
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    const published = generated.executeIn(scratch.allocator(), &.{ .first = target.count(), .count = count }) catch unreachable;
 
-    generated.executeIn(scratch.allocator(), &.{ .target = @ptrCast(target), .count = count }) catch unreachable;
+    inline for (@typeInfo(Storage).@"struct".field_names) |field| {
+        const column = &@field(target, field);
+
+        column.items = column.allocatedSlice()[0..@intCast(published)];
+    }
 }

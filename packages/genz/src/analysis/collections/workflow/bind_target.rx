@@ -5,13 +5,13 @@
 
     <If on={$in.clip}>
         <Call
-            fn="host.clipCollectionTarget"
-            in={[
-                $in.ast.writer,
-                $in.ast.sequence,
-                $in.target,
-                $in.evaluated
-            ]}
+            module="apply_work"
+            in={{
+                clip: {
+                    target: $in.target,
+                    value: $in.evaluated
+                }
+            }}
         />
 
         <Call
@@ -20,7 +20,7 @@
                 frame: $in.ast.lower,
                 writer: $in.ast.writer,
                 sequence: $in.ast.sequence,
-                value: $ctx.clipCollectionTarget
+                value: $ctx.apply_work
             }}
         />
 

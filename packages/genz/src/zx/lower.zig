@@ -75,7 +75,7 @@ function_modules: ?[]const []const u8 = null,
 
 local_regular_function: bool = false,
 function_requests: *@import("functions/requests.zig") = undefined,
-comparisons: *std.ArrayList(ir.TypeId) = undefined,
+comparisons: *@import("collections/workflow.zig").Comparisons = undefined,
 task_declarations: *@import("auxiliary.zig") = undefined,
 pub fn refreshEntry(self: *Self) Error!void {
     self.error_cache = null;

@@ -1,0 +1,12 @@
+import type { AcceptedMember as Input } from "./model"
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.state.accepted = {
+        paths: in.accepted.paths.push(in.path)[0],
+        rows: in.accepted.rows.push(in.row)[0]
+    }
+}

@@ -1,6 +1,0 @@
-export type Roots = {
-    cwd: string,
-    library: string,
-    local: string,
-    global: string
-}

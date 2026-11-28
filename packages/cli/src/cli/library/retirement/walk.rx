@@ -8,7 +8,9 @@
     <Call
         module="check"
         in={$in.pick([
-            "retirement",
+            "directory",
+            "physical_root",
+            "observed",
             "previous",
             "separator",
             "targets",

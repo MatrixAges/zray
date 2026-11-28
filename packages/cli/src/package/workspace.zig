@@ -5,11 +5,11 @@ const Manifest = @import("manifest/model.zig").Manifest;
 const rules = @import("cli_source");
 const effects = @import("../cli/sources/effects.zig");
 const Error = effects.Error;
-const Directory = @import("cli_abi").layouts.@"zig:package_workspace_host".Directory;
 const layouts = @import("cli_abi").layouts.@"zig:package_workspace_host";
-const RootManifest = layouts.RootManifest;
+const Entry = rules.workspace_collect;
 const constants = rules.workspace_constants.@"zx.constants";
-const Pending = rules.workspace_collect.zx_pending;
+const Pending = Entry.zx_pending;
+const Store2 = std.meta.Child(@FieldType(Pending, "store_2"));
 const Store0 = std.meta.Child(@FieldType(Pending, "store_0"));
 const Store1 = std.meta.Child(@FieldType(Pending, "store_1"));
 pub const Package = struct { path: []const u8, manifest: Manifest };
@@ -17,14 +17,20 @@ pub const Package = struct { path: []const u8, manifest: Manifest };
 const StoreHost = struct {
     store_0: *Store0,
     store_1: *Store1,
+    store_2: *Store2,
     pub fn commit(self: *StoreHost, pending: anytype) error{}!void {
         if (pending.store_0) |next| self.store_0.* = next;
         if (pending.store_1) |next| self.store_1.* = next;
+        if (pending.store_2) |next| self.store_2.* = next;
     }
 };
 
 fn initEmptyStore(comptime Pointer: type) std.meta.Child(Pointer) {
     const T = std.meta.Child(Pointer);
+
+    if (comptime @hasField(T, "rows")) {
+        return .{ .paths = &.{}, .rows = &.{} };
+    }
 
     if (comptime @hasField(T, "paths")) {
         return .{ .paths = &.{} };
@@ -82,30 +88,8 @@ const State = struct {
     manifests: std.mem.Allocator,
     failure: effects.Failure = .{},
     packages: std.ArrayList(Package) = .empty,
-    directory: ?std.Io.Dir = null,
-    walker: ?std.Io.Dir.SelectiveWalker = null,
-    current: std.Io.Dir.Walker.Entry = undefined,
-    current_view: Directory = undefined,
-    root_view: RootManifest = undefined,
-    member: Manifest = undefined,
-    member_view: layouts.ManifestMember = undefined,
     fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);
-    }
-    fn closeWalker(self: *State) void {
-        if (self.walker) |*walker| {
-            while (walker.stack.items.len > 0) walker.leave(self.io);
-
-            walker.deinit();
-
-            self.walker = null;
-        }
-
-        if (self.directory) |dir| {
-            dir.close(self.io);
-
-            self.directory = null;
-        }
     }
 };
 
@@ -120,97 +104,79 @@ fn collect(io: std.Io, result: *Result, request: Request) ![]const Package {
         .manifests = request.manifests orelse allocator,
     };
 
-    defer state.closeWalker();
-
     const reference = &state;
     var store_arena = std.heap.ArenaAllocator.init(result.arena.child_allocator);
 
     defer store_arena.deinit();
 
-    var store_0_value = initEmptyStore(Store0);
-    var store_1_value = initEmptyStore(Store1);
+    const path = request.path;
+    const parent = std.fs.path.dirname(path) orelse constants.root_path;
+    result.root = try std.Io.Dir.cwd().realPathFileAlloc(io, parent, allocator);
+
+    const root = try read(io, result, path, request.inputs, state.manifests, request.root);
+
+    try state.packages.append(allocator, .{ .path = constants.root_path, .manifest = root });
+
+    const store_0_value = initEmptyStore(Store0);
+    const store_1_value = initEmptyStore(Store1);
+    const store_2_value = initEmptyStore(Store2);
     var store_0: Store0 = &store_0_value;
     var store_1: Store1 = &store_1_value;
-    var host: StoreHost = .{ .store_0 = &store_0, .store_1 = &store_1 };
-    const diagnostic = rules.workspace_collect.execute(&store_arena, @ptrCast(&reference), &host) catch |err| return state.failure.unwrap(err);
+    var store_2: Store2 = &store_2_value;
+    var host: StoreHost = .{ .store_0 = &store_0, .store_1 = &store_1, .store_2 = &store_2 };
 
-    if (diagnostic) |message| {
+    const outcome = Entry.execute(&store_arena, &.{
+        .collection = @ptrCast(&reference),
+        .patterns = if (root.workspace) |workspace| workspace.packages else &.{},
+        .root_name = root.name,
+        .path = path,
+    }, &host) catch |err| return state.failure.unwrap(err);
+
+    if (outcome.diagnostic) |message| {
         result.diagnostic = try allocator.dupe(u8, message);
 
         return error.InvalidWorkspace;
     }
 
-    return try state.packages.toOwnedSlice(allocator);
+    for (outcome.paths, outcome.rows) |member, row| {
+        state.packages.items[@intCast(row)].path = try allocator.dupe(u8, member);
+    }
+
+    return state.packages.toOwnedSlice(allocator);
 }
 
-pub fn readRoot(handle: *const anyopaque) Error!*const RootManifest {
-    const self = State.get(handle);
-    const path = self.request.path;
-    const parent = std.fs.path.dirname(path) orelse constants.root_path;
-    self.result.root = std.Io.Dir.cwd().realPathFileAlloc(self.io, parent, self.allocator) catch |err| return self.failure.save(err);
-
-    const data = read(self.io, self.result, path, self.request.inputs, self.manifests, self.request.root) catch |err| return self.failure.save(err);
-
-    self.packages.append(self.allocator, .{ .path = constants.root_path, .manifest = data }) catch |err| return self.failure.save(err);
-
-    self.root_view = .{
-        .patterns = if (data.workspace) |workspace| workspace.packages else &.{},
-        .root_name = data.name,
-        .path = path,
-    };
-
-    return &self.root_view;
-}
-
-pub fn openDirectory(handle: *const anyopaque) Error!void {
+pub fn listWorkspaceDirectories(allocator: std.mem.Allocator, handle: *const anyopaque, relative: []const u8) Error![]const []const u8 {
     const self = State.get(handle);
     const root = self.result.root;
 
-    if (self.request.inputs) |observed| observed.add(self.io, root) catch |err| return self.failure.save(err);
+    const path = if (relative.len == 0) root else
+        std.fs.path.join(allocator, &.{ root, relative }) catch |err| return self.failure.save(err);
 
-    const dir = std.Io.Dir.openDirAbsolute(self.io, root, .{ .iterate = true }) catch |err| return self.failure.save(err);
+    if (self.request.inputs) |observed| observed.add(self.io, path) catch |err| return self.failure.save(err);
 
-    self.directory = dir;
-    self.walker = dir.walkSelectively(self.allocator) catch |err| return self.failure.save(err);
-}
+    const dir = std.Io.Dir.openDirAbsolute(self.io, path, .{ .iterate = true }) catch |err| return self.failure.save(err);
 
-pub fn nextDirectory(handle: *const anyopaque) Error!?*const Directory {
-    const self = State.get(handle);
-    const walker = &self.walker.?;
+    defer dir.close(self.io);
 
-    while (walker.next(self.io) catch |err| return self.failure.save(err)) |entry| {
+    var iterator = dir.iterate();
+    var children: std.ArrayList([]const u8) = .empty;
+
+    while (iterator.next(self.io) catch |err| return self.failure.save(err)) |entry| {
         if (entry.kind != .directory) continue;
 
-        const path = self.allocator.dupe(u8, entry.path) catch |err| return self.failure.save(err);
+        const child = std.fs.path.join(allocator, &.{ relative, entry.name }) catch |err| return self.failure.save(err);
 
-        self.current = entry;
-        self.current_view = .{ .path = path, .name = std.fs.path.basename(path) };
-
-        return &self.current_view;
+        children.append(allocator, child) catch |err| return self.failure.save(err);
     }
 
-    self.closeWalker();
-
-    return null;
-}
-
-pub fn enterDirectory(handle: *const anyopaque) Error!void {
-    const self = State.get(handle);
-
-    if (self.request.inputs) |observed| {
-        const child = std.fs.path.join(self.allocator, &.{ self.result.root, self.current.path }) catch |err| return self.failure.save(err);
-
-        observed.add(self.io, child) catch |err| return self.failure.save(err);
-    }
-
-    self.walker.?.enter(self.io, self.current) catch |err| return self.failure.save(err);
+    return children.toOwnedSlice(allocator) catch |err| self.failure.save(err);
 }
 
 pub fn readMember(handle: *const anyopaque, member: []const u8) Error!?*const layouts.ManifestMember {
     const self = State.get(handle);
     const path = std.fs.path.join(self.allocator, &.{ self.result.root, member, constants.manifest_name }) catch |err| return self.failure.save(err);
 
-    self.member = read(self.io, self.result, path, self.request.inputs, self.manifests, self.request.member) catch |err| {
+    const data = read(self.io, self.result, path, self.request.inputs, self.manifests, self.request.member) catch |err| {
         if (err == error.FileNotFound) return null;
         if (err == error.OutOfMemory) return self.failure.save(err);
 
@@ -221,16 +187,14 @@ pub fn readMember(handle: *const anyopaque, member: []const u8) Error!?*const la
         return self.failure.save(err);
     };
 
-    self.member_view = .{ .name = self.member.name, .path = path };
+    const view = self.allocator.create(layouts.ManifestMember) catch |err| return self.failure.save(err);
+    const row = self.packages.items.len;
 
-    return &self.member_view;
-}
+    self.packages.append(self.allocator, .{ .path = "", .manifest = data }) catch |err| return self.failure.save(err);
 
-pub fn publishMember(handle: *const anyopaque, path: []const u8) Error!void {
-    const self = State.get(handle);
-    const owned = self.allocator.dupe(u8, path) catch |err| return self.failure.save(err);
+    view.* = .{ .name = data.name, .path = path, .row = row };
 
-    self.packages.append(self.allocator, .{ .path = owned, .manifest = self.member }) catch |err| return self.failure.save(err);
+    return view;
 }
 
 fn read(io: std.Io, result: *Result, path: []const u8, inputs: ?*Inputs, manifests: std.mem.Allocator, known: ?source.Known) !Manifest {

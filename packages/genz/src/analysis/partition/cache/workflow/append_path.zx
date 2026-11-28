@@ -1,0 +1,37 @@
+import bytes from "std:bytes"
+import os from "std:os"
+
+export type Input = {
+    parent: string,
+    child: string
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { parent, child } = in
+
+    if (parent == "") {
+        return child
+    }
+
+    if (child == "") {
+        return parent
+    }
+
+    const raw = bytes.fromText(parent)
+    const last = raw.length - 1
+    const windows = os.platform() == "win32"
+
+    const slash = bytes.startsWithText(raw, last, "/")
+    const backslash = bytes.startsWithText(raw, last, "\\")
+    const has_separator = slash || (windows && backslash)
+
+    if (has_separator) {
+        return `${parent}${child}`
+    }
+
+    const separator = windows ? "\\" : "/"
+
+    return `${parent}${separator}${child}`
+}

@@ -1,19 +1,15 @@
+export { rename } from "std:fs"
+export { pathParent } from "lexical_path"
 export {
     lockCache,
     openCache,
-    closeDirectory,
     createStaging,
     loadZig,
     extractZip,
     extractTar,
-    renameZig,
     extractStandard,
-    publish,
-    probeLibrary,
-    unlock
+    probeLibrary
 } from "toolchain_host"
 export {
-    openCache as openStaging,
-    probeLibrary as probeSystemLibrary,
-    probeLibrary as probeSiblingLibrary
+    openCache as openStaging
 } from "toolchain_host"

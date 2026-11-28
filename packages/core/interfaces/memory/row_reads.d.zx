@@ -164,3 +164,9 @@ export declare function readListOptionalU32(
     index: u64,
     member: u64
 ): u32? throws { IndexOutOfBounds }
+
+export declare function readListOptionalU8(
+    source: ListColumn,
+    index: u64,
+    member: u64
+): u8? throws { IndexOutOfBounds }

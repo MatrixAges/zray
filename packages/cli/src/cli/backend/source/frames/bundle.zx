@@ -5,7 +5,7 @@ import integer from "std:integer"
 import { root_words } from "../diagnostics/const"
 import { error_bundle_header_size, word_size } from "./const"
 
-import type { DiagnosticBundle } from "backend_frames"
+import type { DiagnosticBundle } from "./model"
 
 export type Input = string
 

@@ -14,6 +14,13 @@
         "implementation_path": "src/root.zig"
     },
     {
+        "specifier": "std:crypto/blake3",
+        "path": "interfaces/crypto/blake3.d.zx",
+        "module": "zxc_standard",
+        "namespace": ["crypto", "blake3"],
+        "implementation_path": "src/root.zig"
+    },
+    {
         "specifier": "std:path",
         "path": "interfaces/path.d.zx",
         "module": "zxc_standard",

@@ -50,6 +50,7 @@
                 "ast",
                 "kind",
                 "source_type",
+                "named",
                 "represented",
                 "removed_only",
                 "capacity",

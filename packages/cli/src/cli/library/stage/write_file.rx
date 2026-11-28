@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Model" />
+
+    <Args in={Model.File} out={void} />
+
+    <Call
+        fn="../../standard/path/join"
+        in={[
+            $in.directory,
+            $in.path
+        ]}
+    />
+
+    <Call
+        module="../../workspace_files/write_artifact"
+        in={{
+            path: $ctx.join,
+            source: $in.source
+        }}
+    />
+</Module>

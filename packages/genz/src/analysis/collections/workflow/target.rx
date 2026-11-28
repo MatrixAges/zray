@@ -4,13 +4,10 @@
     <Args in={Flow.TargetRequest} out={Flow.BoundTarget} />
 
     <Call
-        fn="host.lowerExpression"
-        in={[
-            $in.ast.lower,
-            $in.target,
-            false,
-            null
-        ]}
+        module="apply_work"
+        in={{
+            target: $in.target
+        }}
     />
 
     <Call
@@ -18,7 +15,7 @@
         in={{
             ast: $in.ast,
             target: $in.target,
-            evaluated: $ctx.lowerExpression,
+            evaluated: $ctx.apply_work,
             represented: $in.represented,
             clip: $in.represented && $in.kind != Flow.CollectionKind.Slice
         }}

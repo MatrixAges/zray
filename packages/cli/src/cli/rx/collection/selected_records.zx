@@ -1,0 +1,12 @@
+import type { Records } from "./model"
+
+export type Input = {
+    valid: bool,
+    records: Records
+}
+
+export type Output = Records?
+
+export default function (in: Input): Output {
+    return in.valid ? in.records : null
+}

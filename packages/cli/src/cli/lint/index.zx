@@ -20,8 +20,6 @@ export {
     resolveLintWorkspace,
     lintMemberSemantics,
     lintMemberConfiguration,
-    checkReachableLintSource,
-    checkReachableLintStore,
     checkConfigurationJson,
     readConfiguration,
     formatConfigurationManifest,
@@ -30,6 +28,7 @@ export {
 } from "lint_workflow_host"
 
 export type {
+    SourceIssue,
     SourceLint,
     SemanticLint,
     SemanticProject,

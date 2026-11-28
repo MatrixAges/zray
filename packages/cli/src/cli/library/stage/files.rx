@@ -12,12 +12,12 @@
     />
 
     <Call
-        fn="index.writeStageFile"
-        in={[
-            $in.stage,
-            $ctx.file.path,
-            $ctx.file.source
-        ]}
+        module="write_file"
+        in={{
+            directory: $in.directory,
+            path: $ctx.file.path,
+            source: $ctx.file.source
+        }}
     />
 
     <Return

@@ -1,1 +1,1 @@
-export { digestEntry, nextEntry, openDirectory } from "publication_host"
+export { digestPublishedFile, listPublicationDirectory } from "publication_host"

@@ -15,17 +15,11 @@ pub fn Storage(comptime Input: type) type {
         };
         tail: columns.Tail(Target),
         target: Target,
-        lengths_array: [@typeInfo(ir.FunctionStorage).@"struct".field_names.len]*usize,
-        lengths: zx.memory.ColumnLengths,
         completed: u64,
-        pub fn init(self: *@This(), destination: *ir.FunctionStorage, temporary: std.mem.Allocator) Input {
-            _ = temporary;
-
+        pub fn init(self: *@This(), destination: *ir.FunctionStorage) Input {
             self.tail.init(destination);
 
             self.target = .{ .storage = @ptrCast(&self.tail.storage), .shape = null };
-            self.lengths_array = zx.memory.borrowColumnLengths(destination);
-            self.lengths = &self.lengths_array;
             self.completed = 0;
 
             return .{
@@ -35,10 +29,6 @@ pub fn Storage(comptime Input: type) type {
                 .empty = &empty,
                 .max_offset = std.math.maxInt(usize),
             };
-        }
-
-        pub fn deinit(self: *@This()) void {
-            if (self.completed != 0) @import("../../../column_lengths.zig").publish(&self.lengths, self.completed);
         }
     };
 }

@@ -1,0 +1,14 @@
+import type { Request } from "./work"
+
+export type Input = Request
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.work.pending = {
+        request: in,
+        result: 0
+    }
+}

@@ -1,45 +1,61 @@
+const std = @import("std");
 const Lower = @import("../lower.zig");
 const Sequence = @import("../../node/blocks.zig").Sequence;
-const evaluation = @import("../expressions/evaluate.zig");
-const Error = Lower.Error;
+const entry = @import("generated_run_list_update");
+const Self = @This();
+pub const View = std.meta.Child(@FieldType(entry.zx_pending, "store_0"));
+const State = std.meta.Child(View);
+const Request = std.meta.Child(@FieldType(State, "request"));
 
-pub fn collectionCompare(frame: *anyopaque, source_type: u32) Error![]const u8 {
-    const self = evaluation.borrow(frame);
-    const child = self.program.typeOf(@fromBackingInt(source_type)).list;
-    var found = false;
+lowering: *Lower,
+sequence: *Sequence,
 
-    for (self.comparisons.items) |previous| {
-        if (previous == child) found = true;
+state: State = .{ .request = null, .result = 0 },
+
+pub const Host = struct {
+    work: *Self,
+    store_0: *const View,
+    pub fn commit(self: Host, pending: anytype) Lower.Error!void {
+        try self.work.runCollectionWork(pending.store_0);
     }
+};
 
-    if (!found) try self.comparisons.append(self.allocator, child);
+pub fn runCollectionWork(self: *Self, pending: ?View) Lower.Error!void {
+    const state = pending orelse return;
 
-    return @import("../comparison.zig").name(self, child);
+    self.state.result = try self.resolve(state.request orelse unreachable);
 }
 
-pub fn emitCollectionPop(
-    frame: *anyopaque,
-    body: *anyopaque,
-    id: u32,
-    source_type: u32,
-    result_type: u32,
-    items: u32,
-    value: u32,
-    header: u32,
-    element: u32,
-    length: u32,
-) Error!u32 {
-    const lowering = evaluation.borrow(frame);
-    const sequence: *Sequence = @ptrCast(@alignCast(body));
+fn resolve(self: *Self, request: Request) Lower.Error!u32 {
+    const lowering = self.lowering;
+    const sequence = self.sequence;
 
-    return @backingInt(try @import("pop.zig").lower(lowering, sequence, .{
-        .type_id = @fromBackingInt(source_type),
-        .result_type = @fromBackingInt(result_type),
-        .items = @fromBackingInt(items),
-        .value = @fromBackingInt(value),
-        .header = @fromBackingInt(header),
-        .element = @fromBackingInt(element),
-        .length = @fromBackingInt(length),
-        .retract = lowering.plan.get(@fromBackingInt(id)).retract,
+    if (request.target) |target| return @backingInt(try lowering.expr(@fromBackingInt(target)));
+
+    if (request.clip) |clip| return @backingInt(try @import("../state_value/ownership.zig").clip(
+        lowering,
+        sequence,
+        @fromBackingInt(clip.target),
+        @fromBackingInt(clip.value),
+    ));
+
+    if (request.pop) |pop| return @backingInt(try @import("pop.zig").lower(lowering, sequence, .{
+        .type_id = @fromBackingInt(pop.source_type),
+        .result_type = @fromBackingInt(pop.result_type),
+        .items = @fromBackingInt(pop.items),
+        .value = @fromBackingInt(pop.value),
+        .header = @fromBackingInt(pop.header),
+        .element = @fromBackingInt(pop.element),
+        .length = @fromBackingInt(pop.length),
+        .retract = pop.retract,
     }));
+
+    const construct = request.construct orelse unreachable;
+
+    return @backingInt(try @import("../construction/build.zig").lower(
+        lowering,
+        @fromBackingInt(construct.type_id),
+        @fromBackingInt(construct.value),
+        if (construct.layout) |layout| @fromBackingInt(layout) else null,
+    ));
 }

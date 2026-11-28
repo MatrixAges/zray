@@ -10,7 +10,8 @@
             fn="../index.lintMemberSemantics"
             in={[
                 $in.check,
-                $ctx.member_plan.path
+                $ctx.member_plan.path,
+                $in.plan.root_manifest
             ]}
         />
 
@@ -21,7 +22,8 @@
         fn="../index.lintMemberConfiguration"
         in={[
             $in.check,
-            $ctx.member_plan.path
+            $ctx.member_plan.path,
+            $in.plan.root_manifest
         ]}
     />
 

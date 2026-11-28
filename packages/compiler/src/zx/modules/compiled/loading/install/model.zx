@@ -6,7 +6,6 @@ import type {
     Input as Reserve
 } from "../../../artifact/materializing/publication/reserve"
 import type { Destination as NativeTarget } from "../../../link/native/publication/model"
-import type { Commit } from "../../../link/source/workflow/model"
 import type { Input as Planning, Result } from "../../model"
 import type { Input as Functions } from "../functions/batch_model"
 import type { Request as Interface } from "../interface/model"
@@ -17,7 +16,6 @@ export type Installation = {
     reserve: Reserve,
     functions: Functions.Omit("mapping"),
     interface?: Interface.Omit("selection", "mapping"),
-    commit: Commit
 }
 
 export type Request = {

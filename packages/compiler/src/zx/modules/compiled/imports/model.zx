@@ -1,21 +1,14 @@
-import type { ColumnAllocator, RowBuffer } from "memory/columns"
+import type { Capacity } from "core/row_buffer"
 import type { Input as Search } from "./find"
 
-export type Initializers = {
-    rows: RowBuffer,
-    owner: ColumnAllocator,
-    first: u64,
-    count: u64
-}
-
 export type Input = {
-    initializers?: Initializers,
+    initializers?: Capacity,
     added?: Search,
     inherited?: Search
 }
 
 export type Result = {
     row?: u64,
-    published?: u64,
+    capacity?: u64,
     inherited: bool
 }

@@ -17,8 +17,14 @@ export type StageFiles = {
     public: Files
 }
 
+export type File = {
+    directory: string,
+    path: string,
+    source: string
+}
+
 export type FileGroup = {
-    stage: Stage,
+    directory: string,
     files: Files
 }
 

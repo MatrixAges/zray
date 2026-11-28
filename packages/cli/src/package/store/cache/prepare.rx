@@ -50,8 +50,8 @@
             }}
         />
 
-        <If on={$ctx.stage != Cache.Status.Ready}>
-            <Return value={$ctx.stage} />
+        <If on={$ctx.stage.status != Cache.Status.Ready}>
+            <Return value={$ctx.stage.status} />
         </If>
 
         <If on={$ctx.acquire.downloaded}>
@@ -68,6 +68,7 @@
             fn="index.publishStaging"
             in={[
                 $in.cache,
+                $ctx.stage.staging,
                 $in.destination
             ]}
         />

@@ -17,8 +17,14 @@ export type LockedArchives = {
     digests: TextColumn
 }
 
+export type Fetch = {
+    cache: string,
+    offline: bool
+}
+
 export type Input = {
     session: InstallIO,
+    fetch: Fetch,
     members: u64,
     maximum_edges: u64,
     maximum_bytes: u64,
@@ -32,6 +38,7 @@ export type Input = {
 
 export type Fresh = {
     session: InstallIO,
+    fetch: Fetch,
     members: u64,
     maximum_edges: u64,
     root: string
@@ -39,6 +46,7 @@ export type Fresh = {
 
 export type Archive = {
     session: InstallIO,
+    fetch: Fetch,
     catalog: Catalog,
     members: u64,
     root: string,
@@ -47,6 +55,8 @@ export type Archive = {
 
 export type ArchiveSource = {
     session: InstallIO,
+    fetch: Fetch,
+    root: string,
     catalog: Catalog,
     release: Release,
     source: string
@@ -59,6 +69,7 @@ export type ArchiveOutcome = {
 
 export type Replay = {
     session: InstallIO,
+    fetch: Fetch,
     locked_workspace: string?[],
     locked_archives: LockedArchives,
     root: string

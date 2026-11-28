@@ -49,7 +49,6 @@ pub fn build(b: *std.Build) void {
     });
 
     host.addImport("backend_input_host", dependency_host);
-    host.import_table.get("cli_source").?.addImport("backend_input_host", dependency_host);
 
     const publication = b.addModule("publication_host", .{
         .root_source_file = b.path("src/cli/publication.zig"),
@@ -115,7 +114,6 @@ pub fn build(b: *std.Build) void {
     });
 
     host.addImport("manifest_yaml_scanner", yaml_scanner);
-    host.import_table.get("cli_source").?.addImport("manifest_yaml_scanner", yaml_scanner);
 
     const yaml_document = b.addModule("manifest_yaml_document", .{
         .root_source_file = b.path("src/package/manifest/decode/document.zig"),

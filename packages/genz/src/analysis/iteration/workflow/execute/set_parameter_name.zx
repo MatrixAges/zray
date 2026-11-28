@@ -1,0 +1,11 @@
+export type Input = u8[]
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.loop_state.binding = {
+        name: in
+    }
+}

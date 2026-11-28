@@ -1,9 +1,10 @@
-import type { AstSequence, AstWriter, CollectionRows } from "ast_rows"
+import type { AstSequence, AstWriter } from "ast_rows"
 import type { CollectionKind } from "core/expression_table/kinds"
 import type { Lowering } from "lowering_host"
 import type { Minimum } from "../../iteration/fields/projection/model"
 import type { Source as ElementStorage } from "../../state/elements/storage"
 import type { Preparation } from "../result/model"
+import type { CollectionRows } from "./row_shape"
 
 export { CollectionKind } from "core/expression_table/kinds"
 
@@ -37,6 +38,7 @@ export type Input = {
     capacity?: Capacity,
     state_active: bool,
     result_selected: bool,
+    named: bool,
     layout?: u32
 }
 
@@ -59,6 +61,19 @@ export type Arguments = {
     third: u32
 }
 
+export type ArgumentSource = Input.Pick(
+    "ast",
+    "kind",
+    "arguments",
+    "source_type",
+    "expression_types"
+)
+
+export type Argument = {
+    ast: Ast,
+    origin: u32
+}
+
 export type Operation = Input & BoundTarget
 
 export type Rows = Input.Pick(
@@ -66,6 +81,7 @@ export type Rows = Input.Pick(
     "ast",
     "kind",
     "source_type",
+    "named",
     "represented",
     "removed_only",
     "capacity",

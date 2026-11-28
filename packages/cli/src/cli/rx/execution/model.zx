@@ -3,6 +3,7 @@ import type { Settings } from "../../compilation/model"
 
 export type Request = {
     application: RxApplication,
+    input_path: string,
     settings: Settings
 }
 

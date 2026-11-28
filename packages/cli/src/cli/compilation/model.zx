@@ -27,7 +27,8 @@ export type Request = {
 export type Outcome = {
     status: Status,
     stdout?: string,
-    diagnostic?: string
+    diagnostic?: string,
+    defer_diagnostic_flush?: bool
 }
 
 export type Query = Request & {
@@ -40,4 +41,8 @@ export type CacheLoad = Request & {
 
 export type TextPublication = Request & {
     text: CompilationText
+}
+
+export type NativeRequest = Request & {
+    source: u8[]
 }

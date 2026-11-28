@@ -1,7 +1,5 @@
 export type Collection = opaque
 
-export type Source = opaque
-
 export type Project = opaque
 
 export enum Probe {
@@ -11,25 +9,15 @@ export enum Probe {
     Workspace
 }
 
-export type RootManifest = {
-    patterns: string[],
-    root_name: string,
-    path: string
-}
-
 export type ManifestMember = {
     name: string,
-    path: string
+    path: string,
+    row: u64
 }
 
 export type MemberSearch = {
     paths: string[],
     target: string
-}
-
-export type Directory = {
-    path: string,
-    name: string
 }
 
 export type SurfaceExport = {
@@ -52,14 +40,12 @@ export type PublishedSurface = {
     artifact?: string
 }
 
-export declare function readRoot(collection: Collection): RootManifest throws { SourceLoadFailure }
-export declare function openDirectory(collection: Collection): void throws { SourceLoadFailure }
-export declare function nextDirectory(collection: Collection): Directory? throws { SourceLoadFailure }
-export declare function enterDirectory(collection: Collection): void throws { SourceLoadFailure }
+export declare function listWorkspaceDirectories(
+    allocator,
+    collection: Collection,
+    path: string
+): string[] throws { SourceLoadFailure }
 export declare function readMember(collection: Collection, path: string): ManifestMember? throws {
-    SourceLoadFailure
-}
-export declare function publishMember(collection: Collection, path: string): void throws {
     SourceLoadFailure
 }
 
@@ -68,8 +54,10 @@ export declare function readCandidate(search: Project, path: string, keep_previo
 export declare function loadAncestor(search: Project, directory: string): MemberSearch?
     throws { SourceLoadFailure }
 
-export declare function hasPackageManifest(source: Source, path: string): bool throws {
-    SourceLoadFailure
+export declare function hasPackageManifest(io, path: string): bool throws {
+    AccessDenied, BadPathName, Canceled, FileBusy, FileNotFound, InputOutput,
+    NameTooLong, NetworkNotFound, NoDevice, NotDir, PermissionDenied, ReadOnlyFileSystem,
+    SymLinkLoop, SystemResources, Unexpected
 }
 
 export declare function findProjectConfiguration(project: Project): string? throws {

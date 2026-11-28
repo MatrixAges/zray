@@ -53,10 +53,6 @@ pub const Context = struct {
     pub fn physicalPath(self: *const Context, path: []const u8) ![]const u8 {
         return std.Io.Dir.cwd().realPathFileAlloc(self.io, path, self.allocator);
     }
-
-    pub fn fetch(self: *const Context, release: pkgs.Index.Release, base: []const u8) ![]const u8 {
-        return @import("package_store").prepare(self.io, self.allocator, release, base, self.cache, self.options.offline);
-    }
 };
 
 pub fn currentWorkspaceMatches(handle: *const anyopaque) Error!bool {
