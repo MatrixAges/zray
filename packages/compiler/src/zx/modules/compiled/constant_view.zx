@@ -1,0 +1,22 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Rows as Output } from "core/constant/rows"
+import type { Constants } from "./model"
+
+export type Input = {
+    source: Constants,
+    row: u64,
+    count: u64
+}
+
+export default function (in: Input): Output {
+    const { source, row, count } = in
+
+    return {
+        names: memory.selectListText(source.scratch, source.names, row),
+        types: columns.selectListValue(source.scalar_scratch, source.types, row),
+        values: columns.selectListValue(source.scalar_scratch, source.values, row),
+        count
+    }
+}

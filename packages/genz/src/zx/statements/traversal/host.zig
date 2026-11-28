@@ -3,8 +3,6 @@ const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
-const Scope = @import("scope.zig");
-const Selection = @import("../switch/state.zig");
 const rows = @import("../../construction/publication.zig");
 const entry = @import("generated_statement_traversal");
 const execute = @import("generated_execute_statement_traversal");
@@ -12,23 +10,37 @@ const Input = std.meta.Child(entry.Input);
 const Rows = std.meta.Child(@FieldType(Input, "rows"));
 const Api = @import("../../expressions/evaluate.zig").Api;
 const StatementStack = Api.StatementStack;
+const Registered = @import("../../value_call/locals.zig").Registered;
+const Binding = @FieldType(Lower, "cache").Binding;
+const Selection = std.meta.Child(@FieldType(execute.zx_pending, "store_0"));
 
-pub const Frame = struct {
+const StoreHost = struct {
     lowering: *Lower,
-    control: @FieldType(ir.Block, "control"),
-    spans: []u64,
-    scopes: []Scope,
-    selections: []Selection,
-    sequence: @import("../../../node/blocks.zig").Sequence,
-    child: node.Block = .{},
-    stack_view: StatementStack = undefined,
-    pub fn borrow(handle: *const anyopaque) *Frame {
-        const reference: *const *Frame = @ptrCast(@alignCast(handle));
+    stack: []Binding,
+    count: usize = 0,
+    store_0: *Selection,
+    pub fn commit(self: *StoreHost, pending: anytype) Lower.Error!void {
+        const next = pending.store_0 orelse return;
 
-        return reference.*;
+        if (next.reference) |value| {
+            self.stack[self.count] = try self.lowering.cache.bind(
+                self.lowering.allocator,
+                @fromBackingInt(next.subject),
+                @fromBackingInt(value),
+            );
+
+            self.count += 1;
+        } else {
+            self.pop();
+        }
+
+        self.store_0.* = next;
     }
-    pub fn block(self: *const Frame, slot: u64) ir.Block {
-        return self.scopes[@intCast(slot)].values;
+
+    fn pop(self: *StoreHost) void {
+        self.count -= 1;
+
+        self.stack[self.count].restore();
     }
 };
 
@@ -44,45 +56,22 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     const row_inputs = zx.columns.borrow(Rows, control_source);
     const input: Input = .{ .rows = &row_inputs, .first = values.first, .count = values.len };
     const plan = zx.columns.invoke(entry.executeValue, scratch, &input) catch |err| return failure(err);
-    const capacity: usize = @intCast(plan.capacity);
-    const depth: usize = @intCast(plan.depth);
-    const spans = try scratch.alloc(u64, capacity);
-    const selection_depth: usize = if (plan.flat) 0 else @intCast(plan.selection_depth);
-    var flat_scope: [1]Scope = undefined;
-    const scopes: []Scope = if (plan.flat) &flat_scope else try scratch.alloc(Scope, depth);
-    const selections: []Selection = if (plan.flat) &.{} else try scratch.alloc(Selection, selection_depth);
+    var sequence = self.builder.statementSequence(self.workspace);
 
-    for (scopes) |*scope| scope.active = false;
-    for (selections) |*selection| selection.active = false;
+    defer sequence.deinit();
 
-    var frame: Frame = .{
-        .lowering = self,
-        .control = values.control,
-        .spans = spans,
-        .scopes = scopes,
-        .selections = selections,
-        .sequence = self.builder.statementSequence(self.workspace),
+    const baseline: Registered = .{
+        .state = self.state_symbols.checkpoint(),
+        .stack = self.stack_symbols.checkpoint(),
     };
 
-    defer frame.sequence.deinit();
+    errdefer baseline.release(self);
 
-    defer {
-        var index = selections.len;
+    const stack = try scratch.alloc(Binding, @intCast(plan.selection_depth));
+    var store: Selection = &.{ .subject = 0, .reference = null };
+    var host: StoreHost = .{ .lowering = self, .stack = stack, .store_0 = &store };
 
-        while (index != 0) {
-            index -= 1;
-
-            selections[index].leave(self);
-        }
-
-        index = scopes.len;
-
-        while (index != 0) {
-            index -= 1;
-
-            scopes[index].close(self);
-        }
-    }
+    errdefer while (host.count != 0) host.pop();
 
     const Execution = std.meta.Child(execute.Input);
     const Schedule = std.meta.Child(@FieldType(Execution, "plan"));
@@ -94,12 +83,11 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     const expressions = zx.columns.borrow(Expressions, @as(*const ir.ExpressionTable, &self.program.expressions));
     const types = ir.TypeTable.borrow(Types, self.program.types);
     const schedule = zx.columns.view(Schedule, plan);
-    const reference = &frame;
 
     const context: Context = .{
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
-        .sequence = @ptrCast(&frame.sequence),
+        .sequence = @ptrCast(&sequence),
         .control = &control,
         .expressions = &expressions,
         .types = &types,
@@ -108,6 +96,7 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
         .store_count = self.program.stores.count(),
         .names = self.names,
         .used = self.used,
+        .symbol_types = self.program.symbols.types,
         .transaction = self.transaction(),
         .value_output = self.value_output,
         .state_active = self.state_active,
@@ -115,89 +104,80 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     };
 
     const request: Execution = .{
-        .traversal = @ptrCast(&reference),
         .context = &context,
         .plan = &schedule,
         .first = @intCast(values.first),
         .count = @intCast(values.len),
     };
 
-    const valid = execute.executeIn(scratch, &request) catch |err| return failure(err);
+    const span = (execute.executeIn(scratch, &request, &host) catch |err|
+        return failure(err)) orelse return error.OutOfMemory;
 
-    if (!valid) return error.OutOfMemory;
-
-    return frame.child;
+    return rows.unpackSpan(span);
 }
 
-pub fn openStatementScope(handle: *const anyopaque, slot: u64, first: u32, count: u32, placement: u64) ?*const StatementStack {
-    const frame = Frame.borrow(handle);
-    const scope = &frame.scopes[@intCast(slot)];
-    const start: usize = @intCast(placement);
-    const range: ir.Block = .{ .control = frame.control, .first = first, .len = count };
-    scope.* = Scope.open(frame.lowering, range, frame.spans[start..][0..count]) catch return null;
-    const stack = frame.lowering.stack_symbols.current();
-    frame.stack_view = .{ .stack_keys = stack.keys.items, .stack_buckets = stack.buckets.items };
+pub fn openStatementScope(allocator: std.mem.Allocator, handle: *anyopaque, first: u32, count: u32) Lower.Error!*const StatementStack {
+    const self = @import("../../expressions/evaluate.zig").borrow(handle);
+    const result = try allocator.create(StatementStack);
 
-    return &frame.stack_view;
+    const registered: Registered = if (count != 0)
+        try @import("../../value_call/locals.zig").register(self, .{ .control = self.program.body.control, .first = first, .len = count })
+
+    else
+        .{ .state = self.state_symbols.checkpoint(), .stack = self.stack_symbols.checkpoint() };
+
+    const stack = self.stack_symbols.current();
+
+    result.* = .{
+        .state_checkpoint = registered.state,
+        .stack_checkpoint = registered.stack,
+        .stack_keys = stack.keys.items,
+        .stack_buckets = stack.buckets.items,
+    };
+
+    return result;
 }
 
-pub fn finishStatementScope(handle: *const anyopaque, slot: u64, writes: []const *const Api.StatementWrite) ?u64 {
-    const frame = Frame.borrow(handle);
-    const scope = &frame.scopes[@intCast(slot)];
+pub fn finishStatementScope(handle: *anyopaque, state_checkpoint: u64, stack_checkpoint: u64, spans: []const u64) Lower.Error!u64 {
+    const self = @import("../../expressions/evaluate.zig").borrow(handle);
+    const saved: Registered = .{ .state = state_checkpoint, .stack = stack_checkpoint };
 
-    for (writes) |write| {
-        scope.put(@intCast(write.row), .{ .start = write.start, .len = write.count });
+    defer saved.release(self);
 
-        if (write.previous) |index| scope.put(@intCast(index), .{});
-    }
+    if (spans.len == 0) return 0;
 
-    frame.child = scope.finish(frame.lowering) catch return null;
-
-    scope.close(frame.lowering);
-
-    return rows.packSpan(frame.child);
+    return rows.packSpan(try @import("../../../node/blocks.zig").joinStatementSpans(
+        self.allocator,
+        self.builder.nodes,
+        spans,
+        false,
+    ));
 }
 
-pub fn openStatementSelection(handle: *const anyopaque, slot: u64, offset: u32, placement: u64, name: []const u8, subject: u32, reference: u32) bool {
-    const frame = Frame.borrow(handle);
-    const scope = &frame.scopes[@intCast(slot)];
+pub fn finishStatementSelection(
+    allocator: std.mem.Allocator,
+    handle: *anyopaque,
+    name: []const u8,
+    subject: u32,
+    reference: u32,
+    selected: bool,
+    exhaustive: bool,
+    total_count: u64,
+    fallback: ?u64,
+    cases: *const Api.StatementCases,
+) Lower.Error!u64 {
+    const self = @import("../../expressions/evaluate.zig").borrow(handle);
 
-    frame.selections[@intCast(placement)].enter(
-        frame.lowering,
-        scope.values.at(offset).switch_stmt,
-        name,
-        @fromBackingInt(subject),
-        @fromBackingInt(reference),
-    ) catch return false;
-
-    return true;
-}
-
-pub fn resolveStatementSelection(handle: *const anyopaque, placement: u64, count: u32, selected: bool) bool {
-    const frame = Frame.borrow(handle);
-
-    frame.selections[@intCast(placement)].resolve(count, selected) catch return false;
-
-    return true;
-}
-
-pub fn saveStatementCase(handle: *const anyopaque, placement: u64, index: u32, comparison: u32, literal: ?u32) void {
-    const frame = Frame.borrow(handle);
-
-    frame.selections[@intCast(placement)].saveCase(index, frame.child, comparison, literal);
-}
-
-pub fn finishStatementSelection(handle: *const anyopaque, slot: u64, offset: u32, placement: u64, fallback: ?u64) bool {
-    const frame = Frame.borrow(handle);
-    const selection = &frame.selections[@intCast(placement)];
-    selection.fallback = if (fallback) |value| rows.unpackSpan(value) else null;
-
-    const block = selection.finish(frame.lowering) catch return false;
-
-    frame.scopes[@intCast(slot)].put(offset, block);
-    selection.leave(frame.lowering);
-
-    return true;
+    return rows.packSpan(try @import("../switch/publish.zig").lower(self, .{
+        .name = name,
+        .subject = subject,
+        .reference = reference,
+        .selected = selected,
+        .exhaustive = exhaustive,
+        .total_count = total_count,
+        .fallback = if (fallback) |span| rows.unpackSpan(span) else null,
+        .cases = cases,
+    }, allocator));
 }
 
 fn failure(err: anyerror) Lower.Error {

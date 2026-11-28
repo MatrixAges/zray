@@ -4,20 +4,21 @@
 
     <Args in={Execution.ScheduleWalk} out={Execution.ScheduleWalk} />
 
+    <Store from="selection" as="selection" />
+
     <If on={$in.plan.actions[$in.index] == Schedule.Action.Execute}>
         <Call
             module="scope"
             in={{
                 ...$in.pick([
-                    "traversal",
                     "context"
                 ]),
-                scope: $in.plan.scopes[$in.index],
                 writes: $in.state.scope_writes[$in.plan.scopes[$in.index]],
                 first: $in.plan.offsets[$in.index],
                 count: $in.plan.counts[$in.index],
                 routes: $in.state.scope_routes[$in.plan.scopes[$in.index]],
-                scope_first: $in.state.scope_firsts[$in.plan.scopes[$in.index]]
+                scope_first: $in.state.scope_firsts[$in.plan.scopes[$in.index]],
+                scope_count: $in.state.scope_counts[$in.plan.scopes[$in.index]]
             }}
         />
 
@@ -44,7 +45,6 @@
         fn="step"
         in={{
             ...$in.pick([
-                "traversal",
                 "context",
                 "state",
                 "child"
@@ -56,6 +56,14 @@
             placement: $in.plan.placements[$in.index]
         }}
     />
+
+    <If on={$ctx.step.binding != null}>
+        <Call
+            fn="set_selection"
+            in={$ctx.step.binding}
+            setter={[$store.selection.binding]}
+        />
+    </If>
 
     <Return
         value={{

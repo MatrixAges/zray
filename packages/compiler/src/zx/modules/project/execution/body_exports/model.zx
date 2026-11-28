@@ -11,11 +11,10 @@ export type Input = {
 export type Validate = {
     source: Input,
     merged: Merged,
-    members: u8[]
+    members: u64
 }
 
-export type Output = Merged & {
-    members: u8[],
+export type Output = {
     entry?: u32,
     duplicate?: string
 }

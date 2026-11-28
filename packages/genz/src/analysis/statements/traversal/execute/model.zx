@@ -2,7 +2,7 @@ import type { AstSequence, AstWriter } from "ast_rows"
 import type { Control as ControlTable } from "core/control_table/model"
 import type { StoreMode } from "core/function_table/complete"
 import type { Table as TypeTable } from "core/type_table/model"
-import type { Lowering, StatementTraversal } from "lowering_host"
+import type { Lowering, StatementCases } from "lowering_host"
 import type {
     Expressions as SelectionExpressions
 } from "../../../selection/labels/model"
@@ -26,12 +26,20 @@ export type Control = ControlTable.Pick(
     "selection_subjects",
     "selection_first",
     "selection_count",
+    "selection_exhaustive",
     "case_values"
 )
 
+export type ScopeCheckpoint = {
+    state_checkpoint: u64,
+    stack_checkpoint: u64
+}
+
 export type State = {
     scope_writes: Write[][],
+    scope_checkpoints: ScopeCheckpoint[],
     scope_firsts: u32[],
+    scope_counts: u32[],
     scope_conditions: u32[],
     scope_yes_starts: u32[],
     scope_yes_counts: u32[],
@@ -41,7 +49,11 @@ export type State = {
     selection_counts: u32[],
     selection_comparisons: u32[],
     selection_selected: bool[],
-    selection_fallbacks: u64?[]
+    selection_fallbacks: u64?[],
+    selection_names: u8[][],
+    selection_values: u32[],
+    selection_references: u32[],
+    selection_cases: StatementCases[]
 }
 
 export type Context = {
@@ -55,6 +67,7 @@ export type Context = {
     store_mode: StoreMode,
     store_count: u64,
     names: u8[][],
+    symbol_types: u32[],
     used: bool[],
     transaction: bool,
     value_output: bool,
@@ -63,16 +76,15 @@ export type Context = {
 }
 
 export type Input = {
-    traversal: StatementTraversal,
     context: Context,
     plan: Schedule,
     first: u32,
     count: u32
 }
 
-export type Run = Input.Pick("traversal", "context", "plan")
+export type Run = Input.Pick("context", "plan")
 
-export type Step = Input.Pick("traversal", "context") & {
+export type Step = Input.Pick("context") & {
     state: State,
     action: Action,
     first: u32,
@@ -82,45 +94,52 @@ export type Step = Input.Pick("traversal", "context") & {
     child: u64
 }
 
+export type SelectionBinding = {
+    subject: u32,
+    reference?: u32
+}
+
 export type StepResult = {
+    binding?: SelectionBinding,
     ok: bool,
     child: u64,
     state: State
 }
 
 export type StateResult = {
+    binding?: SelectionBinding,
     ok: bool,
     state: State
 }
 
 export type Scope = Step.Pick(
-    "traversal",
     "context",
     "first",
-    "count",
-    "scope"
+    "count"
 ) & {
     routes: u8[],
     writes: Write[],
-    scope_first: u32
+    scope_first: u32,
+    scope_count: u32
 }
 
 export type Case = Step.Pick(
-    "traversal",
     "context",
     "state",
     "placement",
     "count",
-    "first"
+    "first",
+    "child"
 ) & {
     after: bool
 }
 
 export type ScopeWalk =
-    Scope.Pick("traversal", "context", "scope", "routes", "writes") & {
+    Scope.Pick("context", "routes", "writes") & {
         first: u64,
         cursor: u64,
         scope_first: u64,
+        scope_count: u64,
         valid: bool,
         running: bool
     }

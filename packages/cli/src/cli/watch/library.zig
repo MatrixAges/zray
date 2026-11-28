@@ -10,7 +10,7 @@ pub fn publish(io: std.Io, backing: std.mem.Allocator, staging: []const u8, outp
     const allocator = arena.allocator();
     const destination = try std.fs.path.resolve(allocator, &.{ inputs.cwd, output });
     var failure: host.Failure = .{};
-    var directory: host.directory = .{ .io = io, .allocator = allocator, .failure = &failure, .source = staging, .destination = destination };
+    var directory: host.directory = .{ .io = io, .allocator = allocator, .failure = &failure, .source = staging };
 
     defer directory.deinit();
 

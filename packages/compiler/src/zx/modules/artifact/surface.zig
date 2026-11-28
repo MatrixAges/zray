@@ -75,12 +75,6 @@ fn releaseConstants(allocator: std.mem.Allocator, rows: []const ir.Constant) voi
     }
 }
 
-const ConstantOutput = memory.RowOutput(ir.Constant, struct {
-    names: *anyopaque,
-    types: *anyopaque,
-    values: *anyopaque,
-}, .{ .names = &.{"name"}, .types = &.{"type_id"}, .values = &.{"value"} });
-
 pub fn Publication(comptime Input: type) type {
     const Exports = std.meta.Child(@FieldType(Input, "exports"));
     const Constants = std.meta.Child(@FieldType(Input, "constants"));
@@ -94,7 +88,7 @@ pub fn Publication(comptime Input: type) type {
         written: usize,
         constant_rows: ConstantRows,
         constant_source: Constants,
-        constant_output: ConstantOutput,
+        constant_target: []const ir.Constant,
         mapping: std.meta.Child(@FieldType(Input, "types")),
         input: Input,
         pub fn init(self: *Self, export_rows: []const ir.Export, constant_rows: []const ir.Constant, types: Nodes.TypeMap) void {
@@ -105,9 +99,7 @@ pub fn Publication(comptime Input: type) type {
             self.written = 0;
             self.constant_rows = ConstantRows.borrow(constant_rows);
             self.constant_source = self.constant_rows.view(Constants);
-
-            self.constant_output.init();
-
+            self.constant_target = &.{};
             self.mapping = remap.typeMapping(@TypeOf(self.mapping), types);
 
             self.input = .{
@@ -118,7 +110,7 @@ pub fn Publication(comptime Input: type) type {
         }
         pub fn publishExport(self: *Self, allocator: std.mem.Allocator, entry: anytype) std.mem.Allocator.Error!void {
             if (entry.constants) |rows| {
-                self.constant_output.bind(try ownConstants(allocator, rows));
+                self.constant_target = try ownConstants(allocator, rows);
 
                 return;
             }
@@ -144,15 +136,15 @@ pub fn Publication(comptime Input: type) type {
             for (self.export_target[0..self.written]) |item| allocator.free(item.name);
 
             allocator.free(self.export_target);
-            releaseConstants(allocator, self.constant_output.rows());
-            allocator.free(self.constant_output.rows());
+            releaseConstants(allocator, self.constant_target);
+            allocator.free(self.constant_target);
         }
 
         pub fn exports(self: *const Self) []const ir.Export {
             return self.export_target;
         }
         pub fn constants(self: *const Self) []const ir.Constant {
-            return self.constant_output.rows();
+            return self.constant_target;
         }
     };
 }

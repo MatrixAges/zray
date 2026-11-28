@@ -2,8 +2,6 @@ const std = @import("std");
 const Inputs = @import("watch_inputs").Inputs;
 const abi = @import("publication_abi");
 const effects = @import("effects.zig");
-const constants = @import("cli_source").publication_constants.@"zx.constants";
-const DirectoryEntry = abi.layouts.@"zig:publication_host".DirectoryEntry;
 const ResourceEntry = abi.layouts.@"zig:publication_host".ResourceEntry;
 const Kind = abi.native.@"zig:publication_host".ResourceKind;
 const Resource = abi.native.@"zig:publication_host".ResourceEntry;
@@ -13,14 +11,12 @@ io: std.Io,
 allocator: std.mem.Allocator,
 failure: *effects.Failure,
 source: []const u8,
-destination: []const u8 = &.{},
-
 inputs: ?*Inputs = null,
 opened: bool = false,
 directory: std.Io.Dir = undefined,
 walker: std.Io.Dir.Walker = undefined,
 path: []const u8 = &.{},
-entry_view: DirectoryEntry = undefined,
+
 resource_view: ResourceEntry = undefined,
 pub fn deinit(self: *Self) void {
     if (!self.opened) return;
@@ -98,27 +94,16 @@ fn nextWalkEntry(walker: *std.Io.Dir.Walker, io: std.Io) !?std.Io.Dir.Walker.Ent
     return @call(.never_inline, std.Io.Dir.Walker.next, .{ walker, io });
 }
 
-pub fn nextEntry(handle: *const anyopaque, name: []const u8) effects.Error!*const DirectoryEntry {
+pub fn nextEntry(handle: *const anyopaque) effects.Error!*const ResourceEntry {
     const self = effects.state(Self, handle);
-    const kind = try self.nextNamed(name);
 
-    self.entry_view = .{
-        .kind = kind,
-        .path = if (kind == constants.end_of_directory) "" else self.path,
-    };
+    self.resource_view = if (try self.advance()) |kind|
+        .{ .kind = resourceKind(kind), .path = self.path }
 
-    return &self.entry_view;
-}
+    else
+        .{ .kind = .End, .path = "" };
 
-pub fn nextNamed(self: *Self, name: []const u8) effects.Error!u8 {
-    const kind = (try self.advance()) orelse return constants.end_of_directory;
-    const named = std.mem.eql(u8, self.path, name);
-
-    return switch (kind) {
-        .directory => constants.directory_entry,
-        .file => if (named) constants.named_regular_entry else constants.regular_entry,
-        else => if (named) constants.named_other_entry else constants.other_entry,
-    };
+    return &self.resource_view;
 }
 
 pub fn copyDirectoryFile(handle: *const anyopaque, relative: []const u8, target: []const u8) effects.Error!void {

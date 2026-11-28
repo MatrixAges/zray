@@ -1,0 +1,7 @@
+<Store name="iteration_call_argument" version={1}>
+    <Object name="binding">
+        <Field name="operand" type={u32} value={0} />
+        <Field name="operand_type" type={u32} value={0} />
+        <Field name="value" type={u32} value={0} />
+    </Object>
+</Store>

@@ -1,22 +1,24 @@
-import memory from "memory"
+import type { Resolved } from "native_scope_host"
 
-import type { ExternalRows as Input } from "./model"
+export type Input = {
+    first: u64,
+    resolved: Resolved[]
+}
 
 export type Output = string[]
 
 export default function (in: Input): Output {
+    const { first, resolved } = in
+
     const empty: string[] = []
 
     return loop({
-        row: 0,
+        row: first,
         items: empty
     }, {
-        while: state => state.row < in.count,
+        while: state => state.row < resolved.length,
         next: state => {
-            const identity = memory.readOptionalTextColumn(in.identities, state.row)
-            const specifier = identity ?? memory.readTextColumn(in.names, state.row)
-
-            state.items = state.items.push(specifier)[0]
+            state.items = state.items.push(resolved[state.row].identity)[0]
             state.row += 1
         },
         return: state => state.items

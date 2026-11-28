@@ -5,9 +5,14 @@ import type { Policy as Input } from "./model"
 export type Output = Mode
 
 export default function (in: Input): Output {
+    // A non-escaping record can use a local slot with either layout.
+    if (in.borrowed) {
+        return Mode.Reference
+    }
+
     if (!in.active || !in.selected) {
         return Mode.Heap
     }
 
-    return in.borrowed ? Mode.Reference : Mode.Value
+    return Mode.Value
 }

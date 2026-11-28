@@ -11,6 +11,7 @@ export type Input = Request.Pick(
     "source_type",
     "deferred",
     "in_place",
+    "transfer",
     "grow",
     "exact",
     "shared"
@@ -41,6 +42,7 @@ export default function (in: Input): Output {
         selected: in.represented,
         deferred: in.deferred,
         in_place: in.in_place,
+        transfer: in.transfer,
         grow: in.grow,
         exact: in.exact,
         shared: in.shared

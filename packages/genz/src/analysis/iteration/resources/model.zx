@@ -26,10 +26,7 @@ export type Resolved = {
     operands: u32[]
 }
 
-export { cacheIterationType } from "lowering_host"
-
 export type CacheCursor = {
-    frame: IterationResourceFrame,
     types: u32[],
     values: u32[],
     row: u64,

@@ -1,12 +1,6 @@
 import bytes from "std:bytes"
-import memory from "memory"
 
-import type { TextColumn } from "memory"
-
-export type Input = {
-    sources: TextColumn,
-    count: u64
-}
+export type Input = string[]
 
 export type Output = u8[]
 
@@ -17,11 +11,9 @@ export default function (in: Input): Output {
         position: 0,
         parts
     }, {
-        while: state => state.position < in.count,
+        while: state => state.position < in.length,
         next: state => {
-            const source_bytes = bytes.fromText(
-                memory.readTextColumn(in.sources, state.position)
-            )
+            const source_bytes = bytes.fromText(in[state.position])
 
             const row = bytes.join(bytes.fromText(""), [
                 bytes.encodeU64Le(source_bytes.length),

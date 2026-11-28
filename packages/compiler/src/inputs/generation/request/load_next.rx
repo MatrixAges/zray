@@ -5,12 +5,17 @@
 
     <Store from="documents" as="documents" />
 
+    <Call module="root_paths" in={$in} />
+
     <Call
-        fn="host.loadGenerationRoot"
+        module="read"
         in={[
             $in.load.host,
-            $in.row,
-            $in.load.snapshot
+            {
+                root: $in.load.roots[$in.row].path,
+                files: $ctx.root_paths,
+                optional: false
+            }
         ]}
     />
 
@@ -18,7 +23,7 @@
         fn="append_documents"
         in={{
             loaded: $store.documents.loaded,
-            batch: $ctx.loadGenerationRoot,
+            batch: $ctx.read.documents,
             row: $in.row
         }}
         setter={[$store.documents.loaded]}

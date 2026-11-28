@@ -47,5 +47,6 @@ export type Result = {
     cursor: u64,
     package: u64,
     release: u64,
+    pending_name?: string,
     rows: Row[]
 }

@@ -1,0 +1,32 @@
+<Module>
+    <Type from="versions" as="Records" />
+
+    <Args in={Records.Input} out={bool} />
+
+    <Call fn="versions" in={$in} />
+
+    <If on={$ctx.versions != null}>
+        <Call
+            module="write"
+            in={{
+                context: $in.target.context,
+                digest: $in.digest,
+                ...$ctx.versions
+            }}
+        />
+
+        <If on={$ctx.write != null}>
+            <Call
+                fn="commit_file"
+                in={{
+                    path: $in.target.path,
+                    payload: $ctx.write
+                }}
+            />
+
+            <Return value={$ctx.commit_file} />
+        </If>
+    </If>
+
+    <Return value={false} />
+</Module>

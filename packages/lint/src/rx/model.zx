@@ -27,8 +27,13 @@ export type Edit = {
     separate: bool
 }
 
+export enum Mode {
+    Structure,
+    Layout
+}
+
 export type EntryInput = {
-    mode: u8,
+    mode: Mode,
     source: u8[],
     source_text: string,
     width: u64,

@@ -5,7 +5,7 @@
 
     <Store from="rows" as="rows" />
 
-    <Call fn="allocate" in={$in} />
+    <Call fn="allocate" in={$in} setter={[$store.rows.pending]} />
 
     <If on={$in.declared}>
         <Call
@@ -22,11 +22,10 @@
         <Call fn="commit" setter={[$store.rows.pending]} />
     </If>
 
-    <If on={$in.forwarded.length != 0}>
+    <If on={$in.forwarded != 0}>
         <Call
             fn="forward"
             in={{
-                rows: $in.forwarded,
                 row: $in.declared ? 1 : 0
             }}
         />

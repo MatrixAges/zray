@@ -118,12 +118,9 @@ const Field = enum {
 };
 
 const Sources = std.enums.EnumArray(Field, memory.ListColumn);
-const Projection = std.enums.EnumArray(Field, memory.ReadColumn);
 
 pub const Providers = struct {
     sources: Sources,
-    target: Projection,
-    projection: memory.ListProjection,
     tables: Tables,
     members: std.meta.Child(@FieldType(Tables, "members")),
     signatures: std.meta.Child(@FieldType(Tables, "signatures")),
@@ -161,42 +158,39 @@ pub const Providers = struct {
             .type_kinds = memory.borrowSliceColumn(&.{ "types", "kinds" }, modules),
         });
 
-        self.projection = .{ .sources = &self.sources.values, .target = &self.target.values };
-
         self.members = .{
-            .names = @ptrCast(self.target.getPtr(.member_names)),
-            .namespaces = @ptrCast(self.target.getPtr(.member_namespaces)),
-            .ids = @ptrCast(self.target.getPtr(.member_ids)),
-            .inputs = @ptrCast(self.target.getPtr(.member_inputs)),
-            .outputs = @ptrCast(self.target.getPtr(.member_outputs)),
-            .intrinsics = @ptrCast(self.target.getPtr(.member_intrinsics)),
+            .names = @ptrCast(self.sources.getPtrConst(.member_names)),
+            .namespaces = @ptrCast(self.sources.getPtrConst(.member_namespaces)),
+            .ids = @ptrCast(self.sources.getPtrConst(.member_ids)),
+            .inputs = @ptrCast(self.sources.getPtrConst(.member_inputs)),
+            .outputs = @ptrCast(self.sources.getPtrConst(.member_outputs)),
+            .intrinsics = @ptrCast(self.sources.getPtrConst(.member_intrinsics)),
         };
 
         self.signatures = .{
-            .files = @ptrCast(self.target.getPtr(.function_files)),
-            .input_types = @ptrCast(self.target.getPtr(.function_inputs)),
-            .output_types = @ptrCast(self.target.getPtr(.function_outputs)),
-            .ownership = @ptrCast(self.target.getPtr(.function_ownership)),
+            .files = @ptrCast(self.sources.getPtrConst(.function_files)),
+            .input_types = @ptrCast(self.sources.getPtrConst(.function_inputs)),
+            .output_types = @ptrCast(self.sources.getPtrConst(.function_outputs)),
+            .ownership = @ptrCast(self.sources.getPtrConst(.function_ownership)),
         };
 
         self.aliases = .{
-            .names = @ptrCast(self.target.getPtr(.alias_names)),
-            .ids = @ptrCast(self.target.getPtr(.alias_ids)),
+            .names = @ptrCast(self.sources.getPtrConst(.alias_names)),
+            .ids = @ptrCast(self.sources.getPtrConst(.alias_ids)),
         };
 
         self.constants = .{
-            .names = @ptrCast(self.target.getPtr(.constant_names)),
-            .types = @ptrCast(self.target.getPtr(.constant_types)),
-            .values = @ptrCast(self.target.getPtr(.constant_values)),
+            .names = @ptrCast(self.sources.getPtrConst(.constant_names)),
+            .types = @ptrCast(self.sources.getPtrConst(.constant_types)),
+            .values = @ptrCast(self.sources.getPtrConst(.constant_values)),
         };
 
         self.tables = .{
-            .projection = @ptrCast(&self.projection),
             .members = &self.members,
             .signatures = &self.signatures,
             .aliases = &self.aliases,
             .constants = &self.constants,
-            .kinds = @ptrCast(self.target.getPtr(.type_kinds)),
+            .kinds = @ptrCast(self.sources.getPtrConst(.type_kinds)),
             .types = @ptrCast(builder.type_mappings),
             .functions = @ptrCast(builder.module_functions),
         };

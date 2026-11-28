@@ -1,6 +1,3 @@
-export { default as allocateRows } from "./allocate"
-export { default as refreshRowReads } from "./refresh_reads"
-export { default as reserveRows } from "./reserve"
-export { default as reserveAppend } from "./reserve_append"
+export { default as capacityFor } from "./capacity"
 
 export type { Input as Capacity } from "./capacity"

@@ -4,7 +4,9 @@ import { Status } from "./model"
 import type { Selection } from "../registry/model"
 import type { Result } from "./model"
 
-export type Input = Selection & Result.Pick("cursor", "rows")
+export type Input = Selection & Result.Pick("cursor", "rows") & {
+    name: string
+}
 
 export type Output = Result
 
@@ -16,13 +18,17 @@ export default function (in: Input): Output {
         _ => Status.InvalidVersion
     }
 
+    const pending = status == Status.Archive
+
     return {
         ...in.omit([
             "status",
             "found",
-            "cursor"
+            "cursor",
+            "name"
         ]),
         status,
-        cursor: status == Status.Archive ? in.cursor - 1 : in.cursor
+        cursor: pending ? in.cursor - 1 : in.cursor,
+        pending_name: pending ? in.name : null
     }
 }

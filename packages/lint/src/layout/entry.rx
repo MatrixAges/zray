@@ -52,10 +52,11 @@
 
             <Call
                 fn="line_ending"
-                in={$in.pick([
-                    "source",
-                    "newline"
-                ])}
+                in={{
+                    source: $in.source,
+                    newline: $in.newline,
+                    indent_only: $in.layout.indent_only
+                }}
             />
 
             <Call

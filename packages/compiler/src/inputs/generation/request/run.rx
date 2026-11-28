@@ -7,7 +7,8 @@
         module="observe"
         in={{
             host: $in.host,
-            write: $in.write
+            write: $in.write,
+            roots: $in.roots
         }}
     />
 
@@ -36,7 +37,7 @@
         in={{
             host: $in.host,
             roots: $in.roots,
-            snapshot: $ctx.observe.snapshot
+            observed: $ctx.observe
         }}
     />
 
@@ -45,7 +46,11 @@
         in={{
             host: $in.host,
             documents: $ctx.load,
-            packages: $in.packages
+            packages: $in.packages,
+            generator: $in.generator,
+            manifest: $in.manifest,
+            partitions: $in.partitions,
+            interfaces: $in.interfaces
         }}
     />
 
@@ -55,7 +60,7 @@
             stamp_path: $in.stamp_path,
             digest: $ctx.prepare.fingerprints.digest,
             enabled:
-                $ctx.observe.snapshot != null && $ctx.prepare.registered.failure == null
+                $ctx.observe.enabled && $ctx.prepare.registered.failure == null
         }}
     />
 
@@ -63,21 +68,24 @@
         module="refresh"
         in={{
             host: $in.host,
-            ...$ctx.prepare,
+            catalog: $ctx.prepare.catalog,
+            registered: $ctx.prepare.registered,
+            fingerprints: $ctx.prepare.fingerprints,
             stamp_path: $in.stamp_path,
-            observed: $ctx.observe.snapshot != null,
+            observed: $ctx.observe.enabled,
             current: $ctx.current
         }}
     />
 
     <If on={$ctx.refresh.failure == null && $ctx.observe.snapshot != null}>
         <Call
-            fn="host.saveGenerationSnapshot"
-            in={[
-                $in.host,
-                $ctx.observe.snapshot,
-                $ctx.prepare.fingerprints.digest
-            ]}
+            module="../../snapshot/records/publish"
+            in={{
+                target: $ctx.observe.snapshot,
+                digest: $ctx.prepare.fingerprints.digest,
+                batches: $ctx.load,
+                external: $ctx.prepare.external
+            }}
         />
     </If>
 

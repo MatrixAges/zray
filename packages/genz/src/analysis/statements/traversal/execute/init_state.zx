@@ -1,5 +1,6 @@
+import type { StatementCases } from "lowering_host"
 import type { Write } from "../commit"
-import type { State } from "./model"
+import type { ScopeCheckpoint, State } from "./model"
 
 export type Input = {
     depth: u64,
@@ -19,10 +20,27 @@ export default function (in: Input): Output {
     const no_fallback: u64? = null
     const zero_u32: u32 = 0
 
+    const no_checkpoint: ScopeCheckpoint = {
+        state_checkpoint: 0,
+        stack_checkpoint: 0
+    }
+
+    const no_cases: StatementCases = {
+        body_start: [],
+        body_count: [],
+        conditions: [],
+        literals: []
+    }
+
+    const empty_checkpoints: ScopeCheckpoint[] = []
+    const empty_cases: StatementCases[] = []
+
     const scopes = loop({
         index: 0,
         scope_writes: no_writes,
+        scope_checkpoints: empty_checkpoints,
         scope_firsts: empty_u32,
+        scope_counts: empty_u32,
         scope_conditions: empty_u32,
         scope_yes_starts: empty_u32,
         scope_yes_counts: empty_u32,
@@ -31,6 +49,8 @@ export default function (in: Input): Output {
         while: state => state.index < in.depth,
         next: state => {
             state.scope_writes = state.scope_writes.push(empty_writes)[0]
+            state.scope_checkpoints = state.scope_checkpoints.push(no_checkpoint)[0]
+            state.scope_counts = state.scope_counts.push(zero_u32)[0]
             state.scope_firsts = state.scope_firsts.push(zero_u32)[0]
             state.scope_conditions = state.scope_conditions.push(zero_u32)[0]
             state.scope_yes_starts = state.scope_yes_starts.push(zero_u32)[0]
@@ -48,7 +68,11 @@ export default function (in: Input): Output {
         selection_counts: empty_u32,
         selection_comparisons: empty_u32,
         selection_selected: empty_bool,
-        selection_fallbacks: empty_fallback
+        selection_fallbacks: empty_fallback,
+        selection_names: empty_routes,
+        selection_values: empty_u32,
+        selection_references: empty_u32,
+        selection_cases: empty_cases
     }, {
         while: state => state.index < in.selection_depth,
         next: state => {
@@ -59,6 +83,10 @@ export default function (in: Input): Output {
                 state.selection_comparisons.push(zero_u32)[0]
             state.selection_selected = state.selection_selected.push(false)[0]
             state.selection_fallbacks = state.selection_fallbacks.push(no_fallback)[0]
+            state.selection_names = state.selection_names.push(empty_u8)[0]
+            state.selection_values = state.selection_values.push(zero_u32)[0]
+            state.selection_references = state.selection_references.push(zero_u32)[0]
+            state.selection_cases = state.selection_cases.push(no_cases)[0]
             state.index += 1
         },
         return: state => state
@@ -66,7 +94,9 @@ export default function (in: Input): Output {
 
     return {
         scope_writes: scopes.scope_writes,
+        scope_checkpoints: scopes.scope_checkpoints,
         scope_firsts: scopes.scope_firsts,
+        scope_counts: scopes.scope_counts,
         scope_conditions: scopes.scope_conditions,
         scope_yes_starts: scopes.scope_yes_starts,
         scope_yes_counts: scopes.scope_yes_counts,
@@ -76,6 +106,10 @@ export default function (in: Input): Output {
         selection_counts: selections.selection_counts,
         selection_comparisons: selections.selection_comparisons,
         selection_selected: selections.selection_selected,
-        selection_fallbacks: selections.selection_fallbacks
+        selection_fallbacks: selections.selection_fallbacks,
+        selection_names: selections.selection_names,
+        selection_values: selections.selection_values,
+        selection_references: selections.selection_references,
+        selection_cases: selections.selection_cases
     }
 }

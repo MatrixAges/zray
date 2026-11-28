@@ -3,13 +3,16 @@
 
     <Args in={Members.ReexportDelivery} out={u64} />
 
+    <Store from="rows" as="rows" />
+
     <Call
         fn="reserve"
+        setter={[$store.rows.pending]}
         in={{
             ...$in.rows.pick([
-                "storage",
                 "used",
-                "backing"
+                "capacity",
+                "base"
             ]),
             count: $in.names.length
         }}

@@ -15,20 +15,18 @@
 
     <If on={$ctx.list_count != 0}>
         <Call
-            fn="../../../../../core/column_set/project_lists"
-            in={[
-                $in.source.projection,
-                $in.row
-            ]}
+            fn="../../constant_view"
+            in={{
+                source: $in.source,
+                row: $in.row,
+                count: $ctx.list_count
+            }}
         />
 
         <Call
             fn="constants"
             in={{
-                source: {
-                    ...$in.source.rows,
-                    count: $ctx.list_count
-                },
+                source: $ctx.constant_view,
                 output: $in.output,
                 mapping: $in.mapping
             }}

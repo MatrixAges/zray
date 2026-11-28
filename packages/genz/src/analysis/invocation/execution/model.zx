@@ -1,7 +1,6 @@
 import type { AstSequence, AstWriter, CallTarget, StateValueMode } from "ast_rows"
 import type {
     CallArgument,
-    IterationResourceFrame,
     Lowering
 } from "lowering_host"
 
@@ -45,7 +44,6 @@ export type Emission =
 
 export type Iteration = {
     frame: Lowering,
-    context: IterationResourceFrame,
     writer: AstWriter,
     body: AstSequence,
     call_id: u32,

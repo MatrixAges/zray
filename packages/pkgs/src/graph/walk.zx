@@ -2,7 +2,7 @@ import bytes from "std:bytes"
 import integers from "std:integer"
 import memory from "memory"
 
-import { finished, visiting, workspace_root } from "./const"
+import { dependency_depth_limit, finished, visiting, workspace_root } from "./const"
 import { Status } from "./model"
 
 import type { Input, Result } from "./model"
@@ -13,6 +13,8 @@ export type Output = Result & {
 
 export default function (in: Input): Output {
     const { ranked, targets, initial_marks } = in
+
+    const limit = in.limit ?? dependency_depth_limit
 
     const marks = initial_marks ?? bytes.repeat(in.count, workspace_root)
 
@@ -79,7 +81,7 @@ export default function (in: Input): Output {
                     if (mark == visiting) {
                         s.status = Status.CyclicPackageDependencies
                         s.owner = target
-                    } else if (check_depth && depth >= in.limit) {
+                    } else if (check_depth && depth >= limit) {
                         s.status = Status.PackageDependencyDepthExceeded
                         s.owner = target
                     } else if (revisit) {
@@ -89,7 +91,7 @@ export default function (in: Input): Output {
                             const height = s.heights[target]
                             const rank = s.heights[owner]
 
-                            if (depth + integers.widenByte(height) >= in.limit) {
+                            if (depth + integers.widenByte(height) >= limit) {
                                 s.status = Status.PackageDependencyDepthExceeded
                                 s.owner = target
                             } else if (height >= rank) {

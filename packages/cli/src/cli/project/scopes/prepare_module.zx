@@ -4,16 +4,10 @@ import memory from "memory"
 import paths from "./paths"
 import resolveDependencies from "./rules/dependency"
 
+import type { PreparedModule } from "native_scope_host"
 import type { Traversal as Input } from "./workflow"
 
-export type Prepared = {
-    name: string,
-    path?: string,
-    dependencies: string[],
-    includes: string[]
-}
-
-export type Output = Prepared?
+export type Output = PreparedModule?
 
 export default function (in: Input): Output {
     const { binding, row, sources } = in

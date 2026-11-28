@@ -1,11 +1,12 @@
 <Module>
     <Type from="model" as="Request" />
+    <Type from="../../fingerprint/model" as="Fingerprint" />
 
-    <Args in={Request.Load} out={u8[][]} />
+    <Args in={Request.Load} out={Fingerprint.Document[][]} />
 
     <Store from="documents" as="documents" />
 
-    <Loop on={$in.row < $in.load.roots}>
+    <Loop on={$in.row < $in.load.roots.length}>
         <Call
             module="load_next"
             in={{

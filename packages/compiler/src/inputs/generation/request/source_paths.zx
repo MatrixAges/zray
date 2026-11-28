@@ -1,0 +1,42 @@
+import type { GenerationPath } from "generation_host"
+import type { Collected } from "../../collection/directory/model"
+
+export type Input = Collected
+
+export type Output = GenerationPath[]
+
+export default function (in: Input): Output {
+    const paths: GenerationPath[] = []
+
+    return loop({
+        batch: 0,
+        paths
+    }, {
+        while: state => state.batch < in.batches.length,
+        next: state => {
+            const batch = in.batches[state.batch]
+
+            state.paths = loop({
+                row: 0,
+                paths: state.paths
+            }, {
+                while: cursor => cursor.row < batch.length,
+                next: cursor => {
+                    const { path, relative, retain, stat } = batch[cursor.row]
+
+                    cursor.paths = cursor.paths.push({
+                        path,
+                        relative,
+                        retain,
+                        stat
+                    })[0]
+                    cursor.row += 1
+                },
+                return: cursor => cursor.paths
+            })
+
+            state.batch += 1
+        },
+        return: state => state.paths
+    })
+}

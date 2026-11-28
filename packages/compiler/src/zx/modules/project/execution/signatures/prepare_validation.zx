@@ -1,5 +1,3 @@
-import { refreshRowReads } from "core/row_buffer"
-
 import prepareIndex from "../../exports/publication/prepare_index"
 
 import type { Input as Plan } from "../../exports/model"
@@ -15,14 +13,10 @@ export default function (in: Input): Output {
     const own = members.declared ? 1 : 0
 
     if (
-        types.forwarded.length + constants.forwarded.length == 0 &&
+        types.forwarded + constants.forwarded == 0 &&
             member_count == own
     ) {
         return null
-    }
-
-    if (member_count != 0) {
-        refreshRowReads(members.reads)
     }
 
     return prepareIndex({

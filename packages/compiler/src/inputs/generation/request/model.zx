@@ -1,18 +1,26 @@
 import type {
-    GenerationArtifact,
+    GenerationCatalog,
+    GenerationInterface,
     GenerationIO,
     GenerationObservation,
+    GenerationObservedRoot,
+    GenerationRoot,
     GenerationRegistration,
     PreparedGeneration
 } from "generation_host"
+import type { Document } from "../../fingerprint/model"
 import type { Fields as PackageFields } from "./packages"
 
 export type Input = {
     host: GenerationIO,
     write: bool,
     stamp_path: string,
-    roots: u64,
-    packages: PackageFields
+    roots: GenerationRoot[],
+    interfaces: GenerationInterface[],
+    packages: PackageFields,
+    generator: u8[],
+    manifest: string,
+    partitions: u32
 }
 
 export type Current = {
@@ -21,7 +29,15 @@ export type Current = {
     digest?: u8[]
 }
 
-export type Observe = Input.Pick("host", "write")
+export type Root = GenerationRoot
+
+export type Observe = Input.Pick("host", "write", "roots")
+
+export type ObserveStep = {
+    roots: GenerationRoot[],
+    row: u64,
+    observed: GenerationObservedRoot[]
+}
 
 export type Observation = GenerationObservation
 
@@ -30,13 +46,17 @@ export type Summary = {
     failure?: u16
 }
 
-export type Prepared = {
-    catalog: GenerationArtifact,
+export type Analysis = {
+    catalog: GenerationCatalog,
     registered: GenerationRegistration,
     fingerprints: PreparedGeneration
 }
 
-export type Analyze = Prepared & {
+export type Prepared = Analysis & {
+    external: Document[]
+}
+
+export type Analyze = Analysis & {
     host: GenerationIO
 }
 
@@ -47,7 +67,7 @@ export type Refresh = Analyze & {
 }
 
 export type Load = Input.Pick("host", "roots") & {
-    snapshot?: GenerationArtifact
+    observed: GenerationObservation
 }
 
 export type LoadStep = {
@@ -55,6 +75,14 @@ export type LoadStep = {
     row: u64
 }
 
-export type Prepare = Input.Pick("host", "packages") & {
-    documents: u8[][]
-}
+export type Prepare =
+    Input.Pick(
+        "host",
+        "packages",
+        "generator",
+        "manifest",
+        "partitions",
+        "interfaces"
+    ) & {
+        documents: Document[][]
+    }

@@ -1,0 +1,8 @@
+<Store name="native_scope_publication" version={1}>
+    <Type from="model" as="Scopes" />
+
+    <Object name="result">
+        <Field name="paths" type={string[]} value={[]} />
+        <Field name="settings" type={Scopes.PublishedSetting[]} value={[]} />
+    </Object>
+</Store>

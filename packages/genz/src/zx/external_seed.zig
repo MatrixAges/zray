@@ -56,15 +56,32 @@ pub fn lower(self: *Lower, function: *const ir.Signature, index: usize) Lower.Er
     try body.append(self.allocator, .{ .constant = .{ .name = "native_result", .value = returned } });
 
     const result = try self.builder.identifier("native_result");
+    const output = @backingInt(function.output_type);
+
+    const value = if (self.program.typeOf(function.output_type) == .native_reference and self.program.types.first[output] == 0)
+        try castErasedResult(self, result)
+    else
+        result;
 
     if (!self.uses_allocator) try body.append(self.allocator, .{ .discard = allocator });
-    try body.append(self.allocator, .{ .result = result });
+    try body.append(self.allocator, .{ .result = value });
 
     var declaration = try prototype(self, function, index);
 
     declaration.body = try self.builder.statements(body.items);
 
     return .{ .function = declaration };
+}
+
+fn castErasedResult(self: *Lower, result: node.ExpressionId) Lower.Error!node.ExpressionId {
+    const actual = try self.builtin(.TypeOf, &.{result});
+    const info = try self.builtin(.typeInfo, &.{actual});
+    const child = try self.field(try self.field(info, "pointer"), "child");
+    const erased = try self.builder.identifier("anyopaque");
+    const condition = try @import("intrinsics.zig").binary(self, .equal, child, erased);
+    const cast = try self.builtin(.ptrCast, &.{result});
+
+    return self.builder.expression(.{ .conditional = .{ .condition = condition, .yes = cast, .no = result } });
 }
 
 pub fn prototype(self: *Lower, function: *const ir.Signature, index: usize) Lower.Error!node.Function {

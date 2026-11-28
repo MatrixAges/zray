@@ -1,64 +1,38 @@
 export declare function openStatementScope(
-    traversal: StatementTraversal,
-    scope: u64,
+    allocator,
+    frame: Lowering,
     start: u32,
-    count: u32,
-    placement: u64
-): StatementStack?
+    count: u32
+): StatementStack throws { OutOfMemory }
 
 export declare function beginStatementStore(
-    traversal: StatementTraversal,
-    scope: u64,
+    frame: Lowering,
+    first: u64,
+    count: u64,
     index: u64
-): u64?
+): u64 throws { OutOfMemory }
 
 export declare function emitParallelStatement(
-    traversal: StatementTraversal,
-    scope: u64,
-    index: u64
-): u64?
-
-export declare function emitStatementBinding(
-    traversal: StatementTraversal,
-    symbol: u32,
-    lowered: u32
-): u64?
+    frame: Lowering,
+    statement: u64
+): u64 throws { OutOfMemory }
 
 export declare function finishStatementScope(
-    traversal: StatementTraversal,
-    scope: u64,
-    writes: StatementWrite[]
-): u64?
-
-export declare function openStatementSelection(
-    traversal: StatementTraversal,
-    scope: u64,
-    offset: u32,
-    placement: u64,
-    name: u8[],
-    subject: u32,
-    reference: u32
-): bool
-
-export declare function resolveStatementSelection(
-    traversal: StatementTraversal,
-    placement: u64,
-    count: u32,
-    selected: bool
-): bool
-
-export declare function saveStatementCase(
-    traversal: StatementTraversal,
-    placement: u64,
-    index: u32,
-    comparison: u32,
-    literal: u32?
-): void
+    frame: Lowering,
+    state_checkpoint: u64,
+    stack_checkpoint: u64,
+    spans: u64[]
+): u64 throws { OutOfMemory }
 
 export declare function finishStatementSelection(
-    traversal: StatementTraversal,
-    scope: u64,
-    offset: u32,
-    placement: u64,
-    fallback: u64?
-): bool
+    allocator,
+    frame: Lowering,
+    name: u8[],
+    subject: u32,
+    reference: u32,
+    selected: bool,
+    exhaustive: bool,
+    total_count: u64,
+    fallback: u64?,
+    cases: StatementCases
+): u64 throws { OutOfMemory }

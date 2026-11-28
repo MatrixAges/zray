@@ -1,22 +1,15 @@
 import type { Merge as Input } from "./model"
 
 export type Output = {
-    rows: u8[],
+    count: u64,
     merge: bool
 }
 
 export default function (in: Input): Output {
-    const { own, forwarded } = in
-
-    if (own.length == 0) {
-        return {
-            rows: forwarded,
-            merge: false
-        }
-    }
+    const { own, forwarded, copy_own } = in
 
     return {
-        rows: own,
-        merge: forwarded.length != 0 || in.copy_own
+        count: own + forwarded,
+        merge: own != 0 && (forwarded != 0 || copy_own)
     }
 }

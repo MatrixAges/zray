@@ -4,12 +4,16 @@ import host from "lowering_host"
 
 import { task_route, value_route } from "../block/const"
 
+import type { Input as Binding } from "../../binding/execute/model"
 import type { Input } from "./model"
 
-export type Output = u64?
+export type Output = {
+    task_span?: u64,
+    publication?: Binding
+}
 
 export default function (in: Input): Output {
-    const { traversal, context, statement, route } = in
+    const { context, statement, route } = in
 
     const bits = integers.widenByte(route)
     const task = integers.andBits(bits, integers.widenByte(task_route)) != 0
@@ -18,12 +22,14 @@ export default function (in: Input): Output {
     const value = context.control.constant_values[payload]
 
     if (task) {
-        return host.startInlineTask(
-            context.frame,
-            value,
-            context.names[integers.widen(symbol)],
-            false
-        )
+        return {
+            task_span: host.startInlineTask(
+                context.frame,
+                value,
+                context.names[integers.widen(symbol)],
+                false
+            )
+        }
     }
 
     const borrowed = prepareScopeBinding(
@@ -41,5 +47,27 @@ export default function (in: Input): Output {
         _ => host.lowerExpression(context.frame, value, false, null)
     }
 
-    return host.emitStatementBinding(traversal, symbol, lowered)
+    const row = integers.widen(symbol)
+    const used = context.used[row]
+
+    return {
+        publication: {
+            frame: context.frame,
+            writer: context.writer,
+            sequence: context.sequence,
+            policy: {
+                has_symbol: true,
+                used,
+                by_value,
+                loop_field: false,
+                mutable: false
+            },
+            name: match {
+                used => context.names[row],
+                _ => []
+            },
+            type_id: used ? context.symbol_types[row] : 0,
+            value: lowered
+        }
+    }
 }

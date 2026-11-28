@@ -2,8 +2,6 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const Project = @import("../../../project.zig").Project;
-const Record = @import("../../../module_record.zig");
-const tail = @import("../../../binding/publication/tail.zig");
 const generated = @import("generated_project_execute_body");
 const Input = std.meta.Child(@FieldType(std.meta.Child(generated.Input), "installation"));
 const Layouts = @import("project_execution_abi").layouts.@"zig:memory/columns";
@@ -23,8 +21,6 @@ slots: [@typeInfo(Layouts.FunctionRow).@"struct".field_names.len]*anyopaque,
 columns: zx.memory.ColumnSet,
 functions: Functions,
 function: Function,
-modules: tail.Tail(Record, Rows, .{}),
-cache: tail.Tail(usize, Rows, .{}),
 record_rows: Rows,
 cache_rows: Rows,
 input: Input,
@@ -42,19 +38,14 @@ pub fn bind(self: *Self, project: *Project) void {
         .empty_native = empty_native,
     };
 
-    self.modules.init(&project.modules);
-    self.cache.init(&project.cache_records);
-
-    self.record_rows = .{ .storage = @ptrCast(&self.modules.output.buffer), .used = self.modules.length };
-    self.cache_rows = .{ .storage = @ptrCast(&self.cache.output.buffer), .used = self.cache.length };
+    self.record_rows = capacity(project.modules);
+    self.cache_rows = capacity(project.cache_records);
 
     self.input = .{
         .functions = &self.functions,
         .function = std.mem.asBytes(&self.function),
         .records = &self.record_rows,
         .cache = &self.cache_rows,
-        .resource = @ptrCast(&project.allocator),
-        .backing = @ptrCast(&project.arena.child_allocator),
     };
 }
 
@@ -76,7 +67,13 @@ pub fn ownFunction(self: *Self, allocator: std.mem.Allocator, program: *const ir
     };
 }
 
-pub fn commit(self: *Self) void {
-    self.modules.commit();
-    self.cache.commit();
+fn capacity(list: anytype) Rows {
+    const Row = std.meta.Elem(@TypeOf(list.items));
+
+    return .{
+        .current = list.capacity,
+        .used = list.items.len,
+        .additional = 1,
+        .base = @max(1, std.atomic.cache_line / @sizeOf(Row)),
+    };
 }

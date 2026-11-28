@@ -1,7 +1,10 @@
 <Module>
     <Type from="update_model" as="Loop" />
+    <Type from="../../step/model" as="Step" />
 
     <Args in={Loop.Evaluation} out={Loop.Evaluated} />
+
+    <Store from="state" as="loop_state" />
 
     <Call
         module="first_condition"
@@ -13,15 +16,13 @@
         ])}
     />
 
-    <Call fn="update_scope" in={$in.schedule.assignment} />
-
     <Call
-        fn="index.enterLoopUpdate"
-        in={[
-            $in.loop_frame,
-            $ctx.update_scope,
-            $in.renewals.delayed
-        ]}
+        fn="update_scope"
+        in={{
+            projected: $in.schedule.assignment == Step.Assignment.Projected,
+            delayed: $in.renewals.delayed
+        }}
+        setter={[$store.loop_state.update_scope]}
     />
 
     <Call
@@ -44,11 +45,9 @@
     />
 
     <Call
-        fn="index.closeLoopUpdate"
-        in={[
-            $in.loop_frame,
-            $ctx.update_scope
-        ]}
+        fn="clear_update_scope"
+        in={{}}
+        setter={[$store.loop_state.update_scope]}
     />
 
     <Return

@@ -3,11 +3,13 @@ import { BinaryOperator } from "core/expression_table/kinds"
 import host from "lowering_host"
 
 import binary from "../../../expressions/evaluate/binary"
+import unpackSpan from "../../../tasks/worker/execute/reference"
 
+import type { StatementCases } from "lowering_host"
 import type { Case as Input, StateResult as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { traversal, context, state, placement, count, first } = in
+    const { context, state, placement, count, first } = in
 
     const direct = state.selection_selected[placement]
     const subject_ir = state.selection_subjects[placement]
@@ -45,21 +47,13 @@ export default function (in: Input): Output {
         }
     }
 
-    if (!direct) {
-        const comparison = state.selection_comparisons[placement]
+    const last = integers.widen(count) + 1 == integers.widen(
+        state.selection_counts[placement]
+    )
 
-        host.saveStatementCase(traversal, placement, count, comparison, null)
-
-        return {
-            ok: true,
-            state
-        }
-    }
-
-    const case_count = state.selection_counts[placement]
-
-    if (integers.widen(count) + 1 == integers.widen(case_count)) {
-        const comparison = binary({
+    const comparison = match {
+        !direct => state.selection_comparisons[placement],
+        last => binary({
             frame: context.frame,
             writer: context.writer,
             expressions: binary_expressions,
@@ -67,22 +61,30 @@ export default function (in: Input): Output {
             operator: BinaryOperator.Equal,
             left_ir: subject_ir,
             right_ir: first
-        })
-
-        host.saveStatementCase(traversal, placement, count, comparison, null)
-
-        return {
-            ok: true,
-            state
-        }
+        }),
+        _ => 0
     }
 
-    const literal = host.lowerRegular(context.frame, first, true, null)
+    const literal: u32? = match {
+        direct && !last => host.lowerRegular(context.frame, first, true, null),
+        _ => null
+    }
 
-    host.saveStatementCase(traversal, placement, count, 0, literal)
+    const block = unpackSpan(in.child)
+    const cases = state.selection_cases[placement]
+
+    const updated: StatementCases = {
+        body_start: cases.body_start.push(block.start)[0],
+        body_count: cases.body_count.push(block.count)[0],
+        conditions: cases.conditions.push(comparison)[0],
+        literals: cases.literals.push(literal)[0]
+    }
 
     return {
         ok: true,
-        state
+        state: {
+            ...state,
+            selection_cases: state.selection_cases.with(placement, updated)
+        }
     }
 }

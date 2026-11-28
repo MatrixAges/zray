@@ -1,0 +1,5 @@
+import type { Observation as Output, ScanRow as Input } from "./model"
+
+export default function (in: Input): Output {
+    return in.rows[in.index]
+}

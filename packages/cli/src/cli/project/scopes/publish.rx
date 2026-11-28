@@ -1,10 +1,23 @@
 <Module>
     <Type from="model" as="Scope" />
 
-    <Args in={Scope.Publication} out={Scope.Published} />
+    <Args in={Scope.PublishInput} out={Scope.Published} />
 
-    <Call fn="declarations" in={$in.declarations} />
-    <Call fn="externals" in={$in.externals} />
+    <Call
+        fn="declarations"
+        in={{
+            rows: $in.declarations,
+            resolved: $in.resolved
+        }}
+    />
+
+    <Call
+        fn="externals"
+        in={{
+            first: $in.declarations.count,
+            resolved: $in.resolved
+        }}
+    />
 
     <Return
         value={{

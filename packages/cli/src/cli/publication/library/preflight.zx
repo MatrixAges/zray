@@ -1,9 +1,9 @@
 import bytes from "std:bytes"
 import fsPath from "std:path"
 import host from "publication_host"
+import { ResourceKind } from "publication_host"
 
 import { inventory_name } from "../../library/publication/const"
-import { end_of_directory, named_regular_entry, regular_entry } from "../const"
 
 import type { Files, Inventory as Input } from "./model"
 
@@ -22,12 +22,12 @@ export default function (in: Input): Output {
     }, {
         while: state => state.reading,
         next: state => {
-            const entry = host.nextEntry(directory, inventory_name)
+            const entry = host.nextEntry(directory)
             const kind = entry.kind
 
-            if (kind == end_of_directory) {
+            if (kind == ResourceKind.End) {
                 state.reading = false
-            } else if (kind == regular_entry || kind == named_regular_entry) {
+            } else if (kind == ResourceKind.Regular) {
                 const path = entry.path
                 const target = fsPath.join([
                     destination,
@@ -36,7 +36,7 @@ export default function (in: Input): Output {
 
                 const checked_target = host.checkPublishedTarget(verification, target)
 
-                if (kind == named_regular_entry) {
+                if (path == inventory_name) {
                     state.manifest = target
                     state.prefix = bytes.fromText(target).length -
                         bytes.fromText(path).length

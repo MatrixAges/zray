@@ -1,4 +1,3 @@
-import { projectLists } from "core/column_set"
 import memory from "memory"
 import columns from "memory/columns"
 
@@ -18,11 +17,6 @@ export default function (in: Input): Output {
     const { row, target, imports, providers, checks } = in
     const { codes } = imports.edges
 
-    projectLists([
-        providers.projection,
-        target
-    ])
-
     const kind = match in.kind {
         codes.type_only => Kind.TypeOnly,
         codes.function => Kind.Function,
@@ -31,6 +25,10 @@ export default function (in: Input): Output {
 
     const exported = memory.readColumnBool(imports.exported, row)
     const members = exported ? checks.members : checks.imports
+    const source = providers.members
+    const signatures = providers.signatures
+
+    const { aliases, constants } = providers
 
     return {
         dependency: {
@@ -49,18 +47,31 @@ export default function (in: Input): Output {
         provider: {
             executable: providers.functions[target] != null,
             members: {
-                ...providers.members,
-                count: memory.columnLength(providers.members.ids)
+                names: memory.selectListText(null, source.names, target),
+                namespaces: memory.selectListColumn(source.namespaces, target),
+                ids: memory.selectListColumn(source.ids, target),
+                inputs: memory.selectListColumn(source.inputs, target),
+                outputs: memory.selectListColumn(source.outputs, target),
+                intrinsics: memory.selectListColumn(source.intrinsics, target),
+                count: memory.listLength(source.ids, target)
             },
-            signatures: providers.signatures,
+            signatures: {
+                files: memory.selectListText(null, signatures.files, target),
+                input_types: memory.selectListColumn(signatures.input_types, target),
+                output_types: memory.selectListColumn(signatures.output_types, target),
+                ownership: memory.selectListColumn(signatures.ownership, target)
+            },
             aliases: {
-                ...providers.aliases,
-                count: memory.columnLength(providers.aliases.ids)
+                names: memory.selectListText(null, aliases.names, target),
+                ids: memory.selectListColumn(aliases.ids, target),
+                count: memory.listLength(aliases.ids, target)
             },
-            kinds: providers.kinds,
+            kinds: memory.selectListColumn(providers.kinds, target),
             constants: {
-                ...providers.constants,
-                count: columns.columnLength(providers.constants.types)
+                names: memory.selectListText(null, constants.names, target),
+                types: columns.selectListValue(null, constants.types, target),
+                values: columns.selectListValue(null, constants.values, target),
+                count: memory.listLength(constants.names, target)
             },
             types: providers.types[target]
         },

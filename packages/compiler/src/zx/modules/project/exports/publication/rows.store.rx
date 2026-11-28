@@ -3,7 +3,5 @@
 
     <Object name="merge">
         <Field name="kind" type={Publication.Kind} value={Publication.Kind.Types} />
-        <Field name="own" type={u8[]} value={[]} />
-        <Field name="forwarded" type={u8[]} value={[]} />
     </Object>
 </Store>

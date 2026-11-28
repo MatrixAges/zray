@@ -3,21 +3,23 @@
 
     <Args in={Request.Analyze} out={Request.Summary} />
 
-    <If on={$in.fingerprints.previous != null}>
+    <If on={$in.registered.failure == null}>
         <Call
             fn="host.restoreGenerationAnalysis"
             in={[
                 $in.host,
-                $in.fingerprints.previous
+                $in.fingerprints.digest
             ]}
         />
 
-        <Return
-            value={{
-                text: $ctx.restoreGenerationAnalysis,
-                failure: null
-            }}
-        />
+        <If on={$ctx.restoreGenerationAnalysis != null}>
+            <Return
+                value={{
+                    text: $ctx.restoreGenerationAnalysis,
+                    failure: null
+                }}
+            />
+        </If>
     </If>
 
     <Call
@@ -49,9 +51,8 @@
         fn="host.generateFromPreparedInputs"
         in={[
             $in.host,
-            $in.fingerprints.fingerprints,
-            $in.catalog,
-            $in.registered.bindings,
+            $in.fingerprints,
+            $in.registered,
             $ctx.prepareGenerationTemplates,
             $ctx.prepareGenerationModules
         ]}

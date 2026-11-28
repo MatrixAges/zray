@@ -1,54 +1,45 @@
 <Module>
     <Type from="model" as="Execution" />
 
-    <Args in={Execution.Input} out={bool} />
+    <Args in={Execution.Input} out={u64?} />
 
     <Call
         fn="open_scope"
-        in={{
-            ...$in.pick([
-                "traversal",
-                "context",
-                "first",
-                "count"
-            ]),
-            scope: 0,
-            placement: 0
-        }}
+        in={$in.pick([
+            "context",
+            "first",
+            "count"
+        ])}
     />
-
-    <If on={!$ctx.open_scope.ok}>
-        <Return value={false} />
-    </If>
 
     <Call
         module="scope"
         in={{
             ...$in.pick([
-                "traversal",
                 "context",
                 "first",
                 "count"
             ]),
-            scope: 0,
             writes: [],
             routes: $ctx.open_scope.routes,
-            scope_first: $in.first
+            scope_first: $in.first,
+            scope_count: $in.count
         }}
     />
 
     <If on={!$ctx.scope.valid}>
-        <Return value={false} />
+        <Return value={null} />
     </If>
 
     <Call
-        fn="host"
+        fn="close_scope"
         in={{
-            traversal: $in.traversal,
-            scope: 0,
+            frame: $in.context.frame,
+            checkpoint: $ctx.open_scope.checkpoint,
+            count: $in.count,
             writes: $ctx.scope.writes
         }}
     />
 
-    <Return value={$ctx.host != null} />
+    <Return value={$ctx.close_scope} />
 </Module>

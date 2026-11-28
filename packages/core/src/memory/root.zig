@@ -45,21 +45,10 @@ pub const copyTransferCell = column_transfer.copyCell;
 pub const retainTransferItem = column_transfer.retainItem;
 pub const releaseTransferItem = column_transfer.releaseItem;
 pub const publishTransferColumn = column_transfer.publishOne;
-const text_storage = @import("text_storage.zig");
-pub const duplicateText = text_storage.duplicate;
-pub const freeOwnedText = text_storage.free;
-pub const freeTextSlots = text_storage.free;
+pub const cloneTextList = column_transfer.cloneTextList;
 
-pub inline fn allocateTextSlots(resource: *const anyopaque, count: u64, shape: anytype) ?std.meta.Child(@TypeOf(shape)) {
-    return text_storage.allocate([]const u8, resource, count, shape);
-}
-
-pub inline fn writeTextSlot(target: *anyopaque, index: u64, value: []const u8) void {
-    text_storage.write([]const u8, target, index, value);
-}
-
-pub inline fn borrowTextSlots(source: *const anyopaque, count: u64) []const []const u8 {
-    return text_storage.borrow([]const u8, source, count);
+pub inline fn freeOwnedText(resource: *const anyopaque, text: []const u8) void {
+    column_set.borrowAllocator(resource).free(text);
 }
 
 pub inline fn requireAllocation(success: bool) std.mem.Allocator.Error!void {
@@ -113,10 +102,18 @@ pub const borrowOptionalListColumn = rows.borrowOptionalList;
 pub const borrowNestedListColumn = rows.borrowNestedList;
 pub const borrowSliceColumn = rows.borrowSliceColumn;
 pub const ListProjection = rows.ListProjection;
-pub const listProjectionSourceCount = rows.listProjectionSourceCount;
-pub const listProjectionTargetCount = rows.listProjectionTargetCount;
+pub const selectListColumn = rows.selectList;
+pub const selectListText = selectScopedList;
+pub const selectListValue = selectScopedList;
+pub const selectProjectedList = rows.selectProjectedList;
+
+pub inline fn selectScopedList(allocator: std.mem.Allocator, scratch: ?*const anyopaque, source: *const anyopaque, index: u64) error{ IndexOutOfBounds, OutOfMemory }!*const anyopaque {
+    const views = if (scratch) |resource| column_set.borrowAllocator(resource) else allocator;
+
+    return rows.selectList(views, source, index);
+}
+
 pub const requireColumnBounds = rows.requireColumnBounds;
-pub const projectListCell = rows.projectListCell;
 pub const columnLength = rows.columnLength;
 pub const readTextColumn = rows.readText;
 pub const readOptionalTextColumn = rows.readOptionalText;
@@ -159,19 +156,12 @@ pub const borrowReadFields = field_columns.borrowRead;
 pub const borrowListFields = field_columns.borrowLists;
 pub const ReadFields = field_columns.ReadFields;
 pub const ListFields = field_columns.ListFields;
-pub const RowBuffer = column.RowBuffer;
 pub const RowOutput = column.RowOutput;
-pub const RowGrowth = column.RowGrowth;
-pub const rowFieldCount = column.rowFieldCount;
-pub const rowStorageCount = column.rowStorageCount;
-pub const rowCapacityLimit = column.rowCapacityLimit;
-pub const rowGrowthBase = column.rowGrowthBase;
-pub const rowGrowthBuffer = column.rowGrowthBuffer;
-pub const refreshRowWrite = column.refreshRowWrite;
-pub const refreshRowRead = column.refreshRowRead;
-pub const reserveRowStorage = column.reserveRowStorage;
-pub const allocateRowStorage = column.allocateRowStorage;
-pub const rowBufferBytes = column.rowBufferBytes;
+
+pub inline fn rowCapacityLimit() u64 {
+    return std.math.maxInt(usize);
+}
+
 const scalar_column = @import("scalar.zig");
 pub const Scalar = scalar_column.Value;
 pub const readScalarKind = scalar_column.readKind;

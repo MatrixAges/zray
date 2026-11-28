@@ -1,9 +1,26 @@
-export type Files = {
-    records: u8[][],
-    copy_paths: bool
+import type { Kind } from "../kind"
+
+export type Timestamp = {
+    high: i32,
+    low: u64
+}
+
+export type Stat = {
+    inode?: u64,
+    size?: u64,
+    mtime_ns?: Timestamp,
+    ctime_ns?: Timestamp
+}
+
+export type File = {
+    path: string,
+    relative: string,
+    kind: Kind,
+    stat: Stat,
+    retain: bool
 }
 
 export type Collected = {
-    batches: Files[],
+    batches: File[][],
     count: u64
 }

@@ -1,10 +1,10 @@
 <Module>
     <Type from="model" as="Parameters" />
-    <Type from="../workflow/execute/index" as="Native" />
+    <Type from="layout" as="Layouts" />
 
     <Args in={Parameters.Plan} out={Parameters.Output} />
 
-    <If on={$in.layout == Native.LoopParameterLayout.State}>
+    <If on={$in.layout == Layouts.Layout.State}>
         <Call
             fn="state"
             in={$in.pick([
@@ -16,7 +16,7 @@
         <Return value={$ctx.state} />
     </If>
 
-    <If on={$in.layout == Native.LoopParameterLayout.Stack}>
+    <If on={$in.layout == Layouts.Layout.Stack}>
         <Return
             value={{
                 add_condition: $in.stack.condition,
@@ -31,9 +31,9 @@
 
     <Return
         value={{
-            add_condition: $in.layout == Native.LoopParameterLayout.Deep,
+            add_condition: $in.layout == Layouts.Layout.Deep,
             add_step:
-                $in.layout == Native.LoopParameterLayout.Deep &&
+                $in.layout == Layouts.Layout.Deep &&
                 $in.condition != $in.step,
             remove_state_condition: false,
             remove_state_step: false,

@@ -7,7 +7,6 @@ const Context = @import("../iteration_value/root.zig");
 const evaluation = @import("../expressions/evaluate.zig");
 const generated = @import("genz_options").generated_analysis;
 const Consumer = @import("../iteration_consumer.zig").Consumer;
-const publication = @import("../construction/publication.zig");
 const Api = evaluation.Api;
 
 const Plan = struct {
@@ -37,42 +36,6 @@ pub const Result = struct {
     changed_name: []const u8,
     mode: Mode,
     pub fn lower(config: Result, self: *Lower, body: *Context.Statements, state: node.ExpressionId, previous: Prefix) Lower.Error!node.ExpressionId {
-        if (generated) {
-            const execute = @import("generated_publish_loop_result");
-            const Input = std.meta.Child(execute.Input);
-
-            const input: Input = .{
-                .context = @ptrCast(config.context),
-                .consumer = if (config.consumer) |consumer| &.{
-                    .symbol = @backingInt(consumer.symbol),
-                    .result = @backingInt(consumer.result),
-                    .layout = consumer.layout,
-                } else null,
-                .frame = @ptrCast(self),
-                .writer = @ptrCast(self),
-                .body = @ptrCast(body),
-                .changed_name = config.changed_name,
-                .type_id = @backingInt(config.type_id),
-                .state = @backingInt(state),
-                .initial = @backingInt(config.initial),
-                .renewals = publication.packSpan(previous.renewals),
-                .declarations = publication.packSpan(previous.declarations),
-                .frame_span = publication.packSpan(previous.frame),
-                .facts = &.{
-                    .consumer = config.consumer != null,
-                    .deep = config.deep,
-                    .inline_lists = config.context.inline_lists,
-                    .converted = config.converted,
-                    .discard = config.mode == .discard,
-                    .by_value = config.by_value,
-                    .local = config.local,
-                    .selected = config.selected_state,
-                },
-            };
-
-            return evaluation.invokeWith(self, execute, &input);
-        }
-
         const frame: Publication = .{
             .config = config,
             .lowering = self,
@@ -249,12 +212,8 @@ pub fn consumeLoopProjection(allocator: std.mem.Allocator, handle: *anyopaque, c
     return result;
 }
 
-pub fn wrapLoopResult(handle: *anyopaque, type_id: u32, state: u32, layout: bool) Lower.Error!u32 {
-    return @backingInt(try wrapResult(evaluation.borrow(handle), @fromBackingInt(type_id), @fromBackingInt(state), if (layout) .Layout else .Pointer));
-}
-
-pub fn convertLoopResult(handle: *anyopaque, type_id: u32, state: u32) Lower.Error!u32 {
+pub fn convertLoopResult(handle: *anyopaque, type_id: u32, state: u32, output: bool) Lower.Error!u32 {
     const context: *Context = @ptrCast(@alignCast(handle));
 
-    return @backingInt(try @import("../iteration_value/conversion.zig").convert(context, @fromBackingInt(type_id), @fromBackingInt(state), true));
+    return @backingInt(try @import("../iteration_value/conversion.zig").convert(context, @fromBackingInt(type_id), @fromBackingInt(state), output));
 }

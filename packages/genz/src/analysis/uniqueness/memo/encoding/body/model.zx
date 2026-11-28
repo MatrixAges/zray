@@ -1,5 +1,4 @@
-import type { ReadColumn } from "memory"
-import type { ListProjection } from "memory/columns"
+import type { ListProjection, ReadColumn } from "memory"
 import type { Key, RecordColumns, Target } from "../model"
 
 export type Growth = {

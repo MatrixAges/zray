@@ -22,6 +22,7 @@
             in={{
                 ...$ctx.select,
                 cursor: $ctx.scan.cursor,
+                name: $ctx.scan.name,
                 rows: $ctx.scan.rows
             }}
         />

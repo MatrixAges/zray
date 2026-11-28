@@ -2,7 +2,6 @@ const std = @import("std");
 const Compile = @import("../compile.zig");
 const Module = @import("../library/analyze.zig").Module;
 const source_lint = @import("source.zig");
-const lint = @import("lint");
 const rx = @import("rx");
 const reachable = @import("cli_source").lint_reachable;
 const StoreState = std.meta.Child(@FieldType(reachable.zx_pending, "store_0"));
@@ -55,7 +54,7 @@ pub fn check(context: Compile.Context, modules: []const Module, root: []const u8
 
     const failure = (try reachable.execute(&arena, &.{
         .document = @ptrCast(&document),
-        .maximum_lines = context.options.max_lines orelse lint.length.default_maximum,
+        .maximum_lines = context.options.max_lines,
         .items = items,
     }, &host, context.io)) orelse return .success;
 

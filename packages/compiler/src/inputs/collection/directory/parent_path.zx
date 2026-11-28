@@ -1,0 +1,30 @@
+import bytes from "std:bytes"
+
+import { directory_separator } from "../../../zx/modules/path/const"
+
+import type { Parent as Input } from "./scan_shape"
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { root, relative } = in
+
+    if (relative.length == 0) {
+        return root
+    }
+
+    const root_bytes = bytes.fromText(root)
+
+    if (
+        root_bytes.length != 0 &&
+            bytes.startsWithText(
+                root_bytes,
+                root_bytes.length - 1,
+                directory_separator
+            )
+    ) {
+        return `${root}${relative}`
+    }
+
+    return `${root}${directory_separator}${relative}`
+}

@@ -1,11 +1,10 @@
-import type { StatementTraversal } from "lowering_host"
 import type { Output as Committed } from "../traversal/commit"
 import type { Context } from "../traversal/execute/model"
 
 export type Input = {
-    traversal: StatementTraversal,
     context: Context,
-    scope: u64,
+    scope_first: u64,
+    scope_count: u64,
     index: u64,
     statement: u64,
     route: u8

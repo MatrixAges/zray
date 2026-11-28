@@ -1,0 +1,21 @@
+import type { GenerationPath } from "generation_host"
+import type { ObserveStep } from "./model"
+
+export type Input = {
+    step: ObserveStep,
+    files: GenerationPath[]
+}
+
+export type Output = ObserveStep
+
+export default function (in: Input): Output {
+    const { step, files } = in
+
+    return {
+        roots: step.roots,
+        row: step.row + 1,
+        observed: step.observed.push({
+            files
+        })[0]
+    }
+}

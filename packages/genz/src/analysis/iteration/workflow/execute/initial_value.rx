@@ -1,0 +1,54 @@
+<Module>
+    <Type from="model" as="Loop" />
+    <Type from="../../initial/model" as="Initial" />
+
+    <Args in={Loop.Input} out={Loop.InitialValue} />
+
+    <Store from="state" as="loop_state" />
+
+    <If on={$in.initial_plan.evaluation == Initial.Evaluation.Deep}>
+        <Call
+            fn="set_initial_scope"
+            in={true}
+            setter={[$store.loop_state.initial_scope]}
+        />
+    </If>
+
+    <Call
+        fn="initial_operand"
+        in={{
+            frame: $in.frame,
+            initial: $in.initial,
+            evaluation: $in.initial_plan.evaluation
+        }}
+    />
+
+    <If on={$in.initial_plan.evaluation == Initial.Evaluation.Deep}>
+        <Call
+            fn="set_initial_scope"
+            in={false}
+            setter={[$store.loop_state.initial_scope]}
+        />
+    </If>
+
+    <Call
+        fn="initial"
+        in={{
+            ...$in.pick([
+                "frame",
+                "writer",
+                "body_seq",
+                "loop_frame",
+                "initial_plan"
+            ]),
+            value: $ctx.initial_operand
+        }}
+    />
+
+    <Return
+        value={{
+            name: $in.loop_state.name,
+            value: $ctx.initial
+        }}
+    />
+</Module>

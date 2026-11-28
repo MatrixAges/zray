@@ -7,3 +7,5 @@ export const store_suffix: string = ".store.rx"
 export const gateway_suffix: string = ".gateway.rx"
 
 export const manifest_file: string = "pkg.yaml"
+
+export const default_maximum_lines: u64 = 240

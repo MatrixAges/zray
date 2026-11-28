@@ -1,0 +1,74 @@
+import bytes from "std:bytes"
+import integers from "std:integer"
+
+import field from "../../../ast/context/field"
+import object from "../../../ast/context/object"
+import append from "../../../ast/fields/append"
+import empty from "../../../ast/fields/empty"
+import publish from "./publish"
+
+import type { Boxed, Output, State } from "./model"
+
+export type Input = {
+    state: State,
+    layout: u32,
+    initial: u32,
+    boxed: Boxed
+}
+
+export default function (in: Input): Output {
+    const type_id = integers.widen(in.state.source.type_id)
+    const start = integers.widen(in.state.source.types.first[type_id])
+    const names = in.state.source.types.field_names
+    const values = in.boxed.values
+
+    const members = loop({
+        context: in.state.context,
+        fields: empty({}),
+        index: 0
+    }, {
+        while: state => state.index < values.length,
+        next: state => {
+            const name = bytes.fromText(names[start + state.index])
+            const replacement = values[state.index]
+
+            const value = match {
+                replacement != null => {
+                    state: state.context,
+                    id: replacement
+                },
+                _ => field({
+                    state: state.context,
+                    target: in.initial,
+                    name
+                })
+            }
+
+            state.fields = append({
+                table: state.fields,
+                name,
+                value: value.id,
+                default_value: null,
+                comptime_parameter: false
+            })
+            state.context = value.state
+            state.index += 1
+        }
+    })
+
+    const result = object({
+        state: members.context,
+        type_expr: in.layout,
+        first: in.boxed.field_base,
+        count: integers.narrow(values.length)
+    })
+
+    return {
+        ...publish({
+            ...in.state,
+            context: result.state,
+            target: result.id
+        }),
+        fields: members.fields
+    }
+}

@@ -11,12 +11,6 @@ const Source = std.meta.Child(@FieldType(Facts, "members"));
 const Named = std.meta.Child(@FieldType(Source, "named"));
 const Fallback = std.meta.Child(@typeInfo(@FieldType(Source, "fallback")).optional.child);
 const Kinds = std.meta.Child(@FieldType(Rows, "kinds"));
-
-const Tail = @import("tail.zig").Tail(Signature.Member, Rows, .{
-    .input_type = &.{ "ports", "input_type" },
-    .output_type = &.{ "ports", "output_type" },
-});
-
 const kinds = Signature.kinds(Kinds);
 const Self = @This();
 
@@ -28,7 +22,8 @@ pub const List = struct {
     backing: std.mem.Allocator,
 };
 
-tail: Tail,
+rows: *std.ArrayList(Signature.Member),
+signatures: []const Signature.Member,
 member_ports: FunctionImport.Readable,
 named: Named,
 fallback: Fallback,
@@ -39,8 +34,8 @@ owner: std.mem.Allocator,
 written: usize,
 input: Rows,
 pub fn init(self: *Self, list: List, owner: std.mem.Allocator) void {
-    self.tail.init(list.rows);
-
+    self.rows = list.rows;
+    self.signatures = list.signatures;
     self.member_ports = FunctionImport.Readable.borrowRows(list.bindings.named);
     self.named = self.member_ports.view(Named);
 
@@ -57,27 +52,30 @@ pub fn init(self: *Self, list: List, owner: std.mem.Allocator) void {
     self.written = 0;
 
     self.input = .{
-        .storage = @ptrCast(&self.tail.output.buffer),
-        .used = self.tail.length,
-        .signatures = std.mem.sliceAsBytes(list.signatures),
-        .stride = @sizeOf(Signature.Member),
+        .used = self.rows.items.len,
+        .capacity = self.rows.capacity,
+        .base = @max(1, std.atomic.cache_line / @sizeOf(Signature.Member)),
+        .signatures = list.signatures.len,
         .facts = &self.facts,
         .kinds = &kinds,
-        .backing = @ptrCast(&self.backing),
     };
 }
 
 pub fn discard(self: *Self) void {
-    for (self.tail.output.rows()[@intCast(self.tail.length)..][0..self.written]) |row| self.owner.free(row.name);
+    for (self.rows.unusedCapacitySlice()[0..self.written]) |row| self.owner.free(row.name);
 }
 
-pub fn settle(self: *Self) void {
-    self.tail.commit();
+pub fn settle(self: *Self, count: u64) void {
+    self.rows.items.len = @intCast(count);
 }
 
 pub fn commit(self: *Self, pending: anytype) std.mem.Allocator.Error!void {
     if (pending.store_0) |row| {
-        try @import("../../project/exports/signatures/rows.zig").commit(self.owner, self.tail.output.rows(), row);
+        if (row.action == .Reserve) {
+            return self.rows.ensureTotalCapacityPrecise(self.backing, @intCast(row.row));
+        }
+
+        try @import("../../project/exports/signatures/rows.zig").commit(self.owner, self.rows.allocatedSlice(), self.signatures, row);
 
         self.written += 1;
     }

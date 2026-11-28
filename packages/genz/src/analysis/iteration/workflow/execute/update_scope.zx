@@ -1,14 +1,12 @@
-import { LoopUpdateScope } from "lowering_host"
+export type Input = {
+    projected?: bool,
+    delayed: bool
+}
 
-import { Assignment } from "../../step/model"
+export type Output = void
 
-export type Input = Assignment
-
-export type Output = LoopUpdateScope
-
-export default function (in: Input): Output {
-    return match in {
-        Assignment.Projected => LoopUpdateScope.Projected,
-        _ => LoopUpdateScope.Ordinary
-    }
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.loop_state.update_scope = in
 }

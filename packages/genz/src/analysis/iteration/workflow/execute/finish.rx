@@ -1,0 +1,41 @@
+<Module>
+    <Type from="emission_model" as="Loop" />
+
+    <Args in={Loop.Finish} out={u32} />
+
+    <Call
+        fn="result_input"
+        in={{
+            ...$in,
+            skipped: false
+        }}
+    />
+
+    <Call module="../../result/finish/execute/run" />
+
+    <If on={$in.projected && $in.update.first != null}>
+        <Call module="skipped_result" in={$in} />
+
+        <Call
+            fn="finish_value"
+            in={{
+                ...$in,
+                value: $ctx.run,
+                fallback: $ctx.skipped_result
+            }}
+        />
+
+        <Return value={$ctx.finish_value} />
+    </If>
+
+    <Call
+        fn="finish_value"
+        in={{
+            ...$in,
+            value: $ctx.run,
+            fallback: null
+        }}
+    />
+
+    <Return value={$ctx.finish_value} />
+</Module>

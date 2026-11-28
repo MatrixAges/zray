@@ -1,0 +1,25 @@
+import type { Output as Decision } from "./bind"
+import type { BindingWalk as Output } from "./workflow"
+
+export type Input = {
+    walk: Output,
+    result: Decision
+}
+
+export default function (in: Input): Output {
+    const { walk, result } = in
+    const { resolved } = result
+
+    if (resolved == null) {
+        return {
+            ...walk,
+            status: result.status
+        }
+    }
+
+    return {
+        ...walk,
+        index: walk.index + 1,
+        resolved: walk.resolved.push(resolved)[0]
+    }
+}

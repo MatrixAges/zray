@@ -17,7 +17,7 @@ pub fn View(comptime Graph: type) type {
 
             self.origins = Origins.Table.borrow(@TypeOf(self.origins), graph.nominal_types);
 
-            self.exports.init(graph.exports);
+            self.exports.init(graph.exports, allocator);
 
             self.initializer_rows = memory.borrowReadFields(initializer_fields, graph.store_initializers);
             self.initializers = self.initializer_rows.bind(@TypeOf(self.initializers));

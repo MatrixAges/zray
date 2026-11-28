@@ -1,0 +1,64 @@
+import bytes from "std:bytes"
+
+import binary from "../../ast/context/binary"
+import builtin from "../../ast/context/builtin"
+import conditional from "../../ast/context/conditional"
+import field from "../../ast/context/field"
+import identifier from "../../ast/context/identifier"
+import {
+    ExpressionsBinaryOperator,
+    ExpressionsBuiltinName
+} from "../../printer/model/expressions"
+
+import type { Node as Input, Node as Output } from "../../ast/context/model"
+
+export default function (in: Input): Output {
+    const actual = builtin({
+        state: in.state,
+        name: ExpressionsBuiltinName.TypeOf,
+        arguments: [in.id]
+    })
+
+    const info = builtin({
+        state: actual.state,
+        name: ExpressionsBuiltinName.TypeInfo,
+        arguments: [actual.id]
+    })
+
+    const pointer = field({
+        state: info.state,
+        target: info.id,
+        name: bytes.fromText("pointer")
+    })
+
+    const child = field({
+        state: pointer.state,
+        target: pointer.id,
+        name: bytes.fromText("child")
+    })
+
+    const erased = identifier({
+        state: child.state,
+        name: bytes.fromText("anyopaque")
+    })
+
+    const matches = binary({
+        state: erased.state,
+        operator: ExpressionsBinaryOperator.Equal,
+        left: child.id,
+        right: erased.id
+    })
+
+    const cast = builtin({
+        state: matches.state,
+        name: ExpressionsBuiltinName.PtrCast,
+        arguments: [in.id]
+    })
+
+    return conditional({
+        state: cast.state,
+        condition: matches.id,
+        yes: cast.id,
+        no: in.id
+    })
+}

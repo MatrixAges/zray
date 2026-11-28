@@ -3,7 +3,21 @@ const generated = @import("generated");
 const Input = std.meta.Child(generated.Input);
 const FieldItem = std.meta.Child(std.meta.Child(@FieldType(Input, "fields")));
 
-pub fn checkLength(text: []const u8, maximum: ?usize) ?usize {
+pub const length = struct {
+    pub const default_maximum: usize = 240;
+    pub const Exceeded = struct { lines: usize, maximum: usize };
+
+    pub fn check(text: []const u8, maximum: usize) ?Exceeded {
+        const lines = checkLength(text, maximum) orelse return null;
+
+        return .{ .lines = lines, .maximum = maximum };
+    }
+    pub fn count(text: []const u8) usize {
+        return checkLength(text, null).?;
+    }
+};
+
+fn checkLength(text: []const u8, maximum: ?usize) ?usize {
     var storage: [256]u8 = undefined;
     var fixed = std.heap.FixedBufferAllocator.init(&storage);
 

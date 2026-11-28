@@ -6,9 +6,10 @@ import unpackSpan from "../../../tasks/worker/execute/reference"
 import branch from "../../basic/branch"
 import { Action } from "../model"
 import selectionCase from "./case"
-import finishScope from "./host"
+import finishScope from "./close_scope"
 import openScope from "./open_scope"
 import saveScopeWrites from "./save_scope_writes"
+import selectionFinish from "./selection_finish"
 import selectionOpen from "./selection_open"
 import selectionResolve from "./selection_resolve"
 
@@ -18,7 +19,6 @@ import type { Step as Input, StepResult as Output } from "./model"
 export default function (in: Input): Output {
     const {
         action,
-        traversal,
         context,
         state,
         scope,
@@ -31,21 +31,10 @@ export default function (in: Input): Output {
 
     if (action == Action.Open) {
         const opened = openScope({
-            traversal,
             context,
-            scope,
             first,
-            count,
-            placement
+            count
         })
-
-        if (!opened.ok) {
-            return {
-                ok: false,
-                child,
-                state
-            }
-        }
 
         return {
             ok: true,
@@ -56,7 +45,10 @@ export default function (in: Input): Output {
                     scope,
                     writes: []
                 }),
-                scope_firsts: state.scope_firsts.splice(scope, 1, [first])[0],
+                scope_firsts: state.scope_firsts.with(scope, first),
+                scope_counts: state.scope_counts.with(scope, count),
+                scope_checkpoints:
+                    state.scope_checkpoints.with(scope, opened.checkpoint),
                 scope_routes:
                     state.scope_routes.splice(scope, 1, [opened.routes])[0]
             }
@@ -139,14 +131,15 @@ export default function (in: Input): Output {
 
     if (action == Action.Close) {
         const finished = finishScope({
-            traversal,
-            scope,
+            frame: context.frame,
+            checkpoint: state.scope_checkpoints[scope],
+            count: state.scope_counts[scope],
             writes: state.scope_writes[scope]
         })
 
         return {
-            ok: finished != null,
-            child: finished ?? child,
+            ok: true,
+            child: finished,
             state
         }
     }
@@ -166,22 +159,11 @@ export default function (in: Input): Output {
     }
 
     if (action == Action.EndSelection) {
-        return {
-            ok: host.finishStatementSelection(
-                traversal,
-                scope,
-                first,
-                placement,
-                state.selection_fallbacks[placement]
-            ),
-            child,
-            state
-        }
+        return selectionFinish(in)
     }
 
     const result = match action {
         Action.Selection => selectionOpen({
-            traversal,
             context,
             state,
             scope,
@@ -189,28 +171,27 @@ export default function (in: Input): Output {
             placement
         }),
         Action.Resolve => selectionResolve({
-            traversal,
             context,
             state,
             placement,
             count
         }),
         Action.Case => selectionCase({
-            traversal,
             context,
             state,
             placement,
             count,
             first,
+            child,
             after: false
         }),
         Action.SaveCase => selectionCase({
-            traversal,
             context,
             state,
             placement,
             count,
             first,
+            child,
             after: true
         }),
         _ => ({
@@ -221,6 +202,7 @@ export default function (in: Input): Output {
 
     return {
         ok: result.ok,
+        binding: result.binding,
         child,
         state: result.state
     }

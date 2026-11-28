@@ -10,10 +10,9 @@ export default function (in: Input): Output {
     const { types, constants } = source.exports
     const { members, ids, entry } = source
 
-    const reexport_bytes = types.forwarded.length + constants.forwarded.length +
-        members.forwarded.length
+    const reexports = types.forwarded + constants.forwarded + members.forwarded
 
-    if (reexport_bytes == 0) {
+    if (reexports == 0) {
         return null
     }
 
@@ -21,7 +20,7 @@ export default function (in: Input): Output {
         exports: source.exports,
         merged,
         members: members.names,
-        member_count: in.members.length / members.stride,
+        member_count: in.members,
         ids,
         entry
     })

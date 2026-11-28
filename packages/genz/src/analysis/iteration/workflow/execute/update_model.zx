@@ -5,7 +5,7 @@ import type { Output as StepPlan } from "../../step/model"
 import type { Input } from "./model"
 
 export type StorageInput = Input.Pick(
-    "loop_frame",
+    "context",
     "writer",
     "body_seq",
     "type_id",

@@ -1,4 +1,9 @@
 const abi = @import("cli_abi");
+pub const Timestamp = abi.layouts.@"zig:snapshot_host".Timestamp;
+pub const FileVersion = abi.layouts.@"zig:snapshot_host".FileVersion;
+pub const VersionRequest = abi.layouts.@"zig:snapshot_host".VersionRequest;
+pub const Reading = abi.layouts.@"zig:snapshot_host".Reading;
+pub const ContentRequest = abi.layouts.@"zig:snapshot_host".ContentRequest;
 pub const Comparison = abi.layouts.@"zig:snapshot_host".Comparison;
 pub const Fact = abi.layouts.@"zig:snapshot_host".Fact;
 pub const Publication = abi.layouts.@"zig:snapshot_host".Publication;

@@ -60,10 +60,6 @@ export type BodyResult = {
 }
 
 export type RecordedBody = {
-    row: u64,
-    exports: u8[],
-    constants: u8[],
-    members: u8[],
     entry?: u32,
     publication: Publication,
     function_id?: u32,

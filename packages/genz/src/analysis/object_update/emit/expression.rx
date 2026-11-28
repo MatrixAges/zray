@@ -5,6 +5,20 @@
 
     <Call fn="initialize" in={$in.source} />
 
+    <If on={$in.boxed != null}>
+        <Call
+            fn="overlay"
+            in={{
+                state: $ctx.initialize,
+                layout: $in.layout,
+                initial: $in.initial,
+                boxed: $in.boxed
+            }}
+        />
+
+        <Return value={$ctx.overlay} />
+    </If>
+
     <Call
         fn="variable"
         in={{

@@ -1,6 +1,7 @@
+import type { Document } from "../../fingerprint/model"
 import type { Documents as Input } from "./append_documents"
 
-export type Output = u8[][]
+export type Output = Document[][]
 
 export default function (in: Input): Output {
     return in.batches

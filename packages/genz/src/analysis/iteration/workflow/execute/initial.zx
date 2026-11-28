@@ -1,42 +1,19 @@
 import host from "lowering_host"
-import { LoopAdmission } from "lowering_host"
 
 import bindOperand from "../../../aggregate/execute/bind_operand"
-import { Evaluation, Guard } from "../../initial/model"
+import { Guard } from "../../initial/model"
 
-import type { InitialOutcome as Outcome, Input } from "./model"
+import type { Input as Loop } from "./model"
 
-export type Output = Outcome
+export type Input =
+    Loop.Pick("frame", "writer", "body_seq", "loop_frame", "initial_plan") & {
+        value: u32
+    }
+
+export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, writer, body_seq, loop_frame, initial } = in
-
-    const admission = host.beginLoweredLoop(loop_frame)
-
-    if (admission != LoopAdmission.Proceed) {
-        return {
-            admission,
-            name: [],
-            initial_value: 0
-        }
-    }
-
-    const name = in.loop_state.name
-    const route = in.initial_plan.evaluation
-    const deep = route == Evaluation.Deep
-
-    if (deep) {
-        host.setLoopInitialScope(loop_frame, true)
-    }
-
-    const value = match route {
-        Evaluation.Value => host.lowerValueExpression(frame, initial),
-        _ => host.lowerExpression(frame, initial, false, null)
-    }
-
-    if (deep) {
-        host.setLoopInitialScope(loop_frame, false)
-    }
+    const { frame, writer, body_seq, loop_frame, value } = in
 
     const saved = match {
         in.initial_plan.local => bindOperand({
@@ -52,9 +29,5 @@ export default function (in: Input): Output {
         host.guardLoopInitial(loop_frame, saved)
     }
 
-    return {
-        admission,
-        name,
-        initial_value: saved
-    }
+    return saved
 }

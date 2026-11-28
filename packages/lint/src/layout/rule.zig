@@ -2,18 +2,8 @@ const std = @import("std");
 const generated = @import("generated");
 const Input = std.meta.Child(generated.Input);
 const ProjectionInput = std.meta.Child(@FieldType(Input, "projection"));
-const Span = std.meta.Child(std.meta.Child(@FieldType(ProjectionInput, "raw_tokens")));
-const AbiOp = std.meta.Child(std.meta.Child(@FieldType(ProjectionInput, "ops")));
-pub const RawSpan = struct { start: u64, end: u64 };
-pub const OpKind = @FieldType(AbiOp, "kind");
-
-pub const Op = struct {
-    kind: OpKind,
-    start: u64 = 0,
-    end: u64 = 0,
-    count: u64 = 0,
-    flag: bool = false,
-};
+pub const RawSpan = std.meta.Child(std.meta.Child(@FieldType(ProjectionInput, "raw_tokens")));
+pub const Op = std.meta.Child(std.meta.Child(@FieldType(ProjectionInput, "ops")));
 
 pub const ProjectionData = struct {
     raw_tokens: []const RawSpan,
@@ -50,21 +40,12 @@ pub fn format(allocator: std.mem.Allocator, source: []const u8, projection: Proj
     defer arena.deinit();
 
     const temporary = arena.allocator();
-    const raw_tokens = try wrapSpans(temporary, projection.raw_tokens);
-    const raw_comments = try wrapSpans(temporary, projection.raw_comments);
-    const op_values = try temporary.alloc(AbiOp, projection.ops.len);
-    const ops = try temporary.alloc(*const AbiOp, projection.ops.len);
-
-    for (projection.ops, op_values, ops) |op, *value, *slot| {
-        value.* = .{ .kind = op.kind, .start = op.start, .end = op.end, .count = op.count, .flag = op.flag };
-        slot.* = value;
-    }
 
     const request: ProjectionInput = .{
         .source_text = source,
-        .raw_tokens = raw_tokens,
-        .raw_comments = raw_comments,
-        .ops = ops,
+        .raw_tokens = try borrowRows(RawSpan, temporary, projection.raw_tokens),
+        .raw_comments = try borrowRows(RawSpan, temporary, projection.raw_comments),
+        .ops = try borrowRows(Op, temporary, projection.ops),
     };
 
     const output = generated.executeIn(temporary, &.{
@@ -81,14 +62,10 @@ pub fn format(allocator: std.mem.Allocator, source: []const u8, projection: Proj
     return allocator.dupe(u8, output.formatted);
 }
 
-fn wrapSpans(allocator: std.mem.Allocator, items: []const RawSpan) std.mem.Allocator.Error![]const *const Span {
-    const values = try allocator.alloc(Span, items.len);
-    const pointers = try allocator.alloc(*const Span, items.len);
+fn borrowRows(comptime Row: type, allocator: std.mem.Allocator, items: []const Row) std.mem.Allocator.Error![]const *const Row {
+    const pointers = try allocator.alloc(*const Row, items.len);
 
-    for (items, values, pointers) |item, *value, *slot| {
-        value.* = .{ .start = item.start, .end = item.end };
-        slot.* = value;
-    }
+    for (items, pointers) |*item, *slot| slot.* = item;
 
     return pointers;
 }

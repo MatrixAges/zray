@@ -23,6 +23,7 @@ export type Input = {
     selected: bool,
     deferred: bool,
     in_place: bool,
+    transfer: bool,
     grow: bool,
     exact: bool,
     shared: bool

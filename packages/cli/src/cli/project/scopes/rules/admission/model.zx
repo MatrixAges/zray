@@ -3,13 +3,8 @@ import type { Admission } from "native_scope_host"
 
 export { Admission as Status } from "native_scope_host"
 
-export type Index = {
-    names: TextColumn,
-    capacity: u64
-}
-
 export type Modules = {
-    index: Index,
+    names: TextColumn,
     count: u64,
     paths: ReadColumn,
     headers: ReadColumn

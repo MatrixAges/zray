@@ -1,15 +1,15 @@
-export type StatementTraversal = opaque
-
 export type StatementStack = {
+    state_checkpoint: u64,
+    stack_checkpoint: u64,
     stack_keys: u32[],
     stack_buckets: u32[]
 }
 
-export type StatementWrite = {
-    row: u64,
-    start: u32,
-    count: u32,
-    previous?: u64
+export type StatementCases = {
+    body_start: u32[],
+    body_count: u32[],
+    conditions: u32[],
+    literals: u32?[]
 }
 
 export type Lowering = mutable_opaque

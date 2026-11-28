@@ -1,4 +1,3 @@
-import { projectLists } from "core/column_set"
 import memory from "memory"
 
 import type { Body as Input, Fields as Output } from "./model"
@@ -6,12 +5,17 @@ import type { Body as Input, Fields as Output } from "./model"
 export default function (in: Input): Output {
     const { rows, summaries, index } = in
     const { growth, identities, empty_identity } = rows
-    const { projection, normalized, renewed } = growth
+    const { projection } = growth
 
-    projectLists([
-        projection,
-        index
-    ])
+    const normalized = {
+        keys: memory.selectProjectedList(projection, 0, index),
+        wants: memory.selectProjectedList(projection, 1, index)
+    }
+
+    const renewed = {
+        keys: memory.selectProjectedList(projection, 2, index),
+        wants: memory.selectProjectedList(projection, 3, index)
+    }
 
     const identity = match {
         index < memory.columnLength(identities) =>

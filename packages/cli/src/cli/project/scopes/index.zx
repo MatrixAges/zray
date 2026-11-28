@@ -1,19 +1,13 @@
 export {
     readNativeScopeInterface,
-    writeNativeScopeDeclaration,
-    prepareNativeScopeModule,
     Admission,
     closeNativeScope,
     finishNativeScopeDeclarations,
     openNativeScope,
     openNativeScopeArtifact,
     prepareNativeScopeAliases,
-    publishNativeScopeLibraryPaths,
     publishNativeScopeModule,
     publishNativeScopeNames,
-    publishNativeScopeSettings,
-    reserveNativeScopeDeclarations,
-    reserveNativeScopeIndex,
     reserveNativeScopeInterfaces
 } from "native_scope_host"
 

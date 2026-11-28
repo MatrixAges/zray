@@ -2,6 +2,7 @@ import type { Table } from "core/type_table/model"
 import type { State as Context, Variables } from "../../../ast/context/model"
 import type { Columns as Forms } from "../../../ast/expressions/forms/model"
 import type { Columns as Expressions } from "../../../ast/expressions/model"
+import type { Columns as Fields } from "../../../ast/fields/model"
 import type { Columns as Statements } from "../../../ast/statements/model"
 
 export type Write = {
@@ -27,7 +28,13 @@ export type Expression = {
     source: Write,
     layout: u32,
     initial: u32,
-    label: u8[]
+    label: u8[],
+    boxed?: Boxed
+}
+
+export type Boxed = {
+    values: u32?[],
+    field_base: u32
 }
 
 export type State = {
@@ -41,6 +48,7 @@ export type Output = {
     forms: Forms,
     statements: Statements,
     variables: Variables,
+    fields?: Fields,
     root: u32,
     valid: bool
 }

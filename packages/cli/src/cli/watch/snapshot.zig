@@ -66,6 +66,9 @@ pub const VerifiedFile = struct {
     fn matches(self: VerifiedFile, io: std.Io, path: []const u8, target: []const u8) !bool {
         const stat = (try reader.statPath(io, path)) orelse return false;
 
+        return self.matchesStat(io, path, target, stat);
+    }
+    pub fn matchesStat(self: VerifiedFile, io: std.Io, path: []const u8, target: []const u8, stat: std.Io.File.Stat) !bool {
         if (stat.kind != .file or versions.residentMark(self.metadata, reader.metadataOf(stat), self.read_at, .{}) == null) return false;
 
         var resolved: [std.Io.Dir.max_path_bytes]u8 = undefined;
@@ -82,7 +85,7 @@ pub const VerifiedFile = struct {
 pub fn sameState(left: *const State, right: *const State) bool {
     var empty = std.heap.FixedBufferAllocator.init(&.{});
 
-    return equality.executeValue(empty.allocator(), &.{ .left = &fact(left), .right = &fact(right) }) catch unreachable;
+    return equality.executeValue(empty.allocator(), .{ .left = &fact(left), .right = &fact(right) }) catch unreachable;
 }
 
 pub fn fact(state: *const State) Fact {
@@ -114,9 +117,5 @@ pub fn fact(state: *const State) Fact {
 }
 
 pub fn readWithDirectoryEntries(io: std.Io, allocator: std.mem.Allocator, path: []const u8, directory_entries: bool) !State {
-    var context: reader.Context = .{ .io = io, .allocator = allocator, .path = path };
-
-    try reader.observe(&context, directory_entries);
-
-    return context.result;
+    return reader.observe(io, allocator, path, directory_entries);
 }

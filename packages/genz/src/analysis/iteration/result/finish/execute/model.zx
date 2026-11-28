@@ -8,6 +8,7 @@ export type Input = {
     frame: Lowering,
     writer: AstWriter,
     body: AstSequence,
+    wrap: AstSequence,
     changed_name: u8[],
     type_id: u32,
     state: u32,
@@ -25,6 +26,7 @@ export type Actions =
         "frame",
         "writer",
         "body",
+        "wrap",
         "state",
         "type_id"
     ) & {

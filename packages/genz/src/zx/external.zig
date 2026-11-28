@@ -15,6 +15,7 @@ pub fn lower(self: *Lower, function: *const ir.Signature, index: usize) Lower.Er
     const Bases = std.meta.Child(@FieldType(Input, "bases"));
     const implementation = function.external.?;
     const row = @backingInt(function.input_type);
+    const output = @backingInt(function.output_type);
     var bases = context(Bases, self);
 
     bases.capture = if (self.capture) |capture| &.{ .name = capture.name, .label = capture.label, .failure = @backingInt(capture.failure) } else null;
@@ -30,6 +31,7 @@ pub fn lower(self: *Lower, function: *const ir.Signature, index: usize) Lower.Er
         .input_kind = self.program.types.kinds[row],
         .input_scalar = self.program.types.first[row],
         .input_count = self.program.types.second[row],
+        .opaque_output = self.program.typeOf(function.output_type) == .native_reference and self.program.types.first[output] == 0,
         .bases = &bases,
     };
 

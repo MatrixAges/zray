@@ -6,6 +6,46 @@
     <Call fn="prefix" in={$in} />
 
     <If on={$ctx.prefix != null}>
+        <Call fn="is_binding" in={$in.route} />
+
+        <If on={$ctx.is_binding}>
+            <Call fn="binding" in={$in} />
+
+            <If on={$ctx.binding.publication != null}>
+                <Call module="publish_binding" in={$ctx.binding.publication} />
+
+                <Call
+                    fn="publish"
+                    in={{
+                        context: $in.context,
+                        index: $in.index,
+                        prefix: $ctx.prefix,
+                        span: $ctx.publish_binding,
+                        consumed_previous: false
+                    }}
+                />
+
+                <Return value={$ctx.publish} />
+            </If>
+
+            <If on={$ctx.binding.task_span != null}>
+                <Call
+                    fn="publish"
+                    in={{
+                        context: $in.context,
+                        index: $in.index,
+                        prefix: $ctx.prefix,
+                        span: $ctx.binding.task_span,
+                        consumed_previous: false
+                    }}
+                />
+
+                <Return value={$ctx.publish} />
+            </If>
+
+            <Return value={null} />
+        </If>
+
         <Call fn="body" in={$in} />
 
         <If on={$ctx.body != null}>

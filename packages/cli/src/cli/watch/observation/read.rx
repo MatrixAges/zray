@@ -1,29 +1,32 @@
 <Module>
     <Type from="model" as="Snapshot" />
 
-    <Args in={Snapshot.ReadInput} out={Snapshot.Classification?} />
+    <Args in={Snapshot.ReadInput} out={Snapshot.Reading} />
 
-    <Call fn="index.classify" in={$in.path} />
+    <Call
+        fn="index.classify"
+        in={[
+            $in.path,
+            null
+        ]}
+    />
 
-    <Switch on={$ctx.classify.kind}>
-        <Case value={Snapshot.PathKind.Directory}>
-            <Call
-                fn="index.readDirectory"
-                in={[
-                    $in.observation,
-                    $in.directory_entries
-                ]}
-            />
+    <If
+        on={$ctx.classify.kind == Snapshot.PathKind.Directory ||
+            $ctx.classify.kind == Snapshot.PathKind.File}
+    >
+        <Call
+            fn="index.readObservationContent"
+            in={{
+                ...$in,
+                directory: $ctx.classify.kind == Snapshot.PathKind.Directory
+            }}
+        />
 
-            <Return value={null} />
-        </Case>
+        <Return value={$ctx.readObservationContent} />
+    </If>
 
-        <Case value={Snapshot.PathKind.File}>
-            <Call fn="index.readFile" in={$in.observation} />
+    <Call fn="probe_fact" in={$ctx.classify} />
 
-            <Return value={null} />
-        </Case>
-    </Switch>
-
-    <Return value={$ctx.classify} />
+    <Return value={$ctx.probe_fact} />
 </Module>

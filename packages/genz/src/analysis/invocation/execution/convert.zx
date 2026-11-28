@@ -6,14 +6,14 @@ import finishBlock from "../../aggregate/execute/finish_block"
 import type { Iteration } from "./model"
 
 export type Input =
-    Iteration.Pick("frame", "context", "writer", "body", "result_type") & {
+    Iteration.Pick("frame", "writer", "body", "result_type") & {
         value: u32
     }
 
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { frame, context, writer, body, result_type, value } = in
+    const { frame, writer, body, result_type, value } = in
 
     const bound = bindOperand({
         frame,
@@ -26,6 +26,6 @@ export default function (in: Input): Output {
         frame,
         writer,
         sequence: body,
-        value: host.convertIterationCall(context, result_type, bound)
+        value: host.convertIterationCall(frame, result_type, bound)
     })
 }

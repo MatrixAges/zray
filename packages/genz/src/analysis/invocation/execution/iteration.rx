@@ -3,6 +3,8 @@
 
     <Args in={Call.Iteration} out={Call.Output} />
 
+    <Store from="argument" as="argument" />
+
     <Call
         fn="index.lowerExpression"
         in={[
@@ -24,13 +26,13 @@
     />
 
     <Call
-        fn="index.openIterationCall"
-        in={[
-            $in.context,
-            $in.operand,
-            $in.operand_type,
-            $ctx.bind_operand
-        ]}
+        fn="set_argument"
+        in={{
+            operand: $in.operand,
+            operand_type: $in.operand_type,
+            value: $ctx.bind_operand
+        }}
+        setter={[$store.argument.binding]}
     />
 
     <If on={$in.value_call}>
@@ -49,7 +51,6 @@
             in={{
                 ...$in.pick([
                     "frame",
-                    "context",
                     "writer",
                     "body",
                     "result_type"
@@ -76,7 +77,6 @@
         in={{
             ...$in.pick([
                 "frame",
-                "context",
                 "writer",
                 "body",
                 "result_type"

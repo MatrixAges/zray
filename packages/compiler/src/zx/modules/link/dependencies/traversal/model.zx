@@ -1,7 +1,6 @@
-import type { Rows as Constants } from "core/constant/rows"
-import type { ReadColumn, TextColumn } from "memory"
-import type { ListProjection } from "memory/columns"
-import type { Aliases, Bindings, Checks, SignatureColumns, Status } from "../model"
+import type { Lists as ConstantLists, Rows as Constants } from "core/constant/rows"
+import type { ListColumn, ReadColumn, TextColumn } from "memory"
+import type { Aliases, Checks, Status } from "../model"
 
 export type Codes = {
     source: u8,
@@ -28,13 +27,33 @@ export type Imports = {
     wildcard: ReadColumn
 }
 
+export type MemberLists = {
+    names: ListColumn,
+    namespaces: ListColumn,
+    ids: ListColumn,
+    inputs: ListColumn,
+    outputs: ListColumn,
+    intrinsics: ListColumn
+}
+
+export type SignatureLists = {
+    files: ListColumn,
+    input_types: ListColumn,
+    output_types: ListColumn,
+    ownership: ListColumn
+}
+
+export type AliasLists = {
+    names: ListColumn,
+    ids: ListColumn
+}
+
 export type Tables = {
-    projection: ListProjection,
-    members: Bindings.Omit("count"),
-    signatures: SignatureColumns,
-    aliases: Aliases.Omit("count"),
-    constants: Constants.Omit("count"),
-    kinds: ReadColumn,
+    members: MemberLists,
+    signatures: SignatureLists,
+    aliases: AliasLists,
+    constants: ConstantLists,
+    kinds: ListColumn,
     types: u32[][],
     functions: u32?[]
 }

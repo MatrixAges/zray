@@ -1,8 +1,13 @@
 import type { Compiled, Request } from "compiler_rules/compiled/identity/aliases/model"
 import type { Rows } from "compiler_rules/project/target/select"
 import type { ReadColumn, TextColumn } from "memory"
-import type { Admission, NativeScopeLoad, ScopeWindow } from "native_scope_host"
-import type { DeclarationBinding, Publication } from "./model"
+import type {
+    Admission,
+    NativeScopeLoad,
+    Resolved,
+    ScopeWindow
+} from "native_scope_host"
+import type { Publication } from "./model"
 import type { Modules } from "./rules/admission/model"
 import type { Registry } from "./rules/naming/model"
 
@@ -61,11 +66,6 @@ export type InterfaceRead = {
 export type BindingWalk =
     Workspace.Pick("externals", "external_modules", "interfaces", "binding") & {
         index: u64,
-        status: Admission
+        status: Admission,
+        resolved: Resolved[]
     }
-
-export type DeclarationRow = {
-    row: u64,
-    external: bool,
-    declaration: DeclarationBinding
-}

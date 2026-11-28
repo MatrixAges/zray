@@ -1,0 +1,19 @@
+<Module>
+    <Type from="source_paths" as="Paths" />
+    <Type from="model" as="Request" />
+
+    <Args in={Request.Root} out={Paths.Output} />
+
+    <Call
+        module="../../collection/directory/scan"
+        in={{
+            root: $in.path,
+            prefix: $in.prefix,
+            initial: [""]
+        }}
+    />
+
+    <Call fn="source_paths" />
+
+    <Return value={$ctx.source_paths} />
+</Module>

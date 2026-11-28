@@ -1,16 +1,14 @@
 import integers from "std:integer"
-import host from "lowering_host"
 
 import eligible from "../../../selection/labels/eligible"
 import initialize from "../../../selection/labels/initialize"
 import scan from "../../../selection/labels/scan"
 
-import type { StatementTraversal } from "lowering_host"
+import type { StatementCases } from "lowering_host"
 import type { Input as SelectionInput } from "../../../selection/labels/model"
 import type { Context, State, StateResult as Output } from "./model"
 
 export type Input = {
-    traversal: StatementTraversal,
     context: Context,
     state: State,
     placement: u64,
@@ -18,7 +16,7 @@ export type Input = {
 }
 
 export default function (in: Input): Output {
-    const { traversal, context, state, placement, count } = in
+    const { context, state, placement, count } = in
     const { control } = context
 
     const payload = integers.widen(state.selection_payloads[placement])
@@ -59,14 +57,21 @@ export default function (in: Input): Output {
         _ => false
     }
 
+    const cases: StatementCases = {
+        body_start: [],
+        body_count: [],
+        conditions: [],
+        literals: []
+    }
+
     return {
-        ok: host.resolveStatementSelection(traversal, placement, count, selected),
+        ok: true,
         state: {
             ...state,
             selection_counts:
                 state.selection_counts.splice(placement, 1, [count])[0],
-            selection_selected:
-                state.selection_selected.splice(placement, 1, [selected])[0]
+            selection_selected: state.selection_selected.with(placement, selected),
+            selection_cases: state.selection_cases.with(placement, cases)
         }
     }
 }

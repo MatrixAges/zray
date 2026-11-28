@@ -1,0 +1,42 @@
+import type { Input as Output } from "../../result/finish/execute/model"
+import type { Finish } from "./emission_model"
+
+export type Input = Finish & {
+    skipped: bool
+}
+
+export default function (in: Input): Output {
+    const { consumer, context, discard, frame, writer, initial_plan, skipped } = in
+
+    const body = match {
+        skipped => in.skipped_seq,
+        in.projected => in.projected_seq,
+        _ => in.body_seq
+    }
+
+    return {
+        context,
+        consumer,
+        frame,
+        writer,
+        body,
+        wrap: in.wrap_seq,
+        changed_name: in.changed_name ?? [],
+        type_id: in.type_id,
+        state: skipped ? in.seed : in.state,
+        initial: in.initial_value,
+        renewals: skipped ? 0 : in.spans.renewals,
+        declarations: skipped ? 0 : in.spans.declarations,
+        frame_span: skipped ? 0 : in.spans.frame,
+        facts: {
+            consumer: consumer != null,
+            deep: initial_plan.deep,
+            inline_lists: initial_plan.buffered,
+            converted: initial_plan.state_scope,
+            discard,
+            by_value: initial_plan.by_value,
+            local: initial_plan.local,
+            selected: initial_plan.selected_state
+        }
+    }
+}

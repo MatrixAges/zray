@@ -1,6 +1,5 @@
 const std = @import("std");
-const zx = @import("zx");
-const ir = zx.ir;
+const ir = @import("zx").ir;
 const node = @import("../../../node.zig");
 const Lower = @import("../../lower.zig");
 const Frame = @import("frame.zig");
@@ -12,12 +11,10 @@ const initial = @import("../initial.zig");
 const scope = @import("../../state_value/scope.zig");
 const step = @import("../step.zig");
 const generated = @import("genz_options").generated_analysis;
-const Api = @import("../../expressions/evaluate.zig").Api;
-const Admission = if (generated) Api.LoopAdmission else enum { Proceed, Dereference, Reject };
+const Admission = if (generated) @FieldType(std.meta.Child(@import("generated_lower_loop").Input), "admission") else enum { Proceed, Dereference, Reject };
 const Error = Lower.Error;
 
-pub fn beginLoweredLoop(handle: *anyopaque) Error!Admission {
-    const frame = Frame.borrow(handle);
+pub fn beginLoweredLoop(frame: *Frame) Error!Admission {
     const self = frame.lowering;
     const projected = if (frame.consumer) |selected| try @import("../../iteration_value/result.zig").candidate(self.allocator, self.program, selected) else false;
     frame.name = try self.fresh("state");
@@ -54,9 +51,7 @@ pub fn beginLoweredLoop(handle: *anyopaque) Error!Admission {
     };
 }
 
-pub fn setLoopInitialScope(handle: *anyopaque, active: bool) void {
-    const frame = Frame.borrow(handle);
-
+pub fn setLoopInitialScope(frame: *Frame, active: bool) void {
     if (active) {
         frame.initial_scope = scope.enter(frame.lowering, .Iteration, .{ .iteration_value = &frame.context });
     } else {
@@ -90,7 +85,7 @@ pub fn guardLoopInitial(handle: *anyopaque, value: u32) Error!void {
 pub fn prepareLoopState(handle: *anyopaque) Error!void {
     const frame = Frame.borrow(handle);
 
-    if (frame.initial.state_scope) try enterLoopRepresentation(handle);
+    if (frame.initial.state_scope) try enterLoopRepresentation(frame);
 
     _ = try createLoopSeed(handle);
 
@@ -98,8 +93,7 @@ pub fn prepareLoopState(handle: *anyopaque) Error!void {
     if (frame.initial.track) try trackLoopChange(handle);
 }
 
-pub fn enterLoopRepresentation(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
+pub fn enterLoopRepresentation(frame: *Frame) Error!void {
     frame.representation = try @import("../../state_value/root.zig").enter(frame.lowering);
 }
 
@@ -131,8 +125,7 @@ pub fn openLoopParameters(handle: *anyopaque) Error!void {
     frame.parameters = try seed_parameters.enter(frame.lowering, frame.iteration, frame.initial.parameters, frame.name, &frame.context);
 }
 
-pub fn addLoopParameterMembers(handle: *anyopaque, condition: bool, step_parameter: bool) Error!void {
-    const frame = Frame.borrow(handle);
+pub fn addLoopParameterMembers(frame: *Frame, condition: bool, step_parameter: bool) Error!void {
     const lowering = frame.lowering;
 
     const symbols = switch (frame.initial.parameters) {
@@ -149,8 +142,7 @@ pub fn addLoopParameterMembers(handle: *anyopaque, condition: bool, step_paramet
     try symbols.addMany(lowering.allocator, ids[first..end]);
 }
 
-pub fn openLoopParameterContext(handle: *anyopaque) void {
-    const frame = Frame.borrow(handle);
+pub fn openLoopParameterContext(frame: *Frame) void {
     frame.parameters.context = scope.enter(frame.lowering, .Iteration, .{ .iteration_value = &frame.context });
 }
 
@@ -161,7 +153,7 @@ pub fn prepareLoopUpdate(handle: *anyopaque) Error!void {
     const value = switch (frame.initial.storage) {
         .Keep => initial_value,
         .Dereference => @backingInt(try @import("../../access/emit.zig").dereference(frame.lowering, frame.initial_value)),
-        .Deep => try deepenLoopInitial(handle, initial_value),
+        .Deep => @backingInt(try @import("../../iteration_value/conversion.zig").convert(&frame.context, frame.type_id, frame.initial_value, false)),
         .State, .StateValue => @backingInt(try @import("../../state_value/conversion.zig").convert(frame.lowering, &frame.body, frame.type_id, frame.initial_value, if (frame.initial.storage == .StateValue) .value_layout else .value)),
         .Clip => @backingInt(try @import("../../state_value/ownership.zig").clip(frame.lowering, &frame.body, frame.iteration.initial, frame.initial_value)),
     };
@@ -178,10 +170,4 @@ pub fn prepareLoopUpdate(handle: *anyopaque) Error!void {
         .layout = frame.initial.layout,
         .discard = frame.mode == .discard,
     });
-}
-
-pub fn deepenLoopInitial(handle: *anyopaque, value: u32) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try @import("../../iteration_value/conversion.zig").convert(&frame.context, frame.type_id, @fromBackingInt(value), false));
 }

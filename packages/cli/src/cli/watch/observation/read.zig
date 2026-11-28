@@ -2,111 +2,178 @@ const std = @import("std");
 const Snapshot = @import("../snapshot.zig");
 const versions = @import("compiler").input_snapshot;
 const storage = @import("storage.zig");
-const Error = storage.Error;
 const rule = @import("cli_source").read;
 
-pub const Context = struct {
-    io: std.Io,
-    allocator: std.mem.Allocator,
-    path: []const u8 = undefined,
-    scan: ?Scan = null,
-    started: i96 = 0,
-    save_version: bool = false,
-    verified_file: ?Snapshot.VerifiedFile = null,
-    result: Snapshot.State = undefined,
-    left: storage.Fact = undefined,
-    right: storage.Fact = undefined,
-    comparison: storage.Comparison = undefined,
-    failure: ?anyerror = null,
-    pub const Scan = struct {
-        entries: []Snapshot.Entry,
-        scratch: *std.heap.ArenaAllocator,
+pub fn observe(io: std.Io, allocator: std.mem.Allocator, path: []const u8, directory_entries: bool) !Snapshot.State {
+    const reading = try rule.executeIn(allocator, &.{
+        .path = path,
+        .directory_entries = directory_entries,
+        .started = null,
+    }, io);
+
+    const fact = reading.fact;
+
+    return switch (fact.kind) {
+        .Missing => .missing,
+        .Failed => return failure(fact.tag),
+        .Other => .{ .other = @fromBackingInt(@intCast(fact.tag)) },
+        .File => .{ .file = content(fact) },
+        .Directory => .{ .directory = content(fact) },
     };
-    pub fn get(handle: *const anyopaque) *Context {
-        return storage.context(Context, handle);
+}
+
+fn content(fact: *const storage.Fact) Snapshot.Content {
+    return .{ .digest = fact.digest[0..32].*, .physical_path = fact.physical_path };
+}
+
+pub fn failure(tag: u32) anyerror {
+    const ErrorNumber = @TypeOf(@intFromError(error.OutOfMemory));
+
+    return @errorFromInt(@as(ErrorNumber, @intCast(tag)));
+}
+
+pub fn classify(allocator: std.mem.Allocator, io: std.Io, path: []const u8, previous: ?*const storage.VersionRequest) !*const storage.Classification {
+    const info = try allocator.create(storage.Classification);
+    info.* = .{ .kind = .Missing, .tag = 0, .unchanged = false, .failure = null };
+
+    const stat = (statPath(io, path) catch |err| {
+        info.failure = @intFromError(err);
+
+        return info;
+    }) orelse return info;
+
+    switch (stat.kind) {
+        .file => {
+            info.kind = .File;
+
+            if (previous) |request| {
+                const verified = versionFromFields(request.previous);
+
+                info.unchanged = verified.matchesStat(io, path, request.physical_path, stat) catch |err| matched: {
+                    info.failure = @intFromError(err);
+
+                    break :matched false;
+                };
+            }
+        },
+        .directory => info.kind = .Directory,
+        else => |kind| {
+            info.kind = .Other;
+            info.tag = @backingInt(kind);
+        },
     }
 
-    pub fn fail(self: *Context, err: anyerror) Error {
-        self.failure = err;
+    return info;
+}
 
-        return error.ObservationFailure;
-    }
+const ReadResult = struct {
+    fact: storage.Fact,
+    reading: storage.Reading,
+    digest: [32]u8 = undefined,
 };
 
-pub fn observe(self: *Context, directory_entries: bool) !void {
-    const handle = self;
+pub fn readObservationContent(allocator: std.mem.Allocator, io: std.Io, request: *const storage.ContentRequest) !*const storage.Reading {
+    const result = try allocator.create(ReadResult);
+    result.fact = .{ .kind = .Missing, .tag = 0, .digest = &.{}, .physical_path = "" };
+    result.reading = .{ .fact = &result.fact, .verified = null };
 
-    const classified = rule.executeIn(self.allocator, &.{
-        .observation = @ptrCast(&handle),
-        .path = self.path,
-        .directory_entries = directory_entries,
-    }, self.io) catch |err| return if (err == error.ObservationFailure) self.failure.? else err;
-
-    if (classified) |value| {
-        self.result = switch (value.kind) {
-            .Missing => .missing,
-            .Other => .{ .other = @fromBackingInt(@intCast(value.tag)) },
-            else => unreachable,
-        };
-    }
-}
-
-pub fn classify(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !*const storage.Classification {
-    const stat = (try statPath(io, path)) orelse return &.{ .kind = .Missing, .tag = 0 };
-
-    return switch (stat.kind) {
-        .file => &.{ .kind = .File, .tag = 0 },
-        .directory => &.{ .kind = .Directory, .tag = 0 },
-        else => |kind| other: {
-            const info = try allocator.create(storage.Classification);
-
-            info.* = .{ .kind = .Other, .tag = @backingInt(kind) };
-
-            break :other info;
-        },
+    readContent(io, allocator, request, result) catch |err| {
+        result.fact = .{ .kind = .Failed, .tag = @intFromError(err), .digest = &.{}, .physical_path = "" };
     };
+
+    return &result.reading;
 }
 
-pub fn readDirectory(handle: *const anyopaque, all_entries: bool) Error!void {
-    const self = Context.get(handle);
-    const digest = storage.directory.digest(self.io, self.allocator, self.path, all_entries) catch |err| return self.fail(err);
-    const path = physicalPath(self.io, self.allocator, self.path) catch |err| return self.fail(err);
+fn readContent(io: std.Io, allocator: std.mem.Allocator, request: *const storage.ContentRequest, result: *ReadResult) !void {
+    const path = request.path;
 
-    self.result = .{ .directory = .{ .digest = digest, .physical_path = path } };
-}
+    if (request.directory) {
+        result.digest = try storage.directory.digest(io, allocator, path, request.directory_entries);
 
-pub fn readFile(handle: *const anyopaque) Error!void {
-    const self = Context.get(handle);
+        result.fact = .{
+            .kind = .Directory,
+            .tag = 0,
+            .digest = &result.digest,
+            .physical_path = try physicalPath(io, allocator, path),
+        };
 
-    observeFile(self) catch |err| return self.fail(err);
-}
+        return;
+    }
 
-fn observeFile(self: *Context) !void {
-    const file = std.Io.Dir.cwd().openFile(self.io, self.path, .{}) catch |err| switch (err) {
-        error.FileNotFound, error.NotDir => {
-            self.result = .missing;
-
-            return;
-        },
+    const file = std.Io.Dir.cwd().openFile(io, path, .{}) catch |err| switch (err) {
+        error.FileNotFound, error.NotDir => return,
         else => return err,
     };
 
-    defer file.close(self.io);
+    defer file.close(io);
 
-    const before = if (self.save_version) try file.stat(self.io) else undefined;
-    const digest = @import("artifact_io").digestFile(self.io, file) catch return error.ReadFailed;
-    const physical = try physicalPath(self.io, self.allocator, self.path);
+    const before = if (request.started != null) try file.stat(io) else undefined;
 
-    if (self.save_version) {
-        const after = try file.stat(self.io);
+    result.digest = @import("artifact_io").digestFile(io, file) catch return error.ReadFailed;
+
+    const physical = try physicalPath(io, allocator, path);
+
+    if (request.started) |time| {
+        const started = nanos(time);
+        const after = try file.stat(io);
         const metadata = metadataOf(after);
 
-        if (before.kind == .file and after.kind == .file and versions.residentMark(metadataOf(before), metadata, self.started, .{}) != null) {
-            self.verified_file = .{ .metadata = metadata, .read_at = self.started };
+        if (before.kind == .file and after.kind == .file and versions.residentMark(metadataOf(before), metadata, started, .{}) != null) {
+            const verified = try allocator.create(VersionFields);
+
+            verified.init(.{ .metadata = metadata, .read_at = started });
+
+            result.reading.verified = &verified.view;
         }
     }
 
-    self.result = .{ .file = .{ .digest = digest, .physical_path = physical } };
+    result.fact = .{ .kind = .File, .tag = 0, .digest = &result.digest, .physical_path = physical };
+}
+
+pub const VersionFields = struct {
+    modified: storage.Timestamp,
+    changed: storage.Timestamp,
+    read_at: storage.Timestamp,
+    view: storage.FileVersion,
+    pub fn init(self: *VersionFields, value: Snapshot.VerifiedFile) void {
+        const metadata = value.metadata;
+
+        self.modified = timestamp(metadata.mtime);
+        self.changed = timestamp(metadata.ctime);
+        self.read_at = timestamp(value.read_at);
+
+        self.view = .{
+            .inode = metadata.inode,
+            .size = metadata.size,
+            .modified = &self.modified,
+            .changed = &self.changed,
+            .read_at = &self.read_at,
+        };
+    }
+};
+
+pub fn versionFromFields(value: *const storage.FileVersion) Snapshot.VerifiedFile {
+    return .{
+        .metadata = .{
+            .inode = value.inode,
+            .size = value.size,
+            .mtime = nanos(value.modified),
+            .ctime = nanos(value.changed),
+        },
+        .read_at = nanos(value.read_at),
+    };
+}
+
+pub fn timestamp(value: i96) storage.Timestamp {
+    const time = versions.timestamp(value);
+
+    return .{ .high = time.high, .low = time.low };
+}
+
+fn nanos(value: *const storage.Timestamp) i96 {
+    const high: u32 = @bitCast(value.high);
+
+    return @bitCast((@as(u96, high) << 64) | value.low);
 }
 
 pub fn physicalPath(io: std.Io, allocator: std.mem.Allocator, path: []const u8) ![]const u8 {

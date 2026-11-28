@@ -29,6 +29,8 @@ pub fn openNativeScope(handle: *const anyopaque, index: u64) *const abi.ScopeWin
         .modules = @ptrCast(&self.interface_modules),
     };
 
+    borrowModules(self, config.native_modules, config.include_paths);
+
     self.owner = .{ .owner = root, .entry_root = self.entry_root, .compiled = false };
 
     self.window = .{
@@ -64,6 +66,8 @@ pub fn reserveNativeScopeInterfaces(handle: *const anyopaque) std.mem.Allocator.
     const self = State.get(handle);
 
     self.native = try self.allocator.alloc(compiler.project.NativeInterface, self.config().native_interfaces.len);
+
+    self.declaration_views.init(self.native);
 }
 
 pub fn readNativeScopeInterface(handle: *const anyopaque, row: u64) effects.Error!void {
@@ -87,19 +91,7 @@ pub fn readNativeScopeInterface(handle: *const anyopaque, row: u64) effects.Erro
     };
 }
 
-pub fn reserveNativeScopeIndex(handle: *const anyopaque) effects.Error!void {
-    const self = State.get(handle);
-    const config = self.config();
-    const modules = config.native_modules;
-    self.legacy = self.allocator.dupe(compiler.project.External, config.externals) catch |err| return self.failure.save(err);
-    self.name_memory = std.heap.BufferFirstAllocator.init(std.mem.sliceAsBytes(&self.slots), self.allocator);
-
-    const capacity = if (modules.len == 0) 0 else blk: {
-        const desired = std.math.mul(usize, modules.len, 2) catch return self.failure.save(error.OutOfMemory);
-
-        break :blk std.math.ceilPowerOfTwo(usize, desired) catch return self.failure.save(error.OutOfMemory);
-    };
-
+fn borrowModules(self: *State, modules: []const @import("../../../package/manifest/model.zig").NativeModule, default_includes: []const []const u8) void {
     self.names_view = memory.borrowTextColumn("name", modules);
     self.path_view = memory.borrowReadColumn(?[]const u8, "path", modules);
     self.header_view = memory.borrowReadColumn(?[]const u8, "header", modules);
@@ -110,13 +102,11 @@ pub fn reserveNativeScopeIndex(handle: *const anyopaque) effects.Error!void {
         .paths = @ptrCast(&self.path_view),
         .includes = @ptrCast(&self.module_includes),
         .dependencies = @ptrCast(&self.module_dependencies),
-        .default_includes = config.include_paths,
+        .default_includes = default_includes,
     };
 
-    self.index = .{ .names = @ptrCast(&self.names_view), .capacity = capacity };
-
     self.module_rows = .{
-        .index = &self.index,
+        .names = @ptrCast(&self.names_view),
         .count = modules.len,
         .paths = @ptrCast(&self.path_view),
         .headers = @ptrCast(&self.header_view),
@@ -125,6 +115,9 @@ pub fn reserveNativeScopeIndex(handle: *const anyopaque) effects.Error!void {
 
 pub fn publishNativeScopeNames(handle: *const anyopaque, buckets: []const u64, names: []const []const u8) std.mem.Allocator.Error!void {
     const self = State.get(handle);
+
+    self.name_memory = std.heap.BufferFirstAllocator.init(std.mem.sliceAsBytes(&self.slots), self.allocator);
+
     const temporary = self.name_memory.allocator();
 
     self.buckets = if (buckets.len == 0) &.{} else try temporary.dupe(u64, buckets);
@@ -136,28 +129,22 @@ pub fn publishNativeScopeNames(handle: *const anyopaque, buckets: []const u64, n
     self.registry_view = .{ .index = &self.naming_index, .names = self.names };
 }
 
-pub fn writeNativeScopeDeclaration(handle: *const anyopaque, row: u64, external: bool, identity: []const u8, module: []const u8, copy_module: bool) std.mem.Allocator.Error!void {
+pub fn finishNativeScopeDeclarations(handle: *const anyopaque, declarations: []const *const abi.PublishedDeclaration, externals: []const []const u8, bindings: []const *const abi.Resolved) effects.Error!void {
     const self = State.get(handle);
-    const index: usize = @intCast(row);
-    const owned_identity = try dupeText(self.allocator, identity);
-    const owned_module = if (copy_module) try dupeText(self.allocator, module) else module;
+    const owner = self.allocator;
+    const scope = self.scope();
 
-    if (external) {
-        const declaration = &self.legacy[index];
-        declaration.identity = owned_identity;
-        declaration.implementation.module = owned_module;
-    } else {
-        const declaration = &self.native[index];
-
-        declaration.identity = owned_identity;
-        declaration.module = owned_module;
+    for (self.native, declarations, bindings[0..declarations.len]) |*declaration, published, binding| {
+        declaration.identity = dupeText(owner, published.specifier) catch |err| return self.failure.save(err);
+        declaration.module = ownedModule(owner, published.module, binding.copy_module) catch |err| return self.failure.save(err);
     }
-}
 
-pub fn reserveNativeScopeDeclarations(handle: *const anyopaque) std.mem.Allocator.Error!void {
-    const self = State.get(handle);
+    self.legacy = owner.dupe(compiler.project.External, self.config().externals) catch |err| return self.failure.save(err);
 
-    self.declaration_views.init(self.native, self.legacy);
+    for (self.legacy, externals, bindings[declarations.len..]) |*declaration, specifier, binding| {
+        declaration.identity = dupeText(owner, specifier) catch |err| return self.failure.save(err);
+        declaration.implementation.module = ownedModule(owner, binding.module, binding.copy_module) catch |err| return self.failure.save(err);
+    }
 
     if (self.compiled == null and self.config().native_modules.len != 0) {
         self.alias_native.init(self.native);
@@ -165,79 +152,37 @@ pub fn reserveNativeScopeDeclarations(handle: *const anyopaque) std.mem.Allocato
 
         self.alias_declarations = .{ .interfaces = &self.alias_native.view, .externals = &self.alias_external.view };
     }
-}
-
-pub fn finishNativeScopeDeclarations(handle: *const anyopaque, declarations: []const *const abi.PublishedDeclaration, externals: []const []const u8) effects.Error!void {
-    const self = State.get(handle);
-    const owner = self.allocator;
-    const scope = self.scope();
 
     scope.native_interfaces = self.native;
     scope.externals = self.legacy;
 
     const exported = self.declarations.addManyAsSlice(owner, declarations.len) catch |err| return self.failure.save(err);
 
-    for (declarations, 0..) |item, i| {
-        exported[i] = .{
-            .specifier = item.specifier,
+    for (declarations, self.native, exported) |item, native, *published| {
+        published.* = .{
+            .specifier = native.identity.?,
             .path = item.path,
-            .module = item.module,
+            .module = native.module,
             .namespace = item.namespace,
         };
     }
 
     const published_externals = self.externals.addManyAsSlice(owner, externals.len) catch |err| return self.failure.save(err);
 
-    for (self.legacy, externals, 0..) |item, specifier, i| {
+    for (self.legacy, published_externals) |item, *published| {
         var copy = item;
-        copy.specifier = specifier;
+        copy.specifier = item.identity.?;
         copy.identity = null;
-        published_externals[i] = copy;
+        published.* = copy;
     }
 
     self.interfaces.appendSlice(owner, self.native) catch |err| return self.failure.save(err);
     self.libraries.appendSlice(owner, self.config().libraries) catch |err| return self.failure.save(err);
 }
 
-pub fn publishNativeScopeLibraryPaths(handle: *const anyopaque, paths: []const []const u8) std.mem.Allocator.Error!void {
+pub fn prepareNativeScopeAliases(handle: *const anyopaque, row: u64) void {
     const self = State.get(handle);
-
-    try self.library_paths.ensureUnusedCapacity(self.allocator, paths.len);
-    for (paths) |path| self.library_paths.appendAssumeCapacity(try dupeText(self.allocator, path));
-}
-
-pub fn prepareNativeScopeModule(handle: *const anyopaque, row: u64, name: []const u8, path: ?[]const u8, dependencies: []const []const u8, includes: []const []const u8) std.mem.Allocator.Error!void {
-    const self = State.get(handle);
-    const index: usize = @intCast(row);
-
-    self.module = self.config().native_modules[index];
-    self.module.name = name;
-    self.module.path = if (path) |value| try dupeText(self.allocator, value) else null;
-
-    if (dependencies.len == 0) {
-        self.module.dependencies = &.{};
-    } else {
-        const deps = try self.allocator.alloc([]const u8, dependencies.len);
-
-        for (dependencies, 0..) |dep, i| deps[i] = try dupeText(self.allocator, dep);
-
-        self.module.dependencies = deps;
-    }
-
-    if (includes.len == 0) {
-        self.module.include_paths = &.{};
-    } else {
-        const paths = try self.allocator.alloc([]const u8, includes.len);
-
-        for (includes, paths) |include, *target| target.* = try dupeText(self.allocator, include);
-
-        self.module.include_paths = paths;
-    }
-}
-
-pub fn prepareNativeScopeAliases(handle: *const anyopaque) void {
-    const self = State.get(handle);
-    const configured = self.module.abi_aliases;
+    const configured = self.config().native_modules[@intCast(row)].abi_aliases;
 
     if (configured) |entries| self.alias_configured.init(entries);
 
@@ -250,9 +195,14 @@ pub fn prepareNativeScopeAliases(handle: *const anyopaque) void {
     self.alias_active = true;
 }
 
-pub fn publishNativeScopeModule(handle: *const anyopaque, names: []const []const u8, specifiers: []const []const u8) effects.Error!void {
+pub fn publishNativeScopeModule(handle: *const anyopaque, row: u64, prepared: *const abi.PreparedModule, names: []const []const u8, specifiers: []const []const u8) effects.Error!void {
     const self = State.get(handle);
-    const module = &self.module;
+    var module = self.config().native_modules[@intCast(row)];
+    const allocator = self.allocator;
+    module.name = prepared.name;
+    module.path = if (prepared.path) |path| dupeText(allocator, path) catch |err| return self.failure.save(err) else null;
+    module.dependencies = ownStrings(allocator, prepared.dependencies) catch |err| return self.failure.save(err);
+    module.include_paths = ownStrings(allocator, prepared.includes) catch |err| return self.failure.save(err);
     const previous = self.registry.register(self.registry_owner, module.name, self.modules.items.len) catch |err| return self.failure.save(err);
 
     if (previous != null) return self.failure.save(error.DuplicateNativeModule);
@@ -260,7 +210,17 @@ pub fn publishNativeScopeModule(handle: *const anyopaque, names: []const []const
     module.abi_aliases = ownAliases(self.allocator, names, specifiers, self.compiled != null, module.abi_aliases == null) catch |err| return self.failure.save(err);
     self.alias_active = false;
 
-    self.modules.append(self.allocator, module.*) catch |err| return self.failure.save(err);
+    self.modules.append(self.allocator, module) catch |err| return self.failure.save(err);
+}
+
+fn ownStrings(allocator: std.mem.Allocator, strings: []const []const u8) std.mem.Allocator.Error![]const []const u8 {
+    if (strings.len == 0) return &.{};
+
+    const owned = try allocator.alloc([]const u8, strings.len);
+
+    for (strings, owned) |text, *slot| slot.* = try dupeText(allocator, text);
+
+    return owned;
 }
 
 fn ownAliases(allocator: std.mem.Allocator, names: []const []const u8, specifiers: []const []const u8, compiled: bool, implicit_names: bool) std.mem.Allocator.Error![]const Alias {
@@ -293,21 +253,12 @@ fn ownAliases(allocator: std.mem.Allocator, names: []const []const u8, specifier
     return rows;
 }
 
-pub fn publishNativeScopeSettings(handle: *const anyopaque, rows: []const *const abi.PublishedSetting) std.mem.Allocator.Error!void {
-    const self = State.get(handle);
-    const output = try self.settings.addManyAsSlice(self.allocator, rows.len);
-
-    for (rows, 0..) |row, i| {
-        output[i] = .{
-            .name = row.name,
-            .root = row.root,
-            .include_paths = row.includes,
-        };
-    }
-}
-
 pub fn closeNativeScope(handle: *const anyopaque) void {
     State.get(handle).close();
+}
+
+fn ownedModule(allocator: std.mem.Allocator, module: []const u8, copy: bool) std.mem.Allocator.Error![]const u8 {
+    return if (copy) try dupeText(allocator, module) else module;
 }
 
 fn dupeText(allocator: std.mem.Allocator, value: []const u8) std.mem.Allocator.Error![]const u8 {

@@ -1,16 +1,11 @@
-import type { RowBuffer as Output } from "memory/columns"
-import type { Request as Input } from "./model"
+import type { Kind as Input } from "./model"
+
+export type Output = void
 
 export default function (in: Input, {
     $store
 }): Output {
-    const { own, forwarded, storage } = in.rows
-
     $store.rows.merge = {
-        kind: in.kind,
-        own,
-        forwarded
+        kind: in
     }
-
-    return storage
 }

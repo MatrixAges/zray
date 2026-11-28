@@ -3,51 +3,67 @@
 
     <Args in={Snapshot.ScanRow} out={Snapshot.ScanRow} />
 
-    <If on={$in.reuse_versions}>
-        <Call
-            fn="index.versionMatches"
-            in={[
-                $in.scan,
-                $in.index
-            ]}
-        />
+    <Call fn="scan_input" in={$in} />
 
-        <If on={$ctx.versionMatches}>
-            <Return
-                value={{
-                    ...$in,
-                    index: $in.index + 1
-                }}
+    <If on={$in.reuse_versions}>
+        <If on={$ctx.scan_input.verified != null}>
+            <Call
+                fn="index.classify"
+                in={[
+                    $ctx.scan_input.path,
+                    {
+                        previous: $ctx.scan_input.verified,
+                        physical_path: $ctx.scan_input.fact.physical_path
+                    }
+                ]}
             />
+
+            <If on={$ctx.classify.failure != null}>
+                <Return
+                    value={{
+                        ...$in,
+                        same: false,
+                        failure: $ctx.classify.failure
+                    }}
+                />
+            </If>
+
+            <If on={$ctx.classify.unchanged}>
+                <Return
+                    value={{
+                        ...$in,
+                        index: $in.index + 1
+                    }}
+                />
+            </If>
         </If>
     </If>
 
     <Call
-        fn="index.readRow"
-        in={[
-            $in.scan,
-            $in.index,
-            $in.versioned
-        ]}
+        module="read"
+        in={{
+            path: $ctx.scan_input.path,
+            directory_entries: $ctx.scan_input.directory_entries,
+            started: $in.started
+        }}
     />
 
-    <Call fn="same" />
+    <Call
+        fn="same"
+        in={{
+            left: $ctx.scan_input.fact,
+            right: $ctx.read.fact
+        }}
+    />
 
-    <If on={$ctx.same && $in.versioned}>
-        <Call
-            fn="index.acceptVersion"
-            in={[
-                $in.scan,
-                $in.index
-            ]}
-        />
-    </If>
-
-    <Return
-        value={{
-            ...$in,
-            index: $in.index + 1,
+    <Call
+        fn="advance_scan"
+        in={{
+            cursor: $in,
+            reading: $ctx.read,
             same: $ctx.same
         }}
     />
+
+    <Return value={$ctx.advance_scan} />
 </Module>

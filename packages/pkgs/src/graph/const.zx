@@ -3,3 +3,5 @@ export const workspace_root: u8 = 1
 export const visiting: u8 = 2
 
 export const finished: u8 = 3
+
+export const dependency_depth_limit: u64 = 256

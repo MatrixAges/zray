@@ -28,5 +28,6 @@ export type DirectoryEntry = {
     kind: Kind,
     inode?: u64,
     size?: u64,
-    mtime_ns?: TimestampNs
+    mtime_ns?: TimestampNs,
+    ctime_ns?: TimestampNs
 }

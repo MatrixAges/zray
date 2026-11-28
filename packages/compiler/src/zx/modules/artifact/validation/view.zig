@@ -1,6 +1,6 @@
 const std = @import("std");
 const zx = @import("zx");
-const memory = zx.memory;
+const ConstantRows = @import("../../../analysis/constants/columns.zig").Rows;
 const ir = zx.ir;
 const Error = @import("../model.zig").Error;
 const TypePrefix = @import("../../../ir/validate.zig").TypePrefix;
@@ -36,7 +36,6 @@ pub fn verificationError(err: anyerror) Error {
 }
 
 pub const View = struct {
-    const Views = std.meta.Child(@FieldType(Input, "views"));
     const Prefix = std.meta.Child(@typeInfo(@FieldType(Context, "verified_types")).optional.child);
     const Exports = std.meta.Child(@FieldType(Input, "exports"));
     const Constants = std.meta.Child(@typeInfo(@FieldType(Input, "constant_exports")).optional.child);
@@ -46,10 +45,8 @@ pub const View = struct {
     prefix: Prefix,
     context: Context,
     exports: Exports,
-    reads: [3]memory.ReadColumn,
-    growth: memory.RowGrowth,
+    constant_rows: ConstantRows,
     constants: Constants,
-    views: Views,
     input: Input,
     pub fn init(self: *View, state: State, surface: anytype, scratch: std.mem.Allocator) void {
         _ = scratch;
@@ -72,25 +69,14 @@ pub const View = struct {
         };
 
         self.exports = .{ .rows = @ptrCast(&surface.export_target), .length = surface.export_source.length };
-        self.growth = .{ .target = &surface.constant_output.buffer, .reads = &self.reads };
-
-        self.constants = .{
-            .names = @ptrCast(&self.reads[0]),
-            .types = @ptrCast(&self.reads[1]),
-            .values = @ptrCast(&self.reads[2]),
-            .count = surface.constant_source.count,
-        };
-
-        self.views = .{
-            .context = &self.context,
-            .constants = if (self.constants.count != 0) @ptrCast(&self.growth) else null,
-        };
+        self.constant_rows = ConstantRows.borrow(surface.constants());
+        self.constants = self.constant_rows.view(Constants);
 
         self.input = .{
             .version = zx.ir_version,
             .exports = &self.exports,
             .constant_exports = if (self.constants.count != 0) &self.constants else null,
-            .views = &self.views,
+            .context = &self.context,
             .program = undefined,
             .empty = undefined,
         };

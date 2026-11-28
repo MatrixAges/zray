@@ -1,14 +1,11 @@
-export declare function listProjectionSourceCount(projection: ListProjection): u64
-
-export declare function listProjectionTargetCount(projection: ListProjection): u64
-
 export declare function requireColumnBounds(valid: bool): void throws { IndexOutOfBounds }
 
-export declare function projectListCell(
-    projection: ListProjection,
-    slot: u64,
+export declare function selectListValue(
+    allocator,
+    scratch: ColumnAllocator?,
+    source: ListColumn,
     row: u64
-): void throws { IndexOutOfBounds }
+): ReadColumn throws { IndexOutOfBounds, OutOfMemory }
 
 export declare function columnLength(source: ReadColumn): u64
 

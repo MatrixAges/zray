@@ -1,0 +1,19 @@
+import { ChangeKind } from "./model"
+
+import type { Change as Output } from "./model"
+
+export type Input = u64
+
+export default function (in: Input): Output {
+    return {
+        action: ChangeKind.Reserve,
+        row: in,
+        name: "",
+        kind: 0,
+        input_type: 0,
+        output_type: 0,
+        has_store: false,
+        own_name: false,
+        source_row: 0
+    }
+}

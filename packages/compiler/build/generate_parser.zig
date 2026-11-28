@@ -12,7 +12,7 @@ const publication = compiler.input_generation;
 const generation = @import("shared_generation.zig");
 const generated = publication.generated;
 const Host = if (generated) @import("generation_execution_abi").native.@"zig:generation_host" else void;
-pub const resolveNative = compiler.native_lookup.Resolver(&.{ @This(), collection }).resolve;
+pub const resolveNative = compiler.native_lookup.Resolver(&.{@This()}).resolve;
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
@@ -71,31 +71,41 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
     const Input = std.meta.Child(workflow.Input);
     const columns = @import("zx").memory.borrowReadFields(.{ .specifiers = "specifier", .entries = "entry" }, project.packages);
     const packages = columns.bind(std.meta.Child(@FieldType(Input, "packages")));
+    var arena = std.heap.ArenaAllocator.init(allocator);
+
+    defer arena.deinit();
+
+    const scratch = arena.allocator();
 
     const input: Input = .{
         .packages = &packages,
         .host = @ptrCast(&context),
         .write = request.write,
         .stamp_path = stamp_path,
-        .roots = project.roots.len,
+        .roots = try generationRoots(scratch, project.roots),
+        .interfaces = try generationInterfaces(scratch, project.interfaces),
+        .generator = &resident.digest,
+        .manifest = manifest_source,
+        .partitions = request.partitions,
     };
 
-    var arena = std.heap.ArenaAllocator.init(allocator);
-
-    defer arena.deinit();
-
-    const Documents = std.meta.Child(@FieldType(workflow.zx_pending, "store_0"));
-    const initial: std.meta.Child(Documents) = .{ .batches = &.{} };
-    var documents: Documents = &initial;
+    const Entries = std.meta.Child(@FieldType(workflow.zx_pending, "store_0"));
+    const Documents = std.meta.Child(@FieldType(workflow.zx_pending, "store_1"));
+    const initial_entries: std.meta.Child(Entries) = .{ .batches = &.{}, .count = 0 };
+    const initial_documents: std.meta.Child(Documents) = .{ .batches = &.{} };
+    var collected: Entries = &initial_entries;
+    var documents: Documents = &initial_documents;
 
     var stores = struct {
-        store_0: *Documents,
+        store_0: *Entries,
+        store_1: *Documents,
         pub fn commit(self: *@This(), pending: workflow.zx_pending) error{}!void {
             if (pending.store_0) |next| self.store_0.* = next;
+            if (pending.store_1) |next| self.store_1.* = next;
         }
-    }{ .store_0 = &documents };
+    }{ .store_0 = &collected, .store_1 = &documents };
 
-    const result = workflow.executeIn(arena.allocator(), &input, &stores, io) catch |err| return failure orelse err;
+    const result = workflow.executeIn(scratch, &input, &stores, io) catch |err| return failure orelse err;
 
     if (result.failure) |code| return @errorFromInt(code);
 
@@ -104,8 +114,8 @@ pub fn generate(io: std.Io, allocator: std.mem.Allocator, resident: *Resident, r
 
 const Error = error{GenerationRequestFailed};
 
-const PreparedCatalog = struct {
-    inputs: collection.Catalog,
+const PreparedModules = struct {
+    rows: []const @import("rx").ModuleSource,
     packages: []const compiler.project.Package,
 };
 
@@ -162,18 +172,16 @@ const GenerationIO = struct {
         const resident = self.resident;
         const digests = try self.owned.alloc(analysis.project.ModuleDigest, inputs.modules.len);
 
-        const frame = if (comptime generated) try self.hashFrame(inputs, bindings, digests) else seed: {
-            for (inputs.modules, digests) |module, *item| {
-                item.* = .{ .path = module.path, .digest = resident.files.digest(module.path, module.source) };
-            }
+        for (inputs.modules, digests) |module, *item| {
+            item.* = .{ .path = module.path, .digest = resident.files.digest(module.path, module.source) };
+        }
 
-            break :seed fingerprint.seedFrame(&resident.digest, self.manifest_source, digests, bindings);
-        };
+        const frame = fingerprint.seedFrame(&resident.digest, self.manifest_source, digests, bindings);
 
         return .{
             .frame = frame,
             .modules = digests,
-            .output = try self.outputDigest(inputs, &frame.content),
+            .output = fingerprint.seedOutput(&frame.content, self.request.partitions, inputs.sources, inputs.templates, &resident.files),
         };
     }
     fn retainPackages(self: *const GenerationIO, rows: anytype) ![]const compiler.project.Package {
@@ -188,86 +196,20 @@ const GenerationIO = struct {
 
         return packages;
     }
-    fn hashFrame(self: *const GenerationIO, inputs: collection.Catalog, bindings: []const compiler.project.NativeInterface, digests: []analysis.project.ModuleDigest) !fingerprint.Frame {
-        const rule = @import("generated_input_frame_fingerprint");
-        const memory = @import("zx").memory;
-        const paths = memory.borrowTextColumn("path", inputs.modules);
-        const interfaces = memory.borrowTextColumn("source", bindings);
-        var arena = std.heap.ArenaAllocator.init(self.allocator);
 
-        defer arena.deinit();
-
-        const result = try rule.executeIn(arena.allocator(), &.{
-            .generator = &self.resident.digest,
-            .manifest = self.manifest_source,
-            .modules = &.{
-                .paths = @ptrCast(&paths),
-                .digests = try fileDigests(&self.resident.files, arena.allocator(), inputs.modules),
-            },
-            .interfaces = @ptrCast(&interfaces),
-            .interface_count = bindings.len,
-        });
-
-        for (result.digests, digests) |row, *item| {
-            std.debug.assert(row.digest.len == @sizeOf(fingerprint.Digest));
-
-            item.* = .{ .path = row.path, .digest = row.digest[0..@sizeOf(fingerprint.Digest)].* };
-        }
-
-        std.debug.assert(result.content.len == @sizeOf(fingerprint.Digest));
-        std.debug.assert(result.shape.len == @sizeOf(fingerprint.Digest));
-
-        return .{
-            .content = result.content[0..@sizeOf(fingerprint.Digest)].*,
-            .shape = result.shape[0..@sizeOf(fingerprint.Digest)].*,
-        };
-    }
-
-    fn outputDigest(self: *const GenerationIO, inputs: collection.Catalog, frame: *const fingerprint.Digest) !fingerprint.Digest {
-        const partitions = self.request.partitions;
-        const files = &self.resident.files;
-
-        if (comptime !generated) return fingerprint.seedOutput(frame, partitions, inputs.sources, inputs.templates, files);
-
-        const rule = @import("generated_input_output_fingerprint");
-        const memory = @import("zx").memory;
-        const sources = memory.borrowTextColumn("path", inputs.sources);
-        const templates = memory.borrowTextColumn("path", inputs.templates);
-        var arena = std.heap.ArenaAllocator.init(self.allocator);
-
-        defer arena.deinit();
-
-        const digest = try rule.executeIn(arena.allocator(), &.{
-            .frame = frame,
-            .partitions = partitions,
-            .sources = &.{
-                .paths = @ptrCast(&sources),
-                .digests = try fileDigests(files, arena.allocator(), inputs.sources),
-            },
-            .templates = &.{
-                .paths = @ptrCast(&templates),
-                .digests = try fileDigests(files, arena.allocator(), inputs.templates),
-            },
-        });
-
-        std.debug.assert(digest.len == @sizeOf(fingerprint.Digest));
-
-        return digest[0..@sizeOf(fingerprint.Digest)].*;
-    }
-
-    fn prepareTemplates(self: *const GenerationIO, inputs: collection.Catalog) ![]const compiler.project.Source {
-        return switch (try compiler.project.prepareSources(self.owned, inputs.sources, .{ .entry = "" })) {
+    fn prepareTemplates(self: *const GenerationIO, sources: []const compiler.project.Source) ![]const compiler.project.Source {
+        return switch (try compiler.project.prepareSources(self.owned, sources, .{ .entry = "" })) {
             .sources => |items| items,
             .diagnostic => |issue| {
-                std.debug.print("{s}: {s}\n", .{ inputs.sources[issue.source_index.?].path, issue.message });
+                std.debug.print("{s}: {s}\n", .{ sources[issue.source_index.?].path, issue.message });
 
                 return error.InvalidTemplateResource;
             },
         };
     }
 
-    fn prepareModules(self: *const GenerationIO, inputs: collection.Catalog, packages: []const compiler.project.Package) ![]const @import("rx").ModuleSource {
-        return self.resident.modules.prepare(self.owned, inputs.modules, try fingerprint.packages(self.allocator, packages));
+    fn prepareModules(self: *const GenerationIO, modules: []const @import("rx").TextSource, packages: []const compiler.project.Package) ![]const @import("rx").ModuleSource {
+        return self.resident.modules.prepare(self.owned, modules, try fingerprint.packages(self.allocator, packages));
     }
     fn emit(
         self: *const GenerationIO,
@@ -331,8 +273,8 @@ const GenerationIO = struct {
         const previous = if (interfaces.failure == null) self.resident.exactAnalysis(&digests.output) else null;
 
         const summary = if (previous) |saved| try generation.restore(self.target(io), saved, self.project.entries.len) else fresh: {
-            const sources = try self.prepareTemplates(inputs);
-            const modules = try self.prepareModules(inputs, packages);
+            const sources = try self.prepareTemplates(inputs.sources);
+            const modules = try self.prepareModules(inputs.modules, packages);
 
             if (interfaces.failure) |err| return err;
 
@@ -348,99 +290,247 @@ const GenerationIO = struct {
     }
 };
 
-pub fn observeGenerationInputs(allocator: std.mem.Allocator, io: std.Io, reference: *const anyopaque) Error!Host.GenerationObservation {
+fn generationRoots(allocator: std.mem.Allocator, project: []const manifest.Root) ![]const Host.GenerationRoot {
+    const rows = try allocator.alloc(std.meta.Child(Host.GenerationRoot), project.len);
+    const result = try allocator.alloc(Host.GenerationRoot, project.len);
+
+    for (project, rows, result) |root, *row, *value| {
+        row.* = .{ .path = root.path, .prefix = root.prefix };
+        value.* = row;
+    }
+
+    return result;
+}
+
+fn generationInterfaces(allocator: std.mem.Allocator, project: []const manifest.Interface) ![]const Host.GenerationInterface {
+    const rows = try allocator.alloc(std.meta.Child(Host.GenerationInterface), project.len);
+    const result = try allocator.alloc(Host.GenerationInterface, project.len);
+
+    for (project, rows, result) |decl, *row, *value| {
+        row.* = .{
+            .specifier = decl.specifier,
+            .path = decl.path,
+            .module = decl.module,
+            .resolve_members = decl.resolve_members orelse false,
+        };
+
+        value.* = row;
+    }
+
+    return result;
+}
+
+pub fn readGenerationSnapshot(allocator: std.mem.Allocator, io: std.Io, reference: *const anyopaque, roots: []const Host.GenerationObservedRoot) Error!Host.GenerationObservation {
     const host = borrow(GenerationIO, reference);
-    const snapshot = try keep(host, allocator, host.observe(io) catch |err| return host.fail(err));
+    const facts = observedFacts(allocator, io, host.project.roots, roots) catch |err| return host.fail(err);
+    const snapshot = InputSnapshot.inspect(io, allocator, &host.resident.files, host.resident.digest, host.project.interfaces, host.manifest_source, host.request.partitions, host.request.cache, facts) catch |err| return host.fail(err);
+    const target = if (snapshot.facts.len == 0) null else snapshotTarget(allocator, &snapshot) catch |err| return host.fail(err);
+    const digest = if (snapshot.fingerprint) |*value| allocator.dupe(u8, value) catch |err| return host.fail(err) else null;
 
     return keep(host, allocator, @as(std.meta.Child(Host.GenerationObservation), .{
-        .snapshot = @ptrCast(snapshot),
-        .digest = if (snapshot.fingerprint) |*digest| digest else null,
+        .enabled = true,
+        .snapshot = target,
+        .roots = roots,
+        .digest = digest,
     }));
 }
 
-pub fn loadGenerationRoot(io: std.Io, reference: *const anyopaque, row: u64, observed: ?*const anyopaque) Error![]const u8 {
-    const host = borrow(GenerationIO, reference);
-    const snapshot = if (observed) |value| borrow(InputSnapshot, value) else null;
-    var documents: std.ArrayList(collection.Document) = .empty;
+fn observedFacts(allocator: std.mem.Allocator, io: std.Io, roots: []const manifest.Root, observed: []const Host.GenerationObservedRoot) !std.ArrayList(compiler.input_snapshot.Observation) {
+    const Observation = compiler.input_snapshot.Observation;
+    var facts: std.ArrayList(Observation) = .empty;
 
-    host.loadRoot(io, @intCast(row), snapshot, &documents) catch |err| return host.fail(err);
+    for (roots, observed) |root, listed| {
+        var directory: ?std.Io.Dir = null;
 
-    return std.mem.sliceAsBytes(documents.items);
+        defer if (directory) |handle| handle.close(io);
+
+        try facts.ensureUnusedCapacity(allocator, listed.files.len);
+
+        for (listed.files) |entry| {
+            const path = try std.fs.path.resolve(allocator, &.{ root.path, entry.relative });
+
+            const info = listedMetadata(entry.stat) orelse fallback: {
+                // Older generator binaries do not return nanosecond change times.
+                if (directory == null) directory = try std.Io.Dir.cwd().openDir(io, root.path, .{});
+
+                break :fallback Files.metadata(try directory.?.statFile(io, entry.relative, .{ .follow_symlinks = false }));
+            };
+
+            facts.appendAssumeCapacity(Observation.init(path, entry.path, info));
+        }
+    }
+
+    return facts;
 }
 
-pub fn classifyGenerationDocuments(allocator: std.mem.Allocator, reference: *const anyopaque, batches: []const []const u8, package_rows: []const Host.GenerationPackage) Error!Host.GenerationArtifact {
-    const host = borrow(GenerationIO, reference);
-    const packages = host.retainPackages(package_rows) catch |err| return host.fail(err);
-    const documents = collectDocuments(allocator, batches) catch |err| return host.fail(err);
-    const inputs = host.classify(allocator, documents, packages) catch |err| return host.fail(err);
+fn listedMetadata(stat: ?Host.GenerationStat) ?Files.Metadata {
+    const value = stat orelse return null;
+    const modified = value.mtime_ns orelse return null;
+    const changed = value.ctime_ns orelse return null;
 
-    return @ptrCast(try keep(host, allocator, PreparedCatalog{ .inputs = inputs, .packages = packages }));
+    return .{
+        .inode = value.inode orelse return null,
+        .size = value.size orelse return null,
+        .mtime = nanoseconds(modified),
+        .ctime = nanoseconds(changed),
+    };
 }
 
-pub fn registerGenerationInterfaces(allocator: std.mem.Allocator, io: std.Io, reference: *const anyopaque, catalog: *const anyopaque) Error!Host.GenerationRegistration {
-    const host = borrow(GenerationIO, reference);
-    const prepared = borrow(PreparedCatalog, catalog);
-    const bindings = try keep(host, allocator, host.register(io, allocator, prepared.inputs) catch |err| return host.fail(err));
-
-    return keep(host, allocator, @as(std.meta.Child(Host.GenerationRegistration), .{
-        .bindings = @ptrCast(bindings),
-        .failure = if (bindings.failure) |err| @intFromError(err) else null,
-    }));
+fn nanoseconds(time: Host.GenerationTime) i96 {
+    return (@as(i96, time.high) << 64) | time.low;
 }
 
-pub fn fingerprintGenerationInputs(allocator: std.mem.Allocator, reference: *const anyopaque, catalog: *const anyopaque, interfaces: *const anyopaque, interfaces_loaded: bool) Error!Host.PreparedGeneration {
-    const host = borrow(GenerationIO, reference);
-    const prepared = borrow(PreparedCatalog, catalog);
-    const bindings = borrow(interface_inputs.Result, interfaces);
-    const digests = try keep(host, allocator, host.prepareFingerprints(prepared.inputs, bindings.bindings) catch |err| return host.fail(err));
-    const previous = if (interfaces_loaded) host.resident.exactAnalysis(&digests.output) else null;
+fn snapshotTarget(allocator: std.mem.Allocator, snapshot: *const InputSnapshot) !Host.GenerationSnapshot {
+    const rows = try allocator.alloc(std.meta.Child(Host.GenerationFact), snapshot.facts.len);
+    const facts = try allocator.alloc(Host.GenerationFact, snapshot.facts.len);
 
-    return keep(host, allocator, @as(std.meta.Child(Host.PreparedGeneration), .{
-        .digest = &digests.output,
-        .fingerprints = @ptrCast(digests),
-        .previous = if (previous) |saved| @ptrCast(try keep(host, allocator, saved)) else null,
-    }));
+    for (snapshot.facts, rows, facts) |fact, *row, *field| {
+        row.* = .{ .path = fact.path, .key = fact.key };
+        field.* = row;
+    }
+
+    const result = try allocator.create(std.meta.Child(Host.GenerationSnapshot));
+
+    result.* = .{ .path = snapshot.path, .context = snapshot.context, .facts = facts };
+
+    return result;
 }
 
-pub fn restoreGenerationAnalysis(io: std.Io, reference: *const anyopaque, previous: *const anyopaque) Error![]const u8 {
+pub fn readGenerationFiles(allocator: std.mem.Allocator, io: std.Io, reference: *const anyopaque, input: Host.GenerationRead) Error!Host.GenerationReadResult {
     const host = borrow(GenerationIO, reference);
-    const saved = borrow(Resident.Restored, previous);
 
-    return generation.restore(host.target(io), saved.*, host.project.entries.len) catch |err| host.fail(err);
+    return readFiles(host, allocator, io, input) catch |err| host.fail(err);
 }
 
-pub fn prepareGenerationTemplates(allocator: std.mem.Allocator, reference: *const anyopaque, catalog: *const anyopaque) Error!Host.GenerationArtifact {
+fn readFiles(host: *const GenerationIO, allocator: std.mem.Allocator, io: std.Io, input: Host.GenerationRead) !Host.GenerationReadResult {
+    const directory = if (input.root) |root| try std.Io.Dir.cwd().openDir(io, root, .{}) else std.Io.Dir.cwd();
+
+    defer if (input.root != null) directory.close(io);
+
+    const fields = try allocator.alloc(std.meta.Child(Host.GenerationDocument), input.files.len);
+    const documents = try allocator.alloc(Host.GenerationDocument, input.files.len);
+    const digests = try allocator.alloc(fingerprint.Digest, if (input.root != null) input.files.len else 0);
+    const versions = try allocator.alloc(std.meta.Child(Host.GenerationVersion), if (host.request.write) input.files.len else 0);
+    const files = &host.resident.files;
+    var failure: ?u16 = null;
+
+    for (input.files, fields, documents, 0..) |item, *field, *document, row| {
+        const key = if (input.root != null) item.path else try std.fs.path.resolve(allocator, &.{item.path});
+
+        const source = files.readObserved(io, directory, item.relative, key, item.retain, listedMetadata(item.stat)) catch |err| source: {
+            if (!input.optional) return err;
+            if (failure == null) failure = @intFromError(err);
+
+            break :source "";
+        };
+
+        const path = if (input.root != null) try host.owned.dupe(u8, item.path) else key;
+
+        const digest: []const u8 = if (input.root != null) digest: {
+            digests[row] = files.digest(key, source);
+
+            break :digest &digests[row];
+        } else &.{};
+
+        const version = if (host.request.write) observedVersion(files, key, &versions[row]) else null;
+
+        field.* = .{ .path = path, .source = source, .digest = digest, .version = version };
+        document.* = field;
+    }
+
+    return keep(host, allocator, @as(std.meta.Child(Host.GenerationReadResult), .{ .documents = documents, .failure = failure }));
+}
+
+fn observedVersion(files: *const Files, key: []const u8, output: *std.meta.Child(Host.GenerationVersion)) ?Host.GenerationVersion {
+    const version = files.version(key) orelse return null;
+    const timestamp = compiler.input_snapshot.timestamp;
+    const modified = timestamp(version.metadata.mtime);
+    const changed = timestamp(version.metadata.ctime);
+    const read = timestamp(version.read);
+
+    output.* = .{
+        .inode = version.metadata.inode,
+        .size = version.metadata.size,
+        .mtime_low = modified.low,
+        .ctime_low = changed.low,
+        .read_low = read.low,
+        .mtime_high = modified.high,
+        .ctime_high = changed.high,
+        .read_high = read.high,
+    };
+
+    return output;
+}
+
+pub fn restoreGenerationAnalysis(io: std.Io, reference: *const anyopaque, digest: []const u8) Error!?[]const u8 {
     const host = borrow(GenerationIO, reference);
-    const prepared = borrow(PreparedCatalog, catalog);
-    const sources = host.prepareTemplates(prepared.inputs) catch |err| return host.fail(err);
+    const saved = host.resident.exactAnalysis(digest[0..@sizeOf(fingerprint.Digest)]) orelse return null;
+
+    return generation.restore(host.target(io), saved, host.project.entries.len) catch |err| host.fail(err);
+}
+
+pub fn prepareGenerationTemplates(allocator: std.mem.Allocator, reference: *const anyopaque, catalog: Host.GenerationCatalog) Error!Host.GenerationArtifact {
+    const host = borrow(GenerationIO, reference);
+    const templates = host.owned.alloc(compiler.project.Resource, catalog.templates.len) catch |err| return host.fail(err);
+    const input = host.owned.alloc(compiler.project.Source, catalog.sources.len) catch |err| return host.fail(err);
+
+    for (templates, catalog.templates) |*slot, doc| slot.* = .{ .path = doc.path, .source = doc.source };
+    for (input, catalog.sources) |*slot, doc| slot.* = .{ .path = doc.path, .source = doc.source, .templates = templates };
+
+    const sources = host.prepareTemplates(input) catch |err| return host.fail(err);
 
     return @ptrCast(try keep(host, allocator, sources));
 }
 
-pub fn prepareGenerationModules(allocator: std.mem.Allocator, reference: *const anyopaque, catalog: *const anyopaque) Error!Host.GenerationArtifact {
+pub fn prepareGenerationModules(allocator: std.mem.Allocator, reference: *const anyopaque, catalog: Host.GenerationCatalog) Error!Host.GenerationArtifact {
     const host = borrow(GenerationIO, reference);
-    const prepared = borrow(PreparedCatalog, catalog);
-    const modules = host.prepareModules(prepared.inputs, prepared.packages) catch |err| return host.fail(err);
+    const packages = host.retainPackages(catalog.packages) catch |err| return host.fail(err);
+    const input = host.owned.alloc(@import("rx").TextSource, catalog.modules.len) catch |err| return host.fail(err);
 
-    return @ptrCast(try keep(host, allocator, modules));
+    for (input, catalog.modules) |*slot, doc| slot.* = .{ .path = doc.path, .source = doc.source, .packages = packages };
+
+    const rows = host.prepareModules(input, packages) catch |err| return host.fail(err);
+
+    return @ptrCast(try keep(host, allocator, PreparedModules{ .rows = rows, .packages = packages }));
 }
 
-pub fn generateFromPreparedInputs(io: std.Io, reference: *const anyopaque, digests: *const anyopaque, catalog: *const anyopaque, interfaces: *const anyopaque, sources: *const anyopaque, modules: *const anyopaque) Error![]const u8 {
+pub fn generateFromPreparedInputs(io: std.Io, reference: *const anyopaque, digests: Host.PreparedGeneration, interfaces: Host.GenerationRegistration, sources: *const anyopaque, modules: *const anyopaque) Error![]const u8 {
     const host = borrow(GenerationIO, reference);
-    const ready = borrow(Digests, digests);
-    const prepared = borrow(PreparedCatalog, catalog);
-    const bindings = borrow(interface_inputs.Result, interfaces);
+    const ready = materializeDigests(host.owned, digests) catch |err| return host.fail(err);
+    const bindings = materializeInterfaces(host, interfaces) catch |err| return host.fail(err);
     const source_rows = borrow([]const compiler.project.Source, sources);
-    const module_rows = borrow([]const @import("rx").ModuleSource, modules);
+    const prepared = borrow(PreparedModules, modules);
 
-    return host.emit(io, ready.*, prepared.packages, bindings.*, source_rows.*, module_rows.*) catch |err| host.fail(err);
+    return host.emit(io, ready, prepared.packages, bindings, source_rows.*, prepared.rows) catch |err| host.fail(err);
 }
 
-pub fn saveGenerationSnapshot(io: std.Io, reference: *const anyopaque, observed: *const anyopaque, digest: []const u8) Error!void {
-    const host = borrow(GenerationIO, reference);
-    const snapshot = borrow(InputSnapshot, observed);
+fn materializeInterfaces(host: *const GenerationIO, typed: Host.GenerationRegistration) !interface_inputs.Result {
+    const bindings = try host.owned.alloc(compiler.project.NativeInterface, typed.bindings.len);
 
-    return host.saveSnapshot(io, snapshot, digest[0..@sizeOf(fingerprint.Digest)].*) catch |err| host.fail(err);
+    for (bindings, typed.bindings, 0..) |*slot, binding, row| {
+        slot.* = .{
+            .specifier = if (row < typed.external) try host.resident.retainText(host.owned, binding.name) else try host.owned.dupe(u8, binding.name),
+            .path = try host.resident.retainText(host.owned, binding.path),
+            .source = binding.source,
+            .namespace = if (binding.resolve_members) &.{compiler.native_lookup.marker} else &.{},
+            .module = try host.resident.retainText(host.owned, binding.module),
+        };
+    }
+
+    return .{ .bindings = bindings, .external = @intCast(typed.external), .failure = null };
+}
+
+fn materializeDigests(allocator: std.mem.Allocator, typed: Host.PreparedGeneration) !Digests {
+    const modules = try allocator.alloc(analysis.project.ModuleDigest, typed.digests.len);
+    const width = @sizeOf(fingerprint.Digest);
+
+    for (modules, typed.digests) |*module, row| module.* = .{ .path = row.path, .digest = row.digest[0..width].* };
+
+    return .{
+        .frame = .{ .content = typed.content[0..width].*, .shape = typed.shape[0..width].* },
+        .modules = modules,
+        .output = typed.digest[0..width].*,
+    };
 }
 
 fn borrow(comptime T: type, reference: *const anyopaque) *const T {
@@ -453,32 +543,6 @@ fn keep(host: *const GenerationIO, allocator: std.mem.Allocator, value: anytype)
     slot.* = value;
 
     return slot;
-}
-
-fn collectDocuments(allocator: std.mem.Allocator, batches: []const []const u8) ![]const collection.Document {
-    const alignment = @alignOf(collection.Document);
-
-    if (batches.len == 1 and std.mem.isAligned(@intFromPtr(batches[0].ptr), alignment)) {
-        const aligned: []align(alignment) const u8 = @alignCast(batches[0]);
-
-        return std.mem.bytesAsSlice(collection.Document, aligned);
-    }
-
-    var count: usize = 0;
-
-    for (batches) |batch| count += batch.len / @sizeOf(collection.Document);
-
-    const documents = try allocator.alloc(collection.Document, count);
-    const output = std.mem.sliceAsBytes(documents);
-    var offset: usize = 0;
-
-    for (batches) |batch| {
-        @memcpy(output[offset..][0..batch.len], batch);
-
-        offset += batch.len;
-    }
-
-    return documents;
 }
 
 fn seedStampMatches(io: std.Io, path: []const u8, digest: *const fingerprint.Digest) !bool {
@@ -497,16 +561,4 @@ fn readStamp(io: std.Io, path: []const u8, buffer: []u8) !?[]const u8 {
 
 fn writeGenerationStamp(io: std.Io, path: []const u8, stamp: []const u8) !void {
     try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = stamp });
-}
-
-fn fileDigests(files: *Files, allocator: std.mem.Allocator, rows: anytype) ![]const []const u8 {
-    const values = try allocator.alloc(fingerprint.Digest, rows.len);
-    const digests = try allocator.alloc([]const u8, rows.len);
-
-    for (rows, values, digests) |row, *value, *digest| {
-        value.* = files.digest(row.path, row.source);
-        digest.* = value;
-    }
-
-    return digests;
 }

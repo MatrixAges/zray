@@ -12,7 +12,7 @@ pub fn formatWithLineEnding(allocator: std.mem.Allocator, source: []const u8, pr
 }
 
 pub fn indent(allocator: std.mem.Allocator, source: []const u8, projection: *const Projection, level: usize) std.mem.Allocator.Error![]u8 {
-    return apply(allocator, source, projection, .{ .level = level, .indent_only = true }, "\n");
+    return apply(allocator, source, projection, .{ .level = level, .indent_only = true }, null);
 }
 
 pub fn formatAttribute(allocator: std.mem.Allocator, source: []const u8, projection: *const Projection, level: usize, prefix: usize, newline: []const u8) std.mem.Allocator.Error![]u8 {

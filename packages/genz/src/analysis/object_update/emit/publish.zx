@@ -9,6 +9,7 @@ export default function (in: Input): Output {
             "variables",
             "valid"
         ]),
+        fields: null,
         root: in.target
     }
 }

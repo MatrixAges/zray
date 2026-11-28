@@ -8,9 +8,7 @@
         in={$in.parameters.omit(["names"])}
     />
 
-    <Call fn="initial" in={$in} />
-
-    <If on={$ctx.initial.admission == Loop.Admission.Reject}>
+    <If on={$in.admission == Loop.Admission.Reject}>
         <Return
             value={{
                 expression: null
@@ -18,7 +16,7 @@
         />
     </If>
 
-    <If on={$ctx.initial.admission == Loop.Admission.Dereference}>
+    <If on={$in.admission == Loop.Admission.Dereference}>
         <Call fn="dereference" in={$in} />
 
         <Return
@@ -27,6 +25,8 @@
             }}
         />
     </If>
+
+    <Call module="initial_value" in={$in} />
 
     <Call
         module="parameters"
@@ -38,7 +38,7 @@
                 "parameters",
                 "initial_plan"
             ]),
-            name: $ctx.initial.name,
+            name: $ctx.initial_value.name,
             membership: $ctx.membership
         }}
     />
@@ -47,14 +47,14 @@
         fn="storage"
         in={{
             ...$in.pick([
-                "loop_frame",
+                "context",
                 "writer",
                 "body_seq",
                 "type_id",
                 "initial",
                 "initial_plan"
             ]),
-            initial_value: $ctx.initial.initial_value
+            initial_value: $ctx.initial_value.value
         }}
     />
 
@@ -100,7 +100,7 @@
             ]),
             schedule: $ctx.plan,
             renewals: $ctx.renewals,
-            name: $ctx.initial.name,
+            name: $ctx.initial_value.name,
             seed_name: $ctx.parameters.seed_name,
             initial_state: $ctx.storage
         }}
@@ -115,6 +115,11 @@
                 "body_seq",
                 "loop_seq",
                 "projected_seq",
+                "skipped_seq",
+                "wrap_seq",
+                "consumer",
+                "context",
+                "discard",
                 "body",
                 "loop_frame",
                 "guard_info",
@@ -127,7 +132,7 @@
             state_active: $in.state_active || $in.initial_plan.state_scope,
             projected: $ctx.parameters.projected,
             state: $in.loop_state.reference,
-            initial_value: $ctx.initial.initial_value,
+            initial_value: $ctx.initial_value.value,
             update: $ctx.evaluate
         }}
     />

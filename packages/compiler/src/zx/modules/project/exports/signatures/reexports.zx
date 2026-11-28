@@ -12,14 +12,14 @@ export type Output = Change?
 
 export default function (in: Input): Output {
     const { names, indices, rows, first, offset } = in
-    const { signatures, stride, kinds, facts } = rows
+    const { signatures, kinds, facts } = rows
 
     const index = indices[offset]
     const row = first + offset
     const name = names[offset]
 
-    if (signatures.length != 0) {
-        if (index >= signatures.length / stride) {
+    if (signatures != 0) {
+        if (index >= signatures) {
             return null
         }
 
@@ -27,7 +27,6 @@ export default function (in: Input): Output {
             action: ChangeKind.Reexport,
             row,
             name,
-            rows: signatures,
             source_row: index,
             kind: 0,
             input_type: 0,

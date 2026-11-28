@@ -1,0 +1,12 @@
+export type Input = {}
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.loop_state.update_scope = {
+        projected: null,
+        delayed: false
+    }
+}

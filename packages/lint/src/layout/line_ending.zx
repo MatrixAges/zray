@@ -4,11 +4,17 @@ import crlf from "../rx/crlf"
 
 import type { EntryInput } from "./model"
 
-export type Input = EntryInput.Pick("source", "newline")
+export type Input = EntryInput.Pick("source", "newline") & {
+    indent_only: bool
+}
 
 export type Output = u8[]
 
 export default function (in: Input): Output {
+    if (in.indent_only) {
+        return bytes.fromText("\n")
+    }
+
     if (in.newline != null) {
         return in.newline
     }

@@ -13,14 +13,7 @@
     />
 
     <Call fn="module_pair" in={$in.modules} />
-
-    <Call
-        fn="interface_pair"
-        in={{
-            sources: $in.interfaces,
-            count: $in.interface_count
-        }}
-    />
+    <Call fn="interface_pair" in={$in.interfaces} />
 
     <Call
         fn="frame_digest"

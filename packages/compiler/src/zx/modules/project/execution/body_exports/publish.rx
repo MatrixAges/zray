@@ -28,8 +28,6 @@
 
         <Return
             value={{
-                ...$ctx.merge_exports,
-                members: $ctx.merge,
                 entry: $ctx.plan.entry,
                 duplicate: $ctx.plan.duplicate
             }}
@@ -38,8 +36,6 @@
 
     <Return
         value={{
-            ...$ctx.merge_exports,
-            members: $ctx.merge,
             entry: $in.entry,
             duplicate: null
         }}

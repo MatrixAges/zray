@@ -9,15 +9,54 @@
 
     <If on={$ctx.prepare_module != null}>
         <Call
-            fn="index.prepareNativeScopeModule"
+            fn="index.prepareNativeScopeAliases"
+            in={[
+                $in.binding.window.frame,
+                $in.row
+            ]}
+        />
+
+        <Call
+            module="../compiler_rules/compiled/identity/aliases/build"
+            in={$in.aliases}
+        />
+
+        <Switch on={$ctx.build.status}>
+            <Case value={Alias.Status.Conflict}>
+                <Return
+                    value={{
+                        ...$in,
+                        status: Host.Admission.ConflictingNativeAbiAlias
+                    }}
+                />
+            </Case>
+
+            <Case value={Alias.Status.Unknown}>
+                <Return
+                    value={{
+                        ...$in,
+                        status: Host.Admission.UnknownNativeAbiAlias
+                    }}
+                />
+            </Case>
+        </Switch>
+
+        <Call
+            fn="index.publishNativeScopeModule"
             in={[
                 $in.binding.window.frame,
                 $in.row,
-                $ctx.prepare_module.name,
-                $ctx.prepare_module.path,
-                $ctx.prepare_module.dependencies,
-                $ctx.prepare_module.includes
+                $ctx.prepare_module,
+                $ctx.build.names,
+                $ctx.build.specifiers
             ]}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                row: $in.row + 1
+            }}
         />
 
         <Else>
@@ -29,47 +68,4 @@
             />
         </Else>
     </If>
-
-    <Call fn="index.prepareNativeScopeAliases" in={$in.binding.window.frame} />
-
-    <Call
-        module="../compiler_rules/compiled/identity/aliases/build"
-        in={$in.aliases}
-    />
-
-    <Switch on={$ctx.build.status}>
-        <Case value={Alias.Status.Conflict}>
-            <Return
-                value={{
-                    ...$in,
-                    status: Host.Admission.ConflictingNativeAbiAlias
-                }}
-            />
-        </Case>
-
-        <Case value={Alias.Status.Unknown}>
-            <Return
-                value={{
-                    ...$in,
-                    status: Host.Admission.UnknownNativeAbiAlias
-                }}
-            />
-        </Case>
-    </Switch>
-
-    <Call
-        fn="index.publishNativeScopeModule"
-        in={[
-            $in.binding.window.frame,
-            $ctx.build.names,
-            $ctx.build.specifiers
-        ]}
-    />
-
-    <Return
-        value={{
-            ...$in,
-            row: $in.row + 1
-        }}
-    />
 </Module>

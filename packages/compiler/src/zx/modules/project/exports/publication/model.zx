@@ -1,5 +1,4 @@
 import type { ReadColumn, TextColumn } from "memory"
-import type { RowBuffer } from "memory/columns"
 import type { Signature } from "../model"
 
 export enum Kind {
@@ -14,11 +13,9 @@ export type Request = {
 }
 
 export type Merge = {
-    own: u8[],
-    forwarded: u8[],
-    stride: u64,
+    own: u64,
+    forwarded: u64,
     copy_own: bool,
-    storage: RowBuffer,
     names: TextColumn
 }
 
@@ -28,8 +25,8 @@ export type Exports = {
 }
 
 export type Merged = {
-    exports: u8[],
-    constant_exports: u8[]
+    exports: u64,
+    constant_exports: u64
 }
 
 export type Index = {

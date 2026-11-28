@@ -5,7 +5,7 @@ export declare function publishObjectOperand(
 ): u64 throws { OutOfMemory }
 
 export declare function observeIterationOperand(
-    context: IterationResourceFrame,
+    frame: Lowering,
     item: u32,
     reference: u32
 ): u64 throws { OutOfMemory }

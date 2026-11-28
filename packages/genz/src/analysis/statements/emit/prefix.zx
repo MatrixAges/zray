@@ -15,5 +15,10 @@ export default function (in: Input): Output {
         return 0
     }
 
-    return host.beginStatementStore(in.traversal, in.scope, in.index)
+    return host.beginStatementStore(
+        in.context.frame,
+        in.scope_first,
+        in.scope_count,
+        in.index
+    )
 }

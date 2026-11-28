@@ -56,7 +56,7 @@ export default function (in: Input): Output {
     const value = match completion {
         Completion.Prepared => prepared,
         Completion.GuardPrepared => prepared,
-        Completion.GuardDeep => host.convertLoopResult(context, type_id, state),
+        Completion.GuardDeep => host.convertLoopResult(context, type_id, state, true),
         Completion.GuardConstruct => host.constructValue(frame, type_id, state, null),
         _ => state
     }

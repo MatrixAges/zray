@@ -29,7 +29,6 @@ pub fn deliver(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item:
 
     if (lists.reexports) |list| reexports.init(list, allocator);
 
-    defer if (lists.reexports != null) reexports.settle();
     errdefer if (lists.reexports != null) reexports.discard();
 
     const input: Input = .{
@@ -92,7 +91,7 @@ pub fn deliver(allocator: std.mem.Allocator, temporary: std.mem.Allocator, item:
     }
 
     if (lists.reexports != null) {
-        if (result.reexports) |count| reexports.tail.length = count;
+        if (result.reexports) |count| reexports.settle(count);
     }
 }
 

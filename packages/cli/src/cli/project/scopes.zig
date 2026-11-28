@@ -9,6 +9,18 @@ const name_workspace_size = 1024;
 pub const NativeSettings = State.NativeSettings;
 pub const Result = State.Result;
 
+const StoreHost = struct {
+    state: *State,
+    store_0: *State.Publication,
+    pub fn commit(self: *StoreHost, pending: anytype) std.mem.Allocator.Error!void {
+        if (pending.store_0) |next| {
+            try self.state.publish(next);
+
+            self.store_0.* = next;
+        }
+    }
+};
+
 pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []compiler.project.PackageScope, manifests: []const model.Manifest, owner: usize, inputs: ?*Inputs) !Result {
     var registry_memory = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
 
@@ -45,8 +57,6 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []compiler.project
     };
 
     state.binding = .{ .window = &state.window, .registry = &state.registry_view, .library = &state.compiled_view };
-    state.active = &active;
-    state.scratch = scratch.allocator();
 
     state.traversal = .{
         .binding = &state.binding,
@@ -56,13 +66,16 @@ pub fn load(io: std.Io, allocator: std.mem.Allocator, scopes: []compiler.project
         .status = .Valid,
     };
 
+    var publication: State.Publication = &.{ .paths = &.{}, .settings = &.{} };
+    var host: StoreHost = .{ .state = &state, .store_0 = &publication };
+
     const status = rule.executeIn(active.allocator(), &.{
         .frame = @ptrCast(&reference),
         .count = scopes.len,
         .row = 0,
         .workspace = &state.workspace,
         .status = .Valid,
-    }) catch |err| {
+    }, &host) catch |err| {
         if (state.alias_active and (err == error.Overflow or err == error.IntegerOverflow)) return error.OutOfMemory;
 
         return state.failure.unwrap(err);

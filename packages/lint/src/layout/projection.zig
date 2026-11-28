@@ -32,36 +32,36 @@ pub const Projection = struct {
     }
 
     pub fn excludeStart(self: *Projection, offset: usize, block: bool) void {
-        self.record(.{ .kind = .ExcludeStart, .start = offset, .flag = block });
+        self.record(.ExcludeStart, offset, 0, 0, block);
     }
 
     pub fn excludeEnding(self: *Projection, end: usize, block: bool) void {
-        self.record(.{ .kind = .ExcludeEnding, .end = end, .flag = block });
+        self.record(.ExcludeEnding, 0, end, 0, block);
     }
 
     pub fn multilineEnding(self: *Projection, end: usize) void {
-        self.record(.{ .kind = .MultilineEnding, .end = end });
+        self.record(.MultilineEnding, 0, end, 0, false);
     }
 
     pub fn boundary(self: *Projection, offset: usize) void {
-        self.record(.{ .kind = .Boundary, .start = offset });
+        self.record(.Boundary, offset, 0, 0, false);
     }
 
     pub fn list(self: *Projection, start: usize, count: usize) void {
-        if (count >= 2) self.record(.{ .kind = .List, .start = start, .count = count });
+        if (count >= 2) self.record(.List, start, 0, count, false);
     }
     pub fn condition(self: *Projection, span: zx.Span) void {
-        self.record(.{ .kind = .Condition, .start = span.start, .end = span.end });
+        self.record(.Condition, span.start, span.end, 0, false);
     }
 
     pub fn excludeRange(self: *Projection, span: zx.Span) void {
-        self.record(.{ .kind = .ExcludeRange, .start = span.start, .end = span.end });
+        self.record(.ExcludeRange, span.start, span.end, 0, false);
     }
 
-    fn record(self: *Projection, op: rule.Op) void {
+    fn record(self: *Projection, kind: @FieldType(rule.Op, "kind"), start: usize, end: usize, count: usize, flag: bool) void {
         if (self.failed) return;
 
-        self.ops.append(self.allocator, op) catch {
+        self.ops.append(self.allocator, .{ .kind = kind, .start = start, .end = end, .count = count, .flag = flag }) catch {
             self.failed = true;
         };
     }

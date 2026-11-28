@@ -1,6 +1,6 @@
 import bytes from "std:bytes"
 
-import { finished, visiting, workspace_root } from "./const"
+import { dependency_depth_limit, finished, visiting, workspace_root } from "./const"
 import { Status } from "./model"
 
 import type { Result } from "./model"
@@ -9,13 +9,15 @@ export type Input = {
     edges: u64[],
     offsets: u64[],
     count: u64,
-    limit: u64
+    limit?: u64
 }
 
 export type Output = Result
 
 export default function (in: Input): Output {
     const { edges, offsets } = in
+
+    const limit = in.limit ?? dependency_depth_limit
 
     const empty_stack: u64[] = []
 
@@ -63,7 +65,7 @@ export default function (in: Input): Output {
                     if (mark == visiting) {
                         s.status = Status.CyclicPackageDependencies
                         s.owner = target
-                    } else if (check_depth && depth >= in.limit) {
+                    } else if (check_depth && depth >= limit) {
                         s.status = Status.PackageDependencyDepthExceeded
                         s.owner = target
                     } else if (mark == finished) {

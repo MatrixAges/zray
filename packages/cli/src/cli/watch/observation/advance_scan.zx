@@ -1,0 +1,34 @@
+import { FactKind } from "snapshot_host"
+
+import type { CompareRow as Input, ScanRow as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { cursor, reading, same } = in
+    const { index, updates } = cursor
+
+    if (reading.fact.kind == FactKind.Failed) {
+        return {
+            ...cursor,
+            same: false,
+            failure: reading.fact.tag
+        }
+    }
+
+    if (same && cursor.started != null) {
+        return {
+            ...cursor,
+            same,
+            index: index + 1,
+            updates: updates.push({
+                row: index,
+                verified: reading.verified
+            })[0]
+        }
+    }
+
+    return {
+        ...cursor,
+        same,
+        index: index + 1
+    }
+}

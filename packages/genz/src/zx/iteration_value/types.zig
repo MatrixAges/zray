@@ -5,6 +5,25 @@ const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
 
+const CacheHost = struct {
+    owner: *Context,
+    store_0: *Record,
+    const Emit = @import("generated_iteration_types_emit");
+    const Record = std.meta.Child(@FieldType(Emit.zx_pending, "store_0"));
+
+    pub fn commit(self: *CacheHost, pending: anytype) Lower.Error!void {
+        const entry = pending.store_0 orelse return;
+
+        try self.owner.types.put(
+            self.owner.lowering.allocator,
+            @fromBackingInt(entry.type_id),
+            @fromBackingInt(entry.value),
+        );
+
+        self.store_0.* = entry;
+    }
+};
+
 pub fn get(self: *Context, id: ir.TypeId) Lower.Error!node.ExpressionId {
     if (!@import("genz_options").generated_analysis) return @import("types_seed.zig").get(self, id);
     if (self.types.get(id)) |value| return value;
@@ -56,11 +75,13 @@ pub fn get(self: *Context, id: ir.TypeId) Lower.Error!node.ExpressionId {
         .frame = @ptrCast(lowering),
         .writer = @ptrCast(lowering),
         .body = @ptrCast(self.declarations),
-        .context = @ptrCast(self),
         .request = &input,
     };
 
-    const root = emitter.executeIn(buffered.allocator(), &call) catch |err|
+    var record: CacheHost.Record = &.{ .type_id = 0, .value = 0 };
+    var host: CacheHost = .{ .owner = self, .store_0 = &record };
+
+    const root = emitter.executeIn(buffered.allocator(), &call, &host) catch |err|
         return @import("../construction/publication.zig").failure(err);
 
     return @fromBackingInt(root);

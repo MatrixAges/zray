@@ -1,5 +1,4 @@
 import block from "../../../ast/body/block"
-import boolean from "../../../ast/context/boolean"
 import builtin from "../../../ast/context/builtin"
 import conditional from "../../../ast/context/conditional"
 import { ExpressionsBuiltinName } from "../../../printer/model/expressions"
@@ -24,10 +23,6 @@ export default function (in: Input): Output {
             state: context,
             id: 0
         },
-        in.source.grow => boolean({
-            state: context,
-            value: true
-        }),
         _ => permission({
             state: context,
             value: in.source.target,
@@ -35,8 +30,41 @@ export default function (in: Input): Output {
         })
     }
 
+    const first = block({
+        state: {
+            context: header.state,
+            body: in.first.body
+        },
+        value: in.first.id
+    })
+
+    const second = match {
+        plain == null => first,
+        _ => block({
+            state: {
+                context: first.state,
+                body: plain.body
+            },
+            value: plain.id
+        })
+    }
+
+    const allocated = match {
+        plain == null => first,
+        _ => conditional({
+            state: second.state,
+            condition: header.id,
+            yes: first.id,
+            no: second.id
+        })
+    }
+
+    if (!in.source.transfer) {
+        return allocated
+    }
+
     const allowed = permission({
-        state: header.state,
+        state: allocated.state,
         value: in.source.target,
         operation: Operation.Writable
     })
@@ -47,40 +75,8 @@ export default function (in: Input): Output {
         arguments: [in.source.items]
     })
 
-    const first = block({
-        state: {
-            context: existing.state,
-            body: in.first.body
-        },
-        value: in.first.id
-    })
-
-    if (plain == null) {
-        return conditional({
-            state: first.state,
-            condition: allowed.id,
-            yes: existing.id,
-            no: first.id
-        })
-    }
-
-    const second = block({
-        state: {
-            context: first.state,
-            body: plain.body
-        },
-        value: plain.id
-    })
-
-    const allocated = conditional({
-        state: second.state,
-        condition: header.id,
-        yes: first.id,
-        no: second.id
-    })
-
     return conditional({
-        state: allocated.state,
+        state: existing.state,
         condition: allowed.id,
         yes: existing.id,
         no: allocated.id

@@ -3,34 +3,23 @@ import host from "lowering_host"
 
 import plan from "../../block/plan"
 
-import type { StatementTraversal } from "lowering_host"
-import type { Context } from "./model"
+import type { Context, ScopeCheckpoint } from "./model"
 
 export type Input = {
-    traversal: StatementTraversal,
     context: Context,
-    scope: u64,
     first: u32,
-    count: u32,
-    placement: u64
+    count: u32
 }
 
 export type Output = {
-    ok: bool,
+    checkpoint: ScopeCheckpoint,
     routes: u8[]
 }
 
 export default function (in: Input): Output {
-    const { traversal, context, scope, first, count, placement } = in
+    const { context, first, count } = in
 
-    const stack = host.openStatementScope(traversal, scope, first, count, placement)
-
-    if (stack == null) {
-        return {
-            ok: false,
-            routes: []
-        }
-    }
+    const stack = host.openStatementScope(context.frame, first, count)
 
     const routes = plan({
         control: context.control.pick([
@@ -50,11 +39,15 @@ export default function (in: Input): Output {
         count: integers.widen(count),
         mode: context.store_mode,
         store_count: context.store_count,
-        ...stack
+        stack_keys: stack.stack_keys,
+        stack_buckets: stack.stack_buckets
     })
 
     return {
-        ok: true,
+        checkpoint: stack.pick([
+            "state_checkpoint",
+            "stack_checkpoint"
+        ]),
         routes
     }
 }

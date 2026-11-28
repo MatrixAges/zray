@@ -15,9 +15,8 @@ const Initial = @import("../initial.zig");
 const Selection = @import("../../iteration_layout/select.zig").Selection;
 const Step = @import("../step.zig");
 const generated = @import("genz_options").generated_analysis;
-const Api = @import("../../expressions/evaluate.zig").Api;
 const Input = if (generated) std.meta.Child(@import("generated_lower_loop").Input) else void;
-pub const UpdateScope = if (generated) Api.LoopUpdateScope else enum { None, Projected, Ordinary };
+pub const UpdateScope = enum { None, Projected, Ordinary };
 
 const StateInfo = if (generated) std.meta.Child(@FieldType(Input, "loop_state")) else struct {
     name: []const u8,
@@ -47,6 +46,8 @@ consumer: ?Consumer,
 body: Context.Statements,
 loop: Context.Statements,
 projected_body: Context.Statements,
+skipped_body: Context.Statements,
+wrap_body: Context.Statements,
 name: []const u8 = undefined,
 state: node.ExpressionId = undefined,
 selection: Selection = undefined,
@@ -82,6 +83,8 @@ pub fn create(lowering: *Lower, id: ir.ExprId, iteration: ir.Iteration, mode: Re
         .body = statements(lowering),
         .loop = statements(lowering),
         .projected_body = statements(lowering),
+        .skipped_body = statements(lowering),
+        .wrap_body = statements(lowering),
     };
 }
 
@@ -100,7 +103,7 @@ pub fn output(self: *Self) *Context.Statements {
 pub fn restoreUpdate(self: *Self) void {
     const active: UpdateScope = self.step_scope;
 
-    if (active != .None) closeLoopUpdate(self, active);
+    if (active != .None) self.closeLoopUpdate(active);
 }
 
 pub fn restoreSeed(self: *Self) void {
@@ -116,6 +119,8 @@ pub fn release(self: *Self) void {
 
     if (self.initial_scope) |saved| saved.restore();
 
+    self.wrap_body.deinit();
+    self.skipped_body.deinit();
     self.projected_body.deinit();
     restoreParameterContext(self);
 
@@ -135,9 +140,7 @@ pub fn release(self: *Self) void {
     self.body.deinit();
 }
 
-pub fn closeLoopUpdate(handle: *anyopaque, active: UpdateScope) void {
-    const self = borrow(handle);
-
+pub fn closeLoopUpdate(self: *Self, active: UpdateScope) void {
     switch (active) {
         .None => return,
         .Projected => self.step_scope.Projected.restore(),
@@ -152,7 +155,11 @@ pub fn closeLoopUpdate(handle: *anyopaque, active: UpdateScope) void {
 
 fn restoreParameterContext(self: *Self) void {
     if (generated) {
-        if (self.parameters.context) |saved| saved.restore();
+        if (self.parameters.context) |saved| {
+            saved.restore();
+
+            self.parameters.context = null;
+        }
     } else if (self.parameters) |parameters| {
         parameters.restoreContext();
     }

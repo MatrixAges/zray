@@ -1,0 +1,6 @@
+<Store name="iteration_type_cache" version={1}>
+    <Object name="entry">
+        <Field name="type_id" type={u32} value={0} />
+        <Field name="value" type={u32} value={0} />
+    </Object>
+</Store>

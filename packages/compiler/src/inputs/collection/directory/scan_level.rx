@@ -5,37 +5,24 @@
 
     <Store from="entries" as="entries" />
 
-    <Call
-        fn="host.listGenerationLevel"
-        in={[
-            $in.scan.reader,
-            $in.parents,
-            $in.scan.workers > 1 && $in.parents.length > 1
-        ]}
-    />
-
-    <Call
-        fn="children"
-        in={{
-            parents: $in.parents,
-            directories: $ctx.listGenerationLevel.directories
-        }}
-    />
-
-    <Call
-        fn="flatten"
-        in={{
-            files: $ctx.listGenerationLevel.files,
-            width: $in.scan.width,
-            copy_paths: $in.scan.workers > 1 && $in.parents.length > 1
-        }}
-    />
+    <Loop on={$in.row < $in.step.parents.length}>
+        <Call
+            module="scan_parent"
+            in={{
+                step: $in,
+                row: 0,
+                children: [],
+                files: [],
+                count: 0
+            }}
+        />
+    </Loop>
 
     <Call
         fn="append_entries"
         in={{
             collected: $store.entries.collected,
-            batch: $ctx.flatten
+            level: $ctx.scan_parent
         }}
         setter={[$store.entries.collected]}
     />
@@ -43,7 +30,7 @@
     <Return
         value={{
             scan: $in.scan,
-            parents: $ctx.children
+            parents: $ctx.scan_parent.children
         }}
     />
 </Module>

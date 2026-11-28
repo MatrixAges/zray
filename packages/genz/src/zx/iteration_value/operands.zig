@@ -12,7 +12,6 @@ pub fn lower(context: *Context, allocator: std.mem.Allocator, operands: []const 
     const input: std.meta.Child(entry.Input) = .{
         .frame = @ptrCast(lowering),
         .writer = @ptrCast(lowering),
-        .context = @ptrCast(context),
         .operands = @ptrCast(operands),
         .fields = fields,
         .observe = observe,
@@ -22,7 +21,7 @@ pub fn lower(context: *Context, allocator: std.mem.Allocator, operands: []const 
 }
 
 pub fn observeIterationOperand(handle: *anyopaque, item: u32, reference: u32) Lower.Error!u64 {
-    const context: *Context = @ptrCast(@alignCast(handle));
+    const context = @import("../expressions/evaluate.zig").borrow(handle).iteration_value.?;
 
     return context.cache.observe(context.lowering.allocator, @fromBackingInt(item), @fromBackingInt(reference), null, &context.reads);
 }

@@ -6,13 +6,12 @@ import identifierRows from "../../../aggregate/binding/identifier_rows"
 import reference from "../../../aggregate/binding/reference"
 
 import type { AstWriter } from "ast_rows"
-import type { IterationResourceFrame, Lowering } from "lowering_host"
+import type { Lowering } from "lowering_host"
 import type { Bindings } from "../../../iteration/literals/model"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
-    context: IterationResourceFrame,
     operands: u32[],
     fields?: u32[],
     observe: bool
@@ -25,7 +24,7 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { frame, writer, context, operands, fields, observe } = in
+    const { frame, writer, operands, fields, observe } = in
 
     const empty_names: u8[][] = []
     const empty_u32: u32[] = []
@@ -63,7 +62,7 @@ export default function (in: Input): Output {
             host.finishGeneratedAst(frame, ref.serial, false)
 
             if (observe) {
-                const count = host.observeIterationOperand(context, item, ref.root)
+                const count = host.observeIterationOperand(frame, item, ref.root)
 
                 state.prior = state.prior.push(count)[0]
             }

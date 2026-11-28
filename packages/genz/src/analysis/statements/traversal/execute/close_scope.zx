@@ -1,0 +1,69 @@
+import integers from "std:integer"
+import { finishStatementScope } from "lowering_host"
+
+import packSpan from "../../../node_headers/block/span"
+
+import type { Lowering } from "lowering_host"
+import type { Write } from "../commit"
+import type { ScopeCheckpoint } from "./model"
+
+export type Input = {
+    frame: Lowering,
+    checkpoint: ScopeCheckpoint,
+    writes: Write[],
+    count: u32
+}
+
+export type Output = u64
+
+export default function (in: Input): Output {
+    const { frame, checkpoint, writes } = in
+
+    const count = integers.widen(in.count)
+    const empty: u64[] = []
+    const zero: u64 = 0
+
+    const blank = loop({
+        row: 0,
+        spans: empty
+    }, {
+        while: state => state.row < count,
+        next: state => {
+            state.spans = state.spans.push(zero)[0]
+            state.row += 1
+        },
+        return: state => state.spans
+    })
+
+    const spans = loop({
+        index: 0,
+        spans: blank
+    }, {
+        while: state => state.index < writes.length,
+        next: state => {
+            const write = writes[state.index]
+            const span = packSpan({
+                start: write.start,
+                count: integers.widen(write.count)
+            })
+
+            state.spans = state.spans.with(write.row, span)
+
+            const previous = write.previous
+
+            if (previous != null) {
+                state.spans = state.spans.with(previous, zero)
+            }
+
+            state.index += 1
+        },
+        return: state => state.spans
+    })
+
+    return finishStatementScope(
+        frame,
+        checkpoint.state_checkpoint,
+        checkpoint.stack_checkpoint,
+        spans
+    )
+}

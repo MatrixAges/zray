@@ -4,8 +4,8 @@ import type { Index as Input } from "./model"
 export default function (in: Input): Output {
     const { types, constants } = in.exports
 
-    const type_count = in.merged.exports.length / types.stride
-    const constant_count = in.merged.constant_exports.length / constants.stride
+    const type_count = in.merged.exports
+    const constant_count = in.merged.constant_exports
     const third_start = type_count + constant_count
     const count = third_start + in.member_count
 

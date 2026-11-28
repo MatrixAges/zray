@@ -1,5 +1,7 @@
 <Store name="generation_documents" version={1}>
+    <Type from="../../fingerprint/model" as="Fingerprint" />
+
     <Object name="loaded">
-        <Field name="batches" type={u8[][]} value={[]} />
+        <Field name="batches" type={Fingerprint.Document[][]} value={[]} />
     </Object>
 </Store>

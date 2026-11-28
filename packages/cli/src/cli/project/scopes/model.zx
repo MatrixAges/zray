@@ -1,4 +1,5 @@
 import type { ReadColumn, TextColumn } from "memory"
+import type { Resolved } from "native_scope_host"
 
 export type DeclarationBinding = {
     specifier: string,
@@ -24,31 +25,28 @@ export type Published = {
 }
 
 export type DeclarationRows = {
-    identities: ReadColumn,
-    specifiers: TextColumn,
     paths: TextColumn,
-    modules: TextColumn,
     namespaces: ReadColumn,
     count: u64
 }
 
 export type Declarations = DeclarationRows
 
-export type ExternalRows = {
-    identities: ReadColumn,
-    names: TextColumn,
-    count: u64
+export type Publication = {
+    declarations: Declarations
 }
 
-export type Externals = ExternalRows
-
-export type Publication = {
-    declarations: Declarations,
-    externals: Externals
+export type PublishInput = Publication & {
+    resolved: Resolved[]
 }
 
 export type Settings = {
     names: string[],
     root: string,
     includes: string[]
+}
+
+export type Results = {
+    paths: string[],
+    settings: PublishedSetting[]
 }

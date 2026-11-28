@@ -12,7 +12,7 @@ const publication = @import("../../construction/publication.zig");
 const generated = @import("genz_options").generated_analysis;
 const Error = Lower.Error;
 const Api = @import("../../expressions/evaluate.zig").Api;
-const Layout = if (generated) Api.LoopParameterLayout else @import("../parameters_seed.zig").Layout;
+const Layout = @FieldType(@import("../initial.zig").Plan, "parameters");
 
 pub fn lowerLoopFirstTest(handle: *anyopaque) Error!?u32 {
     const frame = Frame.borrow(handle);
@@ -25,8 +25,7 @@ pub fn lowerLoopFirstTest(handle: *anyopaque) Error!?u32 {
     return @backingInt(try frame.lowering.expr(@fromBackingInt(condition)));
 }
 
-pub fn enterLoopUpdate(handle: *anyopaque, update: Frame.UpdateScope, delayed: bool) void {
-    const frame = Frame.borrow(handle);
+pub fn enterLoopUpdate(frame: *Frame, update: Frame.UpdateScope, delayed: bool) void {
     const self = frame.lowering;
 
     frame.step_scope = switch (update) {
@@ -177,17 +176,7 @@ fn resultConfig(frame: *Frame, initial: node.ExpressionId, changed_name: []const
     };
 }
 
-pub fn completeLoopResult(handle: *anyopaque, initial: u32, state: u32, spans: *const Api.LoopEmissionSpans, changed_name: ?[]const u8) Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try resultConfig(frame, @fromBackingInt(initial), changed_name orelse &.{}).lower(frame.lowering, frame.output(), @fromBackingInt(state), .{
-        .renewals = publication.unpackSpan(spans.renewals),
-        .declarations = publication.unpackSpan(spans.declarations),
-        .frame = publication.unpackSpan(spans.frame),
-    }));
-}
-
-pub fn finishSkippedLoop(handle: *anyopaque, initial: u32, value: u32, first: u32, changed_name: ?[]const u8) Error!u32 {
+fn finishSkippedLoop(handle: *anyopaque, initial: u32, value: u32, first: u32, changed_name: ?[]const u8) Error!u32 {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     var skipped = Frame.statements(self);

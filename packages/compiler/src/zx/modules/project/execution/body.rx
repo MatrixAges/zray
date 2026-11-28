@@ -124,33 +124,41 @@
 
     <If on={$ctx.register_cache != null}>
         <Call
-            fn="../../../../core/row_buffer/reserve_append"
-            in={[
-                $in.installation.cache.storage,
-                $in.installation.cache.used,
-                1,
-                $in.installation.backing
-            ]}
+            fn="../../../../core/row_buffer/capacity"
+            in={$in.installation.cache}
         />
+
+        <If on={$ctx.capacity > $in.installation.cache.current}>
+            <Call
+                fn="body_stage"
+                in={{
+                    step: Effect.Step.ReserveCache,
+                    count: $ctx.capacity
+                }}
+                setter={[$store.body.effect]}
+            />
+        </If>
     </If>
 
     <Call
-        fn="../../../../core/row_buffer/reserve_append"
-        in={[
-            $in.installation.records.storage,
-            $in.installation.records.used,
-            1,
-            $in.installation.resource
-        ]}
+        fn="../../../../core/row_buffer/capacity"
+        in={$in.installation.records}
     />
+
+    <If on={$ctx.capacity > $in.installation.records.current}>
+        <Call
+            fn="body_stage"
+            in={{
+                step: Effect.Step.ReserveRecord,
+                count: $ctx.capacity
+            }}
+            setter={[$store.body.effect]}
+        />
+    </If>
 
     <Return
         value={{
             record: {
-                row: $in.installation.records.used,
-                exports: $ctx.publish.exports,
-                constants: $ctx.publish.constant_exports,
-                members: $ctx.publish.members,
                 entry: $ctx.publish.entry,
                 publication: $ctx.plan.publication,
                 function_id: $ctx.plan.id,

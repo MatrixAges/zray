@@ -64,7 +64,7 @@ export type SourceDocument = {
 }
 
 export type SourceInput = SourceDocument & {
-    maximum_lines: u64
+    maximum_lines?: u64
 }
 
 export type SemanticInput = {

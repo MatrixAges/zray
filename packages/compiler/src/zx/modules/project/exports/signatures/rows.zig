@@ -1,21 +1,17 @@
 const std = @import("std");
 const Member = @import("../../../source_signature.zig").Member;
-const typedRows = @import("../publication/rows.zig").typedRows;
 
-pub fn commit(allocator: std.mem.Allocator, target: []Member, change: anytype) std.mem.Allocator.Error!void {
+pub fn commit(allocator: std.mem.Allocator, target: []Member, source: []const Member, change: anytype) std.mem.Allocator.Error!void {
     const row: usize = @intCast(change.row);
 
     switch (change.action) {
-        .Forwarded => {
-            const source = typedRows(Member, change.rows);
-
-            @memcpy(target[row..][0..source.len], source);
-        },
+        .Reserve => unreachable,
+        .Forwarded => @memcpy(target[row..][0..source.len], source),
         .Reexport => {
-            var source = typedRows(Member, change.rows)[@intCast(change.source_row)];
+            var member = source[@intCast(change.source_row)];
 
-            source.name = try allocator.dupe(u8, change.name);
-            target[row] = source;
+            member.name = try allocator.dupe(u8, change.name);
+            target[row] = member;
         },
         .Value => {
             const name = if (change.own_name) try allocator.dupe(u8, change.name) else change.name;

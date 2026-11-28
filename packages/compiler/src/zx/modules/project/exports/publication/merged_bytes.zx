@@ -1,9 +1,0 @@
-import columns from "memory/columns"
-
-import type { RowBuffer as Input } from "memory/columns"
-
-export type Output = u8[]
-
-export default function (in: Input): Output {
-    return columns.rowBufferBytes(in)
-}

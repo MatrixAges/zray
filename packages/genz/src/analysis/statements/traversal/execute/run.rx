@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Execution" />
 
-    <Args in={Execution.Input} out={bool} />
+    <Args in={Execution.Input} out={u64?} />
 
     <If on={$in.plan.flat}>
         <Call module="flat" in={$in} />
@@ -12,11 +12,10 @@
     <Call
         module="walk"
         in={$in.pick([
-            "traversal",
             "context",
             "plan"
         ])}
     />
 
-    <Return value={$ctx.walk == $in.plan.actions.length} />
+    <Return value={$ctx.walk} />
 </Module>

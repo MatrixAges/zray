@@ -7,14 +7,8 @@ export {
     takeAstSequence
 } from "ast_rows"
 export {
-    LoopParameterLayout,
-    enterLoopRepresentation,
-    addLoopParameterMembers,
-    openLoopParameterContext,
     emitLoopRenewals,
     projectLoopAssignment,
-    enterLoopUpdate,
-    closeLoopUpdate,
     lowerExpression,
     maskLoopBorrowedFields,
     declareProjectedLoopState,

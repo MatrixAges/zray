@@ -1,0 +1,6 @@
+<Store name="statement_selection_binding" version={1}>
+    <Object name="binding">
+        <Field name="subject" type={u32} value={0} />
+        <Field name="reference" type={u32?} value={null} />
+    </Object>
+</Store>

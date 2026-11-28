@@ -18,12 +18,12 @@ const StoreHost = struct {
     members: *Members,
     pub fn commit(self: *StoreHost, pending: anytype) std.mem.Allocator.Error!void {
         if (pending.store_0) |row| {
-            try @import("../../exports/signatures/rows.zig").commit(self.allocator, self.members.storage.rows(), row);
+            try self.members.commit(self.allocator, row);
         }
 
         if (pending.store_1) |row| switch (row.kind) {
-            .Types => try self.types.merge(self.allocator, row.own, row.forwarded),
-            .Constants => try self.constants.merge(self.allocator, row.own, row.forwarded),
+            .Types => try self.types.merge(self.allocator),
+            .Constants => try self.constants.merge(self.allocator),
             .Members => unreachable,
         };
     }
@@ -32,43 +32,48 @@ const StoreHost = struct {
 const Members = struct {
     const Shape = std.meta.Child(@FieldType(Input, "members"));
 
-    const Target = struct {
-        name: *anyopaque,
-        kind: *anyopaque,
-        input_type: *anyopaque,
-        output_type: *anyopaque,
-        source: *anyopaque,
-        has_store: *anyopaque,
-    };
-
-    const Storage = memory.RowOutput(Signature.Member, Target, .{
+    const paths = .{
+        .name = &.{"name"},
+        .kind = &.{"kind"},
         .input_type = &.{ "ports", "input_type" },
         .output_type = &.{ "ports", "output_type" },
-    });
+        .source = &.{"source"},
+        .has_store = &.{"has_store"},
+    };
 
+    const fields = @typeInfo(@TypeOf(paths)).@"struct".field_names;
     const kinds = Signature.kinds(std.meta.Child(@FieldType(Shape, "kinds")));
 
-    storage: Storage,
-    columns: [@typeInfo(Target).@"struct".field_names.len]memory.ReadColumn,
-    reads: memory.RowGrowth,
+    storage: []Signature.Member = &.{},
+    forwarded: []const Signature.Member,
+    columns: [fields.len]memory.ReadColumn = undefined,
     fn column(self: *const Members, comptime name: []const u8) *const memory.ReadColumn {
-        return &self.columns[std.meta.fieldIndex(Target, name).?];
+        return &self.columns[std.meta.fieldIndex(@TypeOf(paths), name).?];
     }
-    fn request(self: *Members, allocator: *const std.mem.Allocator, signature: *const Signature.Result, forwarded: []const Signature.Member, bindings: @FieldType(Shape, "bindings"), declaration: @FieldType(Shape, "callable"), facts: @FieldType(Shape, "signature")) Shape {
-        self.storage.init();
 
-        self.reads = .{ .target = &self.storage.buffer, .reads = &self.columns };
+    fn commit(self: *Members, allocator: std.mem.Allocator, row: anytype) std.mem.Allocator.Error!void {
+        if (row.action == .Reserve) {
+            self.storage = try allocator.alloc(Signature.Member, @intCast(row.row));
 
+            inline for (fields, &self.columns) |name, *descriptor| {
+                const path: []const []const u8 = @field(paths, name);
+                const Field = memory.columnFieldLayout(Signature.Member, path).type;
+                descriptor.* = memory.borrowNestedColumn(Field, path, self.storage);
+            }
+
+            return;
+        }
+
+        try @import("../../exports/signatures/rows.zig").commit(allocator, self.storage, self.forwarded, row);
+    }
+
+    fn request(self: *const Members, signature: *const Signature.Result, bindings: @FieldType(Shape, "bindings"), declaration: @FieldType(Shape, "callable"), facts: @FieldType(Shape, "signature")) Shape {
         return .{
             .callable = declaration,
             .declared = !signature.type_only,
             .kinds = &kinds,
-            .forwarded = std.mem.sliceAsBytes(forwarded),
+            .forwarded = self.forwarded.len,
             .bindings = bindings,
-            .storage = @ptrCast(&self.storage.buffer),
-            .resource = @ptrCast(allocator),
-            .reads = @ptrCast(&self.reads),
-            .stride = @sizeOf(Signature.Member),
             .names = @ptrCast(self.column("name")),
             .signature = facts,
         };
@@ -78,8 +83,7 @@ const Members = struct {
 pub fn run(state: *project.Project, frame: *project.LoadFrame, unit: *project.Unit) zx.Error!void {
     const signature = &unit.signature.?;
     const allocator = state.allocator;
-    const ir = zx.ir;
-    var members: Members = undefined;
+    var members: Members = .{ .forwarded = frame.signature_members.items };
     var types: TypeRows = undefined;
     var constants: ConstantRows = undefined;
     var arena = std.heap.ArenaAllocator.init(state.arena.child_allocator);
@@ -123,14 +127,14 @@ pub fn run(state: *project.Project, frame: *project.LoadFrame, unit: *project.Un
         .intrinsic = @backingInt(Signature.Member.Kind.intrinsic),
     };
 
-    const target = members.request(&allocator, signature, frame.signature_members.items, &binding_rows, &declaration, &selection);
+    const target = members.request(signature, &binding_rows, &declaration, &selection);
     const type_rows = types.borrow(signature.exports, frame.export_aliases.items, false);
     const constant_rows = constants.borrow(signature.constant_exports, frame.export_constants.items, false);
     const exports: Exports = .{ .types = &type_rows, .constants = &constant_rows };
 
-    errdefer allocator.free(members.storage.rows());
-    errdefer allocator.free(types.storage.rows());
-    errdefer allocator.free(constants.storage.rows());
+    errdefer allocator.free(members.storage);
+    errdefer allocator.free(types.allocated);
+    errdefer allocator.free(constants.allocated);
 
     const input: Input = .{
         .members = &target,
@@ -155,9 +159,9 @@ pub fn run(state: *project.Project, frame: *project.LoadFrame, unit: *project.Un
     if (effective.duplicate) |name| return project.public_exports.reportDuplicate(allocator, state.reporter, name);
     if (effective.invalid) return state.reporter.fail(.module, .{ .start = 0, .end = 0 }, "a default re-export requires a callable source");
 
-    signature.members = members.storage.rows();
-    signature.exports = rows.typedRows(ir.Export, result.exports);
-    signature.constant_exports = rows.typedRows(ir.Constant, result.constant_exports);
+    signature.members = members.storage;
+    signature.exports = types.result();
+    signature.constant_exports = constants.result();
     signature.ports = .{ .input_type = @fromBackingInt(effective.input_type), .output_type = @fromBackingInt(effective.output_type) };
     signature.has_store = effective.has_store;
     signature.type_only = effective.type_only;

@@ -1,0 +1,49 @@
+<Module>
+    <Type from="../../binding/execute/model" as="Binding" />
+
+    <Args in={Binding.Input} out={u64} />
+
+    <Call fn="../../binding/after" in={$in.policy} />
+
+    <Call
+        fn="../../binding/execute/resolve_type"
+        in={{
+            ...$in.pick([
+                "frame",
+                "type_id",
+                "loop_layout"
+            ]),
+            mode: $ctx.after.type_mode
+        }}
+    />
+
+    <Call
+        fn="../../binding/emit"
+        in={{
+            kind: $ctx.after.kind,
+            name: $in.name,
+            type_expr: $ctx.resolve_type,
+            value: $in.value
+        }}
+    />
+
+    <Call
+        fn="../rows.appendAstBindingRows"
+        in={[
+            $in.writer,
+            $in.sequence,
+            $ctx.emit
+        ]}
+    />
+
+    <Call
+        fn="../rows.takeAstSequence"
+        in={[
+            $in.writer,
+            $in.sequence,
+            true
+        ]}
+    />
+
+    <Return value={$ctx.takeAstSequence} />
+</Module>

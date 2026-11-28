@@ -12,9 +12,9 @@ pub fn lower(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
     var body: std.ArrayList(node.Statement) = .empty;
     const type_id = self.program.expression(update.target).type_id;
     const selected = @import("state_value/list.zig").selected(self, type_id);
-    const evaluated_source = try self.expr(update.target);
-    const qualified_source = if (selected) try @import("state_value/ownership.zig").clip(self, &body, update.target, evaluated_source) else evaluated_source;
-    const source_value = try aggregate.bind(self, &body, qualified_source);
+    const plan = @import("list_update.zig").bufferPlan(self, id, update.target, selected);
+    const lists = @import("state_value/list.zig");
+    const source_value = try aggregate.bind(self, &body, try self.expr(update.target));
     const source = try @import("state_value/list.zig").items(self, type_id, source_value);
     const index = try aggregate.bind(self, &body, try self.expr(update.index));
 
@@ -23,39 +23,40 @@ pub fn lower(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
     const evaluated = try aggregate.bind(self, &body, try self.expr(update.value));
     const value = try @import("state_value/elements.zig").write(self, &body, type_id, evaluated);
     const element = try @import("state_value/elements.zig").typeExpr(self, type_id);
-    const flags = self.plan.get(id);
-    const deferred = selected and self.deferred_lists;
 
-    const buffer = if (deferred) guarded: {
-        var copied: std.ArrayList(node.Statement) = .empty;
-        const private = try @import("growth.zig").copy(self, &copied, element, source, !self.may_grow);
-
-        break :guarded try aggregate.bind(self, &body, try self.builder.expression(.{ .conditional = .{
-            .condition = try @import("state_value/list.zig").writable(self, source_value),
-            .yes = try self.builtin(.constCast, &.{source}),
-            .no = try aggregate.finish(self, &copied, private),
-        } }));
-    } else if (flags.in_place)
+    const buffer = if (plan.in_place and !plan.deferred)
         try aggregate.bind(self, &body, try self.builtin(.constCast, &.{source}))
 
     else if (selected) chosen: {
         var copied: std.ArrayList(node.Statement) = .empty;
-        var plain: std.ArrayList(node.Statement) = .empty;
-        const grown = try @import("growth.zig").reserve(self, &copied, element, source, try self.field(source, "len"), false);
-        const duplicated = try aggregate.bind(self, &plain, try self.call(try self.field(try self.builder.identifier("allocator"), "dupe"), &.{ element, source }, true));
-        const headered = if (flags.grow) try self.builder.expression(.{ .boolean = true }) else try @import("state_value/list.zig").headered(self, source_value);
-        const writable = try @import("state_value/list.zig").writable(self, source_value);
 
-        break :chosen try aggregate.bind(self, &body, try self.builder.expression(.{ .conditional = .{
-            .condition = writable,
-            .yes = try self.builtin(.constCast, &.{source}),
-            .no = try self.builder.expression(.{ .conditional = .{
-                .condition = headered,
-                .yes = try aggregate.finish(self, &copied, grown),
+        const private = if (plan.deferred)
+            try @import("growth.zig").copy(self, &copied, element, source, !self.may_grow)
+        else
+            try @import("growth.zig").reserve(self, &copied, element, source, try self.field(source, "len"), false);
+
+        const allocated = if (plan.deferred or plan.grow)
+            try aggregate.finish(self, &copied, private)
+
+        else split: {
+            var plain: std.ArrayList(node.Statement) = .empty;
+            const duplicated = try aggregate.bind(self, &plain, try self.call(try self.field(try self.builder.identifier("allocator"), "dupe"), &.{ element, source }, true));
+
+            break :split try self.builder.expression(.{ .conditional = .{
+                .condition = try lists.headered(self, source_value),
+                .yes = try aggregate.finish(self, &copied, private),
                 .no = try aggregate.finish(self, &plain, duplicated),
-            } }),
-        } }));
-    } else if (flags.grow)
+            } });
+        };
+
+        const storage = if (plan.transfer) try self.builder.expression(.{ .conditional = .{
+            .condition = try lists.writable(self, source_value),
+            .yes = try self.builtin(.constCast, &.{source}),
+            .no = allocated,
+        } }) else allocated;
+
+        break :chosen try aggregate.bind(self, &body, storage);
+    } else if (plan.grow)
         try @import("growth.zig").reserve(self, &body, element, source, try self.field(source, "len"), false)
     else
         try aggregate.bind(self, &body, try self.call(try self.field(try self.builder.identifier("allocator"), "dupe"), &.{ element, source }, true));
@@ -65,10 +66,11 @@ pub fn lower(self: *Lower, id: ir.ExprId) Lower.Error!node.ExpressionId {
     try body.append(self.allocator, .{ .assignment = .{ .target = slot, .value = value } });
 
     const result = if (selected) result: {
-        const lists = @import("state_value/list.zig");
-
-        const headered = if (flags.grow or deferred)
-            try intrinsics.binary(self, .not_equal, try self.field(source_value, "storage"), try lists.tag(self, .owned))
+        const headered = if (plan.grow or plan.deferred)
+            (if (plan.transfer)
+                try intrinsics.binary(self, .not_equal, try self.field(source_value, "storage"), try lists.tag(self, .owned))
+            else
+                try self.builder.expression(.{ .boolean = true }))
         else
             try lists.headered(self, source_value);
 

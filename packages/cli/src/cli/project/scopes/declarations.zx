@@ -1,27 +1,33 @@
 import memory from "memory"
 
-import type { DeclarationRows as Input, PublishedDeclaration } from "./model"
+import type { Resolved } from "native_scope_host"
+import type { DeclarationRows, PublishedDeclaration } from "./model"
+
+export type Input = {
+    rows: DeclarationRows,
+    resolved: Resolved[]
+}
 
 export type Output = PublishedDeclaration[]
 
 export default function (in: Input): Output {
+    const { rows, resolved } = in
+
     const empty: PublishedDeclaration[] = []
 
     return loop({
         row: 0,
         items: empty
     }, {
-        while: state => state.row < in.count,
+        while: state => state.row < rows.count,
         next: state => {
             const { row } = state
-            const identity = memory.readOptionalTextColumn(in.identities, row)
-            const specifier = identity ?? memory.readTextColumn(in.specifiers, row)
-            const path = memory.readTextColumn(in.paths, row)
-            const module = memory.readTextColumn(in.modules, row)
-            const namespace = memory.readTextListColumn(in.namespaces, row)
+            const { identity, module } = resolved[row]
+            const path = memory.readTextColumn(rows.paths, row)
+            const namespace = memory.readTextListColumn(rows.namespaces, row)
 
             state.items = state.items.push({
-                specifier,
+                specifier: identity,
                 path,
                 module,
                 namespace

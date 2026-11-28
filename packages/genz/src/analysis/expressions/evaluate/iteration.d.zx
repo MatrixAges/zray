@@ -1,33 +1,7 @@
-export declare function beginLoweredLoop(loop_frame: LoopFrame): LoopAdmission
-    throws { OutOfMemory }
-
-export declare function setLoopInitialScope(loop_frame: LoopFrame, active: bool): void
-
-export declare function addLoopParameterMembers(
-    frame: LoopFrame,
-    condition: bool,
-    step: bool
-): void throws { OutOfMemory }
-
-export declare function openLoopParameterContext(frame: LoopFrame): void
-
-export declare function enterLoopUpdate(
-    frame: LoopFrame,
-    scope: LoopUpdateScope,
-    delayed: bool
-): void
-
-export declare function closeLoopUpdate(frame: LoopFrame, scope: LoopUpdateScope): void
-
 export declare function guardLoopInitial(frame: LoopFrame, value: u32): void
     throws { OutOfMemory }
 
-export declare function enterLoopRepresentation(frame: LoopFrame): void throws { OutOfMemory }
-
 export declare function prepareLoopFields(frame: LoopFrame): bool throws { OutOfMemory }
-
-export declare function deepenLoopInitial(frame: LoopFrame, value: u32): u32
-    throws { OutOfMemory }
 
 export declare function emitLoopRenewals(
     frame: LoopFrame,
@@ -45,22 +19,6 @@ export declare function projectLoopAssignment(frame: LoopFrame, value: u32): u32
     throws { OutOfMemory }
 
 export declare function restoreLoopFields(frame: LoopFrame): u32 throws { OutOfMemory }
-
-export declare function completeLoopResult(
-    frame: LoopFrame,
-    initial: u32,
-    state: u32,
-    spans: LoopEmissionSpans,
-    changed_name: u8[]?
-): u32 throws { OutOfMemory }
-
-export declare function finishSkippedLoop(
-    frame: LoopFrame,
-    initial: u32,
-    value: u32,
-    first: u32,
-    changed_name: u8[]?
-): u32 throws { OutOfMemory }
 
 export declare function consumeDeepLoopResult(
     frame: Lowering,
@@ -83,15 +41,9 @@ export declare function consumeLoopProjection(
     converted: bool
 ): LoopConsumption throws { OutOfMemory }
 
-export declare function wrapLoopResult(
-    frame: Lowering,
-    type_id: u32,
-    state: u32,
-    layout: bool
-): u32 throws { OutOfMemory }
-
 export declare function convertLoopResult(
     context: IterationResourceFrame,
     type_id: u32,
-    state: u32
+    state: u32,
+    output: bool
 ): u32 throws { OutOfMemory }

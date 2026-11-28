@@ -2,13 +2,13 @@ export type AtomicRows = opaque
 export type U64View = opaque
 
 export type NamedRows = opaque
-export type TextSlots = mutable_opaque
 
 export type Allocator = opaque
 
 export type TextColumn = opaque
 export type ReadColumn = opaque
 export type ListColumn = opaque
+export type ListProjection = opaque
 export type OptionalListColumn = opaque
 export type ColumnLengths = opaque
 export type ColumnTransfers = opaque

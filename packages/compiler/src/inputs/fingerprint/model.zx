@@ -1,4 +1,5 @@
 import type { TextColumn } from "memory"
+import type { Version } from "../snapshot/records/write_shape"
 
 export type Text = {
     first: TextColumn,
@@ -14,6 +15,13 @@ export type Pair = {
 export type DigestRow = {
     path: string,
     digest: u8[]
+}
+
+export type Document = {
+    path: string,
+    source: string,
+    digest: u8[],
+    version?: Version
 }
 
 export type ModulePair = Pair & {

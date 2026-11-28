@@ -4,6 +4,8 @@
 
     <Args in={Scopes.Input} out={Host.Admission} />
 
+    <Store from="publication" as="session" />
+
     <Call
         fn="index.openNativeScope"
         in={[
@@ -64,7 +66,6 @@
         <Return value={$ctx.read.status} />
     </If>
 
-    <Call fn="index.reserveNativeScopeIndex" in={$in.frame} />
     <Call fn="index.checkModules" in={$in.workspace.modules} />
 
     <If on={$ctx.checkModules.status != Host.Admission.Valid}>
@@ -76,7 +77,7 @@
         in={{
             window: $ctx.openNativeScope,
             local: {
-                items: $in.workspace.modules.index.names,
+                items: $in.workspace.modules.names,
                 length: $in.workspace.modules.count
             }
         }}
@@ -105,7 +106,8 @@
                     "interfaces"
                 ]),
                 index: 0,
-                status: Host.Admission.Valid
+                status: Host.Admission.Valid,
+                resolved: []
             }}
         />
     </Loop>
@@ -114,16 +116,21 @@
         <Return value={$ctx.bind_row.status} />
     </If>
 
-    <Call fn="index.reserveNativeScopeDeclarations" in={$in.frame} />
-
-    <Call module="publish" in={$in.workspace.declarations} />
+    <Call
+        module="publish"
+        in={{
+            ...$in.workspace.declarations,
+            resolved: $ctx.bind_row.resolved
+        }}
+    />
 
     <Call
         fn="index.finishNativeScopeDeclarations"
         in={[
             $in.frame,
             $ctx.publish.declarations,
-            $ctx.publish.externals
+            $ctx.publish.externals,
+            $ctx.bind_row.resolved
         ]}
     />
 
@@ -135,38 +142,31 @@
         }}
     />
 
-    <Call
-        fn="index.publishNativeScopeLibraryPaths"
-        in={[
-            $in.frame,
-            $ctx.paths
-        ]}
-    />
-
     <If on={$ctx.openNativeScope.modules != 0}>
         <Call module="modules" in={$in.workspace.traversal} />
 
         <If on={$ctx.modules != Host.Admission.Valid}>
             <Return value={$ctx.modules} />
         </If>
-
-        <Call
-            fn="settings"
-            in={{
-                names: $in.workspace.binding.registry.names,
-                root: $ctx.openNativeScope.scope.owner,
-                includes: $in.workspace.traversal.sources.default_includes
-            }}
-        />
-
-        <Call
-            fn="index.publishNativeScopeSettings"
-            in={[
-                $in.frame,
-                $ctx.settings
-            ]}
-        />
     </If>
+
+    <Call
+        fn="settings"
+        in={{
+            names: $in.workspace.binding.registry.names,
+            root: $ctx.openNativeScope.scope.owner,
+            includes: $in.workspace.traversal.sources.default_includes
+        }}
+    />
+
+    <Call
+        fn="record_results"
+        in={{
+            paths: $ctx.paths,
+            settings: $ctx.settings
+        }}
+        setter={[$store.session.result]}
+    />
 
     <Call fn="index.closeNativeScope" in={$in.frame} />
 

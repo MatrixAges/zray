@@ -67,6 +67,8 @@ const StoreHost = struct {
             .Materialize => try body.installation.ownFunction(body.project.allocator, &body.program),
             .CheckOwnership => try checkOwnership(body, effect.count.?, effect.id),
             .BindExports => body.exports.bind(&body.program, body.frame, if (effect.id) |id| @fromBackingInt(id) else null),
+            .ReserveCache => try body.project.cache_records.ensureTotalCapacityPrecise(body.project.arena.child_allocator, @intCast(effect.count.?)),
+            .ReserveRecord => try body.project.modules.ensureTotalCapacityPrecise(body.project.allocator, @intCast(effect.count.?)),
         };
 
         const export_slot = if (comptime std.mem.eql(u8, EffectSlot, "store_0")) "store_1" else "store_0";
@@ -110,7 +112,6 @@ pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
 
         errdefer body.exports.release(project.allocator);
         body.installation.bind(project);
-        defer body.installation.commit();
 
         const cache = project.semantic_cache;
         const usage: zx.memory.ColumnLengths = if (cache) |store| &.{ &store.analyzed, &store.reused } else &.{};
@@ -170,14 +171,7 @@ pub fn run(project: *Project, frame: *LoadFrame, input: anytype) zx.Error!void {
             if (pending.retain_entry) retainEntry(&body);
         }
 
-        if (outcome.cache_record) |index| {
-            const cache_tail = &body.installation.cache;
-
-            cache_tail.output.rows()[@intCast(cache_tail.length)] = @intCast(index);
-
-            cache_tail.length += 1;
-        }
-
+        if (outcome.cache_record) |index| project.cache_records.appendAssumeCapacity(@intCast(index));
         if (outcome.duplicate) |name| return exports.reportDuplicate(project.allocator, project.reporter, name);
         if (outcome.cache_root) |root| project.cache_root = @intCast(root);
 
@@ -329,13 +323,11 @@ fn publishSeedExports(body: *Body) zx.Error!void {
 }
 
 fn publishRecord(body: *Body, pending: anytype) void {
-    const rows = @import("../exports/publication/rows.zig");
     const unit = body.unit;
-    const modules = &body.installation.modules;
 
-    unit.exports = rows.typedRows(ir.Export, pending.exports);
-    unit.constants = rows.typedRows(ir.Constant, pending.constants);
-    unit.members = rows.typedRows(project_api.FunctionImport, pending.members);
+    unit.exports = body.exports.types.result();
+    unit.constants = body.exports.constants.result();
+    unit.members = body.exports.members.result();
     unit.function = if (pending.entry) |id| @fromBackingInt(id) else null;
 
     const kind: @FieldType(ModuleRecord, "body") = switch (pending.publication) {
@@ -346,9 +338,7 @@ fn publishRecord(body: *Body, pending: anytype) void {
 
     const recursive: ?ir.FunctionId = if (pending.recursive) |id| @fromBackingInt(id) else null;
 
-    modules.output.rows()[@intCast(pending.row)] = record(body, kind, recursive);
-
-    modules.length = pending.row + 1;
+    body.project.modules.appendAssumeCapacity(record(body, kind, recursive));
 }
 
 inline fn record(body: *const Body, kind: @FieldType(ModuleRecord, "body"), recursive: ?ir.FunctionId) ModuleRecord {

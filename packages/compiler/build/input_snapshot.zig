@@ -11,7 +11,7 @@ const name = "input-snapshots";
 const Root = struct { path: []const u8, entries: []const collection.Entry };
 const Fact = source.Observation;
 
-roots: []const Root,
+roots: []const Root = &.{},
 facts: []const Fact,
 context: []const u8,
 path: []const u8,
@@ -34,7 +34,17 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocato
         }
     }
 
-    if (!try observeInterfaces(io, allocator, &facts, project.interfaces)) return .{ .roots = roots, .facts = &.{}, .context = "", .path = "" };
+    var observed = try inspect(io, allocator, files, digest, project.interfaces, text, partitions, cache, facts);
+
+    observed.roots = roots;
+
+    return observed;
+}
+
+pub fn inspect(io: std.Io, allocator: std.mem.Allocator, files: *Files, digest: [32]u8, interfaces: []const manifest.Interface, text: []const u8, partitions: u32, cache: []const u8, source_facts: std.ArrayList(Fact)) !Self {
+    var facts = source_facts;
+
+    if (!try observeInterfaces(io, allocator, &facts, interfaces)) return .{ .facts = &.{}, .context = "", .path = "" };
     try compiler.source_inputs.order.sort(Fact, files.gpa, facts.items);
 
     const here = try std.process.currentPathAlloc(io, allocator);
@@ -43,7 +53,7 @@ pub fn prepare(io: std.Io, allocator: std.mem.Allocator, paths: std.mem.Allocato
     const path = try std.fs.path.join(allocator, &.{ cache, name, context });
     const fingerprint = try reuseSaved(io, files.gpa, path, context, facts.items);
 
-    return .{ .roots = roots, .facts = facts.items, .context = context, .path = path, .fingerprint = fingerprint };
+    return .{ .facts = facts.items, .context = context, .path = path, .fingerprint = fingerprint };
 }
 
 fn reuseSaved(io: std.Io, workspace: std.mem.Allocator, path: []const u8, context: []const u8, facts: []const Fact) !?[32]u8 {
@@ -75,12 +85,7 @@ pub fn save(self: Self, io: std.Io, files: *const Files, fingerprint: [32]u8) !v
     defer scratch.deinit();
 
     const allocator = scratch.allocator();
-
-    const bytes = if (comptime source.binary_records)
-        try encode(allocator, self.context, self.facts, files, &fingerprint) orelse return
-    else
-        try seed.encode(allocator, self.context, self.facts, files, &fingerprint) orelse return;
-
+    const bytes = try seed.encode(allocator, self.context, self.facts, files, &fingerprint) orelse return;
     const checksum = source.seal(bytes) orelse return;
     var file = try std.Io.Dir.cwd().createFileAtomic(io, self.path, .{ .make_path = true, .replace = true });
 
@@ -89,54 +94,6 @@ pub fn save(self: Self, io: std.Io, files: *const Files, fingerprint: [32]u8) !v
     try file.file.writeStreamingAll(io, &checksum);
     try file.file.writeStreamingAll(io, bytes);
     try file.replace(io);
-}
-
-fn encode(allocator: std.mem.Allocator, context: []const u8, facts: []const Fact, files: *const Files, fingerprint: *const [32]u8) !?[]const u8 {
-    const records = source.records;
-    const size = records.measure(facts) orelse return null;
-    const rule = @import("generated_input_records_write");
-    const memory = @import("zx").memory;
-    const paths = memory.borrowTextColumn("path", facts);
-    const Row = std.meta.Child(@FieldType(std.meta.Child(rule.Input), "versions"));
-    const rows = try allocator.alloc(Row, facts.len);
-    const versions = try allocator.alloc(std.meta.Child(Row), facts.len);
-    const count = collectVersions(facts, files, rows, versions);
-
-    const payload = (try rule.executeIn(allocator, &.{
-        .context = context,
-        .digest = fingerprint,
-        .count = facts.len,
-        .paths = @ptrCast(&paths),
-        .versions = rows[0..count],
-    })) orelse return null;
-
-    std.debug.assert(payload.len == size);
-
-    return payload;
-}
-
-fn collectVersions(facts: []const Fact, files: *const Files, rows: anytype, versions: anytype) usize {
-    for (facts, rows, versions, 0..) |fact, *row, *out, index| {
-        const version = files.version(fact.key) orelse return index;
-        const modified = source.timestamp(version.metadata.mtime);
-        const changed = source.timestamp(version.metadata.ctime);
-        const read = source.timestamp(version.read);
-
-        out.* = .{
-            .inode = version.metadata.inode,
-            .size = version.metadata.size,
-            .mtime_low = modified.low,
-            .ctime_low = changed.low,
-            .read_low = read.low,
-            .mtime_high = modified.high,
-            .ctime_high = changed.high,
-            .read_high = read.high,
-        };
-
-        row.* = out;
-    }
-
-    return facts.len;
 }
 
 fn observeInterfaces(io: std.Io, allocator: std.mem.Allocator, facts: *std.ArrayList(Fact), declarations: []const manifest.Interface) !bool {

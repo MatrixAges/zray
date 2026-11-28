@@ -1,0 +1,12 @@
+export type Input = {
+    type_id: u32,
+    value: u32
+}
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.cache.entry = in
+}

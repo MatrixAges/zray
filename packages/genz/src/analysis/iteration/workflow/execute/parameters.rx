@@ -1,13 +1,16 @@
 <Module>
     <Type from="model" as="Loop" />
-    <Type from="index" as="Native" />
 
     <Args in={Loop.Parameters} out={Loop.ParametersOutcome} />
 
     <Store from="state" as="loop_state" />
 
     <If on={$in.initial_plan.state_scope}>
-        <Call fn="index.enterLoopRepresentation" in={$in.loop_frame} />
+        <Call
+            fn="set_representation"
+            in={true}
+            setter={[$store.loop_state.representation]}
+        />
     </If>
 
     <Call
@@ -53,8 +56,6 @@
         />
     </If>
 
-    <Call fn="parameter_layout" in={$in.initial_plan.parameters} />
-
     <Call
         module="../../parameters/plan"
         in={{
@@ -63,7 +64,7 @@
                 "step"
             ]),
             ...$in.membership,
-            layout: $ctx.parameter_layout
+            layout: $in.initial_plan.parameters
         }}
     />
 
@@ -79,35 +80,12 @@
     <Call
         fn="set_parameters"
         in={{
+            name: $in.name,
             ...$ctx.capture,
-            ...$ctx.plan.omit([
-                "add_condition",
-                "add_step"
-            ])
+            ...$ctx.plan
         }}
         setter={[$store.loop_state.parameters]}
     />
-
-    <Call
-        fn="set_parameter_name"
-        in={$in.name}
-        setter={[$store.loop_state.binding]}
-    />
-
-    <If on={$ctx.parameter_layout != Native.LoopParameterLayout.Plain}>
-        <Call
-            fn="index.addLoopParameterMembers"
-            in={[
-                $in.loop_frame,
-                $ctx.plan.add_condition,
-                $ctx.plan.add_step
-            ]}
-        />
-    </If>
-
-    <If on={$ctx.parameter_layout == Native.LoopParameterLayout.Deep}>
-        <Call fn="index.openLoopParameterContext" in={$in.loop_frame} />
-    </If>
 
     <Return
         value={{

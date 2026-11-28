@@ -301,27 +301,27 @@ pub inline fn readColumnOptionalU8(source: *const anyopaque, index: u64) error{I
     return readColumn(?u8, source, index);
 }
 
-inline fn listProjection(projection: *const anyopaque) *const ListProjection {
-    return @ptrCast(@alignCast(projection));
-}
-
-pub inline fn listProjectionSourceCount(projection: *const anyopaque) u64 {
-    return listProjection(projection).sources.len;
-}
-
-pub inline fn listProjectionTargetCount(projection: *const anyopaque) u64 {
-    return listProjection(projection).target.len;
-}
-
 pub inline fn requireColumnBounds(valid: bool) error{IndexOutOfBounds}!void {
     if (!valid) return error.IndexOutOfBounds;
 }
 
-pub inline fn projectListCell(projection: *const anyopaque, slot: u64, row: u64) error{IndexOutOfBounds}!void {
-    const view = listProjection(projection);
-    const column: usize = @intCast(slot);
+const SelectionError = error{ IndexOutOfBounds, OutOfMemory };
 
-    view.target[column] = try listColumn(&view.sources[column], row);
+pub fn selectList(allocator: std.mem.Allocator, source: *const anyopaque, row: u64) SelectionError!*const anyopaque {
+    const column = try listColumn(source, row);
+    const result = try allocator.create(ReadColumn);
+
+    result.* = column;
+
+    return result;
+}
+
+pub fn selectProjectedList(allocator: std.mem.Allocator, source: *const anyopaque, slot: u64, row: u64) SelectionError!*const anyopaque {
+    const projection: *const ListProjection = @ptrCast(@alignCast(source));
+
+    if (slot >= projection.sources.len) return error.IndexOutOfBounds;
+
+    return selectList(allocator, &projection.sources[@intCast(slot)], row);
 }
 
 pub inline fn columnLength(source: *const anyopaque) u64 {

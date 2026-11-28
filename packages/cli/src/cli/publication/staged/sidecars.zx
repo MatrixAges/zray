@@ -1,9 +1,9 @@
 import host from "publication_host"
+import { ResourceKind } from "publication_host"
 
 import basename from "../../standard/path/basename"
 import join from "../../standard/path/join"
 import parent from "../../standard/path/parent"
-import { end_of_directory, other_entry, regular_entry } from "../const"
 
 import type { Sidecars as Input } from "./model"
 
@@ -21,19 +21,21 @@ export default function (in: Input): Output {
     }, {
         while: state => state.reading,
         next: state => {
-            const entry = host.nextEntry(directory, primary)
+            const entry = host.nextEntry(directory)
             const kind = entry.kind
+            const named = entry.path == primary
+            const other = kind != ResourceKind.Regular && kind != ResourceKind.Directory
 
-            if (kind == end_of_directory) {
+            if (kind == ResourceKind.End) {
                 state.reading = false
-            } else if (kind == regular_entry) {
+            } else if (kind == ResourceKind.Regular && !named) {
                 const target = join([
                     destination,
                     entry.path
                 ])
 
                 host.copyDirectoryFile(directory, entry.path, target)
-            } else if (kind == other_entry) {
+            } else if (other && !named) {
                 state.valid = false
                 state.reading = false
             }

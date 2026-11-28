@@ -1,6 +1,7 @@
 import bytes from "std:bytes"
 
 import binary from "../../../ast/context/binary"
+import boolean from "../../../ast/context/boolean"
 import field from "../../../ast/context/field"
 import { ExpressionsBinaryOperator } from "../../../printer/model/expressions"
 import { Operation, Storage } from "../../state/list/const"
@@ -13,6 +14,13 @@ import type { Written as Input } from "./model"
 
 export default function (in: Input): Output {
     if (in.source.grow || in.source.deferred) {
+        if (!in.source.transfer) {
+            return boolean({
+                state: in.context,
+                value: true
+            })
+        }
+
         const storage = field({
             state: in.context,
             target: in.source.target,

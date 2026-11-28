@@ -96,6 +96,26 @@ export declare function readColumnOptionalU8(
     index: u64
 ): u8? throws { IndexOutOfBounds }
 
+export declare function selectListColumn(
+    allocator,
+    source: ListColumn,
+    row: u64
+): ReadColumn throws { IndexOutOfBounds, OutOfMemory }
+
+export declare function selectListText(
+    allocator,
+    scratch: Allocator?,
+    source: ListColumn,
+    row: u64
+): TextColumn throws { IndexOutOfBounds, OutOfMemory }
+
+export declare function selectProjectedList(
+    allocator,
+    source: ListProjection,
+    slot: u64,
+    row: u64
+): ReadColumn throws { IndexOutOfBounds, OutOfMemory }
+
 export declare function listLength(
     source: ListColumn,
     index: u64

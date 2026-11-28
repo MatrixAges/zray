@@ -1,49 +1,87 @@
-import memory from "memory"
+import bytes from "std:bytes"
 
-import find from "./find"
+import type {
+    GenerationIO,
+    GenerationInterface,
+    GenerationPath
+} from "generation_host"
+import type { Document } from "../../fingerprint/model"
 
-import type { Traversal as Input } from "./publish_shape"
+export type Input = {
+    declarations: GenerationInterface[],
+    sources: Document[]
+}
+
+export type Registration = Input & {
+    host: GenerationIO
+}
+
+export type Row = {
+    declaration: GenerationInterface,
+    source?: string
+}
 
 export type Output = {
-    index: u64,
-    alias?: string,
-    path: string,
-    module: string,
-    resolve_members: bool,
-    source?: string,
-    next: Input
+    rows: Row[],
+    files: GenerationPath[]
 }
 
 export default function (in: Input): Output {
-    const { row, request } = in
-    const { aliases, paths, modules, namespaces, sources } = request
+    const rows: Row[] = []
+    const files: GenerationPath[] = []
 
-    const path = memory.readTextColumn(paths, row)
-    const module = memory.readTextColumn(modules, row)
-    const alias = memory.readOptionalTextColumn(aliases.specifiers, row)
+    return loop({
+        row: 0,
+        rows,
+        files
+    }, {
+        while: state => state.row < in.declarations.length,
+        next: state => {
+            const declaration = in.declarations[state.row]
+            const needle = bytes.fromText(declaration.path)
+            const position = loop({
+                first: 0,
+                last: in.sources.length
+            }, {
+                while: state => state.first < state.last,
+                next: state => {
+                    const middle = state.first + (state.last - state.first) / 2
+                    const previous = bytes.fromText(in.sources[middle].path)
 
-    const source_row = find({
-        path,
-        paths: sources.paths,
-        count: sources.count,
-        sorted: true
-    })
+                    if (bytes.lessThan(previous, needle)) {
+                        state.first = middle + 1
+                    } else {
+                        state.last = middle
+                    }
+                },
+                return: state => state.first
+            })
 
-    return {
-        index: alias != null ? in.external : in.internal,
-        alias,
-        path,
-        module,
-        resolve_members: memory.readColumnOptionalBool(namespaces, row) ?? false,
-        source: match {
-            source_row != null => memory.readTextColumn(sources.bodies, source_row),
-            _ => null
+            const source: string? = match {
+                position < in.sources.length &&
+                    in.sources[position].path == declaration.path =>
+                    in.sources[position].source,
+                _ => null
+            }
+
+            state.rows = state.rows.push({
+                declaration,
+                source
+            })[0]
+
+            if (source == null) {
+                state.files = state.files.push({
+                    path: declaration.path,
+                    relative: declaration.path,
+                    retain: true
+                })[0]
+            }
+
+            state.row += 1
         },
-        next: {
-            ...in,
-            row: row + 1,
-            external: in.external + (alias != null ? 1 : 0),
-            internal: in.internal + (alias == null ? 1 : 0)
-        }
-    }
+        return: state => state.pick([
+            "rows",
+            "files"
+        ])
+    })
 }

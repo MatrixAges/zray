@@ -1,6 +1,4 @@
-import type { LoopParameterLayout } from "lowering_host"
-
-export type Layout = LoopParameterLayout
+import type { Layout } from "./layout"
 
 export type LiveIndex = {
     keys: u32[],

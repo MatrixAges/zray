@@ -6,6 +6,12 @@
 
     <Store from="entries" as="entries" />
 
+    <Call
+        fn="clear_entries"
+        in={$store.entries.collected}
+        setter={[$store.entries.collected]}
+    />
+
     <Loop on={$in.parents.length != 0}>
         <Call
             module="scan_level"

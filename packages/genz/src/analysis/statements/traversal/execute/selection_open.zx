@@ -11,11 +11,9 @@ import { requireAllocation } from "memory"
 import switchName from "../../switch/name"
 import switchReference from "../../switch/reference"
 
-import type { StatementTraversal } from "lowering_host"
 import type { Context, State, StateResult as Output } from "./model"
 
 export type Input = {
-    traversal: StatementTraversal,
     context: Context,
     state: State,
     scope: u64,
@@ -24,7 +22,7 @@ export type Input = {
 }
 
 export default function (in: Input): Output {
-    const { traversal, context, state, scope, first, placement } = in
+    const { context, state, scope, first, placement } = in
     const { frame, writer, control } = context
 
     const scope_first = state.scope_firsts[scope]
@@ -65,23 +63,22 @@ export default function (in: Input): Output {
     const no_fallback: u64? = null
 
     return {
-        ok: host.openStatementSelection(
-            traversal,
-            scope,
-            first,
-            placement,
-            name,
-            subject,
-            ref.root
-        ),
+        ok: true,
+        binding: {
+            subject: subject_ir,
+            reference: ref.root
+        },
         state: {
             ...state,
-            selection_payloads:
-                state.selection_payloads.splice(placement, 1, [payload])[0],
-            selection_subjects:
-                state.selection_subjects.splice(placement, 1, [subject_ir])[0],
-            selection_fallbacks:
-                state.selection_fallbacks.splice(placement, 1, [no_fallback])[0]
+            selection_payloads: state.selection_payloads.with(placement, payload),
+            selection_subjects: state.selection_subjects.with(placement, subject_ir),
+            selection_names: state.selection_names.with(placement, name),
+            selection_values: state.selection_values.with(placement, subject),
+            selection_references: state.selection_references.with(placement, ref.root),
+            selection_fallbacks: state.selection_fallbacks.with(
+                placement,
+                no_fallback
+            )
         }
     }
 }

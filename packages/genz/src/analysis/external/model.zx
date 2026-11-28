@@ -14,6 +14,7 @@ export type Input = {
     input_kind: u8,
     input_scalar: u32,
     input_count: u32,
+    opaque_output: bool,
     bases: Bases
 }
 

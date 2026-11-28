@@ -1,11 +1,6 @@
 export type Directory = opaque
 export type Verification = opaque
 
-export type DirectoryEntry = {
-    kind: u8,
-    path: string
-}
-
 export enum ResourceKind {
     End,
     Directory,
@@ -41,7 +36,7 @@ export declare function copyPublishedFile(io, source: string, destination: strin
 }
 
 export declare function openDirectory(directory: Directory, follow_symlinks: bool): void throws { PublicationFailure }
-export declare function nextEntry(directory: Directory, name: string): DirectoryEntry
+export declare function nextEntry(directory: Directory): ResourceEntry
     throws { PublicationFailure }
 export declare function copyDirectoryFile(
     directory: Directory,

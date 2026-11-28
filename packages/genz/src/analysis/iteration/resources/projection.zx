@@ -1,8 +1,10 @@
+import { readAstOrigin } from "ast_rows"
 import host from "lowering_host"
 import { IterationResource } from "lowering_host"
 
 import { Requirement } from "../projection/model"
 
+import type { AstWriter } from "ast_rows"
 import type {
     IterationResourceFrame,
     Lowering
@@ -11,7 +13,9 @@ import type { Plan } from "../projection/model"
 
 export type Input = {
     frame: Lowering,
+    writer: AstWriter,
     context: IterationResourceFrame,
+    history_count: u64,
     plan: Plan
 }
 
@@ -33,7 +37,7 @@ export default function (in: Input): Output {
     }, {
         while: state => state.row < in.plan.operations.length,
         next: state => {
-            const { frame, context, plan } = in
+            const { frame, writer, context, plan } = in
             const id = plan.values[state.row]
             const value = match plan.requirements[state.row] {
                 Requirement.None => 0,
@@ -45,21 +49,17 @@ export default function (in: Input): Output {
                         IterationResource.IterationType
                     ),
                 _ =>
-                    host.materializeIterationResource(
-                        context,
-                        id,
-                        IterationResource.NativeType
-                    ),
+                    host.lowerType(frame, id, false),
             }
 
-            const stamp = host.readIterationProjection(context)
-            const next_serial = stamp.serial + plan.fresh[state.row]
+            const origin = readAstOrigin(writer)
+            const next_serial = origin.serial + plan.fresh[state.row]
 
             host.finishGeneratedAst(frame, next_serial, false)
 
             state.prepared = state.prepared.push(value)[0]
-            state.serials = state.serials.push(stamp.serial)[0]
-            state.history_count = state.history_count.push(stamp.history_count)[0]
+            state.serials = state.serials.push(origin.serial)[0]
+            state.history_count = state.history_count.push(in.history_count)[0]
             state.row += 1
         },
         return: state => ({

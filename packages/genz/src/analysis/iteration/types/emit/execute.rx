@@ -41,7 +41,6 @@
         <Call
             module="../../resources/cache_row"
             in={{
-                frame: $in.context,
                 types: $ctx.build.cache_types,
                 values: $ctx.build.cache_values,
                 row: 0,

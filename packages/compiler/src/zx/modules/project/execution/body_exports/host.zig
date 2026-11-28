@@ -45,16 +45,16 @@ pub fn bind(self: *Self, program: *const ir.Program, frame: *const project.LoadF
 
 pub fn commit(self: *Self, allocator: std.mem.Allocator, row: anytype) std.mem.Allocator.Error!void {
     switch (row.kind) {
-        .Types => try self.types.merge(allocator, row.own, row.forwarded),
-        .Constants => try self.constants.merge(allocator, row.own, row.forwarded),
-        .Members => try self.members.merge(allocator, row.own, row.forwarded),
+        .Types => try self.types.merge(allocator),
+        .Constants => try self.constants.merge(allocator),
+        .Members => try self.members.merge(allocator),
     }
 }
 
 pub fn release(self: *const Self, allocator: std.mem.Allocator) void {
     if (!self.bound) return;
 
-    allocator.free(self.types.storage.rows());
-    allocator.free(self.constants.storage.rows());
-    allocator.free(self.members.storage.rows());
+    allocator.free(self.types.allocated);
+    allocator.free(self.constants.allocated);
+    allocator.free(self.members.allocated);
 }

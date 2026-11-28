@@ -10,18 +10,25 @@ import type { Modules, Result as Output } from "./model"
 export type Input = Modules
 
 export default function (in: Input): Output {
-    const { index, count, paths, headers } = in
+    const { names, count, paths, headers } = in
+
+    const capacity = loop(count == 0 ? 0 : 2, {
+        while: size => size < count * 2,
+        next: size => {
+            size *= 2
+        }
+    })
 
     const empty: u64[] = []
 
     const buckets = loop(empty, {
-        while: items => items.length < index.capacity,
+        while: items => items.length < capacity,
         next: items => {
             items = items.push(0)[0]
         }
     })
 
-    const mask = index.capacity == 0 ? 0 : index.capacity - 1
+    const mask = capacity == 0 ? 0 : capacity - 1
 
     return loop({
         index: 0,
@@ -32,7 +39,7 @@ export default function (in: Input): Output {
         next: current => {
             const path = memory.readOptionalTextColumn(paths, current.index)
             const header = memory.readOptionalTextColumn(headers, current.index)
-            const name = memory.readTextColumn(index.names, current.index)
+            const name = memory.readTextColumn(names, current.index)
 
             current.status = match (path == null) == (header == null) {
                 true => Status.InvalidNativeModule,
@@ -54,7 +61,7 @@ export default function (in: Input): Output {
                             state.done = true
                         } else {
                             const candidate =
-                                memory.readTextColumn(index.names, row - 1)
+                                memory.readTextColumn(names, row - 1)
 
                             if (
                                 bytes.equals(

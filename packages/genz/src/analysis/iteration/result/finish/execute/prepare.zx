@@ -1,5 +1,11 @@
 import integers from "std:integer"
-import { appendAstSequenceSpan, readAstOrigin } from "ast_rows"
+import {
+    appendAstSequenceSpan,
+    convertStateValue,
+    readAstOrigin,
+    StateValueMode,
+    takeAstSequence
+} from "ast_rows"
 import host from "lowering_host"
 
 import finishStored from "../../../../aggregate/execute/finish_stored"
@@ -12,7 +18,7 @@ import type { Actions as Input } from "./model"
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { context, consumer, frame, writer, body, state, type_id } = in
+    const { context, consumer, frame, writer, body, wrap, state, type_id } = in
 
     if (in.preparation == Preparation.Reserve) {
         const current = readAstOrigin(writer)
@@ -65,9 +71,22 @@ export default function (in: Input): Output {
         return consumed.value
     }
 
-    return match in.preparation {
-        Preparation.Unit => emitUnit(writer),
-        Preparation.Layout => host.wrapLoopResult(frame, type_id, state, true),
-        _ => host.wrapLoopResult(frame, type_id, state, false)
+    if (in.preparation == Preparation.Unit) {
+        return emitUnit(writer)
     }
+
+    const mode = match in.preparation {
+        Preparation.Layout => StateValueMode.Layout,
+        _ => StateValueMode.Pointer
+    }
+
+    const value = convertStateValue(writer, wrap, type_id, state, mode, false)
+
+    return finishStored({
+        frame,
+        writer,
+        value,
+        span: takeAstSequence(writer, wrap, true),
+        guard: null
+    })
 }

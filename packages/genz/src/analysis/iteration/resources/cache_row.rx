@@ -3,13 +3,15 @@
 
     <Args in={Cache.CacheCursor} out={Cache.CacheCursor} />
 
+    <Store from="cache" as="cache" />
+
     <Call
-        fn="model.cacheIterationType"
-        in={[
-            $in.frame,
-            $in.types[$in.row],
-            $in.values[$in.row]
-        ]}
+        fn="set_cache_entry"
+        in={{
+            type_id: $in.types[$in.row],
+            value: $in.values[$in.row]
+        }}
+        setter={[$store.cache.entry]}
     />
 
     <Return

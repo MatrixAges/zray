@@ -1,6 +1,0 @@
-import type { ReadColumn } from "memory"
-
-export type Aliases = {
-    specifiers: ReadColumn,
-    count: u64
-}

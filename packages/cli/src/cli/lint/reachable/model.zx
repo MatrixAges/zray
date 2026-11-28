@@ -12,7 +12,7 @@ export type Item = {
 
 export type Input = {
     document: SourceLint,
-    maximum_lines: u64,
+    maximum_lines?: u64,
     items: Item[]
 }
 
@@ -36,7 +36,7 @@ export type Failure = {
 export type Check = {
     document: SourceLint,
     item: Item,
-    maximum_lines: u64
+    maximum_lines?: u64
 }
 
 export type CheckedItem = {

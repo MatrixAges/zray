@@ -1,0 +1,98 @@
+import { Kind as EntryKind } from "std:fs"
+
+import kind from "../kind"
+import { Kind } from "../kind"
+import qualify from "../qualify"
+
+import type { DirectoryEntry } from "std:fs"
+import type { File, Stat } from "./model"
+import type { Level } from "./scan_shape"
+
+export type Input = {
+    level: Level,
+    entries: DirectoryEntry[]
+}
+
+// Object spread supplies null for the change time in the previous standard ABI.
+export type Entry = Stat & {
+    name: string,
+    kind: EntryKind
+}
+
+export type Output = Level
+
+export default function (in: Input): Output {
+    const { level, entries } = in
+    const { prefix } = level.step.scan
+
+    const parent = level.step.parents[level.row]
+    const empty: File[] = []
+
+    const found = loop({
+        row: 0,
+        children: level.children,
+        files: empty
+    }, {
+        while: state => state.row < entries.length,
+        next: state => {
+            const entry = entries[state.row]
+
+            if (entry.kind == EntryKind.Directory) {
+                const relative = qualify({
+                    prefix: "",
+                    parent,
+                    name: entry.name
+                })
+
+                state.children = state.children.push(relative)[0]
+            } else if (entry.kind == EntryKind.File) {
+                const selected = kind(entry.name)
+
+                if (selected != Kind.Ignored) {
+                    const relative = qualify({
+                        prefix: "",
+                        parent,
+                        name: entry.name
+                    })
+                    const path = match {
+                        prefix.length == 0 => relative,
+                        _ => `${prefix}${relative}`
+                    }
+
+                    const complete: Entry = {
+                        ...entry
+                    }
+
+                    state.files = state.files.push({
+                        path,
+                        relative,
+                        kind: selected,
+                        stat: complete.pick([
+                            "inode",
+                            "size",
+                            "mtime_ns",
+                            "ctime_ns"
+                        ]),
+                        retain: selected != Kind.RX
+                    })[0]
+                }
+            }
+
+            state.row += 1
+        },
+        return: state => state
+    })
+
+    const files = match {
+        found.files.length == 0 => level.files,
+        _ => level.files.push(found.files)[0]
+    }
+
+    return {
+        step: level.step,
+        row: level.row + 1,
+        children: found.children,
+        files,
+        count: level.count + found.files.length
+    }
+}

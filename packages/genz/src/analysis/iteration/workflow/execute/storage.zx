@@ -9,14 +9,15 @@ import type { StorageInput as Input } from "./update_model"
 export type Output = u32
 
 export default function (in: Input): Output {
-    const { loop_frame, writer, body_seq, initial_plan, initial_value } = in
+    const { context, writer, body_seq, initial_plan, initial_value } = in
 
     return match initial_plan.storage {
         Storage.Dereference => emitDereference({
             writer,
             value: initial_value
         }),
-        Storage.Deep => host.deepenLoopInitial(loop_frame, initial_value),
+        Storage.Deep =>
+            host.convertLoopResult(context, in.type_id, initial_value, false),
         Storage.State => convertStateValue(
             writer,
             body_seq,

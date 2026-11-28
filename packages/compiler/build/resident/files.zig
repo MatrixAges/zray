@@ -46,11 +46,15 @@ pub fn deinit(self: *Self) void {
 
 /// The contents of `path` in `directory`, keyed by `key`, which names the file across requests.
 pub fn read(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, key: []const u8, borrowable: bool) ![]const u8 {
+    return self.readObserved(io, directory, path, key, borrowable, null);
+}
+
+pub fn readObserved(self: *Self, io: std.Io, directory: std.Io.Dir, path: []const u8, key: []const u8, borrowable: bool, known: ?Metadata) ![]const u8 {
     const found = self.entries.position(key);
     const previous = if (found.row) |row| &self.entries.values.items[row] else null;
 
     if (previous) |entry| {
-        const observed = metadata(try directory.statFile(io, path, .{}));
+        const observed = known orelse metadata(try directory.statFile(io, path, .{}));
 
         if (snapshot.residentMark(entry.metadata, observed, entry.read, .{
             .previous = entry.borrow_mark,

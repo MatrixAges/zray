@@ -1,6 +1,8 @@
-import type { Captured, RemovalFlags } from "../../parameters/model"
+import type { Captured, Output as Plan } from "../../parameters/model"
 
-export type Input = Captured & RemovalFlags
+export type Input = Captured & Plan & {
+    name: u8[]
+}
 
 export type Output = void
 
@@ -8,7 +10,10 @@ export default function (in: Input, {
     $store
 }): Output {
     $store.loop_state.parameters = {
+        name: in.name,
         active: true,
+        add_condition: in.add_condition,
+        add_step: in.add_step,
         previous_condition: in.previous_condition,
         previous_step: in.previous_step,
         remove_state_condition: in.remove_state_condition,

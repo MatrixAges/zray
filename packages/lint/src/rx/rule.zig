@@ -1,10 +1,11 @@
 const std = @import("std");
 const generated = @import("generated");
 const Input = std.meta.Child(generated.Input);
+pub const Mode = @FieldType(Input, "mode");
 const NodeItem = std.meta.Child(std.meta.Child(@FieldType(Input, "nodes")));
 const AttributeItem = std.meta.Child(std.meta.Child(@FieldType(Input, "attributes")));
 
-pub fn run(allocator: std.mem.Allocator, mode: u8, source: []const u8, width: usize, node: anytype) std.mem.Allocator.Error![]u8 {
+pub fn run(allocator: std.mem.Allocator, mode: Mode, source: []const u8, width: usize, node: anytype) std.mem.Allocator.Error![]u8 {
     const Entry = struct { view: @TypeOf(node), slot: *NodeItem };
     var arena = std.heap.ArenaAllocator.init(allocator);
 

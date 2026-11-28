@@ -166,6 +166,10 @@ pub inline fn textList(target: *const anyopaque, index: u64, row: u64, staged: b
     };
 }
 
+pub fn cloneTextList(resource: *const anyopaque, source: []const Bytes) ?[]const Bytes {
+    return clone(column_set.borrowAllocator(resource), source, false) catch null;
+}
+
 pub fn writeTextList(target: *const anyopaque, index: u64, row: u64, value: ?[]const Bytes) void {
     const column = groupColumns(target)[@intCast(index)];
     const address = column.storage.items.ptr;
@@ -258,7 +262,7 @@ pub fn releaseItem(resource: *const anyopaque, target: *const anyopaque, index: 
     const column = groupColumns(target)[@intCast(index)];
 
     switch (column.kind) {
-        .value, .strided, .repeated, .texts, .optional_texts => unreachable,
+        .value, .strided, .repeated => unreachable,
         inline else => |format| {
             const payload = Payload(format);
             const destination: [*]const payload.Value = @ptrCast(@alignCast(column.storage.items.ptr));

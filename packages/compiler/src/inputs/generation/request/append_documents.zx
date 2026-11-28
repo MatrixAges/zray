@@ -1,10 +1,12 @@
+import type { Document } from "../../fingerprint/model"
+
 export type Documents = {
-    batches: u8[][]
+    batches: Document[][]
 }
 
 export type Input = {
     loaded: Documents,
-    batch: u8[],
+    batch: Document[],
     row: u64
 }
 

@@ -1,7 +1,7 @@
 import type { AstSequence, AstWriter } from "ast_rows"
 import type {
     IterationResourceFrame,
-    LoopAdmission,
+    LoopConsumer,
     LoopFrame,
     Lowering
 } from "lowering_host"
@@ -10,7 +10,11 @@ import type { Source as RenewalSource } from "../../deferred/model"
 import type { Output as InitialPlan } from "../../initial/model"
 import type { Membership, View } from "../../parameters/model"
 
-export type Admission = LoopAdmission
+export enum Admission {
+    Proceed,
+    Dereference,
+    Reject
+}
 
 export type LoopState = {
     name: u8[],
@@ -25,11 +29,15 @@ export type GuardInfo = {
 }
 
 export type Input = {
+    admission: Admission,
     frame: Lowering,
     writer: AstWriter,
     body_seq: AstSequence,
     loop_seq: AstSequence,
     projected_seq: AstSequence,
+    skipped_seq: AstSequence,
+    wrap_seq: AstSequence,
+    consumer?: LoopConsumer,
     loop_frame: LoopFrame,
     context: IterationResourceFrame,
     assignment_facts: AssignmentFacts,
@@ -48,10 +56,9 @@ export type Input = {
     renewal_source?: RenewalSource
 }
 
-export type InitialOutcome = {
-    admission: Admission,
+export type InitialValue = {
     name: u8[],
-    initial_value: u32
+    value: u32
 }
 
 export type Parameters =

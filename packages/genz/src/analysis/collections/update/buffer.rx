@@ -12,16 +12,20 @@
             }}
         />
 
-        <Call
-            fn="select"
-            in={{
-                source: $in.source,
-                first: $ctx.grow,
-                plain: null
-            }}
-        />
+        <If on={$in.source.transfer}>
+            <Call
+                fn="select"
+                in={{
+                    source: $in.source,
+                    first: $ctx.grow,
+                    plain: null
+                }}
+            />
 
-        <Return value={$ctx.select} />
+            <Return value={$ctx.select} />
+        </If>
+
+        <Return value={$ctx.grow} />
     </If>
 
     <If on={$in.source.in_place}>
@@ -38,6 +42,23 @@
                 mode: Update.Mode.Reserve
             }}
         />
+
+        <If on={$in.source.grow && $in.source.transfer}>
+            <Call
+                fn="select"
+                in={{
+                    source: $in.source,
+                    first: $ctx.grow,
+                    plain: null
+                }}
+            />
+
+            <Return value={$ctx.select} />
+        </If>
+
+        <If on={$in.source.grow}>
+            <Return value={$ctx.grow} />
+        </If>
 
         <Call
             fn="duplicate"

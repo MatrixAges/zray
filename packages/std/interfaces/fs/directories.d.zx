@@ -13,7 +13,7 @@ export declare function readdir(allocator, io, in: string): string[] throws {
   ProcessFdQuotaExceeded, SymLinkLoop, SystemFdQuotaExceeded, SystemResources, Unexpected
 } concurrent
 
-// Keeps directory iteration order and reads metadata without following child symlinks.
+// Returns entries in filesystem order and reads metadata without following child symlinks.
 export declare function readdirMetadata(allocator, io, in: string): DirectoryEntry[] throws {
   AccessDenied, AntivirusInterference, BadPathName, Canceled, DeviceBusy, FileBusy,
   FileLocksUnsupported, FileNotFound, FileTooBig, InvalidPath, IsDir,

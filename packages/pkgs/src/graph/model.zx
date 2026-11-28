@@ -10,7 +10,7 @@ export enum Status {
 export type Input = {
     targets: ListColumn,
     count: u64,
-    limit: u64,
+    limit?: u64,
     ranked: bool,
     initial_marks?: u8[]
 }

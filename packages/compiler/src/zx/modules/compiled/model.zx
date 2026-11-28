@@ -1,9 +1,9 @@
-import type { Rows } from "core/constant/rows"
+import type { Lists } from "core/constant/rows"
 import type { Modules } from "core/native_module_table/model"
 import type { Table } from "core/type_table/model"
 import type { Bindings } from "core/type_table/nominal"
-import type { ListColumn, ReadColumn, TextColumn } from "memory"
-import type { ListColumn as ByteList, ListProjection } from "memory/columns"
+import type { Allocator, ListColumn, ReadColumn, TextColumn } from "memory"
+import type { ColumnAllocator, ListColumn as ByteList } from "memory/columns"
 import type { Program } from "../../ir/canonical/validation/model"
 import type { Mapping as FunctionMapping } from "./loading/functions/model"
 import type { Status } from "./status"
@@ -19,10 +19,9 @@ export type Exports = {
     members: Members
 }
 
-export type Constants = {
-    names: ListColumn,
-    projection: ListProjection,
-    rows: Rows.Omit("count")
+export type Constants = Lists & {
+    scratch: Allocator,
+    scalar_scratch: ColumnAllocator
 }
 
 export type Members = {

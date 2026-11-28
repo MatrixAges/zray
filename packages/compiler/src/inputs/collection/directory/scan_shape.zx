@@ -1,13 +1,25 @@
-import type { GenerationIO } from "generation_host"
+import type { File } from "./model"
 
 export type Input = {
-    reader: GenerationIO,
-    width: u64,
-    workers: u64,
+    root: string,
+    prefix: string,
     initial: string[]
 }
 
 export type Step = {
     scan: Input,
     parents: string[]
+}
+
+export type Level = {
+    step: Step,
+    row: u64,
+    children: string[],
+    files: File[][],
+    count: u64
+}
+
+export type Parent = {
+    root: string,
+    relative: string
 }

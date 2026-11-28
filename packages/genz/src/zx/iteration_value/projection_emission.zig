@@ -5,7 +5,6 @@ const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
 const Consumer = @import("../iteration_consumer.zig").Consumer;
-const Api = @import("../expressions/evaluate.zig").Api;
 const emissionFailure = @import("../construction/publication.zig").failure;
 
 pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.ExpressionId) Lower.Error!node.ExpressionId {
@@ -36,7 +35,9 @@ pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.E
         .source = &request,
         .resources = &.{
             .frame = @ptrCast(self),
+            .writer = @ptrCast(self),
             .context = @ptrCast(context),
+            .history_count = context.transfers.len(),
         },
     };
 
@@ -72,16 +73,4 @@ pub fn lower(context: *Context, selected: Consumer, id: ir.ExprId, value: node.E
     const root = emitter.executeIn(temporary, &call) catch |err| return emissionFailure(err);
 
     return @fromBackingInt(root);
-}
-
-pub fn readIterationProjection(allocator: std.mem.Allocator, handle: *anyopaque) Lower.Error!*const Api.IterationProjectionStamp {
-    const context: *const Context = @ptrCast(@alignCast(handle));
-    const stamp = try allocator.create(Api.IterationProjectionStamp);
-
-    stamp.* = .{
-        .serial = context.lowering.serial,
-        .history_count = context.transfers.len(),
-    };
-
-    return stamp;
 }

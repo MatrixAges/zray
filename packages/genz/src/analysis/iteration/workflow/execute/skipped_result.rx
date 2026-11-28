@@ -1,0 +1,17 @@
+<Module>
+    <Type from="emission_model" as="Loop" />
+
+    <Args in={Loop.Finish} out={u32} />
+
+    <Call
+        fn="result_input"
+        in={{
+            ...$in,
+            skipped: true
+        }}
+    />
+
+    <Call module="../../result/finish/execute/run" />
+
+    <Return value={$ctx.run} />
+</Module>

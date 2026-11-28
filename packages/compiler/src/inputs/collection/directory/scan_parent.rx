@@ -1,0 +1,25 @@
+<Module>
+    <Type from="scan_shape" as="Directory" />
+
+    <Args in={Directory.Level} out={Directory.Level} />
+
+    <Call
+        fn="parent_path"
+        in={{
+            root: $in.step.scan.root,
+            relative: $in.step.parents[$in.row]
+        }}
+    />
+
+    <Call fn="filesystem.readdirMetadata" />
+
+    <Call
+        fn="collect_parent"
+        in={{
+            level: $in,
+            entries: $ctx.readdirMetadata
+        }}
+    />
+
+    <Return value={$ctx.collect_parent} />
+</Module>

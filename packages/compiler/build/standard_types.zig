@@ -5,6 +5,7 @@ const execution = @import("execution");
 pub const native = struct {
     pub const @"std:child_process" = execution.native.@"std:child_process";
     pub const @"std:crypto" = main.native.@"std:crypto";
+    pub const @"std:crypto/blake3" = execution.native.@"std:crypto/blake3";
     pub const @"std:fs" = execution.native.@"std:fs";
     pub const @"std:http" = main.native.@"std:http";
     pub const @"std:path" = main.native.@"std:path";

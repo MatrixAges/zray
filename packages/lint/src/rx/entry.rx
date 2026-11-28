@@ -3,7 +3,7 @@
 
     <Args in={Rx.EntryInput} out={Rx.EntryOutput} />
 
-    <If on={$in.mode == 0}>
+    <If on={$in.mode == Rx.Mode.Structure}>
         <Call fn="structure" in={$in} />
 
         <Call

@@ -20,9 +20,3 @@ pub fn materializeIterationResource(handle: *anyopaque, id: u32, resource: evalu
         .None, .Invalid => unreachable,
     });
 }
-
-pub fn cacheIterationType(handle: *anyopaque, id: u32, value: u32) Error!void {
-    const context: *Context = @ptrCast(@alignCast(handle));
-
-    return context.types.put(context.lowering.allocator, @fromBackingInt(id), @fromBackingInt(value));
-}

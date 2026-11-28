@@ -4,7 +4,9 @@ export enum Step {
     Analyze,
     Materialize,
     CheckOwnership,
-    BindExports
+    BindExports,
+    ReserveCache,
+    ReserveRecord
 }
 
 export type PlanFacts = {

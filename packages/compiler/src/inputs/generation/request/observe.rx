@@ -4,14 +4,33 @@
     <Args in={Request.Observe} out={Request.Observation} />
 
     <If on={$in.write}>
-        <Call fn="host.observeGenerationInputs" in={$in.host} />
+        <Loop on={$in.row < $in.roots.length}>
+            <Call
+                module="observe_root"
+                in={{
+                    roots: $in.roots,
+                    row: 0,
+                    observed: []
+                }}
+            />
+        </Loop>
 
-        <Return value={$ctx.observeGenerationInputs} />
+        <Call
+            fn="host.readGenerationSnapshot"
+            in={[
+                $in.host,
+                $ctx.observe_root.observed
+            ]}
+        />
+
+        <Return value={$ctx.readGenerationSnapshot} />
     </If>
 
     <Return
         value={{
+            enabled: false,
             snapshot: null,
+            roots: [],
             digest: null
         }}
     />

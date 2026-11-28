@@ -18,7 +18,7 @@ pub fn lower(self: *Lower, id: ir.TypeId, value: node.ExpressionId, layout: ?nod
         .policy = &.{
             .active = self.state_active,
             .selected = selected,
-            .borrowed = index < self.state_plan.borrowed.len and self.state_plan.borrowed[index],
+            .borrowed = self.state_plan.referenced(id),
         },
         .target = target,
     };

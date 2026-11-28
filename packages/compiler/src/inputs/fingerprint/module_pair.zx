@@ -1,12 +1,9 @@
 import bytes from "std:bytes"
-import memory from "memory"
 
 import type { DigestRow, ModulePair as Output } from "./model"
 import type { SourceRows as Input } from "./output_shape"
 
 export default function (in: Input): Output {
-    const { paths, digests } = in
-
     const frame_parts: u8[][] = []
     const shape_parts: u8[][] = []
     const rows: DigestRow[] = []
@@ -17,11 +14,10 @@ export default function (in: Input): Output {
         shape_parts,
         rows
     }, {
-        while: state => state.position < digests.length,
+        while: state => state.position < in.length,
         next: state => {
             const position = state.position
-            const path = memory.readTextColumn(paths, position)
-            const digest = digests[position]
+            const { path, digest } = in[position]
             const path_bytes = bytes.fromText(path)
             const path_len = bytes.encodeU64Le(path_bytes.length)
 

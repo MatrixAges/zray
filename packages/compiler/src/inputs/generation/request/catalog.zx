@@ -1,0 +1,112 @@
+import bytes from "std:bytes"
+
+import {
+    sort_equal,
+    sort_greater,
+    sort_less
+} from "../../collection/const"
+import kind from "../../collection/kind"
+import { Kind } from "../../collection/kind"
+
+import type { Document } from "../../fingerprint/model"
+import type { Package } from "./packages"
+
+export type Input = {
+    batches: Document[][],
+    packages: Package[]
+}
+
+export type Output = {
+    sources: Document[],
+    modules: Document[],
+    templates: Document[],
+    packages: Package[]
+}
+
+export type Row = {
+    document: Document,
+    position: u64
+}
+
+export default function (in: Input): Output {
+    const rows: Row[] = []
+
+    const collected = loop({
+        batch: 0,
+        rows
+    }, {
+        while: state => state.batch < in.batches.length,
+        next: state => {
+            const batch = in.batches[state.batch]
+
+            state.rows = loop({
+                row: 0,
+                rows: state.rows
+            }, {
+                while: cursor => cursor.row < batch.length,
+                next: cursor => {
+                    cursor.rows = cursor.rows.push({
+                        document: batch[cursor.row],
+                        position: cursor.rows.length
+                    })[0]
+                    cursor.row += 1
+                },
+                return: cursor => cursor.rows
+            })
+
+            state.batch += 1
+        },
+        return: state => state.rows
+    })
+
+    const ordered = collected.sort(
+        (left, right) => {
+            const first = left.document.path
+            const second = right.document.path
+
+            return match {
+                first == second => match {
+                    left.position < right.position => sort_less,
+                    left.position > right.position => sort_greater,
+                    _ => sort_equal
+                },
+                bytes.lessThan(bytes.fromText(first), bytes.fromText(second)) =>
+                    sort_less,
+                _ => sort_greater
+            }
+        }
+    )[0]
+
+    const empty: Document[] = []
+
+    const groups = loop({
+        row: 0,
+        sources: empty,
+        modules: empty,
+        templates: empty
+    }, {
+        while: state => state.row < ordered.length,
+        next: state => {
+            const document = ordered[state.row].document
+            const selected = kind(document.path)
+
+            if (selected == Kind.ZX) {
+                state.sources = state.sources.push(document)[0]
+            } else if (selected == Kind.RX) {
+                state.modules = state.modules.push(document)[0]
+            } else {
+                state.templates = state.templates.push(document)[0]
+            }
+
+            state.row += 1
+        },
+        return: state => state
+    })
+
+    return {
+        sources: groups.sources,
+        modules: groups.modules,
+        templates: groups.templates,
+        packages: in.packages
+    }
+}

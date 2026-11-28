@@ -1,0 +1,13 @@
+export type Input = {
+    operand: u32,
+    operand_type: u32,
+    value: u32
+}
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.argument.binding = in
+}

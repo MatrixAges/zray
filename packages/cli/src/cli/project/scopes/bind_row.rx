@@ -9,35 +9,17 @@
         fn="bind"
         in={{
             binding: $in.binding,
-            declaration: $ctx.declaration_row.declaration
+            declaration: $ctx.declaration_row
         }}
     />
 
-    <If on={$ctx.bind.resolved != null}>
-        <Call
-            fn="index.writeNativeScopeDeclaration"
-            in={[
-                $in.binding.window.frame,
-                $ctx.declaration_row.row,
-                $ctx.declaration_row.external,
-                $ctx.bind.resolved.identity,
-                $ctx.bind.resolved.module,
-                $ctx.bind.resolved.copy_module
-            ]}
-        />
-
-        <Return
-            value={{
-                ...$in,
-                index: $in.index + 1
-            }}
-        />
-    </If>
-
-    <Return
-        value={{
-            ...$in,
-            status: $ctx.bind.status
+    <Call
+        fn="advance_binding"
+        in={{
+            walk: $in,
+            result: $ctx.bind
         }}
     />
+
+    <Return value={$ctx.advance_binding} />
 </Module>

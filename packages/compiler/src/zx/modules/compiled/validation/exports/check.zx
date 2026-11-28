@@ -1,9 +1,9 @@
 import integers from "std:integer"
-import { projectLists } from "core/column_set"
 import memory from "memory"
 
 import validConstants from "../../../../analysis/constants/validation/rows"
 import text from "../../../../ir/canonical/native/text"
+import constantView from "../../constant_view"
 import members from "./members"
 import types from "./types"
 
@@ -44,16 +44,12 @@ export default function (in: Input): Output {
     const count = memory.listLength(constants.names, in.index)
 
     if (count != 0) {
-        projectLists([
-            constants.projection,
-            in.index
-        ])
-
         if (!validConstants({
-            constants: {
-                ...constants.rows,
+            constants: constantView({
+                source: constants,
+                row: in.index,
                 count
-            },
+            }),
             types: {
                 base: in.graph.program.context.table,
                 delta: {

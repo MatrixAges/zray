@@ -1,0 +1,14 @@
+<Module>
+    <Type from="model" as="Request" />
+    <Type from="source_paths" as="Paths" />
+
+    <Args in={Request.LoadStep} out={Paths.Output} />
+
+    <If on={$in.load.observed.enabled}>
+        <Return value={$in.load.observed.roots[$in.row].files} />
+    </If>
+
+    <Call module="scan_root" in={$in.load.roots[$in.row]} />
+
+    <Return value={$ctx.scan_root} />
+</Module>

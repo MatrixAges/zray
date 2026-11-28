@@ -6,37 +6,51 @@
     <Call fn="packages" in={$in.packages} />
 
     <Call
-        fn="host.classifyGenerationDocuments"
-        in={[
-            $in.host,
-            $in.documents,
-            $ctx.packages
-        ]}
+        fn="catalog"
+        in={{
+            batches: $in.documents,
+            packages: $ctx.packages
+        }}
     />
 
     <Call
-        fn="host.registerGenerationInterfaces"
-        in={[
-            $in.host,
-            $ctx.classifyGenerationDocuments
-        ]}
+        module="../../collection/interface/register"
+        in={{
+            host: $in.host,
+            declarations: $in.interfaces,
+            sources: $ctx.catalog.sources
+        }}
     />
 
     <Call
-        fn="host.fingerprintGenerationInputs"
-        in={[
-            $in.host,
-            $ctx.classifyGenerationDocuments,
-            $ctx.registerGenerationInterfaces.bindings,
-            $ctx.registerGenerationInterfaces.failure == null
-        ]}
+        module="../../fingerprint/frame"
+        in={{
+            generator: $in.generator,
+            manifest: $in.manifest,
+            modules: $ctx.catalog.modules,
+            interfaces: $ctx.register.sources
+        }}
+    />
+
+    <Call
+        module="../../fingerprint/output"
+        in={{
+            frame: $ctx.frame.content,
+            partitions: $in.partitions,
+            sources: $ctx.catalog.sources,
+            templates: $ctx.catalog.templates
+        }}
     />
 
     <Return
         value={{
-            catalog: $ctx.classifyGenerationDocuments,
-            registered: $ctx.registerGenerationInterfaces,
-            fingerprints: $ctx.fingerprintGenerationInputs
+            external: $ctx.register.documents,
+            catalog: $ctx.catalog,
+            registered: $ctx.register.registered,
+            fingerprints: {
+                digest: $ctx.output,
+                ...$ctx.frame
+            }
         }}
     />
 </Module>

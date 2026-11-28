@@ -1,4 +1,3 @@
-import type { LoopEmissionSpans } from "lowering_host"
 import type { Output as RenewalPlan } from "../../deferred/model"
 import type { Assignment as AssignmentKind, Output as StepPlan } from "../../step/model"
 import type { Input } from "./model"
@@ -11,6 +10,11 @@ export type Emit =
         "body_seq",
         "loop_seq",
         "projected_seq",
+        "skipped_seq",
+        "wrap_seq",
+        "consumer",
+        "context",
+        "discard",
         "body",
         "loop_frame",
         "guard_info",
@@ -58,17 +62,23 @@ export type Recovery = Emit.Pick("loop_frame", "state") & {
     restore: bool
 }
 
+export type Spans = {
+    renewals: u64,
+    declarations: u64,
+    frame: u64
+}
+
 export type Finish =
     Emit.Omit(
         "schedule",
         "renewals",
         "loop_seq",
-        "projected_seq",
+        "loop_frame",
         "body",
-        "type_id",
         "assignment_facts",
         "state_active"
     ) & {
         changed_name?: u8[],
-        spans: LoopEmissionSpans
+        seed: u32,
+        spans: Spans
     }

@@ -29,7 +29,6 @@
 
         <Return
             value={{
-                ...$ctx.merge_exports,
                 signature: $ctx.apply_entry
             }}
         />
@@ -37,7 +36,6 @@
 
     <Return
         value={{
-            ...$ctx.merge_exports,
             signature: {
                 ...$in.members.callable,
                 type_only: !$in.members.declared,

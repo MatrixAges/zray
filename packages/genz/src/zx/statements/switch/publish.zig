@@ -4,15 +4,26 @@ const node = @import("../../../node.zig");
 const view = @import("../../../node/view.zig");
 const rows = @import("../../../node/import_rows.zig");
 const Lower = @import("../../lower.zig");
-const State = @import("state.zig");
+const CasesRow = @import("../../expressions/evaluate.zig").Api.StatementCases;
 
-pub fn lower(self: *Lower, state: *const State, allocator: std.mem.Allocator) Lower.Error!node.Block {
+const Selection = struct {
+    name: []const u8,
+    subject: u32,
+    reference: u32,
+    selected: bool,
+    exhaustive: bool,
+    total_count: u64,
+    fallback: ?node.Block,
+    cases: *const CasesRow,
+};
+
+pub fn lower(self: *Lower, state: Selection, allocator: std.mem.Allocator) Lower.Error!node.Block {
     const entry = @import("generated_switch_emit");
     const Input = std.meta.Child(entry.Input);
     const Output = std.meta.Child(entry.Output);
     const Cases = std.meta.Child(@FieldType(Input, "cases"));
     const Bases = std.meta.Child(@FieldType(Input, "bases"));
-    const cases: Cases = .{ .body_start = state.starts, .body_count = state.counts, .conditions = state.comparisons, .literals = state.literals };
+    const cases: Cases = .{ .body_start = state.cases.body_start, .body_count = state.cases.body_count, .conditions = state.cases.conditions, .literals = state.cases.literals };
 
     const bases: Bases = .{
         .capture = null,
@@ -24,11 +35,11 @@ pub fn lower(self: *Lower, state: *const State, allocator: std.mem.Allocator) Lo
 
     const input: Input = .{
         .name = state.name,
-        .subject = @backingInt(state.subject),
-        .reference = @backingInt(state.reference),
+        .subject = state.subject,
+        .reference = state.reference,
         .selected = state.selected,
-        .exhaustive = state.selection.exhaustive,
-        .total_count = state.selection.cases.len,
+        .exhaustive = state.exhaustive,
+        .total_count = state.total_count,
         .fallback_start = if (state.fallback) |block| block.start else null,
         .fallback_count = if (state.fallback) |block| block.len else 0,
         .cases = &cases,

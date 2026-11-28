@@ -1,24 +1,5 @@
 export type LoopFrame = mutable_opaque
 
-export enum LoopParameterLayout {
-    Plain,
-    Stack,
-    State,
-    Deep
-}
-
-export enum LoopUpdateScope {
-    None,
-    Projected,
-    Ordinary
-}
-
-export enum LoopAdmission {
-    Proceed,
-    Dereference,
-    Reject
-}
-
 export type IterationResourceFrame = mutable_opaque
 
 export enum IterationResource {
@@ -31,12 +12,6 @@ export enum IterationResource {
     Invalid
 }
 
-export type LoopEmissionSpans = {
-    renewals: u64,
-    declarations: u64,
-    frame: u64
-}
-
 export type LoopConsumer = {
     symbol: u32,
     result: u32,
@@ -47,11 +22,6 @@ export type LoopConsumption = {
     value: u32,
     spans: u64[],
     tail: u64
-}
-
-export type IterationProjectionStamp = {
-    serial: u64,
-    history_count: u64
 }
 
 export type SortComparator = {

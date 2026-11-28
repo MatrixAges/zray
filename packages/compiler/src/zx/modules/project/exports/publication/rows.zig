@@ -7,15 +7,17 @@ pub fn Rows(comptime Row: type, comptime Shape: type, comptime Layout: type) typ
     return struct {
         const Self = @This();
         const fields = @typeInfo(Layout).@"struct".field_names;
-
-        storage: memory.RowOutput(Row, Layout, .{}),
+        own: []const Row,
+        forwarded: []const Row,
+        allocated: []Row,
         columns: [fields.len]memory.ReadColumn,
-        reads: memory.RowGrowth,
         pub fn column(self: *const Self, comptime name: []const u8) *const memory.ReadColumn {
             return &self.columns[std.meta.fieldIndex(Layout, name).?];
         }
         pub fn borrow(self: *Self, own: []const Row, forwarded: []const Row, copy_own: bool) Shape {
-            self.storage.init();
+            self.own = own;
+            self.forwarded = forwarded;
+            self.allocated = &.{};
 
             const borrowed = if (own.len == 0) forwarded else own;
 
@@ -23,32 +25,32 @@ pub fn Rows(comptime Row: type, comptime Shape: type, comptime Layout: type) typ
                 self.columns[index] = memory.borrowReadColumn(@FieldType(Row, name), name, borrowed);
             }
 
-            self.reads = .{ .target = &self.storage.buffer, .reads = &self.columns };
-
             return .{
-                .own = std.mem.sliceAsBytes(own),
-                .forwarded = std.mem.sliceAsBytes(forwarded),
-                .stride = @sizeOf(Row),
+                .own = own.len,
+                .forwarded = forwarded.len,
                 .copy_own = copy_own,
-                .storage = @ptrCast(&self.storage.buffer),
                 .names = @ptrCast(self.column("name")),
             };
         }
-        pub fn merge(self: *Self, allocator: std.mem.Allocator, own: []const u8, forwarded: []const u8) std.mem.Allocator.Error!void {
-            const first = typedRows(Row, own);
-            const second = typedRows(Row, forwarded);
+        pub fn merge(self: *Self, allocator: std.mem.Allocator) std.mem.Allocator.Error!void {
+            const first = self.own;
+            const second = self.forwarded;
             const target = try allocator.alloc(Row, first.len + second.len);
 
             @memcpy(target[0..first.len], first);
             @memcpy(target[first.len..], second);
-            self.storage.bind(target);
-            inline for (0..fields.len) |slot| self.reads.refreshCell(slot, target.len);
+
+            self.allocated = target;
+
+            inline for (fields, &self.columns) |name, *descriptor| {
+                descriptor.* = memory.borrowReadColumn(@FieldType(Row, name), name, target);
+            }
+        }
+
+        pub fn result(self: *const Self) []const Row {
+            if (self.allocated.len != 0) return self.allocated;
+
+            return if (self.own.len == 0) self.forwarded else self.own;
         }
     };
-}
-
-pub fn typedRows(comptime Row: type, bytes: []const u8) []const Row {
-    if (bytes.len == 0) return &.{};
-
-    return @alignCast(std.mem.bytesAsSlice(Row, bytes));
 }

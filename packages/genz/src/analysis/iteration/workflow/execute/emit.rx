@@ -76,13 +76,19 @@
     />
 
     <Call
-        fn="finish"
+        module="finish"
         in={{
             ...$in.pick([
                 "frame",
                 "writer",
                 "body_seq",
-                "loop_frame",
+                "projected_seq",
+                "skipped_seq",
+                "wrap_seq",
+                "consumer",
+                "context",
+                "discard",
+                "type_id",
                 "guard_info",
                 "initial_plan",
                 "projected",
@@ -91,6 +97,7 @@
             ]),
             state: $ctx.recover,
             changed_name: $store.loop_state.state.changed_name,
+            seed: $store.loop_state.state.seed,
             spans: {
                 renewals: $in.projected ? $ctx.growth : 0,
                 declarations: $ctx.takeAstSequence,

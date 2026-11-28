@@ -75,8 +75,10 @@ pub const Dependencies = struct {
             else => unreachable,
         };
 
+        try self.rows.ensureUnusedCapacity(allocator, next.rows.len);
+
         for (next.rows) |row| {
-            try self.rows.append(allocator, .{
+            self.rows.appendAssumeCapacity(.{
                 .name = row.name,
                 .requirement = row.requirement,
                 .target = @intCast(row.target),
@@ -94,7 +96,7 @@ pub const Dependencies = struct {
                 self.cursor = next.cursor;
 
                 break :pending .{
-                    .name = self.rows.items[@intCast(self.cursor)].name,
+                    .name = next.pending_name.?,
                     .release = resolver.index.packages[@intCast(next.package)].versions[@intCast(next.release)],
                 };
             },

@@ -23,7 +23,7 @@ export default function (in: Input): Output {
         next: state => {
             const index = state.index
             const version = versions[index]
-            const path = memory.readTextColumn(paths, index)
+            const path = paths[index]
 
             const row = bytes.join(bytes.fromText(""), [
                 bytes.encodeU64Le(version.inode),

@@ -14,6 +14,7 @@
                 "frame",
                 "writer",
                 "body",
+                "wrap",
                 "state",
                 "type_id"
             ]),

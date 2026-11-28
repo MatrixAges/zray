@@ -1,7 +1,7 @@
 <Module>
     <Type from="model" as="Execution" />
 
-    <Args in={Execution.Run} out={u64} />
+    <Args in={Execution.Run} out={u64?} />
 
     <Call
         fn="init_state"
@@ -24,5 +24,9 @@
         />
     </Loop>
 
-    <Return value={$ctx.next_action.index} />
+    <If on={$ctx.next_action.index == $in.plan.actions.length}>
+        <Return value={$ctx.next_action.child} />
+    </If>
+
+    <Return value={null} />
 </Module>

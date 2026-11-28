@@ -6,12 +6,12 @@ const aggregate = @import("../aggregate.zig");
 const Change = @import("../object_update.zig").Change;
 
 pub fn lower(lowering: *Lower, change: Change, parent: *std.ArrayList(node.Statement)) Lower.Error!node.ExpressionId {
+    if (!lowering.state_plan.selected[@backingInt(change.type_id)]) return boxed(lowering, change, parent);
+
     const name = try lowering.fresh("updated");
     const layout = try lowering.layoutExpr(change.type_id);
-    const selected = lowering.state_plan.selected[@backingInt(change.type_id)];
-    const source = try lowering.expr(change.reference);
-    const initial = if (selected) source else try lowering.builder.expression(.{ .dereference = source });
-    const value = if (change.multiple) null else try operand(lowering, parent, change.field.value, selected);
+    const initial = try lowering.expr(change.reference);
+    const value = if (change.multiple) null else try lowering.expr(change.field.value);
     const value_name = try lowering.fresh("operand");
     const label = try lowering.fresh("block");
     var body: std.ArrayList(node.Statement) = .empty;
@@ -30,7 +30,7 @@ pub fn lower(lowering: *Lower, change: Change, parent: *std.ArrayList(node.State
         for (values, 0..) |*item, index| {
             const field = object.fields.at(index);
 
-            item.* = if (unchanged(lowering, change.reference, field)) 0 else @backingInt(try operand(lowering, parent, field.value, selected));
+            item.* = if (unchanged(lowering, change.reference, field)) 0 else @backingInt(try lowering.expr(field.value));
         }
 
         for (values, 0..) |item, index| {
@@ -65,7 +65,7 @@ pub fn lower(lowering: *Lower, change: Change, parent: *std.ArrayList(node.State
         } });
     }
 
-    if (selected) try body.append(lowering.allocator, .{ .assignment = .{
+    try body.append(lowering.allocator, .{ .assignment = .{
         .target = try lowering.field(target, try @import("../state_value/origin.zig").name(lowering, change.type_id)),
         .value = try lowering.builder.expression(.null_value),
     } });
@@ -73,6 +73,27 @@ pub fn lower(lowering: *Lower, change: Change, parent: *std.ArrayList(node.State
     try body.append(lowering.allocator, .{ .break_value = .{ .label = label, .value = target } });
 
     return lowering.builder.expression(.{ .block = .{ .label = label, .statements = try lowering.builder.statements(body.items) } });
+}
+
+fn boxed(lowering: *Lower, change: Change, parent: *std.ArrayList(node.Statement)) Lower.Error!node.ExpressionId {
+    const source = try aggregate.bind(lowering, parent, try lowering.expr(change.reference));
+    const object = lowering.program.expression(change.object.?).value.object;
+    const names = lowering.program.typeOf(change.type_id).object.names;
+    const fields = try lowering.allocator.alloc(node.Field, object.fields.len);
+
+    for (0..object.fields.len) |index| {
+        const member = object.fields.at(index);
+        const name = names[member.index];
+
+        const value = if (unchanged(lowering, change.reference, member))
+            try lowering.field(source, name)
+        else
+            try operand(lowering, parent, member.value);
+
+        fields[member.index] = .{ .name = name, .value = value };
+    }
+
+    return lowering.builder.expression(.{ .object = .{ .type_expr = try lowering.layoutExpr(change.type_id), .fields = fields } });
 }
 
 pub fn match(lowering: *const Lower, id: ir.ExprId) ?Change {
@@ -154,14 +175,11 @@ fn matchMode(lowering: *const Lower, id: ir.ExprId, evaluated: bool) ?Change {
     };
 }
 
-fn operand(lowering: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId, selected: bool) Lower.Error!node.ExpressionId {
-    const value = try lowering.expr(id);
+fn operand(lowering: *Lower, body: *std.ArrayList(node.Statement), id: ir.ExprId) Lower.Error!node.ExpressionId {
+    const bound = try aggregate.bind(lowering, body, try lowering.expr(id));
+    const value = try @import("../state_value/conversion.zig").convert(lowering, body, lowering.program.expression(id).type_id, bound, .pointer);
 
-    if (selected) return value;
-
-    const bound = try aggregate.bind(lowering, body, value);
-
-    return @import("../state_value/conversion.zig").convert(lowering, body, lowering.program.expression(id).type_id, bound, .pointer);
+    return if (value == bound) bound else aggregate.bind(lowering, body, value);
 }
 
 fn owner(lowering: *const Lower, id: ir.ExprId) ?ir.SymbolId {

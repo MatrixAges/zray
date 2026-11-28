@@ -24,7 +24,7 @@ pub fn check(context: Compile.Context, source: []const u8) !Compile.Status {
         .document = @ptrCast(&document),
         .input_path = path,
         .source = source,
-        .maximum_lines = context.options.max_lines orelse lint.length.default_maximum,
+        .maximum_lines = context.options.max_lines,
     });
 
     return report(context.stderr, path, outcome);

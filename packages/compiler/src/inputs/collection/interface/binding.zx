@@ -1,29 +1,73 @@
 import { internal_prefix } from "../const"
 
-import type { Output as Publication } from "./publish"
-import type { Binding, SourcePlan, Traversal as Output } from "./publish_shape"
+import type {
+    GenerationBinding,
+    GenerationRegistration
+} from "generation_host"
+import type { Document } from "../../fingerprint/model"
+import type { Row } from "./publish"
 
 export type Input = {
-    plan: Publication,
-    source: SourcePlan
+    rows: Row[],
+    documents: Document[],
+    failure?: u16
+}
+
+export type Output = {
+    registered: GenerationRegistration,
+    sources: string[],
+    documents: Document[]
 }
 
 export default function (in: Input): Output {
-    const { index, alias, path, module, resolve_members, next } = in.plan
+    const bindings: GenerationBinding[] = []
+    const sources: string[] = []
 
-    const name = alias ?? `${internal_prefix}${module}`
+    const result = loop({
+        row: 0,
+        read: 0,
+        external: bindings,
+        internal: bindings,
+        external_sources: sources,
+        internal_sources: sources
+    }, {
+        while: state => state.row < in.rows.length,
+        next: state => {
+            const { declaration, source } = in.rows[state.row]
+            const { specifier, path, module, resolve_members } = declaration
+            const text = source ?? in.documents[state.read].source
+            const binding: GenerationBinding = {
+                name: specifier ?? `${internal_prefix}${module}`,
+                path,
+                module,
+                source: text,
+                resolve_members
+            }
 
-    const binding: Binding = {
-        index,
-        name,
-        path,
-        module,
-        ...in.source,
-        resolve_members
-    }
+            if (specifier != null) {
+                state.external = state.external.push(binding)[0]
+                state.external_sources = state.external_sources.push(text)[0]
+            } else {
+                state.internal = state.internal.push(binding)[0]
+                state.internal_sources = state.internal_sources.push(text)[0]
+            }
+
+            if (source == null) {
+                state.read += 1
+            }
+
+            state.row += 1
+        },
+        return: state => state
+    })
 
     return {
-        ...next,
-        bindings: next.bindings.push(binding)[0]
+        registered: {
+            bindings: result.external.concat(result.internal)[0],
+            external: result.external.length,
+            failure: in.failure
+        },
+        sources: result.external_sources.concat(result.internal_sources)[0],
+        documents: in.documents
     }
 }

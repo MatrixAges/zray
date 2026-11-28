@@ -2,7 +2,6 @@ import integers from "std:integer"
 import { astFieldCount, readAstOrigin } from "ast_rows"
 import { CollectionKind, ExpressionKind } from "core/expression_table/kinds"
 import host from "lowering_host"
-import { IterationResource } from "lowering_host"
 
 import { Mode } from "../model"
 import bindOperand from "./bind_operand"
@@ -13,7 +12,7 @@ import type { Input } from "./model"
 export type { Input as Output } from "../model"
 
 export default function (in: Input): Output {
-    const { lower, writer, context, expressions, id } = in
+    const { lower, writer, expressions, id } = in
 
     const row = integers.widen(id)
     const payload = integers.widen(expressions.payloads[row])
@@ -83,19 +82,11 @@ export default function (in: Input): Output {
         }
     }
 
-    const list_layout = host.materializeIterationResource(
-        context,
-        list_type,
-        IterationResource.IterationType
-    )
+    const list_layout = host.lowerType(lower, list_type, true)
 
     const result_layout = match mode {
         Mode.Update => 0,
-        _ => host.materializeIterationResource(
-            context,
-            expressions.types[row],
-            IterationResource.IterationType
-        )
+        _ => host.lowerType(lower, expressions.types[row], true)
     }
 
     const current = readAstOrigin(writer)

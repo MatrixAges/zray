@@ -4,7 +4,7 @@
 
     <Args in={Edges.Input} out={Edges.Result} />
 
-    <Call fn="build" in={$in.omit(["depth_limit"])} />
+    <Call fn="build" in={$in} />
 
     <If on={$ctx.build.status != Edges.Status.Valid}>
         <Return
@@ -26,8 +26,7 @@
         in={{
             edges: $ctx.targets,
             offsets: $ctx.build.offsets,
-            count: $in.count,
-            limit: $in.depth_limit
+            count: $in.count
         }}
     />
 

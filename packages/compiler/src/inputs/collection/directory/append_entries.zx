@@ -1,9 +1,9 @@
-import type { Output as Batch } from "./flatten"
 import type { Collected } from "./model"
+import type { Level } from "./scan_shape"
 
 export type Input = {
     collected: Collected,
-    batch: Batch
+    level: Level
 }
 
 export type Output = void
@@ -11,12 +11,12 @@ export type Output = void
 export default function (in: Input, {
     $store
 }): Output {
-    const { collected, batch } = in
+    const { collected, level } = in
 
-    if (batch.count != 0) {
+    if (level.count != 0) {
         $store.entries.collected = {
-            batches: collected.batches.push(batch.batch)[0],
-            count: collected.count + batch.count
+            batches: collected.batches.concat(level.files)[0],
+            count: collected.count + level.count
         }
     }
 }

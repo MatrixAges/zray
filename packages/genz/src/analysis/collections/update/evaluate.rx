@@ -17,7 +17,7 @@
             target: $in.target,
             evaluated: $ctx.apply_work,
             represented: $in.represented,
-            clip: $in.represented
+            clip: false
         }}
     />
 

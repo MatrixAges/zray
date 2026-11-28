@@ -42,6 +42,6 @@ export type Effective = Declaration & {
     invalid: bool
 }
 
-export type Output = Merged & {
+export type Output = {
     signature: Effective
 }

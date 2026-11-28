@@ -1,27 +1,36 @@
 <Module>
-    <Type from="publish_shape" as="Interfaces" />
+    <Type from="publish" as="Plan" />
+    <Type from="binding" as="Binding" />
 
-    <Args in={Interfaces.Registration} out={Interfaces.Plan} />
+    <Args in={Plan.Registration} out={Binding.Output} />
 
-    <Call fn="count" in={$in.aliases} />
-
-    <Loop on={$in.row < $in.request.aliases.count}>
-        <Call
-            module="next"
-            in={{
-                request: $in,
-                row: 0,
-                external: 0,
-                internal: $ctx.count,
-                bindings: []
-            }}
-        />
-    </Loop>
-
-    <Return
-        value={{
-            external: $ctx.count,
-            bindings: $ctx.next.bindings
+    <Call
+        fn="publish"
+        in={{
+            declarations: $in.declarations,
+            sources: $in.sources
         }}
     />
+
+    <Call
+        module="../../generation/request/read"
+        in={[
+            $in.host,
+            {
+                root: null,
+                files: $ctx.publish.files,
+                optional: true
+            }
+        ]}
+    />
+
+    <Call
+        fn="binding"
+        in={{
+            rows: $ctx.publish.rows,
+            ...$ctx.read
+        }}
+    />
+
+    <Return value={$ctx.binding} />
 </Module>

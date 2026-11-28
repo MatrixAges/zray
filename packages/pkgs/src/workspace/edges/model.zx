@@ -28,9 +28,7 @@ export type Edge = {
     development: bool
 }
 
-export type Input = Members & {
-    depth_limit: u64
-}
+export type Input = Members
 
 export type OwnerResult = {
     edge: u64,

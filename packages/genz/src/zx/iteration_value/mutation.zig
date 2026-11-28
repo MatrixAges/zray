@@ -16,7 +16,6 @@ pub fn lower(context: *Context, id: zx.ir.ExprId) Lower.Error!node.ExpressionId 
     return evaluation.invokeWith(self, entry, &.{
         .lower = @ptrCast(self),
         .writer = @ptrCast(self),
-        .context = @ptrCast(context),
         .expressions = &expressions,
         .id = @backingInt(id),
     });

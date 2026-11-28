@@ -1,13 +1,13 @@
 import type { Stores } from "core/store_table/model"
 import type { TextColumn } from "memory"
-import type { ColumnAllocator, RowBuffer, RowGrowth } from "memory/columns"
 import type { Bindings as Selected } from "../../../binding/model"
 import type { Members } from "../../../binding/publication/model"
 import type { Ports, Signature } from "../model"
 
 export type RowsTarget = {
-    storage: RowBuffer,
-    used: u64
+    used: u64,
+    capacity: u64,
+    base: u64
 }
 
 export type Declaration = Ports & {
@@ -30,7 +30,6 @@ export type Value = Declaration & {
 }
 
 export type Forwarded = {
-    rows: u8[],
     row: u64
 }
 
@@ -41,11 +40,9 @@ export type Bindings = {
 }
 
 export type ReexportRows = RowsTarget & {
-    signatures: u8[],
-    stride: u64,
+    signatures: u64,
     facts: BindingFacts,
-    kinds: Kinds,
-    backing: ColumnAllocator
+    kinds: Kinds
 }
 
 export type Reexports = Selected & {
@@ -61,17 +58,14 @@ export type Input = {
     callable: Declaration,
     declared: bool,
     kinds: Kinds,
-    forwarded: u8[],
+    forwarded: u64,
     bindings: Bindings,
-    storage: RowBuffer,
-    resource: ColumnAllocator,
-    reads: RowGrowth,
-    stride: u64,
     names: TextColumn,
     signature: Signature
 }
 
 export enum ChangeKind {
+    Reserve,
     Value,
     Forwarded,
     Reexport
@@ -86,6 +80,5 @@ export type Change = {
     output_type: u32,
     has_store: bool,
     own_name: bool,
-    rows: u8[],
     source_row: u64
 }

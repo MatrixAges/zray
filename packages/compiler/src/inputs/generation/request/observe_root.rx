@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Request" />
+
+    <Args in={Request.ObserveStep} out={Request.ObserveStep} />
+
+    <Call module="scan_root" in={$in.roots[$in.row]} />
+
+    <Call
+        fn="append_root"
+        in={{
+            step: $in,
+            files: $ctx.scan_root
+        }}
+    />
+
+    <Return value={$ctx.append_root} />
+</Module>

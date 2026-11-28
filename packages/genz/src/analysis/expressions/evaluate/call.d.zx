@@ -5,15 +5,8 @@ export declare function lowerCallStore(
     mapping: u32[]
 ): u32 throws { OutOfMemory }
 
-export declare function openIterationCall(
-    context: IterationResourceFrame,
-    operand: u32,
-    operand_type: u32,
-    value: u32
-): void throws { OutOfMemory }
-
 export declare function convertIterationCall(
-    context: IterationResourceFrame,
+    frame: Lowering,
     result_type: u32,
     value: u32
 ): u32 throws { OutOfMemory }

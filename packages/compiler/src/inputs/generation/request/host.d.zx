@@ -6,101 +6,158 @@ export type GenerationPackage = {
     entry: string
 }
 
+export type GenerationDigest = {
+    path: string,
+    digest: u8[]
+}
+
+export type GenerationVersion = {
+    inode: u64,
+    size: u64,
+    mtime_low: u64,
+    ctime_low: u64,
+    read_low: u64,
+    mtime_high: i32,
+    ctime_high: i32,
+    read_high: i32
+}
+
+export type GenerationDocument = {
+    path: string,
+    source: string,
+    digest: u8[],
+    version?: GenerationVersion
+}
+
+export type GenerationCatalog = {
+    sources: GenerationDocument[],
+    modules: GenerationDocument[],
+    templates: GenerationDocument[],
+    packages: GenerationPackage[]
+}
+
+export type GenerationRoot = {
+    path: string,
+    prefix: string
+}
+
+export type GenerationTime = {
+    high: i32,
+    low: u64
+}
+
+export type GenerationStat = {
+    inode?: u64,
+    size?: u64,
+    mtime_ns?: GenerationTime,
+    ctime_ns?: GenerationTime
+}
+
+export type GenerationPath = {
+    path: string,
+    relative: string,
+    retain: bool,
+    stat?: GenerationStat
+}
+
+export type GenerationObservedRoot = {
+    files: GenerationPath[]
+}
+
+export type GenerationRead = {
+    root?: string,
+    files: GenerationPath[],
+    optional: bool
+}
+
+export type GenerationReadResult = {
+    documents: GenerationDocument[],
+    failure?: u16
+}
+
+export type GenerationInterface = {
+    specifier?: string,
+    path: string,
+    module: string,
+    resolve_members: bool
+}
+
+export type GenerationBinding = {
+    name: string,
+    path: string,
+    module: string,
+    source: string,
+    resolve_members: bool
+}
+
+export type GenerationFact = {
+    path: string,
+    key: string
+}
+
+export type GenerationSnapshot = {
+    path: string,
+    context: string,
+    facts: GenerationFact[]
+}
+
 export type GenerationObservation = {
-    snapshot?: GenerationArtifact,
+    enabled: bool,
+    snapshot?: GenerationSnapshot,
+    roots: GenerationObservedRoot[],
     digest?: u8[]
 }
 
 export type GenerationRegistration = {
-    bindings: GenerationArtifact,
+    bindings: GenerationBinding[],
+    external: u64,
     failure?: u16
 }
 
 export type PreparedGeneration = {
     digest: u8[],
-    fingerprints: GenerationArtifact,
-    previous?: GenerationArtifact
+    content: u8[],
+    shape: u8[],
+    digests: GenerationDigest[]
 }
 
-export type DirectoryListing = {
-    directories: string[][],
-    files: u8[][]
-}
-
-export declare function observeGenerationInputs(
+export declare function readGenerationSnapshot(
     allocator,
     io,
-    host: GenerationIO
+    host: GenerationIO,
+    roots: GenerationObservedRoot[]
 ): GenerationObservation throws { GenerationRequestFailed }
 
-export declare function loadGenerationRoot(
-    io,
-    host: GenerationIO,
-    root: u64,
-    snapshot: GenerationArtifact?
-): u8[] throws { GenerationRequestFailed }
-
-export declare function classifyGenerationDocuments(
-    allocator,
-    host: GenerationIO,
-    documents: u8[][],
-    packages: GenerationPackage[]
-): GenerationArtifact throws { GenerationRequestFailed }
-
-export declare function registerGenerationInterfaces(
+export declare function readGenerationFiles(
     allocator,
     io,
     host: GenerationIO,
-    catalog: GenerationArtifact
-): GenerationRegistration throws { GenerationRequestFailed }
-
-export declare function fingerprintGenerationInputs(
-    allocator,
-    host: GenerationIO,
-    catalog: GenerationArtifact,
-    bindings: GenerationArtifact,
-    interfaces_loaded: bool
-): PreparedGeneration throws { GenerationRequestFailed }
+    input: GenerationRead
+): GenerationReadResult throws { GenerationRequestFailed }
 
 export declare function restoreGenerationAnalysis(
     io,
     host: GenerationIO,
-    previous: GenerationArtifact
-): string throws { GenerationRequestFailed }
+    digest: u8[]
+): string? throws { GenerationRequestFailed }
 
 export declare function prepareGenerationTemplates(
     allocator,
     host: GenerationIO,
-    catalog: GenerationArtifact
+    catalog: GenerationCatalog
 ): GenerationArtifact throws { GenerationRequestFailed }
 
 export declare function prepareGenerationModules(
     allocator,
     host: GenerationIO,
-    catalog: GenerationArtifact
+    catalog: GenerationCatalog
 ): GenerationArtifact throws { GenerationRequestFailed }
 
 export declare function generateFromPreparedInputs(
     io,
     host: GenerationIO,
-    fingerprints: GenerationArtifact,
-    catalog: GenerationArtifact,
-    bindings: GenerationArtifact,
+    fingerprints: PreparedGeneration,
+    bindings: GenerationRegistration,
     sources: GenerationArtifact,
     modules: GenerationArtifact
 ): string throws { GenerationRequestFailed }
-
-export declare function saveGenerationSnapshot(
-    io,
-    host: GenerationIO,
-    snapshot: GenerationArtifact,
-    digest: u8[]
-): void throws { GenerationRequestFailed }
-
-export declare function listGenerationLevel(
-    allocator,
-    io,
-    reader: GenerationIO,
-    parents: string[],
-    copy_paths: bool
-): DirectoryListing throws { GenerationRequestFailed, OutOfMemory }

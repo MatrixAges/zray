@@ -1,0 +1,59 @@
+import { finishAstSequence, tailAstPackedStatements } from "ast_rows"
+
+import finishStored from "../../../aggregate/execute/finish_stored"
+import { Guard } from "../../initial/model"
+
+import type { Guard as BlockGuard } from "../../../aggregate/binding/model"
+import type { Finish } from "./emission_model"
+
+export type Input = Finish & {
+    value: u32,
+    fallback?: u32
+}
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { frame, writer, body_seq, guard_info, value, fallback } = in
+
+    const first = in.update.first
+
+    if (in.projected) {
+        const span = finishAstSequence(writer, body_seq)
+
+        const guard: BlockGuard? = match {
+            first != null && fallback != null => {
+                condition: first,
+                yes: value,
+                no: fallback
+            },
+            _ => null
+        }
+
+        return finishStored({
+            frame,
+            writer,
+            span,
+            value,
+            guard
+        })
+    }
+
+    if (in.initial_plan.guard == Guard.None) {
+        return value
+    }
+
+    const span = tailAstPackedStatements(writer, [guard_info.body])
+
+    return finishStored({
+        frame,
+        writer,
+        span,
+        value,
+        guard: {
+            condition: guard_info.condition,
+            yes: value,
+            no: guard_info.fallback
+        }
+    })
+}

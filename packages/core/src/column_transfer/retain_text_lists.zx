@@ -1,7 +1,6 @@
-import { clone } from "core/owned_text"
 import memory from "memory"
 
-import release from "./release_text_lists"
+import release from "./release"
 
 import type { Retain } from "./model"
 
@@ -21,10 +20,7 @@ export default function (in: Input): Output {
             const source =
                 memory.transferTextList(group, column, first + state.row, false)
             const value: string[]? = match {
-                source != null => clone({
-                    allocator,
-                    source
-                }),
+                source != null => memory.cloneTextList(allocator, source),
                 _ => null
             }
 

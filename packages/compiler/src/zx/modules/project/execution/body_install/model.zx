@@ -1,16 +1,11 @@
+import type { Capacity } from "core/row_buffer"
 import type {
     ColumnAllocator,
     ColumnGrowth,
     ColumnRecord,
     ColumnRowLayout,
-    ColumnSet,
-    RowBuffer
+    ColumnSet
 } from "memory/columns"
-
-export type Rows = {
-    storage: RowBuffer,
-    used: u64
-}
 
 export type Functions = {
     storage: ColumnSet,
@@ -25,10 +20,8 @@ export type Functions = {
 export type Installation = {
     functions: Functions,
     function: ColumnRecord,
-    records: Rows,
-    cache: Rows,
-    resource: ColumnAllocator,
-    backing: ColumnAllocator
+    records: Capacity,
+    cache: Capacity
 }
 
 export type Register = {

@@ -1,62 +1,57 @@
 const std = @import("std");
 const Snapshot = @import("../snapshot.zig");
 const read = @import("read.zig");
-const Context = read.Context;
 const storage = @import("storage.zig");
-const Error = storage.Error;
 const rule = @import("cli_source").scan;
+const Request = std.meta.Child(rule.Input);
+const Row = std.meta.Child(std.meta.Elem(@FieldType(Request, "rows")));
 
 pub fn scan(snapshot: Snapshot, io: std.Io, allocator: std.mem.Allocator, versioned: bool, reuse_versions: bool) !bool {
+    if (!snapshot.consistent) return false;
+
+    const started = if (versioned) read.timestamp(std.Io.Timestamp.now(io, .real).nanoseconds) else null;
     var scratch = std.heap.ArenaAllocator.init(allocator);
-    var workflow = std.heap.ArenaAllocator.init(allocator);
 
     defer scratch.deinit();
-    defer workflow.deinit();
 
-    var context: Context = .{
-        .io = io,
-        .allocator = scratch.allocator(),
-        .started = if (versioned and snapshot.consistent) std.Io.Timestamp.now(io, .real).nanoseconds else 0,
-        .scan = .{ .entries = snapshot.entries, .scratch = &scratch },
-    };
+    const temporary = scratch.allocator();
+    const count = snapshot.entries.len;
+    const rows = try temporary.alloc(Row, count);
+    const views = try temporary.alloc(*const Row, count);
+    const facts = try temporary.alloc(storage.Fact, count);
+    const versions: []read.VersionFields = if (reuse_versions) try temporary.alloc(read.VersionFields, count) else &.{};
 
-    const handle = &context;
+    for (snapshot.entries, rows, views, facts, 0..) |*entry, *row, *view, *fact, index| {
+        fact.* = Snapshot.fact(&entry.state);
 
-    return rule.execute(&workflow, &.{
-        .scan = @ptrCast(&handle),
-        .count = snapshot.entries.len,
+        row.* = .{
+            .path = entry.path,
+            .directory_entries = entry.directory_entries,
+            .fact = fact,
+            .verified = if (reuse_versions and entry.verified_file != null) verified: {
+                const fields = &versions[index];
+
+                fields.init(entry.verified_file.?);
+
+                break :verified &fields.view;
+            } else null,
+        };
+
+        view.* = row;
+    }
+
+    const result = try rule.executeIn(temporary, &.{
+        .rows = views,
         .consistent = snapshot.consistent,
-        .versioned = versioned,
+        .started = if (started) |*stamp| stamp else null,
         .reuse_versions = reuse_versions,
-    }) catch |err| if (err == error.ObservationFailure) context.failure.? else err;
-}
+    }, io);
 
-pub fn versionMatches(handle: *const anyopaque, index: u64) Error!bool {
-    const self = Context.get(handle);
+    for (result.updates) |update| {
+        snapshot.entries[@intCast(update.row)].verified_file = if (update.verified) |version| read.versionFromFields(version) else null;
+    }
 
-    return self.scan.?.entries[@intCast(index)].stillMatches(self.io) catch |err| self.fail(err);
-}
+    if (result.failure) |failure| return read.failure(failure);
 
-pub fn readRow(handle: *const anyopaque, index: u64, versioned: bool) Error!*const storage.Comparison {
-    const self = Context.get(handle);
-    const entry = &self.scan.?.entries[@intCast(index)];
-
-    _ = self.scan.?.scratch.reset(.retain_capacity);
-    self.path = entry.path;
-    self.save_version = versioned;
-    self.verified_file = null;
-
-    read.observe(self, entry.directory_entries) catch |err| return self.fail(err);
-
-    self.left = Snapshot.fact(&entry.state);
-    self.right = Snapshot.fact(&self.result);
-    self.comparison = .{ .left = &self.left, .right = &self.right };
-
-    return &self.comparison;
-}
-
-pub fn acceptVersion(handle: *const anyopaque, index: u64) void {
-    const self = Context.get(handle);
-
-    self.scan.?.entries[@intCast(index)].verified_file = self.verified_file;
+    return result.same;
 }

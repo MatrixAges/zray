@@ -6,14 +6,13 @@ export default function (in: Input): Output {
     const first = integers.widen(in.first)
 
     return {
-        traversal: in.traversal,
         context: in.context,
-        scope: in.scope,
         routes: in.routes,
         writes: in.writes,
         first,
         cursor: first + integers.widen(in.count),
         scope_first: integers.widen(in.scope_first),
+        scope_count: integers.widen(in.scope_count),
         valid: true,
         running: in.count != 0
     }

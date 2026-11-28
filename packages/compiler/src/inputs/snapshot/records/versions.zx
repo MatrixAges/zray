@@ -1,0 +1,142 @@
+import bytes from "std:bytes"
+
+import { sort_equal, sort_greater, sort_less } from "../../collection/const"
+import { fingerprint_width, snapshot_limit } from "../const"
+import { header_width, row_width } from "./const"
+
+import type { GenerationSnapshot } from "generation_host"
+import type { Document } from "../../fingerprint/model"
+import type { Version, WriteRows } from "./write_shape"
+
+export type Input = {
+    target: GenerationSnapshot,
+    digest: u8[],
+    batches: Document[][],
+    external: Document[]
+}
+
+export type Row = {
+    document: Document,
+    position: u64
+}
+
+export type Output = WriteRows?
+
+export default function (in: Input): Output {
+    const rows: Row[] = []
+
+    const batches = in.batches.push(in.external)[0]
+
+    const indexed = loop({
+        batch: 0,
+        rows
+    }, {
+        while: state => state.batch < batches.length,
+        next: state => {
+            const documents = batches[state.batch]
+
+            state.rows = loop({
+                row: 0,
+                rows: state.rows
+            }, {
+                while: cursor => cursor.row < documents.length,
+                next: cursor => {
+                    cursor.rows = cursor.rows.push({
+                        document: documents[cursor.row],
+                        position: cursor.rows.length
+                    })[0]
+                    cursor.row += 1
+                },
+                return: cursor => cursor.rows
+            })
+
+            state.batch += 1
+        },
+        return: state => state.rows
+    })
+
+    const ordered = indexed.sort(
+        (left, right) => {
+            const first = left.document.path
+            const second = right.document.path
+
+            return match {
+                first == second => match {
+                    left.position > right.position => sort_less,
+                    left.position < right.position => sort_greater,
+                    _ => sort_equal
+                },
+                bytes.lessThan(bytes.fromText(first), bytes.fromText(second)) =>
+                    sort_less,
+                _ => sort_greater
+            }
+        }
+    )[0]
+
+    const paths: string[] = []
+    const versions: Version[] = []
+
+    const { facts } = in.target
+
+    const collected = loop({
+        row: 0,
+        valid: true,
+        size: header_width,
+        paths,
+        versions
+    }, {
+        while: state => state.valid && state.row < facts.length,
+        next: state => {
+            const fact = facts[state.row]
+            state.size += row_width + fact.path.length
+
+            const key = bytes.fromText(fact.key)
+            const selected = loop({
+                first: 0,
+                last: ordered.length
+            }, {
+                while: cursor => cursor.first < cursor.last,
+                next: cursor => {
+                    const middle = cursor.first + (cursor.last - cursor.first) / 2
+                    const path = bytes.fromText(ordered[middle].document.path)
+
+                    if (bytes.lessThan(path, key)) {
+                        cursor.first = middle + 1
+                    } else {
+                        cursor.last = middle
+                    }
+                },
+                return: cursor => cursor.first
+            })
+
+            const version: Version? = match {
+                selected < ordered.length &&
+                    ordered[selected].document.path == fact.key =>
+                    ordered[selected].document.version,
+                _ => null
+            }
+
+            if (
+                version == null || state.size > snapshot_limit - fingerprint_width
+            ) {
+                state.valid = false
+            } else {
+                state.paths = state.paths.push(fact.path)[0]
+                state.versions = state.versions.push(version)[0]
+            }
+
+            state.row += 1
+        },
+        return: state => state
+    })
+
+    if (!collected.valid) {
+        return null
+    }
+
+    return {
+        count: collected.paths.length,
+        paths: collected.paths,
+        versions: collected.versions
+    }
+}

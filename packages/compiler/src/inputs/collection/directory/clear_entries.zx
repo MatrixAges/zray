@@ -1,0 +1,16 @@
+import type { Collected } from "./model"
+
+export type Input = Collected
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    if (in.count != 0) {
+        $store.entries.collected = {
+            batches: [],
+            count: 0
+        }
+    }
+}

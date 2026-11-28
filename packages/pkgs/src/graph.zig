@@ -10,7 +10,7 @@ pub fn input(targets: *const memory.ListColumn, initial_marks: []const u8, ranke
     return .{
         .targets = @ptrCast(targets),
         .count = initial_marks.len,
-        .limit = depth_limit,
+        .limit = null,
         .ranked = ranked,
         .initial_marks = initial_marks,
     };
@@ -39,7 +39,7 @@ pub fn check(allocator: std.mem.Allocator, packages: anytype, comptime mode: Mod
     const query: Input = .{
         .targets = @ptrCast(&targets),
         .count = packages.len,
-        .limit = depth_limit,
+        .limit = null,
         .ranked = mode == .lock,
         .initial_marks = marks,
     };
@@ -70,13 +70,12 @@ pub fn assemble(allocator: std.mem.Allocator, root: []const u8, packages: anytyp
         break :path native;
     };
 
-    const result = assembly.executeValue(scratch, &.{
+    const result = assembly.executeValue(scratch, .{
         .manifests = &manifests.input(),
         .paths = @ptrCast(&paths),
         .root = portable_root,
         .count = packages.len,
         .limit = std.math.maxInt(usize),
-        .depth_limit = depth_limit,
     }) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         else => unreachable,

@@ -12,7 +12,6 @@ export default function (in: Input): Output {
     return {
         ...in,
         action: ChangeKind.Value,
-        rows: [],
         source_row: 0
     }
 }

@@ -1,23 +1,40 @@
-export { PathKind, Reuse } from "snapshot_host"
+export { FactKind, PathKind, Reuse } from "snapshot_host"
 
-import type { Observation, Registration } from "snapshot_host"
+import type { Fact, FileVersion, Reading, Registration, Timestamp } from "snapshot_host"
 
-export type { Classification, Registration } from "snapshot_host"
+export type { Classification, Reading, Registration } from "snapshot_host"
+
+export type Observation = {
+    path: string,
+    directory_entries: bool,
+    fact: Fact,
+    verified?: FileVersion
+}
+
+export type Update = {
+    row: u64,
+    verified?: FileVersion
+}
+
+export type ScanResult = {
+    same: bool,
+    updates: Update[],
+    failure?: u32
+}
 
 export type ScanInput = {
-    scan: Observation,
-    count: u64,
+    rows: Observation[],
     consistent: bool,
-    versioned: bool,
+    started?: Timestamp,
     reuse_versions: bool
 }
 
 export type ScanRows = ScanInput.Omit("consistent")
 
 export type ReadInput = {
-    observation: Observation,
     path: string,
-    directory_entries: bool
+    directory_entries: bool,
+    started?: Timestamp
 }
 
 export type AddInput = {
@@ -37,7 +54,12 @@ export enum Admission {
     Upgrade
 }
 
-export type ScanRow = ScanRows & {
-    index: u64,
+export type ScanRow = ScanRows & ScanResult & {
+    index: u64
+}
+
+export type CompareRow = {
+    cursor: ScanRow,
+    reading: Reading,
     same: bool
 }
