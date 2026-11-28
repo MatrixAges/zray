@@ -37,13 +37,6 @@ export declare function frameLoweredLoop(
     after_step: bool
 ): void throws { OutOfMemory }
 
-export declare function projectLoopField(
-    target: FieldProjection,
-    type_id: u32,
-    value: u32,
-    slot: u32
-): u32 throws { OutOfMemory }
-
 export declare function guardLoopInitial(frame: LoopFrame, value: u32): void
     throws { OutOfMemory }
 

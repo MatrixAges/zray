@@ -5,7 +5,6 @@ const node = @import("../../node.zig");
 const Lower = @import("../lower.zig");
 const view = @import("../../node/view.zig");
 const Self = @This();
-const Change = @import("../object_update.zig").Change;
 const generated = @import("genz_options").generated_analysis;
 const Seed = @import("reuse/seed.zig");
 const entry = @import("generated_scope_reuse");
@@ -90,20 +89,6 @@ pub fn restore(self: *const Self, lowering: *Lower) void {
     if (!generated) return self.state.restore(lowering);
 
     applyNames(lowering, self.state.alias_symbols, self.state.saved, &.{}, true);
-}
-
-pub fn publish(self: *const Self, lowering: *Lower, index: usize) Lower.Error!?node.Block {
-    const row = self.state.changes[index] orelse return null;
-    const facts = self.state.candidates;
-
-    const change: Change = .{
-        .previous = @fromBackingInt(facts.previous[row]),
-        .reference = @fromBackingInt(facts.references[row]),
-        .field = .{ .index = facts.field_indices[row], .value = @fromBackingInt(facts.field_values[row]) },
-        .type_id = @fromBackingInt(facts.types[row]),
-    };
-
-    return try @import("../object_update/emit.zig").statementBlock(lowering, change);
 }
 
 pub fn publishSeed(self: *const Self, lowering: *Lower, output: *std.ArrayList(node.Statement), index: usize) Lower.Error!?node.Block {

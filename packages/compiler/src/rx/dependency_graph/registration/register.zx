@@ -1,0 +1,49 @@
+import bytes from "std:bytes"
+import memory from "memory"
+
+import probe from "../../../zx/modules/source_index/probe"
+import { duplicate_path, invalid_path } from "./const"
+import normalize from "./path"
+
+import type { Request, Result } from "./model"
+
+export type Input = Request
+
+export type Output = Result
+
+export default function (in: Input): Output {
+    const { source, count, buckets } = in
+
+    const keys: u8[][] = []
+    const issue: string? = null
+
+    return loop({
+        keys,
+        buckets,
+        issue
+    }, {
+        while: state => state.keys.length < count && state.issue == null,
+        next: state => {
+            const row = state.keys.length
+            const path = bytes.fromText(memory.readTextColumn(source, row))
+            const key = normalize(path)
+
+            if (key == null) {
+                state.issue = invalid_path
+            } else {
+                const slot = probe({
+                    keys: state.keys,
+                    buckets: state.buckets,
+                    key
+                })
+
+                if (state.buckets[slot] != 0) {
+                    state.issue = duplicate_path
+                } else {
+                    state.keys = state.keys.push(key)[0]
+                    state.buckets = state.buckets.with(slot, row + 1)
+                }
+            }
+        }
+    })
+}

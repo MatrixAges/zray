@@ -357,19 +357,6 @@ pub inline fn writeU32(target: *anyopaque, index: u64, value: u32) error{IndexOu
     return write(u32, target, index, value);
 }
 
-pub fn allocateFilledU32Buffer(resource: *const anyopaque, target: *anyopaque, count: u64, value: u32) std.mem.Allocator.Error!void {
-    const allocator: *const std.mem.Allocator = @ptrCast(@alignCast(resource));
-    const output: *[]u32 = @ptrCast(@alignCast(target));
-
-    std.debug.assert(output.len == 0);
-
-    const items = try allocator.alloc(u32, std.math.cast(usize, count) orelse return error.OutOfMemory);
-
-    @memset(items, value);
-
-    output.* = items;
-}
-
 pub inline fn writeU64(target: *anyopaque, index: u64, value: u64) error{IndexOutOfBounds}!void {
     return write(u64, target, index, value);
 }

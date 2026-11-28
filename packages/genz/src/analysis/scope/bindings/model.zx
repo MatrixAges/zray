@@ -1,7 +1,8 @@
-import type { AstOriginBuffer, AstWriter } from "ast_rows"
+import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
 import type { ExpressionKind } from "core/expression_table/kinds"
-import type { Lowering, ScopeFrame } from "lowering_host"
+import type { Lowering } from "lowering_host"
 import type { U32Buffer } from "memory"
+import type { Candidates } from "../reuse/model"
 
 export enum Action {
     Reuse,
@@ -35,12 +36,14 @@ export type Binding = {
 
 export type Input = {
     frame: Lowering,
-    scope: ScopeFrame,
     writer: AstWriter,
+    sequence: AstSequence,
     origin: AstOriginBuffer,
     result: u32,
     layout: bool,
     selection: Selection,
+    candidates?: Candidates,
+    variables: bool[],
     names: u8[][],
     symbol_types: u32[]
 }

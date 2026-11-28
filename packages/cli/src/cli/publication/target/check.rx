@@ -11,13 +11,7 @@
         ]}
     />
 
-    <Call
-        fn="ancestor"
-        in={[
-            $in.target,
-            $ctx.resolvePathParts
-        ]}
-    />
+    <Call fn="ancestor" />
 
     <If on={$ctx.ancestor.path.length == 0}>
         <Return
@@ -28,9 +22,8 @@
     </If>
 
     <Call
-        fn="destination"
+        module="physical"
         in={{
-            target: $in.target,
             logical: $ctx.resolvePathParts,
             ancestor: $ctx.ancestor
         }}
@@ -40,7 +33,7 @@
         fn="overlap"
         in={{
             logical: $ctx.resolvePathParts,
-            physical: $ctx.destination,
+            physical: $ctx.physical,
             logical_inputs: $in.logical_inputs,
             physical_inputs: $in.physical_inputs
         }}
@@ -57,7 +50,7 @@
     <Return
         value={{
             status: Output.Status.Ready,
-            path: $ctx.destination
+            path: $ctx.physical
         }}
     />
 </Module>

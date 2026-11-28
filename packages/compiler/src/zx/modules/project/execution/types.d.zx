@@ -10,12 +10,6 @@ export type ProjectEntry = mutable_opaque
 
 export type ProgramEntry = mutable_opaque
 
-export type ProjectNative = mutable_opaque
-
-export type ProjectExternalBindings = mutable_opaque
-
-
-
 export type CompiledImport = mutable_opaque
 
 export type CompiledUnitSize = {
@@ -63,18 +57,7 @@ export enum ProjectSourceAction {
     Depth
 }
 
-export type ParseRetirement = mutable_opaque
-
-export type ParseAdoption = opaque
-
-export type ParseCacheEntry = mutable_opaque
-
-export type PrefetchedParse = {
-    adoption: ParseAdoption,
-    existing?: ParseCacheEntry
-}
-
-export type ParseCacheBatch = mutable_opaque
+export type ParseCacheEntry = opaque
 
 export type ParseWorker = opaque
 

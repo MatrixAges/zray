@@ -4,7 +4,6 @@ pub const PathKind = abi.native.@"zig:snapshot_host".PathKind;
 pub const Reuse = abi.native.@"zig:snapshot_host".Reuse;
 pub const Error = error{ObservationFailure};
 pub const registration = @import("registration.zig");
-pub const capture = @import("capture.zig");
 pub const scan = @import("scan.zig");
 pub const read = @import("read.zig");
 pub const directory = @import("directory/host.zig");

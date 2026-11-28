@@ -1,0 +1,27 @@
+<Module>
+    <Type from="destination" as="Destination" />
+    <Type from="index" as="IO" />
+
+    <Args in={Destination.Input} out={string} />
+
+    <Call fn="index.readPublicationFileKind" in={$in.logical} />
+
+    <If
+        on={$ctx.readPublicationFileKind != IO.PublicationFileKind.Missing &&
+            $ctx.readPublicationFileKind != IO.PublicationFileKind.Symlink}
+    >
+        <Call
+            fn="index.resolvePublicationPath"
+            in={[
+                $in.logical,
+                false
+            ]}
+        />
+
+        <Return value={$ctx.resolvePublicationPath} />
+    </If>
+
+    <Call fn="destination" in={$in} />
+
+    <Return value={$ctx.destination} />
+</Module>

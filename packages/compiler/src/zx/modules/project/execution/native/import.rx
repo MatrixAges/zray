@@ -1,11 +1,14 @@
 <Module>
     <Type from="model" as="Native" />
 
-    <Args in={Native.Import} out={Native.Verification} />
-
-    <Call module="load" in={$in} />
+    <Args in={Native.Import} out={Native.Load} />
 
     <Call fn="invalidate" in={{}} />
 
-    <Return value={$ctx.invalidate} />
+    <Return
+        value={{
+            loader: $in.cached ? Native.Loader.Cached : Native.Loader.Fresh,
+            verified: $ctx.invalidate
+        }}
+    />
 </Module>

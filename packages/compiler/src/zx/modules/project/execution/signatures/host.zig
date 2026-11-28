@@ -7,7 +7,6 @@ const Value = @FieldType(project.Result, "value");
 
 const Batch = struct {
     state: *Project,
-    registered: bool,
     modules: []project.Module = undefined,
     result: project.Data = undefined,
     fn read(handle: *anyopaque) *Batch {
@@ -17,18 +16,10 @@ const Batch = struct {
 
 pub fn run(state: *Project, entries: project.Entries, registered: bool) std.mem.Allocator.Error!Value {
     const generated = @import("generated_project_signatures_batch");
-    var batch: Batch = .{ .state = state, .registered = registered };
+    var batch: Batch = .{ .state = state };
 
     const count = switch (entries) {
         inline else => |items| items.len,
-    };
-
-    const input: std.meta.Child(generated.Input) = .{
-        .batch = @ptrCast(&batch),
-        .entries = count,
-        .units = state.units.len,
-        .rows = if (entries == .rows) entries.rows else null,
-        .paths = if (entries == .paths) entries.paths else &.{},
     };
 
     var scratch = std.heap.ArenaAllocator.init(state.arena.child_allocator);
@@ -37,8 +28,35 @@ pub fn run(state: *Project, entries: project.Entries, registered: bool) std.mem.
 
     var buffer: [512]u8 = undefined;
     var fallback = std.heap.BufferFirstAllocator.init(&buffer, scratch.allocator());
+    const temporary = fallback.allocator();
 
-    const published = generated.executeIn(fallback.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    const paths: []const []const u8 = switch (entries) {
+        .rows => &.{},
+        .paths => |names| resolve: {
+            if (registered) break :resolve names;
+
+            const absolute = try temporary.alloc([]const u8, names.len);
+
+            for (names, absolute) |name, *path| {
+                path.* = try std.fs.path.resolve(temporary, &.{ state.options.root_dir, name });
+            }
+
+            break :resolve absolute;
+        },
+    };
+
+    const index = state.options.source_index.?;
+
+    const input: std.meta.Child(generated.Input) = .{
+        .batch = @ptrCast(&batch),
+        .entries = count,
+        .units = state.units.len,
+        .rows = if (entries == .rows) entries.rows else null,
+        .paths = paths,
+        .index = &.{ .keys = index.keys, .buckets = @ptrCast(&index.buckets), .capacity = index.buckets.len },
+    };
+
+    const published = generated.executeIn(temporary, &input) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory => return error.OutOfMemory,
         error.InvalidSource => {
             var issue = state.reporter.diagnostic.?;
@@ -60,14 +78,6 @@ pub fn run(state: *Project, entries: project.Entries, registered: bool) std.mem.
 pub fn reserveProjectSignatures(handle: *anyopaque, count: u64) std.mem.Allocator.Error!void {
     const batch = Batch.read(handle);
     batch.modules = try batch.state.allocator.alloc(project.Module, @intCast(count));
-}
-
-pub fn findProjectSignature(handle: *anyopaque, name: []const u8) std.mem.Allocator.Error!?u64 {
-    const batch = Batch.read(handle);
-    const state = batch.state;
-    const path = if (batch.registered) name else try std.fs.path.resolve(state.allocator, &.{ state.options.root_dir, name });
-
-    return if (state.options.source_index.?.get(path)) |row| row else null;
 }
 
 pub fn loadProjectSignature(handle: *anyopaque, row: u64) zx.Error!void {

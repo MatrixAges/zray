@@ -1,21 +1,12 @@
-import host from "project_host"
-
-import type { ParseAdoption, ParseCacheEntry } from "project_host"
-
-export type Input = {
-    adoption: ParseAdoption,
-    existing?: ParseCacheEntry,
-    candidate: ParseCacheEntry
+export enum Action {
+    Insert,
+    Replace
 }
 
-export type Output = ParseCacheEntry?
+export type Input = bool
+
+export type Output = Action
 
 export default function (in: Input): Output {
-    const { adoption, existing, candidate } = in
-
-    if (existing == null) {
-        return host.insertParseEntry(adoption, candidate)
-    }
-
-    return host.replaceParseEntry(adoption, existing, candidate) ? existing : null
+    return in ? Action.Replace : Action.Insert
 }

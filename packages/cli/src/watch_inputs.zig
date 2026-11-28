@@ -7,5 +7,4 @@ pub const resolveNative = @import("zx").native_lookup.Resolver(&.{
     observation.read,
     observation.directory,
     observation.scan,
-    observation.capture,
 }).resolve;

@@ -66,7 +66,6 @@ pub const beginEvidence = evidence_output.begin;
 pub const writeEvidenceSources = evidence_output.field([]const frontend.project.Source, true);
 pub const writeEvidenceText = evidence_output.field([]const u8, false);
 pub const writeEvidenceNumber = evidence_output.field(u32, false);
-pub const writeEvidenceTypes = evidence_output.field(ir.TypeTable, true);
 pub const writeEvidenceInputs = evidence_output.field([]const @import("verification/conditions.zig").Input, true);
 pub const writeEvidenceProgram = evidence_output.field(ir.Program, true);
 pub const finishEvidence = evidence_output.finish;

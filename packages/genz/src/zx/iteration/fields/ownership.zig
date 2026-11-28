@@ -63,12 +63,12 @@ fn rebuild(self: *const Context, lowering: *Lower, body: anytype, request: Reque
 
     const execute = @import("generated_rebuild_loop_fields");
     const ExecInput = std.meta.Child(execute.Input);
-    const field_projection: Frame = .{ .lowering = lowering, .body = body, .origin = @fromBackingInt(planned.origin) };
 
     const request_execution: ExecInput = .{
         .frame = @ptrCast(lowering),
         .writer = @ptrCast(lowering),
-        .projection = @ptrCast(&field_projection),
+        .body = @ptrCast(body),
+        .origin = planned.origin,
         .expressions = zx.columns.pointer(@FieldType(ExecInput, "expressions"), planned.expressions),
         .requests = zx.columns.pointer(@FieldType(ExecInput, "requests"), planned.requests),
         .values = planned.values,
@@ -85,19 +85,14 @@ fn rebuild(self: *const Context, lowering: *Lower, body: anytype, request: Reque
     });
 }
 
-const Frame = struct {
-    lowering: *Lower,
-    body: *Statements,
-    origin: ir.ExprId,
-};
-
-pub fn projectLoopField(target: *const anyopaque, type_id: u32, value: u32, slot: u32) Lower.Error!u32 {
-    const frame: *const Frame = @ptrCast(@alignCast(target));
+pub fn projectLoopField(writer: *anyopaque, sequence: *anyopaque, origin: u32, type_id: u32, value: u32, slot: u32) Lower.Error!u32 {
+    const lowering = @import("../../expressions/evaluate.zig").borrow(writer);
+    const body: *Statements = @ptrCast(@alignCast(sequence));
 
     return @backingInt(try ownership.lower(
-        frame.lowering,
-        frame.body,
-        frame.origin,
+        lowering,
+        body,
+        @fromBackingInt(origin),
         @fromBackingInt(type_id),
         @fromBackingInt(value),
         slot,

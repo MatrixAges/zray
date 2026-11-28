@@ -1,7 +1,4 @@
-import type { OutputTarget } from "publication_host"
-
 export type Input = {
-    target: OutputTarget,
     cwd: string,
     path: string,
     logical_inputs: string[],

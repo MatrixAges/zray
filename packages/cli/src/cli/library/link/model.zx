@@ -1,4 +1,4 @@
-import type { Link, SourceRows } from "library_workflow_host"
+import type { Link } from "library_workflow_host"
 
 export type Input = {
     link: Link,
@@ -8,11 +8,6 @@ export type Input = {
 
 export type CollectInput = {
     link: Link,
-    count: u64
-}
-
-export type SourcesInput = {
-    sources: SourceRows,
     count: u64
 }
 

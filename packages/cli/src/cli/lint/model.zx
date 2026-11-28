@@ -1,5 +1,4 @@
 import type {
-    Command,
     Layout,
     SemanticLint,
     SemanticProject,
@@ -25,8 +24,15 @@ export enum WorkspaceOutcome {
     ManifestRequired
 }
 
+export enum CommandAction {
+    Workspace,
+    Semantic,
+    Configuration,
+    InvalidInput,
+    Source
+}
+
 export type CommandInput = {
-    host: Command,
     input_path: u8[],
     explicit_kind: Layout,
     workspace: bool,

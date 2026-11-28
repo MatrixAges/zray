@@ -1,22 +1,28 @@
 import bytes from "std:bytes"
 import claim from "core/bytes/index/claim"
 import memory from "memory"
-import host from "project_host"
 
 import bind from "../../interface/legacy"
 
 import type { Index } from "core/bytes/index/model"
-import type { ProjectExternalBindings } from "project_host"
 import type { External } from "../../interface/model"
 
-export type Input = External & {
-    target: ProjectExternalBindings
+export type Input = External
+
+export type Binding = {
+    row: u64,
+    name: string,
+    namespace?: string
 }
 
-export type Output = bool
+export type Output = {
+    bindings: Binding[],
+    valid: bool
+}
 
 export default function (in: Input): Output {
     const namespace: string? = null
+    const bindings: Binding[] = []
 
     const keys: Index = {
         keys: [],
@@ -24,12 +30,12 @@ export default function (in: Input): Output {
         buckets: []
     }
 
-    const { specifiers, exports, specifier, local, target } = in
+    const { specifiers, exports, specifier, local } = in
 
     return loop({
         index: in.first,
         keys,
-        count: 0,
+        bindings,
         namespace,
         previous_default: false,
         valid: true
@@ -50,35 +56,35 @@ export default function (in: Input): Output {
                     export_name,
                     local,
                     duplicate: claimed.previous != null,
-                    count: state.count,
+                    count: state.bindings.length,
                     previous_default: state.previous_default
                 })
 
                 state.valid = binding.valid
 
                 if (binding.valid) {
-                    host.materializeProjectExternal(target, row)
-
                     const label = binding.namespace
 
                     if (state.namespace == null && label != null) {
                         state.namespace = label
                     }
 
-                    host.appendProjectExternal(
-                        target,
-                        binding.name,
-                        state.namespace
-                    )
+                    state.bindings = state.bindings.push({
+                        row,
+                        name: binding.name,
+                        namespace: state.namespace
+                    })[0]
 
                     state.keys = claimed.index
-                    state.count += 1
                     state.previous_default = binding.default_export
                 }
             }
 
             state.index += 1
         },
-        return: state => state.valid
+        return: state => ({
+            bindings: state.bindings,
+            valid: state.valid
+        })
     })
 }

@@ -1,15 +1,1 @@
-<Module>
-    <Type from="model" as="Registration" />
-
-    <Args in={Registration.Request} out={void} />
-
-    <Loop on={$in.row < $in.request.paths.count}>
-        <Call
-            module="advance"
-            in={{
-                request: $in,
-                row: 0
-            }}
-        />
-    </Loop>
-</Module>
+<Module fn="register" />

@@ -1,37 +1,32 @@
+import integers from "std:integer"
 import memory from "memory"
-import host from "project_host"
 
 import type { ReadColumn } from "memory"
-import type { ParseRetirement } from "project_host"
 
 export type Input = {
-    cache: ParseRetirement,
     marks: ReadColumn,
-    count: u64,
-    capacity: u64
+    first: u64,
+    count: u64
 }
 
 export type Output = u64
 
 export default function (in: Input): Output {
-    const { cache, marks, count } = in
+    const { marks, first, count } = in
 
     return loop({
         row: 0,
-        capacity: in.capacity
+        retained: 0
     }, {
         while: state => state.row < count,
         next: state => {
-            const row = state.row
-
-            if (memory.readColumnBool(marks, row)) {
-                state.capacity += host.retainPendingParse(cache, row)
-            } else {
-                host.discardPendingParse(cache, row)
+            if (memory.readColumnBool(marks, first + state.row)) {
+                state.retained =
+                    integers.orBits(state.retained, integers.bitMask(state.row))
             }
 
             state.row += 1
         },
-        return: state => state.capacity
+        return: state => state.retained
     })
 }

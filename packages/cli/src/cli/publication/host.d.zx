@@ -2,7 +2,6 @@ export type Directory = opaque
 export type Output = mutable_opaque
 export type Library = mutable_opaque
 export type Verification = mutable_opaque
-export type OutputTarget = mutable_opaque
 
 export type ResourceWalk = opaque
 export type Retirement = opaque
@@ -36,9 +35,10 @@ export type RetirementPath = {
     absolute: bool
 }
 
-export enum RetirementFile {
+export enum PublicationFileKind {
     Missing,
     Regular,
+    Symlink,
     Other
 }
 
@@ -80,13 +80,26 @@ export declare function prepareRetirement(library: Library): string[] throws {
 export declare function validatePublishedPath(library: Library, path: string): string
     throws { PublicationFailure }
 
-export declare function readOutputPath(
-    target: OutputTarget,
+export declare function resolvePublicationPath(
+    allocator,
+    io,
     path: string,
     allow_missing: bool
-): string throws { PublicationFailure }
-export declare function isDirectOutput(target: OutputTarget, path: string): bool
-    throws { PublicationFailure }
+): string throws {
+    AccessDenied, AntivirusInterference, BadPathName, Canceled, DeviceBusy, FileBusy,
+    FileNotFound, FileSystem, FileTooBig, InputOutput, IsDir, NameTooLong, NetworkNotFound,
+    NoDevice, NoSpaceLeft, NotDir, OperationUnsupported, OutOfMemory, PathAlreadyExists,
+    PermissionDenied, PipeBusy, ProcessFdQuotaExceeded, SymLinkLoop, SystemFdQuotaExceeded,
+    SystemResources, Unexpected, UnrecognizedVolume
+}
+
+export declare function readPublicationFileKind(io, path: string): PublicationFileKind throws {
+    AccessDenied, AntivirusInterference, BadPathName, Canceled, DeviceBusy, FileBusy,
+    FileLocksUnsupported, FileTooBig, IsDir, NameTooLong, NetworkNotFound, NoDevice,
+    NoSpaceLeft, NotDir, PathAlreadyExists, PermissionDenied, PipeBusy, ProcessFdQuotaExceeded,
+    ReadOnlyFileSystem, Streaming, SymLinkLoop, SystemFdQuotaExceeded, SystemResources,
+    Unexpected, WouldBlock
+}
 
 export declare function resourceRoot(walk: ResourceWalk): ResourceEntry throws { PublicationFailure }
 export declare function openResources(walk: ResourceWalk): void throws { PublicationFailure }
@@ -103,8 +116,6 @@ export declare function readRetirement(plan: Retirement): bool throws { Publicat
 export declare function reserveTargets(plan: Retirement): string[] throws { PublicationFailure }
 
 export declare function retirementSpelling(plan: Retirement, path: string): RetirementPath
-    throws { PublicationFailure }
-export declare function retirementFileKind(plan: Retirement, path: string): RetirementFile
     throws { PublicationFailure }
 export declare function retirementPhysical(plan: Retirement, path: string): RetirementPath
     throws { PublicationFailure }

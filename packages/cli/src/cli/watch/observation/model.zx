@@ -1,13 +1,8 @@
 export { PathKind, Reuse } from "snapshot_host"
 
-import type { Capture, Observation, Registration, Scan } from "snapshot_host"
+import type { Observation, Registration, Scan } from "snapshot_host"
 
-export type { Capture, Registration, Scan } from "snapshot_host"
-
-export type CaptureInput = {
-    capture: Capture,
-    count: u64
-}
+export type { Registration, Scan } from "snapshot_host"
 
 export type ScanInput = {
     scan: Scan,

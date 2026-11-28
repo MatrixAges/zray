@@ -1,4 +1,4 @@
-import host from "lowering_host"
+import { emitBorrowedCall, lowerBorrowedOperand } from "ast_rows"
 
 import type { Call as Input } from "./model"
 
@@ -6,7 +6,7 @@ export type Output = u32
 
 export default function (in: Input): Output {
     const operand = in.operand ?? 0
-    const value = host.lowerBorrowedOperand(in.frame, operand)
+    const value = lowerBorrowedOperand(in.writer, in.sequence, operand)
 
-    return host.emitBorrowedCall(in.frame, value)
+    return emitBorrowedCall(in.writer, in.sequence, in.id, value)
 }

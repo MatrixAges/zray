@@ -1,15 +1,12 @@
 import { pathParent } from "lexical_path"
-import host from "publication_host"
+import { resolvePublicationPath } from "publication_host"
 
-import type { OutputTarget } from "publication_host"
 import type { Ancestor as Output } from "./model"
 
-export type Input = [OutputTarget, string]
+export type Input = string
 
 export default function (in: Input): Output {
-    const [target, logical] = in
-
-    const initial = pathParent(logical) ?? logical
+    const initial = pathParent(in) ?? in
 
     return loop({
         logical: initial,
@@ -18,7 +15,7 @@ export default function (in: Input): Output {
     }, {
         while: state => state.searching,
         next: state => {
-            const physical = host.readOutputPath(target, state.logical, true)
+            const physical = resolvePublicationPath(state.logical, true)
 
             if (physical.length != 0) {
                 state.physical = physical

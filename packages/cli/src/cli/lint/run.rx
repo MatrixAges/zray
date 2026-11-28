@@ -2,18 +2,14 @@
     <Type from="index" as="IO" />
     <Type from="model" as="Lint" />
 
-    <Args in={Lint.CommandInput} out={bool} />
+    <Args in={Lint.CommandInput} out={Lint.CommandAction} />
 
     <If on={$in.workspace}>
-        <Call fn="index.lintWorkspace" in={$in.host} />
-
-        <Return value={$ctx.lintWorkspace} />
+        <Return value={Lint.CommandAction.Workspace} />
     </If>
 
     <If on={$in.semantic}>
-        <Call fn="index.lintSemantic" in={$in.host} />
-
-        <Return value={$ctx.lintSemantic} />
+        <Return value={Lint.CommandAction.Semantic} />
     </If>
 
     <Call
@@ -25,20 +21,14 @@
     />
 
     <If on={$ctx.resolve_layout != IO.Layout.Unknown}>
-        <Call fn="index.lintConfiguration" in={$in.host} />
-
-        <Return value={$ctx.lintConfiguration} />
+        <Return value={Lint.CommandAction.Configuration} />
     </If>
 
     <Call fn="is_source" in={$in.input_path} />
 
     <If on={!$ctx.is_source}>
-        <Call fn="index.reportLintInput" in={$in.host} />
-
-        <Return value={false} />
+        <Return value={Lint.CommandAction.InvalidInput} />
     </If>
 
-    <Call fn="index.lintSourceFile" in={$in.host} />
-
-    <Return value={$ctx.lintSourceFile} />
+    <Return value={Lint.CommandAction.Source} />
 </Module>

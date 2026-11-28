@@ -1,4 +1,4 @@
-import host from "lowering_host"
+import { lowerExistingBorrowedOperand } from "ast_rows"
 
 import type { Object as Input } from "./model"
 
@@ -13,8 +13,11 @@ export default function (in: Input): Output {
     }, {
         while: state => state.index < in.fields.length,
         next: state => {
-            const value =
-                host.lowerExistingBorrowedOperand(in.frame, in.fields[state.index])
+            const value = lowerExistingBorrowedOperand(
+                in.writer,
+                in.sequence,
+                in.fields[state.index]
+            )
 
             state.values = state.values.push(value)[0]
             state.index += 1

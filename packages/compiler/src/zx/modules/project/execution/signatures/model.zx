@@ -1,3 +1,4 @@
+import type { Table as SourceIndex } from "core/bytes/index/slot"
 import type { ReadColumn } from "memory"
 import type { ProjectSignatures } from "project_host"
 import type { Output as Selection } from "../../exports/model"
@@ -9,7 +10,8 @@ export type Batch = {
     entries: u64,
     units: u64,
     rows?: u64[],
-    paths: string[]
+    paths: string[],
+    index: SourceIndex
 }
 
 export type Publication = {

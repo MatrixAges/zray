@@ -1,10 +1,11 @@
-import type { TextColumn } from "memory"
-import type { ParseCacheBatch, ParseCacheEntry } from "project_host"
+import type { ParseCacheEntry } from "project_host"
 
 export type Publication = {
-    batch: ParseCacheBatch,
-    paths: TextColumn,
     results: ParseCacheEntry?[],
-    has_output: bool,
+    worker_failed: bool
+}
+
+export type Plan = {
+    rows: u64[],
     worker_failed: bool
 }

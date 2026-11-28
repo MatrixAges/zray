@@ -12,7 +12,7 @@ export type Output = u64[]
 
 export default function (in: Input): Output {
     const { source, count, type_id } = in
-    const { frame, scope, selection, names } = source
+    const { selection } = source
 
     const empty: u64[] = []
 
@@ -42,11 +42,9 @@ export default function (in: Input): Output {
             const span = match binding.action {
                 Action.Skip => 0,
                 _ => execute({
-                    frame,
-                    scope,
+                    source,
                     binding,
-                    type_id,
-                    names
+                    type_id
                 })
             }
 

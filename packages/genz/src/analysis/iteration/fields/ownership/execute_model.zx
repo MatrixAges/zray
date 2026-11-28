@@ -1,11 +1,12 @@
-import type { AstWriter } from "ast_rows"
-import type { FieldProjection, Lowering } from "lowering_host"
+import type { AstSequence, AstWriter } from "ast_rows"
+import type { Lowering } from "lowering_host"
 import type { Expressions, Requests } from "./model"
 
 export type Input = {
     frame: Lowering,
     writer: AstWriter,
-    projection: FieldProjection,
+    body: AstSequence,
+    origin: u32,
     expressions: Expressions,
     requests: Requests,
     values: u32[],

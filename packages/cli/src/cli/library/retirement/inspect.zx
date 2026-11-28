@@ -1,15 +1,15 @@
-import { RetirementFile } from "publication_host"
+import { PublicationFileKind } from "publication_host"
 
 import { Inspection } from "./model"
 
-export type Input = RetirementFile
+export type Input = PublicationFileKind
 
 export type Output = Inspection
 
 export default function (in: Input): Output {
     return match in {
-        RetirementFile.Missing => Inspection.Skip,
-        RetirementFile.Regular => Inspection.Resolve,
+        PublicationFileKind.Missing => Inspection.Skip,
+        PublicationFileKind.Regular => Inspection.Resolve,
         _ => Inspection.Modified
     }
 }

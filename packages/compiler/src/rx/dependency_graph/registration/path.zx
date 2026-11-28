@@ -1,66 +1,28 @@
-import bytes from "std:bytes"
-import index from "core/bytes/index/fixed"
-import memory from "memory"
-
 import { Kind } from "../../path_kind/model"
 import normalize from "../../path_segments/normalize"
 import write from "../../path_segments/walk"
-import { duplicate_path, invalid_path } from "./const"
 
-import type { Paths } from "./model"
+export type Input = u8[]
 
-export type Input = {
-    paths: Paths,
-    row: u64
-}
-
-export type Output = {
-    normalized: u8[],
-    issue?: string
-}
+export type Output = u8[]?
 
 export default function (in: Input): Output {
-    const { paths, row } = in
-
-    const path = bytes.fromText(memory.readTextColumn(paths.source, row))
-
     const plan = normalize({
         directory: [],
-        path,
+        path: in,
         kind: Kind.ModuleFile,
         suffix: ""
     })
 
     if (!plan.valid) {
-        return {
-            normalized: [],
-            issue: invalid_path
-        }
+        return null
     }
 
-    const normalized = write({
+    return write({
         directory: [],
-        path,
+        path: in,
         suffix: plan.suffix,
         attached: plan.attached,
         collect: true
     }).text
-
-    const previous = index({
-        ...paths.registry,
-        key: normalized,
-        insert: row
-    })
-
-    if (previous != null) {
-        return {
-            normalized,
-            issue: duplicate_path
-        }
-    }
-
-    return {
-        normalized,
-        issue: null
-    }
 }

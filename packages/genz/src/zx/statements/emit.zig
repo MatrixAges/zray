@@ -17,39 +17,26 @@ pub fn emitParallelStatement(handle: *const anyopaque, slot: u64, index: u64) ?u
     return rows.packSpan(span);
 }
 
-pub fn statementBinding(handle: *const anyopaque, slot: u64, index: u64) u32 {
-    const frame = Frame.borrow(handle);
-
-    frame.sequence.clearRetainingCapacity();
-
-    frame.binding = frame.block(slot).at(@intCast(index)).constant;
-
-    return @backingInt(frame.binding.value);
-}
-
-pub fn borrowStatementBinding(handle: *const anyopaque) Lower.Error!?u32 {
+pub fn borrowStatementBinding(handle: *const anyopaque, symbol: u32, value: u32) Lower.Error!?u32 {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const locals = @import("../value_call/locals.zig");
-    const binding = frame.binding;
-    const borrowed = try locals.optionalCall(self, &frame.sequence, binding.symbol, binding.value, self.program.output_type);
+
+    frame.sequence.clearRetainingCapacity();
+
+    const borrowed = try locals.optionalCall(self, &frame.sequence, @fromBackingInt(symbol), @fromBackingInt(value), self.program.output_type);
 
     return if (borrowed) |id| @backingInt(id) else null;
 }
 
-pub fn statementBindingUsesValue(handle: *const anyopaque) bool {
+pub fn emitStatementBinding(handle: *const anyopaque, raw_symbol: u32, value: u32) ?u64 {
     const frame = Frame.borrow(handle);
-
-    return frame.lowering.stack_symbols.contains(frame.binding.symbol);
-}
-
-pub fn emitStatementBinding(handle: *const anyopaque, value: u32) ?u64 {
-    const frame = Frame.borrow(handle);
+    const symbol: @import("zx").ir.SymbolId = @fromBackingInt(raw_symbol);
 
     const span = @import("../binding.zig").publish(frame.lowering, &frame.sequence, .{
-        .symbol = frame.binding.symbol,
+        .symbol = symbol,
         .value = @fromBackingInt(value),
-        .by_value = frame.lowering.stack_symbols.contains(frame.binding.symbol),
+        .by_value = frame.lowering.stack_symbols.contains(symbol),
     }) catch return null;
 
     return rows.packSpan(span);

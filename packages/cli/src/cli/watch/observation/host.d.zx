@@ -1,7 +1,6 @@
 export type Scan = opaque
 export type Observation = opaque
 export type Registration = opaque
-export type Capture = opaque
 export type Directory = opaque
 
 export type DirectoryEntry = {
@@ -63,5 +62,3 @@ export declare function publishObservation(
     consumed: bool,
     consistent: bool
 ): void throws { ObservationFailure }
-
-export declare function captureEntry(capture: Capture, index: u64): string throws { ObservationFailure }

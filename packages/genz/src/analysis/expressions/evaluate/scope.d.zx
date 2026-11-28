@@ -1,24 +1,16 @@
 export declare function consumeScopeResult(
-    scope: ScopeFrame,
+    frame: Lowering,
     symbol: u32,
     value: u32,
+    result: u32,
     layout: bool
 ): u32? throws { OutOfMemory }
 
-export declare function reuseScopeBinding(scope: ScopeFrame, position: u64): u64
-    throws { OutOfMemory }
-
-export declare function prepareScopeBinding(
-    scope: ScopeFrame,
-    symbol: u32?,
-    value: u32,
-    type_id: u32
-): u32? throws { OutOfMemory }
-
-export declare function publishScopeBinding(
-    scope: ScopeFrame,
-    position: u64,
-    symbol: u32?,
-    value: u32,
-    layout: bool
+export declare function reuseScopeBinding(
+    frame: Lowering,
+    previous: u32,
+    reference: u32,
+    type_id: u32,
+    field_index: u32,
+    field_value: u32
 ): u64 throws { OutOfMemory }

@@ -8,7 +8,7 @@ import type { Input, Prepared } from "./model"
 export type Output = Prepared
 
 export default function (in: Input): Output {
-    const { frame, scope, result, layout, selection } = in
+    const { frame, result, layout, selection } = in
 
     if (selection.iteration) {
         return {
@@ -29,11 +29,12 @@ export default function (in: Input): Output {
 
     const { candidate, type_id } = plan
 
-    const consumed = match {
+    const consumed: u32? = match {
         candidate != null => host.consumeScopeResult(
-            scope,
+            frame,
             candidate.symbol,
             candidate.value,
+            result,
             layout
         ),
         _ => null

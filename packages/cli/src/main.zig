@@ -35,7 +35,6 @@ pub const resolveNative = native_lookup.Resolver(&.{
     @import("cli/rx/load.zig"),
     @import("cli/rx/store_types.zig"),
     @import("cli/rx/function.zig"),
-    @import("cli/lint.zig"),
     @import("cli/lint/source.zig"),
     @import("cli/lint/semantic.zig"),
     @import("cli/lint/rx.zig"),

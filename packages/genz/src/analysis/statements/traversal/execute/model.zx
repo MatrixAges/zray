@@ -3,6 +3,7 @@ import type { Control as ControlTable } from "core/control_table/model"
 import type { StoreMode } from "core/function_table/complete"
 import type { Table as TypeTable } from "core/type_table/model"
 import type { Lowering, StatementTraversal } from "lowering_host"
+import type { U32Buffer } from "memory"
 import type {
     Expressions as SelectionExpressions
 } from "../../../selection/labels/model"
@@ -56,6 +57,8 @@ export type Context = {
     store_count: u64,
     names: u8[][],
     used: bool[],
+    stack_keys: U32Buffer,
+    stack_buckets: U32Buffer,
     transaction: bool,
     value_output: bool,
     state_active: bool,

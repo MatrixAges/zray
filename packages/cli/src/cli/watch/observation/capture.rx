@@ -1,11 +1,7 @@
 <Module>
-    <Type from="model" as="Snapshot" />
+    <Args in={string[]} out={u64[]} />
 
-    <Args in={Snapshot.CaptureInput} out={u64[]} />
-
-    <Call fn="capture_entries" in={$in} />
-
-    <Call fn="directory/sort_order" />
+    <Call fn="directory/sort_order" in={$in} />
 
     <Return value={$ctx.sort_order} />
 </Module>

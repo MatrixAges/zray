@@ -1,9 +1,4 @@
 export {
-    lintConfiguration,
-    lintSemantic,
-    lintWorkspace,
-    reportLintInput,
-    lintSourceFile,
     parseLintRx,
     validateLintRx,
     checkLintRxValues,
@@ -50,7 +45,6 @@ export {
 } from "lint_workflow_host"
 
 export type {
-    Command,
     SourceLint,
     SemanticLint,
     SemanticProject,

@@ -1,20 +1,6 @@
-export type GraphModuleRegistration = mutable_opaque
-
 export type GraphVisit = mutable_opaque
 
 export type GraphInternalModules = opaque
-
-export declare function rejectGraphModuleRegistration(
-    target: GraphModuleRegistration,
-    row: u64,
-    message: string
-): void throws { OutOfMemory, InvalidDsl }
-
-export declare function validateRegisteredGraphModule(
-    target: GraphModuleRegistration,
-    row: u64,
-    path: u8[]
-): void throws { OutOfMemory, InvalidDsl }
 
 export declare function openSourceGraphScanner(
     target: GraphVisit,

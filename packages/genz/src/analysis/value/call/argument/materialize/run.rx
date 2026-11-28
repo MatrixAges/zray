@@ -8,7 +8,14 @@
 
     <Switch on={$ctx.route}>
         <Case value={Route.Output.Object}>
-            <Call fn="index.materializeBorrowedObject" in={$in.frame} />
+            <Call
+                fn="index.materializeBorrowedObject"
+                in={[
+                    $in.writer,
+                    $in.sequence,
+                    $in.id
+                ]}
+            />
 
             <Return value={$ctx.materializeBorrowedObject} />
         </Case>
@@ -17,7 +24,6 @@
             <Call
                 fn="prepare_tuple"
                 in={$in.pick([
-                    "frame",
                     "lowering",
                     "writer",
                     "origin",
@@ -36,7 +42,9 @@
             <Call
                 fn="call"
                 in={$in.pick([
-                    "frame",
+                    "writer",
+                    "sequence",
+                    "id",
                     "operand"
                 ])}
             />
@@ -48,7 +56,8 @@
             <Call
                 fn="index.lowerExistingBorrowedOperand"
                 in={[
-                    $in.frame,
+                    $in.writer,
+                    $in.sequence,
                     $in.id
                 ]}
             />

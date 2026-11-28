@@ -1,19 +1,14 @@
 import integers from "std:integer"
-import host from "lowering_host"
+import { projectLoopField } from "ast_rows"
 
-import type { FieldProjection } from "lowering_host"
-import type { Requests } from "./model"
+import type { Input as Execution } from "./execute_model"
 
-export type Input = {
-    target: FieldProjection,
-    requests: Requests,
-    values: u32[]
-}
+export type Input = Execution.Pick("writer", "body", "origin", "requests", "values")
 
 export type Output = u32[]
 
 export default function (in: Input): Output {
-    const { target, requests, values } = in
+    const { writer, body, origin, requests, values } = in
 
     const empty: u32[] = []
 
@@ -24,8 +19,10 @@ export default function (in: Input): Output {
         while: state => state.row < requests.fields.length,
         next: state => {
             const field = integers.widen(requests.fields[state.row])
-            const value = host.projectLoopField(
-                target,
+            const value = projectLoopField(
+                writer,
+                body,
+                origin,
                 requests.types[state.row],
                 values[field],
                 requests.slots[state.row]

@@ -15,13 +15,7 @@
         <Return value={Retirement.Status.Ready} />
     </If>
 
-    <Call
-        fn="index.retirementFileKind"
-        in={[
-            $in.retirement,
-            $ctx.candidate.path
-        ]}
-    />
+    <Call fn="index.readPublicationFileKind" in={$ctx.candidate.path} />
 
     <Call fn="inspect" />
 

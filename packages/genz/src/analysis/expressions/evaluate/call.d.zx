@@ -20,29 +20,11 @@ export declare function openIterationCall(call: IterationCallFrame, value: u32):
 export declare function convertIterationCall(call: IterationCallFrame, value: u32): u32
     throws { OutOfMemory }
 
-export declare function materializeBorrowedObject(frame: BorrowedArgument): u32
-    throws { OutOfMemory }
-
-export declare function lowerBorrowedOperand(frame: BorrowedArgument, id: u32): u32
-    throws { OutOfMemory }
-
-export declare function lowerExistingBorrowedOperand(frame: BorrowedArgument, id: u32): u32
-    throws { OutOfMemory }
-
-export declare function emitBorrowedCall(frame: BorrowedArgument, value: u32): u32
-    throws { OutOfMemory }
-
-export declare function borrowedOperandCacheValue(
-    frame: BorrowedArgument,
-    id: u32,
-    value: u32
-): u32 throws { OutOfMemory }
-
 export declare function requestFunction(frame: Lowering, id: u32, regular: bool): void
     throws { OutOfMemory }
 
 export declare function cacheBorrowedOperand(
-    frame: BorrowedArgument,
+    frame: Lowering,
     id: u32,
     value: u32
 ): void throws { OutOfMemory }

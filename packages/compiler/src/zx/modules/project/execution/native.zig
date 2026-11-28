@@ -7,17 +7,6 @@ const Verified = @import("../../../ir/validate.zig").Verified;
 const Loaded = @import("../../native.zig");
 const generated = @import("parser_options").generated_parser;
 
-const Frame = struct {
-    project: *Project,
-    native: *const Native,
-    module: zx.ir.NativeModuleId,
-    span: zx.Span,
-    result: Loaded.Result = undefined,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-};
-
 pub fn invalidateSeed(verified: *Verified) void {
     verified.functions = 0;
     verified.native = false;
@@ -74,31 +63,39 @@ pub fn register(project: *Project, source: []const u8, identity: ?[]const u8, na
 }
 
 pub fn load(project: *Project, native: *const Native, module: zx.ir.NativeModuleId, span: zx.Span) zx.Error!Loaded.Result {
-    var frame: Frame = .{ .project = project, .native = native, .module = module, .span = span };
     const cached = project.semantic_cache != null;
 
     if (comptime generated) {
         const entry = @import("generated_project_execute_native");
         const Input = std.meta.Child(entry.Input);
-        const input: Input = .{ .frame = @ptrCast(&frame), .cached = cached };
-        const reset = entry.executeIn(project.allocator, &input) catch |err| return @import("invoke.zig").errorSet(err);
-        project.verified.functions = @intCast(reset.functions);
-        project.verified.native = reset.native;
-    } else if (cached) {
-        try loadCachedProjectNative(&frame);
-    } else {
-        try loadFreshProjectNative(&frame);
+        const input: Input = .{ .cached = cached };
+        var arena = std.heap.ArenaAllocator.init(project.arena.child_allocator);
+
+        defer arena.deinit();
+
+        var buffer: [512]u8 = undefined;
+        var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
+        const plan = entry.executeIn(scratch.allocator(), &input) catch |err| return @import("invoke.zig").errorSet(err);
+
+        const loaded = switch (plan.loader) {
+            .Fresh => try @import("../../native/delivery/host.zig").load(project, native, module, span),
+            .Cached => try loadCached(project, native, module, span),
+        };
+
+        project.verified.functions = @intCast(plan.verified.functions);
+        project.verified.native = plan.verified.native;
+
+        return loaded;
     }
 
-    return frame.result;
+    if (cached) return loadCached(project, native, module, span);
+
+    return Loaded.loadSeed(project.arena, native.*, module, .{ .types = &project.types, .origins = &project.nominal_origins }, project.reporter, span);
 }
 
-pub fn loadCachedProjectNative(handle: *anyopaque) zx.Error!void {
-    const frame = Frame.borrow(handle);
-    const project = frame.project;
-
+fn loadCached(project: *Project, native: *const Native, module: zx.ir.NativeModuleId, span: zx.Span) zx.Error!Loaded.Result {
     const current: Cache.Current = .{
-        .module = frame.module,
+        .module = module,
         .types = &project.types,
         .origins = &project.nominal_origins,
         .functions = &project.functions,
@@ -106,16 +103,5 @@ pub fn loadCachedProjectNative(handle: *anyopaque) zx.Error!void {
         .backing = project.arena.child_allocator,
     };
 
-    frame.result = try project.semantic_cache.?.native.load(project.allocator, frame.native.*, current, project.reporter, frame.span);
-}
-
-pub fn loadFreshProjectNative(handle: *anyopaque) zx.Error!void {
-    const frame = Frame.borrow(handle);
-    const project = frame.project;
-
-    frame.result = if (comptime generated)
-        try @import("../../native/delivery/host.zig").load(project, frame.native, frame.module, frame.span)
-
-    else
-        try Loaded.loadSeed(project.arena, frame.native.*, frame.module, .{ .types = &project.types, .origins = &project.nominal_origins }, project.reporter, frame.span);
+    return project.semantic_cache.?.native.load(project.allocator, native.*, current, project.reporter, span);
 }

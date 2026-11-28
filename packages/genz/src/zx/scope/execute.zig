@@ -2,7 +2,7 @@ const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
 const node = @import("../../node.zig");
-const blocks = @import("../../node/blocks.zig");
+const Sequence = @import("../../node/blocks.zig").Sequence;
 const Lower = @import("../lower.zig");
 const Iteration = @import("../iteration_value/root.zig");
 const reuse = @import("reuse.zig");
@@ -13,105 +13,95 @@ const packSpan = @import("../construction/publication.zig").packSpan;
 const inline_span_count = 32;
 const inline_preparation_words = 4;
 
-const Frame = struct {
-    lowering: *Lower,
-    scope: ir.ScopeRow,
-    temporary: std.mem.Allocator,
-    aliases: ?*const reuse = null,
-    sequence: ?blocks.Sequence = null,
-    fn run(self: *Frame, layout: bool, comptime iteration_mode: bool) Error!node.ExpressionId {
-        const Input = std.meta.Child(entry.Input);
-        const Selection = std.meta.Child(@FieldType(Input, "selection"));
-        const lowering = self.lowering;
-        const expressions = &lowering.program.expressions;
-        const stack = lowering.stack_symbols.current();
+fn run(lowering: *Lower, temporary: std.mem.Allocator, scope: ir.ScopeRow, layout: bool, aliases: ?*const reuse, comptime iteration_mode: bool) Error!node.ExpressionId {
+    const Input = std.meta.Child(entry.Input);
+    const Selection = std.meta.Child(@FieldType(Input, "selection"));
+    const expressions = &lowering.program.expressions;
+    const stack = lowering.stack_symbols.current();
 
-        const selection: Selection = .{
-            .symbols = self.scope.bindings.symbols,
-            .values = self.scope.bindings.values,
-            .kinds = zx.columns.slice(@FieldType(Selection, "kinds"), expressions.kinds),
-            .types = expressions.types,
-            .type_kinds = lowering.program.types.kinds,
-            .used = lowering.used,
-            .stack_keys = @ptrCast(&stack.keys.items),
-            .stack_buckets = @ptrCast(&stack.buckets.items),
-            .changes = if (self.aliases) |active| active.state.changes else &.{},
-            .iteration = iteration_mode,
-        };
+    const selection: Selection = .{
+        .symbols = scope.bindings.symbols,
+        .values = scope.bindings.values,
+        .kinds = zx.columns.slice(@FieldType(Selection, "kinds"), expressions.kinds),
+        .types = expressions.types,
+        .type_kinds = lowering.program.types.kinds,
+        .used = lowering.used,
+        .stack_keys = @ptrCast(&stack.keys.items),
+        .stack_buckets = @ptrCast(&stack.buckets.items),
+        .changes = if (aliases) |active| active.state.changes else &.{},
+        .iteration = iteration_mode,
+    };
 
-        var origin: @import("../construction/publication.zig").OriginBuffer = undefined;
+    var sequence = lowering.builder.statementSequence(lowering.workspace);
 
-        const input: Input = .{
-            .frame = @ptrCast(lowering),
-            .scope = @ptrCast(&self),
-            .writer = @ptrCast(lowering),
-            .origin = @ptrCast(&origin),
-            .result = @backingInt(self.scope.result),
-            .layout = layout,
-            .selection = &selection,
-            .names = lowering.names,
-            .symbol_types = if (iteration_mode) lowering.program.symbols.types else &.{},
-        };
+    defer sequence.deinit();
 
-        const output = entry.executeIn(self.temporary, &input) catch |err| return @import("../construction/publication.zig").failure(err);
+    var origin: @import("../construction/publication.zig").OriginBuffer = undefined;
 
-        return @fromBackingInt(output);
-    }
-};
+    const input: Input = .{
+        .frame = @ptrCast(lowering),
+        .writer = @ptrCast(lowering),
+        .sequence = @ptrCast(&sequence),
+        .origin = @ptrCast(&origin),
+        .result = @backingInt(scope.result),
+        .layout = layout,
+        .selection = &selection,
+        .candidates = if (aliases) |active| zx.columns.pointer(std.meta.Child(@FieldType(Input, "candidates")), active.state.candidates) else null,
+        .variables = if (aliases) |active| active.variables else &.{},
+        .names = lowering.names,
+        .symbol_types = if (iteration_mode) lowering.program.symbols.types else &.{},
+    };
+
+    const output = entry.executeIn(temporary, &input) catch |err| return @import("../construction/publication.zig").failure(err);
+
+    return @fromBackingInt(output);
+}
 
 pub fn regular(lowering: *Lower, temporary: std.mem.Allocator, scope: ir.ScopeRow, layout: bool, aliases: ?*const reuse) Error!node.ExpressionId {
     var inline_spans: [inline_span_count + inline_preparation_words]u64 = undefined;
     var memory = std.heap.BufferFirstAllocator.init(std.mem.sliceAsBytes(&inline_spans), temporary);
-    var frame: Frame = .{ .lowering = lowering, .scope = scope, .temporary = memory.allocator(), .aliases = aliases };
 
-    defer if (frame.sequence) |*sequence| sequence.deinit();
-
-    return frame.run(layout, false);
+    return run(lowering, memory.allocator(), scope, layout, aliases, false);
 }
 
 pub fn iteration(context: *Iteration, allocator: std.mem.Allocator, scope: ir.ScopeRow) Error!node.ExpressionId {
-    var frame: Frame = .{ .lowering = context.lowering, .scope = scope, .temporary = allocator };
-
-    return frame.run(false, true);
+    return run(context.lowering, allocator, scope, false, null, true);
 }
 
-fn borrow(handle: *const anyopaque) *Frame {
-    const reference: *const *Frame = @ptrCast(@alignCast(handle));
+pub fn consumeScopeResult(handle: *anyopaque, symbol: u32, value: u32, result: u32, layout: bool) Error!?u32 {
+    const lowering = evaluation.borrow(handle);
+    const consumed = try @import("../iteration_consumer.zig").lower(lowering, @fromBackingInt(symbol), @fromBackingInt(value), @fromBackingInt(result), layout);
 
-    return reference.*;
+    return if (consumed) |id| @backingInt(id) else null;
 }
 
-pub fn consumeScopeResult(handle: *const anyopaque, symbol: u32, value: u32, layout: bool) Error!?u32 {
-    const frame = borrow(handle);
-    const result = try @import("../iteration_consumer.zig").lower(frame.lowering, @fromBackingInt(symbol), @fromBackingInt(value), frame.scope.result, layout);
+pub fn reuseScopeBinding(handle: *anyopaque, previous: u32, reference: u32, type_id: u32, field_index: u32, field_value: u32) Error!u64 {
+    const lowering = evaluation.borrow(handle);
 
-    return if (result) |id| @backingInt(id) else null;
-}
-
-pub fn reuseScopeBinding(handle: *const anyopaque, position: u64) Error!u64 {
-    const frame = borrow(handle);
-    const block = (try frame.aliases.?.publish(frame.lowering, @intCast(position))).?;
+    const block = try @import("../object_update/emit.zig").statementBlock(lowering, .{
+        .previous = @fromBackingInt(previous),
+        .reference = @fromBackingInt(reference),
+        .field = .{ .index = field_index, .value = @fromBackingInt(field_value) },
+        .type_id = @fromBackingInt(type_id),
+    });
 
     return packSpan(block);
 }
 
-pub fn prepareScopeBinding(handle: *const anyopaque, symbol: ?u32, value: u32, type_id: u32) Error!?u32 {
-    const frame = borrow(handle);
-    const self = frame.lowering;
-
-    frame.sequence = self.builder.statementSequence(self.workspace);
-
+pub fn prepareScopeBinding(writer: *anyopaque, sequence: *anyopaque, symbol: ?u32, value: u32, type_id: u32) Error!?u32 {
+    const lowering = evaluation.borrow(writer);
+    const body: *Sequence = @ptrCast(@alignCast(sequence));
     const key = symbol orelse return null;
-    const borrowed = try @import("../value_call/locals.zig").optionalCall(self, &frame.sequence.?, @fromBackingInt(key), @fromBackingInt(value), @fromBackingInt(type_id));
+    const borrowed = try @import("../value_call/locals.zig").optionalCall(lowering, body, @fromBackingInt(key), @fromBackingInt(value), @fromBackingInt(type_id));
 
     return if (borrowed) |id| @backingInt(id) else null;
 }
 
-pub fn publishScopeBinding(handle: *const anyopaque, position: u64, symbol: ?u32, value: u32, layout: bool) Error!u64 {
-    const frame = borrow(handle);
-    const mutable = if (frame.aliases) |active| active.variables[@intCast(position)] else false;
+pub fn publishScopeBinding(writer: *anyopaque, sequence: *anyopaque, symbol: ?u32, value: u32, layout: bool, mutable: bool) Error!u64 {
+    const lowering = evaluation.borrow(writer);
+    const body: *Sequence = @ptrCast(@alignCast(sequence));
 
-    const block = try @import("../binding.zig").publish(frame.lowering, &frame.sequence.?, .{
+    const block = try @import("../binding.zig").publish(lowering, body, .{
         .symbol = if (symbol) |id| @fromBackingInt(id) else null,
         .value = @fromBackingInt(value),
         .by_value = layout,
@@ -119,9 +109,9 @@ pub fn publishScopeBinding(handle: *const anyopaque, position: u64, symbol: ?u32
         .mutable = mutable,
     });
 
-    frame.sequence.?.deinit();
+    body.deinit();
 
-    frame.sequence = null;
+    body.* = lowering.builder.statementSequence(lowering.workspace);
 
     return packSpan(block);
 }

@@ -15,13 +15,6 @@ const Link = struct {
     result: compiler.library.Result = undefined,
 };
 
-const Sources = struct {
-    modules: []const analysis.Module,
-    allocator: std.mem.Allocator,
-    failure: effects.Failure = .{},
-    list: std.ArrayList(compiler.project.Source) = .empty,
-};
-
 pub fn run(value: *analysis.Result, allocator: std.mem.Allocator) !compiler.library.Result {
     var link: Link = .{ .analysis = value, .allocator = allocator, .arena = .init(allocator) };
     const reference = &link;
@@ -38,17 +31,28 @@ pub fn run(value: *analysis.Result, allocator: std.mem.Allocator) !compiler.libr
 }
 
 pub fn sources(modules: []const analysis.Module, allocator: std.mem.Allocator) !std.ArrayList(compiler.project.Source) {
-    var collection: Sources = .{ .modules = modules, .allocator = allocator };
-    const reference = &collection;
+    var scratch = std.heap.ArenaAllocator.init(allocator);
 
-    errdefer collection.list.deinit(allocator);
+    defer scratch.deinit();
 
-    rules.library_sources.executeIn(allocator, &.{
-        .sources = @ptrCast(&reference),
-        .count = modules.len,
-    }) catch |err| return collection.failure.unwrap(err);
+    const temporary = scratch.allocator();
+    const counts = try temporary.alloc(u64, modules.len);
 
-    return collection.list;
+    for (modules, counts) |module, *count| count.* = module.sources.len;
+
+    const layout = rules.library_sources.executeValue(temporary, counts) catch |err| switch (@as(anyerror, err)) {
+        error.Overflow => return error.OutOfMemory,
+        else => return err,
+    };
+
+    const total = std.math.cast(usize, layout.total) orelse return error.OutOfMemory;
+    const items = try allocator.alloc(compiler.project.Source, total);
+
+    for (modules, layout.offsets) |module, offset| {
+        @memcpy(items[@intCast(offset)..][0..module.sources.len], module.sources);
+    }
+
+    return .fromOwnedSlice(items);
 }
 
 pub fn takeCompiledLibrary(handle: *const anyopaque) void {
@@ -80,10 +84,4 @@ pub fn linkLibraryInputs(handle: *const anyopaque) Error!void {
     const self = effects.state(Link, handle);
 
     self.result = compiler.library.link(self.allocator, self.inputs) catch |err| return self.failure.save(err);
-}
-
-pub fn appendLibrarySources(handle: *const anyopaque, index: u64) Error!void {
-    const self = effects.state(Sources, handle);
-
-    self.list.appendSlice(self.allocator, self.modules[@intCast(index)].sources) catch |err| return self.failure.save(err);
 }

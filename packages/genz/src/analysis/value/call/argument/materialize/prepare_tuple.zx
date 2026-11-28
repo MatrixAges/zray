@@ -1,4 +1,4 @@
-import { readAstOrigin, retainAstIds } from "ast_rows"
+import { lowerBorrowedOperand, readAstOrigin, retainAstIds } from "ast_rows"
 import host from "lowering_host"
 import { StoredType } from "lowering_host"
 
@@ -16,7 +16,8 @@ export default function (in: Input): Output {
     }, {
         while: state => state.index < in.items.length,
         next: state => {
-            const value = host.lowerBorrowedOperand(in.frame, in.items[state.index])
+            const value =
+                lowerBorrowedOperand(in.writer, in.sequence, in.items[state.index])
 
             const bound = bindOperand({
                 frame: in.lowering,

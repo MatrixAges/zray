@@ -1,8 +1,9 @@
 const std = @import("std");
 const Self = @This();
-const execute = @import("generated_fixed_byte_index").executeValue;
+const execute = @import("generated_byte_index_slot").executeValue;
 const Parameter = @typeInfo(@TypeOf(execute)).@"fn".param_types[1].?;
 const Input = if (@typeInfo(Parameter) == .pointer) std.meta.Child(Parameter) else Parameter;
+const Slot = @typeInfo(@TypeOf(execute(undefined, undefined))).error_union.payload;
 const capacity_ratio = 2;
 pub const empty: Self = .{ .keys = &.{}, .buckets = &.{} };
 
@@ -43,9 +44,17 @@ pub fn deinit(self: Self, allocator: std.mem.Allocator) void {
 }
 
 pub fn claim(self: *Self, row: usize, key: []const u8) bool {
-    if (self.find(key, row) != null) return false;
+    const found = self.locate(key);
+
+    if (found.entry != 0) return false;
+
+    const publish = @import("generated_source_index_publish");
+    var scratch = std.heap.FixedBufferAllocator.init(&.{});
+    const entry = publish.executeValue(scratch.allocator(), &.{ .length = row }) catch unreachable;
 
     self.keys[row] = key;
+
+    self.buckets[@intCast(found.slot)] = entry;
 
     return true;
 }
@@ -79,27 +88,12 @@ pub fn registerPaths(self: *Self, paths: *const @import("zx").memory.TextColumn)
 pub fn get(self: *const Self, key: []const u8) ?usize {
     if (self.buckets.len == 0) return null;
 
-    const rule = @import("generated_byte_index_slot");
-    var scratch = std.heap.FixedBufferAllocator.init(&.{});
-    const SlotParameter = @typeInfo(@TypeOf(rule.executeValue)).@"fn".param_types[1].?;
-    const SlotInput = if (@typeInfo(SlotParameter) == .pointer) std.meta.Child(SlotParameter) else SlotParameter;
-
-    const input: SlotInput = .{
-        .keys = self.keys,
-        .buckets = @ptrCast(&self.buckets),
-        .capacity = self.buckets.len,
-        .key = key,
-        .rows = null,
-    };
-
-    const found = rule.executeValue(scratch.allocator(), if (@typeInfo(SlotParameter) == .pointer) &input else input) catch unreachable;
+    const found = self.locate(key);
 
     return if (found.entry == 0) null else @intCast(found.entry - 1);
 }
 
-fn find(self: *Self, key: []const u8, insert: ?u64) ?u64 {
-    if (self.buckets.len == 0) return null;
-
+fn locate(self: *const Self, key: []const u8) Slot {
     var scratch = std.heap.FixedBufferAllocator.init(&.{});
 
     const input: Input = .{
@@ -107,7 +101,7 @@ fn find(self: *Self, key: []const u8, insert: ?u64) ?u64 {
         .buckets = @ptrCast(&self.buckets),
         .capacity = self.buckets.len,
         .key = key,
-        .insert = insert,
+        .rows = null,
     };
 
     return execute(scratch.allocator(), if (@typeInfo(Parameter) == .pointer) &input else input) catch unreachable;

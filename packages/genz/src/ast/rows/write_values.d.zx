@@ -30,3 +30,61 @@ export declare function appendLayoutExpressions(
     rows: ExpressionRows,
     layouts: ExpressionLayouts
 ): void throws { OutOfMemory }
+
+export declare function projectLoopField(
+    writer: AstWriter,
+    body: AstSequence,
+    origin: u32,
+    type_id: u32,
+    value: u32,
+    slot: u32
+): u32 throws { OutOfMemory }
+
+export declare function materializeBorrowedObject(
+    writer: AstWriter,
+    body: AstSequence,
+    id: u32
+): u32 throws { OutOfMemory }
+
+export declare function lowerBorrowedOperand(
+    writer: AstWriter,
+    body: AstSequence,
+    id: u32
+): u32 throws { OutOfMemory }
+
+export declare function lowerExistingBorrowedOperand(
+    writer: AstWriter,
+    body: AstSequence,
+    id: u32
+): u32 throws { OutOfMemory }
+
+export declare function emitBorrowedCall(
+    writer: AstWriter,
+    body: AstSequence,
+    id: u32,
+    value: u32
+): u32 throws { OutOfMemory }
+
+export declare function borrowedOperandCacheValue(
+    writer: AstWriter,
+    body: AstSequence,
+    id: u32,
+    value: u32
+): u32 throws { OutOfMemory }
+
+export declare function prepareScopeBinding(
+    writer: AstWriter,
+    sequence: AstSequence,
+    symbol: u32?,
+    value: u32,
+    type_id: u32
+): u32? throws { OutOfMemory }
+
+export declare function publishScopeBinding(
+    writer: AstWriter,
+    sequence: AstSequence,
+    symbol: u32?,
+    value: u32,
+    layout: bool,
+    mutable: bool
+): u64 throws { OutOfMemory }

@@ -1,5 +1,3 @@
-export type Command = opaque
-
 export type SourceLint = opaque
 
 export type SemanticLint = opaque
@@ -24,12 +22,6 @@ export enum Layout {
     Lock
 }
 
-
-export declare function lintConfiguration(check: Command): bool throws { SourceLoadFailure }
-export declare function lintSemantic(check: Command): bool throws { SourceLoadFailure }
-export declare function lintWorkspace(check: Command): bool throws { SourceLoadFailure }
-export declare function reportLintInput(check: Command): void throws { SourceLoadFailure }
-export declare function lintSourceFile(check: Command): bool throws { SourceLoadFailure }
 
 export declare function parseLintRx(check: SourceLint): bool throws { SourceLoadFailure }
 export declare function validateLintRx(check: SourceLint): bool throws { SourceLoadFailure }

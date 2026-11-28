@@ -1,5 +1,4 @@
 import type { Modules } from "core/native_module_table/model"
-import type { ProjectNative } from "project_host"
 import type { Output as Slot } from "../../target/interface/registry_slot"
 
 export type Verification = {
@@ -8,8 +7,17 @@ export type Verification = {
 }
 
 export type Import = {
-    frame: ProjectNative,
     cached: bool
+}
+
+export enum Loader {
+    Fresh,
+    Cached
+}
+
+export type Load = {
+    loader: Loader,
+    verified: Verification
 }
 
 export type Names = {

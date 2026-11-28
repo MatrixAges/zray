@@ -1,20 +1,12 @@
 const std = @import("std");
 const Inputs = @import("watch_inputs").Inputs;
-const effects = @import("../publication/effects.zig");
 const rule = @import("cli_source").check_output_target;
-const Error = effects.Error;
-
-const Target = struct {
-    io: std.Io,
-    failure: effects.Failure = .{},
-    physical: [std.Io.Dir.max_path_bytes]u8 = undefined,
-};
+const FileKind = @import("publication_abi").native.@"zig:publication_host".PublicationFileKind;
 
 pub fn check(io: std.Io, allocator: std.mem.Allocator, inputs: *const Inputs, path: []const u8) ![:0]u8 {
     var arena = std.heap.ArenaAllocator.init(allocator);
     var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
-    var target: Target = .{ .io = io };
 
     defer arena.deinit();
 
@@ -35,13 +27,12 @@ pub fn check(io: std.Io, allocator: std.mem.Allocator, inputs: *const Inputs, pa
         };
     }
 
-    const outcome = rule.executeIn(scratch_allocator, &.{
-        .target = @ptrCast(&target),
+    const outcome = try rule.executeIn(scratch_allocator, &.{
         .cwd = inputs.cwd,
         .path = path,
         .logical_inputs = logical_inputs,
         .physical_inputs = physical_inputs,
-    }) catch |err| return target.failure.unwrap(err);
+    }, io);
 
     return switch (outcome.status) {
         .Ready => allocator.dupeSentinel(u8, outcome.path.?, 0),
@@ -50,25 +41,27 @@ pub fn check(io: std.Io, allocator: std.mem.Allocator, inputs: *const Inputs, pa
     };
 }
 
-pub fn readOutputPath(handle: *anyopaque, path: []const u8, allow_missing: bool) Error![]const u8 {
-    const self = effects.borrow(Target, handle);
+pub fn resolvePublicationPath(allocator: std.mem.Allocator, io: std.Io, path: []const u8, allow_missing: bool) ![]const u8 {
+    var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
 
-    const length = std.Io.Dir.cwd().realPathFile(self.io, path, &self.physical) catch |err| {
+    const length = std.Io.Dir.cwd().realPathFile(io, path, &buffer) catch |err| {
         if (allow_missing and err == error.FileNotFound) return "";
 
-        return self.failure.save(err);
+        return err;
     };
 
-    return self.physical[0..length];
+    return allocator.dupe(u8, buffer[0..length]);
 }
 
-pub fn isDirectOutput(handle: *anyopaque, path: []const u8) Error!bool {
-    const self = effects.borrow(Target, handle);
-
-    const existing = std.Io.Dir.cwd().statFile(self.io, path, .{ .follow_symlinks = false }) catch |err| switch (err) {
-        error.FileNotFound => return false,
-        else => return self.failure.save(err),
+pub fn readPublicationFileKind(io: std.Io, path: []const u8) !FileKind {
+    const metadata = std.Io.Dir.cwd().statFile(io, path, .{ .follow_symlinks = false }) catch |err| switch (err) {
+        error.FileNotFound => return .Missing,
+        inline else => |cause| return cause,
     };
 
-    return existing.kind != .sym_link;
+    return switch (metadata.kind) {
+        .file => .Regular,
+        .sym_link => .Symlink,
+        else => .Other,
+    };
 }

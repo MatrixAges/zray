@@ -47,7 +47,6 @@ pub const main = [_]Entry{
     .{ .path = "rx/dependency_graph/validate.rx", .name = "graph", .owner = .rx },
     .{ .path = "rx/dependency_graph/validate_selection.rx", .name = "graph_selection", .owner = .rx },
     .{ .path = "rx/dependency_graph/edge/register.zx", .name = "graph_edges", .owner = .rx },
-    .{ .path = "core/bytes/index/fixed.zx", .name = "fixed_byte_index" },
     .{ .path = "core/bytes/index/slot.zx", .name = "byte_index_slot" },
     .{ .path = "zx/modules/source_index/prepare.rx", .name = "source_index_prepare" },
     .{ .path = "zx/modules/source_index/publish.zx", .name = "source_index_publish" },

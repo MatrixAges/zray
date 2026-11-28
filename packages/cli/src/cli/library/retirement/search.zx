@@ -1,5 +1,5 @@
 import host from "publication_host"
-import { RetirementFile } from "publication_host"
+import { PublicationFileKind, readPublicationFileKind } from "publication_host"
 
 import type { Retirement } from "publication_host"
 
@@ -22,9 +22,7 @@ export default function (in: Input): Output {
         next: row => {
             const target = targets[row.index]
 
-            if (
-                host.retirementFileKind(retirement, target) == RetirementFile.Regular
-            ) {
+            if (readPublicationFileKind(target) == PublicationFileKind.Regular) {
                 row.found = host.retirementPhysicalMatches(
                     retirement,
                     target,

@@ -6,7 +6,6 @@ const output = @import("../../watch/output.zig");
 const rule = @import("cli_source").library_retirement_plan;
 const zx = @import("zx");
 const abi = @import("publication_abi");
-const FileKind = abi.native.@"zig:publication_host".RetirementFile;
 const Path = abi.layouts.@"zig:publication_host".RetirementPath;
 const Input = std.meta.Child(rule.Input);
 const Entries = std.meta.Child(@FieldType(Input, "previous"));
@@ -70,7 +69,7 @@ pub fn retired(io: std.Io, allocator: std.mem.Allocator, backing: std.mem.Alloca
         .retirement = @ptrCast(&state),
         .previous = &plan.entries,
         .separator = std.fs.path.sep,
-    }, &host) catch |err| return plan.failure.unwrap(err);
+    }, &host, io) catch |err| return plan.failure.unwrap(err);
 
     const status = if (@typeInfo(@TypeOf(raw)) == .pointer) raw.* else raw;
 
@@ -150,21 +149,6 @@ pub fn retirementSpelling(handle: *const anyopaque, entry: []const u8) Error!*co
     };
 
     return &self.spelling;
-}
-
-pub fn retirementFileKind(handle: *const anyopaque, path: []const u8) Error!FileKind {
-    const self = effects.state(Plan, handle);
-
-    return kind(self.io, path) catch |err| return self.failure.save(err);
-}
-
-fn kind(io: std.Io, path: []const u8) !FileKind {
-    const stat = std.Io.Dir.cwd().statFile(io, path, .{ .follow_symlinks = false }) catch |err| switch (err) {
-        error.FileNotFound => return .Missing,
-        else => return err,
-    };
-
-    return if (stat.kind == .file) .Regular else .Other;
 }
 
 pub fn retirementPhysical(handle: *const anyopaque, spelling: []const u8) Error!*const Path {

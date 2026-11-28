@@ -1,4 +1,4 @@
 export {
     materializeBorrowedObject,
     lowerExistingBorrowedOperand
-} from "lowering_host"
+} from "ast_rows"

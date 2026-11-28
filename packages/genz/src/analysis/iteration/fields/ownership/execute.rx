@@ -15,11 +15,13 @@
 
     <Call
         fn="apply"
-        in={{
-            target: $in.projection,
-            requests: $in.requests,
-            values: $in.values
-        }}
+        in={$in.pick([
+            "writer",
+            "body",
+            "origin",
+            "requests",
+            "values"
+        ])}
     />
 
     <Call

@@ -32,9 +32,6 @@ export declare function copyProjectOrigins(state: ProjectState): void throws { O
 export declare function reserveProjectSignatures(batch: ProjectSignatures, count: u64): void
     throws { OutOfMemory }
 
-export declare function findProjectSignature(batch: ProjectSignatures, path: string): u64?
-    throws { OutOfMemory }
-
 export declare function loadProjectSignature(batch: ProjectSignatures, row: u64): void
     throws { OutOfMemory, InvalidSource }
 
@@ -111,12 +108,6 @@ export declare function projectCacheSlot(entry: ProjectEntry, digest: u8[]): Cac
 
 export declare function rejectProjectCacheArtifact(entry: ProjectEntry): void
 
-export declare function loadFreshProjectNative(frame: ProjectNative): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function loadCachedProjectNative(frame: ProjectNative): void
-    throws { OutOfMemory, InvalidSource }
-
 export declare function resolveCompiledImport(frame: CompiledImport): u64
     throws { OutOfMemory, MissingLibrary, ConflictingArtifact }
 
@@ -163,17 +154,6 @@ export declare function bindArtifactWindow(frame: ArtifactLink, first: u64, coun
     MissingNominalOrigin,
     ConflictingInterface
 }
-
-export declare function materializeProjectExternal(
-    target: ProjectExternalBindings,
-    row: u64
-): void throws { OutOfMemory, InvalidSource }
-
-export declare function appendProjectExternal(
-    target: ProjectExternalBindings,
-    name: string,
-    namespace: string?
-): void throws { OutOfMemory }
 
 export declare function appendSourceLinkEntry(entry: SourceEntry): void
     throws { OutOfMemory, InvalidModule }

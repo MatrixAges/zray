@@ -4,8 +4,6 @@ export type SequenceFrame = mutable_opaque
 
 export type ObjectFrame = mutable_opaque
 
-export type ScopeFrame = opaque
-
 export type Lowering = mutable_opaque
 
 export enum Representation {
@@ -17,8 +15,6 @@ export enum Representation {
 export type CallFrame = mutable_opaque
 
 export type IterationCallFrame = mutable_opaque
-
-export type BorrowedArgument = opaque
 
 export type MatchFrame = mutable_opaque
 
@@ -57,8 +53,6 @@ export enum ModuleRequestForm {
 }
 
 export type DirectAstRows = mutable_opaque
-
-export type FieldProjection = opaque
 
 export enum StoredType {
     None,

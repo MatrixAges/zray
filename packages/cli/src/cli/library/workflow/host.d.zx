@@ -10,8 +10,6 @@ export type Analysis = opaque
 
 export type Link = opaque
 
-export type SourceRows = opaque
-
 export type Proof = opaque
 
 export declare function configureLibraryEntry(build: Build): void throws { LibraryWorkflowFailure }
@@ -41,7 +39,6 @@ export declare function takeCompiledLibrary(link: Link): void
 export declare function allocateLinkInputs(link: Link): void throws { LibraryWorkflowFailure }
 export declare function prepareLibraryLinkInput(link: Link, index: u64): void throws { LibraryWorkflowFailure }
 export declare function linkLibraryInputs(link: Link): void throws { LibraryWorkflowFailure }
-export declare function appendLibrarySources(sources: SourceRows, index: u64): void throws { LibraryWorkflowFailure }
 
 export declare function confirmProofInterface(proof: Proof, index: u64): void throws { LibraryWorkflowFailure }
 export declare function writeProofHeading(proof: Proof, index: u64): void throws { LibraryWorkflowFailure }

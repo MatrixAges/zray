@@ -1,27 +1,40 @@
 import integers from "std:integer"
+import { prepareScopeBinding, publishScopeBinding } from "ast_rows"
 import host from "lowering_host"
 
 import { Action } from "./model"
 
-import type { Lowering, ScopeFrame } from "lowering_host"
-import type { Binding } from "./model"
+import type { Binding, Input as Scope } from "./model"
 
 export type Input = {
-    frame: Lowering,
-    scope: ScopeFrame,
+    source: Scope,
     binding: Binding,
-    type_id: u32,
-    names: u8[][]
+    type_id: u32
 }
 
 export type Output = u64
 
 export default function (in: Input): Output {
-    const { frame, scope, binding, type_id, names } = in
+    const { source, binding, type_id } = in
+    const { frame, writer, sequence, candidates, selection, variables, names } = source
     const { action, position, symbol, value } = binding
 
-    if (action == Action.Reuse) {
-        return host.reuseScopeBinding(scope, position)
+    const change: u32? = match {
+        action == Action.Reuse => selection.changes[position],
+        _ => null
+    }
+
+    if (change != null && candidates != null) {
+        const candidate = integers.widen(change)
+
+        return host.reuseScopeBinding(
+            frame,
+            candidates.previous[candidate],
+            candidates.references[candidate],
+            candidates.types[candidate],
+            candidates.field_indices[candidate],
+            candidates.field_values[candidate]
+        )
     }
 
     if (action == Action.Task) {
@@ -33,7 +46,7 @@ export default function (in: Input): Output {
         )
     }
 
-    const borrowed = host.prepareScopeBinding(scope, symbol, value, type_id)
+    const borrowed = prepareScopeBinding(writer, sequence, symbol, value, type_id)
 
     const lowered: u32 = borrowed ?? match action {
         Action.Discard => host.lowerDiscardedExpression(frame, value),
@@ -41,11 +54,12 @@ export default function (in: Input): Output {
         _ => host.lowerExpression(frame, value, false, null)
     }
 
-    return host.publishScopeBinding(
-        scope,
-        position,
+    return publishScopeBinding(
+        writer,
+        sequence,
         symbol,
         lowered,
-        action == Action.Value
+        action == Action.Value,
+        position < variables.length && variables[position]
     )
 }

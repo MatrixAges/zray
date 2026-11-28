@@ -1,10 +1,9 @@
 import type { AstOriginBuffer, AstSequence, AstWriter } from "ast_rows"
-import type { BorrowedArgument, Lowering } from "lowering_host"
+import type { Lowering } from "lowering_host"
 import type { U64Buffer } from "memory"
 import type { Input as Routing } from "../route"
 
 export type Input = {
-    frame: BorrowedArgument,
     lowering: Lowering,
     writer: AstWriter,
     origin: AstOriginBuffer,
@@ -16,15 +15,11 @@ export type Input = {
     items: u32[]
 }
 
-export type Call = {
-    frame: BorrowedArgument,
-    operand?: u32
-}
+export type Call = Input.Pick("writer", "sequence", "id", "operand")
 
 export type Output = u32
 
 export type Object = {
-    frame: BorrowedArgument,
     lowering: Lowering,
     writer: AstWriter,
     origin: AstOriginBuffer,
@@ -49,7 +44,6 @@ export type ObjectBorrow = {
 }
 
 export type Tuple = {
-    frame: BorrowedArgument,
     lowering: Lowering,
     writer: AstWriter,
     origin: AstOriginBuffer,

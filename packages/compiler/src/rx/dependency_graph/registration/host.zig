@@ -3,75 +3,44 @@ const dsl = @import("dsl");
 const modules = @import("../../modules.zig");
 const schema = @import("../../flow.zig").Module;
 
-const Frame = struct {
-    allocator: std.mem.Allocator,
-    schemas: std.mem.Allocator,
-    data: ?[]modules.Module,
-    slots: [][]const u8,
-    sources: []const modules.Source,
-    source_index: *usize,
-    reporter: *dsl.Reporter,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-};
-
 pub fn run(allocator: std.mem.Allocator, schemas: std.mem.Allocator, data: ?[]modules.Module, sources: []const modules.Source, registry: *modules.Registry, source_index: *usize, reporter: *dsl.Reporter) dsl.Error!void {
     const rule = @import("generated_rx_register_graph_modules");
     const zx = @import("zx");
     const paths = zx.memory.borrowTextColumn("path", sources);
 
-    var frame: Frame = .{
-        .allocator = allocator,
-        .schemas = schemas,
-        .data = data,
-        .slots = registry.keys,
-        .sources = sources,
-        .source_index = source_index,
-        .reporter = reporter,
-    };
-
     const input: std.meta.Child(rule.Input) = .{
-        .frame = @ptrCast(&frame),
-        .paths = &.{
-            .source = @ptrCast(&paths),
-            .count = sources.len,
-            .registry = &.{
-                .keys = registry.keys,
-                .buckets = @ptrCast(&registry.buckets),
-                .capacity = registry.buckets.len,
-            },
-        },
+        .source = @ptrCast(&paths),
+        .count = sources.len,
+        .buckets = registry.buckets,
     };
 
-    zx.columns.invoke(rule.executeIn, allocator, &input) catch |err| switch (@as(anyerror, err)) {
-        error.InvalidDsl => return error.InvalidDsl,
-        error.OutOfMemory, error.Overflow => return error.OutOfMemory,
+    // The caller's result arena owns the normalized path bytes.
+    const registered = zx.columns.invoke(rule.executeIn, allocator, &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
-}
 
-pub fn rejectGraphModuleRegistration(handle: *anyopaque, index: u64, message: []const u8) dsl.Error!void {
-    const frame = Frame.borrow(handle);
-    const row: usize = @intCast(index);
-    const node = frame.sources[row].node;
+    for (registered.keys, 0..) |path, row| {
+        const source = &sources[row];
 
-    frame.source_index.* = row;
+        source_index.* = row;
+        registry.keys[row] = path;
 
-    return frame.reporter.fail(.{ .code = .context, .location = node.location, .element = node.name, .message = message });
-}
-
-pub fn validateRegisteredGraphModule(handle: *anyopaque, index: u64, path: []const u8) dsl.Error!void {
-    const frame = Frame.borrow(handle);
-    const row: usize = @intCast(index);
-    const source = &frame.sources[row];
-
-    frame.source_index.* = row;
-    frame.slots[row] = path;
-
-    if (frame.data) |data| {
-        data[row] = .{ .path = path, .data = try schema.decode(frame.allocator, source.node, frame.reporter, source.callSequence()) };
-    } else if (!source.hasSchema()) {
-        _ = try schema.decode(frame.schemas, source.node, frame.reporter, source.callSequence());
+        if (data) |items| {
+            items[row] = .{ .path = path, .data = try schema.decode(allocator, source.node, reporter, source.callSequence()) };
+        } else if (!source.hasSchema()) {
+            _ = try schema.decode(schemas, source.node, reporter, source.callSequence());
+        }
     }
+
+    if (registered.issue) |message| {
+        const row = registered.keys.len;
+        const node = sources[row].node;
+
+        source_index.* = row;
+
+        return reporter.fail(.{ .code = .context, .location = node.location, .element = node.name, .message = message });
+    }
+
+    if (registered.buckets.ptr != registry.buckets.ptr) @memcpy(registry.buckets, registered.buckets);
 }

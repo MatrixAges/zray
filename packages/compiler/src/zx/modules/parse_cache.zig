@@ -8,8 +8,6 @@ const Self = @This();
 pub const ModuleResult = parser.ModuleResult;
 pub const indexed_enabled = @import("../frontend/module_result.zig").indexed_enabled;
 const generated = @import("parser_options").generated_parser;
-const ABI = if (generated) @import("project_execution_abi").layouts.@"zig:project_host" else void;
-const Native = if (generated) @import("project_execution_abi").native.@"zig:project_host" else void;
 const Digest = [zx.Sha256.digest_length]u8;
 
 const Entry = struct {
@@ -103,42 +101,54 @@ pub fn endRequest(self: *Self) void {
 }
 
 fn retire(self: *Self, published: bool) void {
-    if (self.transient.items.len == 0) return;
+    const versions = self.transient.items;
+
+    if (versions.len == 0) return;
 
     if (comptime generated) {
         const rule = @import("generated_parse_cache_retire");
         const memory = zx.memory;
 
         const marks = if (published)
-            memory.borrowNestedColumn(bool, &.{ "retention", "keep_on_publish" }, self.transient.items)
+            memory.borrowNestedColumn(bool, &.{ "retention", "keep_on_publish" }, versions)
         else
-            memory.borrowNestedColumn(bool, &.{ "retention", "keep_on_abort" }, self.transient.items);
-
-        const input: std.meta.Child(rule.Input) = .{
-            .cache = @ptrCast(self),
-            .marks = @ptrCast(&marks),
-            .count = self.transient.items.len,
-            .capacity = self.retained_capacity,
-        };
+            memory.borrowNestedColumn(bool, &.{ "retention", "keep_on_abort" }, versions);
 
         var scratch = std.heap.FixedBufferAllocator.init(&.{});
+        var first: usize = 0;
 
-        self.retained_capacity = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
+        while (first < versions.len) {
+            const count = @min(@bitSizeOf(u64), versions.len - first);
 
-        self.transient.clearRetainingCapacity();
+            const input: std.meta.Child(rule.Input) = .{
+                .marks = @ptrCast(&marks),
+                .first = first,
+                .count = count,
+            };
 
-        return;
-    }
+            var retained = zx.columns.invoke(rule.executeValue, scratch.allocator(), &input) catch unreachable;
 
-    for (self.transient.items) |*version| {
-        if (version.retention.keep(published)) {
-            self.replaced.appendAssumeCapacity(version.result);
+            for (versions[first .. first + count]) |*version| {
+                self.retireVersion(&version.result, retained & 1 != 0);
 
-            self.retained_capacity += version.result.queryCapacity();
-        } else version.result.deinit();
+                retained >>= 1;
+            }
+
+            first += count;
+        }
+    } else {
+        for (versions) |*version| self.retireVersion(&version.result, version.retention.keep(published));
     }
 
     self.transient.clearRetainingCapacity();
+}
+
+fn retireVersion(self: *Self, result: *ModuleResult, keep: bool) void {
+    if (keep) {
+        self.replaced.appendAssumeCapacity(result.*);
+
+        self.retained_capacity += result.queryCapacity();
+    } else result.deinit();
 }
 
 pub fn currentCapacity(self: *const Self) usize {
@@ -283,7 +293,7 @@ fn prefetchInto(self: *Self, requests: anytype, count: usize, comptime Output: t
 
         parallel.spread(ParseWork, &work, ParseWork.run, workers);
 
-        return self.publishPrefetched(&paths, results, output, work.failed.load(.monotonic));
+        return self.publishPrefetched(requests, results, output, work.failed.load(.monotonic));
     }
 
     const Seed = struct {
@@ -474,25 +484,18 @@ fn stageResult(staged: std.mem.Allocator, scratch: *zx.Arena, request: Request, 
     return entry;
 }
 
-const Batch = struct {
-    adoption: Adoption,
-    output: BatchOutput,
-    prefetched: if (generated) ABI.PrefetchedParse else void = undefined,
-    fn borrow(handle: *anyopaque) *Batch {
-        return @ptrCast(@alignCast(handle));
-    }
-};
-
-fn publishPrefetched(self: *Self, paths: *const zx.memory.TextColumn, results: []const ?*Entry, output: BatchOutput, worker_failed: bool) std.mem.Allocator.Error!void {
+fn publishPrefetched(self: *Self, requests: anytype, results: []const ?*Entry, output: BatchOutput, worker_failed: bool) std.mem.Allocator.Error!void {
     const rule = @import("generated_parse_cache_publish");
-    var batch: Batch = .{ .adoption = .{ .cache = self, .path = undefined, .found = undefined }, .output = output };
 
     const input: std.meta.Child(rule.Input) = .{
-        .batch = @ptrCast(&batch),
-        .paths = @ptrCast(paths),
         .results = @ptrCast(results),
-        .has_output = output != .none,
         .worker_failed = worker_failed,
+    };
+
+    var committed: usize = 0;
+
+    errdefer for (results[committed..]) |candidate| {
+        if (candidate) |entry| entry.result.deinit();
     };
 
     var arena = std.heap.ArenaAllocator.init(self.allocator);
@@ -502,47 +505,28 @@ fn publishPrefetched(self: *Self, paths: *const zx.memory.TextColumn, results: [
     var buffer: [4096]u8 = undefined;
     var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
 
-    const discard_from = rule.executeIn(scratch.allocator(), &input) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
+    const plan = rule.executeIn(scratch.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+        error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
 
-    const first = discard_from orelse return;
+    for (plan.rows) |selected| {
+        const row: usize = @intCast(selected);
+        const path = requests.at(row).path;
+        const entry = try self.adopt(path, self.entries.probe(path), results[row].?);
 
-    for (results[@intCast(first)..]) |candidate| {
-        if (candidate) |entry| entry.result.deinit();
+        if (output != .none) output.bind(row, entry);
+
+        committed = row + 1;
     }
 
-    return error.OutOfMemory;
-}
-
-pub fn preparePrefetchedParse(handle: *anyopaque, path: []const u8) Native.preparePrefetchedParse.Output {
-    const batch = Batch.borrow(handle);
-    batch.adoption.path = path;
-    batch.adoption.found = batch.adoption.cache.entries.probe(path);
-
-    batch.prefetched = .{
-        .adoption = @ptrCast(&batch.adoption),
-        .existing = if (batch.adoption.found.existing) |entry| @ptrCast(entry) else null,
-    };
-
-    return &batch.prefetched;
-}
-
-pub fn bindPrefetchedParse(handle: *anyopaque, index: u64, handle_entry: *anyopaque) void {
-    const batch = Batch.borrow(handle);
-    const entry: *const Entry = @ptrCast(@alignCast(handle_entry));
-
-    batch.output.bind(@intCast(index), entry);
+    if (plan.worker_failed) return error.OutOfMemory;
 }
 
 const Adoption = struct {
     cache: *Self,
     path: []const u8,
     found: Index.Slot,
-    fn borrow(handle: *const anyopaque) *const Adoption {
-        return @ptrCast(@alignCast(handle));
-    }
     fn replace(self: *const Adoption, entry: *Entry, value: *const Entry) std.mem.Allocator.Error!void {
         try self.cache.replace(entry);
 
@@ -550,7 +534,6 @@ const Adoption = struct {
         entry.mark = self.cache.clock.current;
         self.cache.parsed += 1;
     }
-
     fn insert(self: *const Adoption, value: *const Entry) std.mem.Allocator.Error!*Entry {
         const cache = self.cache;
         const slot = try cache.entries.prepare(cache.allocator, self.path, self.found.position);
@@ -570,37 +553,20 @@ const Adoption = struct {
     }
 };
 
-pub fn insertParseEntry(handle: *const anyopaque, candidate: *anyopaque) Native.insertParseEntry.Output {
-    const entry = Adoption.borrow(handle).insert(@ptrCast(@alignCast(candidate))) catch return null;
-
-    return @ptrCast(entry);
-}
-
-pub fn replaceParseEntry(handle: *const anyopaque, existing: *anyopaque, candidate: *anyopaque) bool {
-    Adoption.borrow(handle).replace(@ptrCast(@alignCast(existing)), @ptrCast(@alignCast(candidate))) catch return false;
-
-    return true;
-}
-
 fn adopt(self: *Self, path: []const u8, found: Index.Slot, value: *Entry) std.mem.Allocator.Error!*Entry {
     const adoption: Adoption = .{ .cache = self, .path = path, .found = found };
+    const has_existing = found.existing != null;
 
-    if (comptime generated) {
+    const replace_existing = if (comptime generated) decision: {
         const rule = @import("generated_parse_cache_adopt");
-
-        const input: std.meta.Child(rule.Input) = .{
-            .adoption = @ptrCast(&adoption),
-            .existing = if (found.existing) |entry| @ptrCast(entry) else null,
-            .candidate = @ptrCast(value),
-        };
-
         var scratch = std.heap.FixedBufferAllocator.init(&.{});
-        const entry = (rule.executeIn(scratch.allocator(), &input) catch unreachable) orelse return error.OutOfMemory;
 
-        return @ptrCast(@alignCast(entry));
-    }
+        break :decision (rule.executeValue(scratch.allocator(), has_existing) catch unreachable) == .Replace;
+    } else has_existing;
 
-    if (found.existing) |entry| {
+    if (replace_existing) {
+        const entry = found.existing.?;
+
         try adoption.replace(entry, value);
 
         return entry;
@@ -661,21 +627,6 @@ fn replace(self: *Self, entry: *const Entry) std.mem.Allocator.Error!void {
     if (!self.transactional) return replacement.keep();
 
     return replacement.queue(self.clock.classify(entry.mark));
-}
-
-pub fn retainPendingParse(handle: *anyopaque, row: u64) u64 {
-    const self: *Self = @ptrCast(@alignCast(handle));
-    const result = &self.transient.items[@intCast(row)].result;
-
-    self.replaced.appendAssumeCapacity(result.*);
-
-    return result.queryCapacity();
-}
-
-pub fn discardPendingParse(handle: *anyopaque, row: u64) void {
-    const self: *Self = @ptrCast(@alignCast(handle));
-
-    self.transient.items[@intCast(row)].result.deinit();
 }
 
 fn getEntry(self: *Self, comptime native: bool, source: []const u8, path: []const u8) std.mem.Allocator.Error!*Entry {

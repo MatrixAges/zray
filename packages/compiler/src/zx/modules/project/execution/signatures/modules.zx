@@ -1,3 +1,5 @@
+import bytes from "std:bytes"
+import probe from "core/bytes/index/slot"
 import host from "project_host"
 
 import type { Batch as Input } from "./model"
@@ -12,12 +14,21 @@ export default function (in: Input): Output {
     }, {
         while: state => state.valid && state.slot < state.request.entries,
         next: state => {
-            const { batch, rows, paths, units } = state.request
+            const { batch, rows, paths, units, index } = state.request
             const slot = state.slot
 
-            const row = match {
+            const entry = match {
+                rows != null || index.capacity == 0 => 0,
+                _ => probe({
+                    ...index,
+                    key: bytes.fromText(paths[slot])
+                }).entry
+            }
+
+            const row: u64? = match {
                 rows != null => rows[slot],
-                _ => host.findProjectSignature(batch, paths[slot])
+                entry != 0 => entry - 1,
+                _ => null
             }
 
             if (row == null || row >= units) {

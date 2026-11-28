@@ -1,19 +1,13 @@
-import type { Table } from "core/bytes/index/fixed"
 import type { TextColumn } from "memory"
-import type { GraphModuleRegistration } from "rx_graph_host"
-
-export type Paths = {
-    source: TextColumn,
-    count: u64,
-    registry: Table
-}
 
 export type Request = {
-    frame: GraphModuleRegistration,
-    paths: Paths
+    source: TextColumn,
+    count: u64,
+    buckets: u64[]
 }
 
-export type Cursor = {
-    request: Request,
-    row: u64
+export type Result = {
+    keys: u8[][],
+    buckets: u64[],
+    issue?: string
 }

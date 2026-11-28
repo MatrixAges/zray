@@ -1,12 +1,9 @@
 import encoding from "std:encoding"
 import path from "std:path"
-import host from "publication_host"
 
-import type { OutputTarget } from "publication_host"
 import type { Ancestor } from "./model"
 
 export type Input = {
-    target: OutputTarget,
     logical: string,
     ancestor: Ancestor
 }
@@ -14,11 +11,7 @@ export type Input = {
 export type Output = string
 
 export default function (in: Input): Output {
-    const { target, logical, ancestor } = in
-
-    if (host.isDirectOutput(target, logical)) {
-        return host.readOutputPath(target, logical, false)
-    }
+    const { logical, ancestor } = in
 
     const tail = encoding.sliceBytes(logical, ancestor.prefix, logical.length)
 

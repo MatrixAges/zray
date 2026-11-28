@@ -1,16 +1,27 @@
-import { appendLibrarySources } from "library_workflow_host"
+export type Input = u64[]
 
-import type { SourcesInput as Input } from "./model"
-
-export type Output = void
+export type Output = {
+    offsets: u64[],
+    total: u64
+}
 
 export default function (in: Input): Output {
-    const collected = loop(0, {
-        while: index => index < in.count,
-        next: index => {
-            appendLibrarySources(in.sources, index)
+    const offsets: u64[] = []
 
-            index += 1
-        }
+    return loop({
+        index: 0,
+        offsets,
+        total: 0
+    }, {
+        while: state => state.index < in.length,
+        next: state => {
+            state.offsets = state.offsets.push(state.total)[0]
+            state.total += in[state.index]
+            state.index += 1
+        },
+        return: state => ({
+            offsets: state.offsets,
+            total: state.total
+        })
     })
 }

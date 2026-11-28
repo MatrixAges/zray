@@ -18,7 +18,6 @@ pub const Frame = struct {
     scopes: []Scope,
     selections: []Selection,
     sequence: @import("../../../node/blocks.zig").Sequence,
-    binding: @FieldType(ir.StatementRow, "constant") = undefined,
     child: node.Block = .{},
     pub fn borrow(handle: *const anyopaque) *Frame {
         const reference: *const *Frame = @ptrCast(@alignCast(handle));
@@ -96,6 +95,7 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
     const expressions = zx.columns.borrow(Expressions, @as(*const ir.ExpressionTable, &self.program.expressions));
     const types = ir.TypeTable.borrow(Types, self.program.types);
     const schedule = zx.columns.view(Schedule, plan);
+    const stack = self.stack_symbols.current();
     var origin: rows.OriginBuffer = .{};
     const reference = &frame;
 
@@ -111,6 +111,8 @@ pub fn lower(self: *Lower, values: ir.Block) Lower.Error!node.Block {
         .store_count = self.program.stores.count(),
         .names = self.names,
         .used = self.used,
+        .stack_keys = @ptrCast(&stack.keys.items),
+        .stack_buckets = @ptrCast(&stack.buckets.items),
         .transaction = self.transaction(),
         .value_output = self.value_output,
         .state_active = self.state_active,

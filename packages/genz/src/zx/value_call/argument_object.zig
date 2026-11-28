@@ -1,13 +1,13 @@
 const std = @import("std");
 const Lower = @import("../lower.zig");
-const argument = @import("argument.zig");
+const borrow = @import("../expressions/evaluate.zig").borrow;
+const Sequence = @import("../../node/blocks.zig").Sequence;
 const publication = @import("../construction/publication.zig");
 const Error = Lower.Error;
 
-pub fn materializeBorrowedObject(handle: *const anyopaque) Error!u32 {
-    const context = argument.Frame.borrow(handle);
-    const self = context.lowering;
-    const expression = self.program.expression(context.id);
+pub fn materializeBorrowedObject(writer: *anyopaque, sequence: *anyopaque, id: u32) Error!u32 {
+    const self = borrow(writer);
+    const expression = self.program.expression(@fromBackingInt(id));
     const source = expression.value.object;
     var scratch = std.heap.ArenaAllocator.init(self.workspace);
     var buffer: @TypeOf(self.cache).SnapshotBuffer = undefined;
@@ -24,11 +24,10 @@ pub fn materializeBorrowedObject(handle: *const anyopaque) Error!u32 {
     const entry = @import("generated_materialize_borrowed_object");
 
     const input: std.meta.Child(entry.Input) = .{
-        .frame = @ptrCast(handle),
         .lowering = @ptrCast(self),
         .writer = @ptrCast(self),
         .origin = @ptrCast(&origin),
-        .sequence = @ptrCast(context.body),
+        .sequence = @ptrCast(sequence),
         .type_id = @backingInt(expression.type_id),
         .evaluation = @ptrCast(source.evaluation),
         .fields = source.fields.values[0..source.fields.len],
@@ -41,16 +40,16 @@ pub fn materializeBorrowedObject(handle: *const anyopaque) Error!u32 {
     return entry.executeIn(temporary, &input) catch |err| return publication.failure(err);
 }
 
-pub fn borrowedOperandCacheValue(handle: *const anyopaque, id: u32, value: u32) Error!u32 {
-    const frame = argument.Frame.borrow(handle);
-    const self = frame.lowering;
+pub fn borrowedOperandCacheValue(writer: *anyopaque, sequence: *anyopaque, id: u32, value: u32) Error!u32 {
+    const self = borrow(writer);
+    const body: *Sequence = @ptrCast(@alignCast(sequence));
     const type_id = self.program.expression(@fromBackingInt(id)).type_id;
 
-    return @backingInt(try @import("../state_value/conversion.zig").convert(self, frame.body, type_id, @fromBackingInt(value), .value));
+    return @backingInt(try @import("../state_value/conversion.zig").convert(self, body, type_id, @fromBackingInt(value), .value));
 }
 
-pub fn cacheBorrowedOperand(handle: *const anyopaque, id: u32, value: u32) Error!void {
-    const self = argument.Frame.borrow(handle).lowering;
+pub fn cacheBorrowedOperand(handle: *anyopaque, id: u32, value: u32) Error!void {
+    const self = borrow(handle);
 
     try self.cache.put(self.allocator, @fromBackingInt(id), @fromBackingInt(value));
 }
