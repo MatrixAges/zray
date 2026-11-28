@@ -1,26 +1,31 @@
-import type { CheckRows, ProjectCheck } from "rx_checking_host"
+import type { CheckRows, ProjectCheck, SelectedCall } from "rx_checking_host"
 
 export type Graph = CheckRows & {
     check: ProjectCheck
 }
 
-export type Range = {
-    check: ProjectCheck,
-    count: u64
+export type CallBucket = {
+    calls: SelectedCall[]
 }
 
-export type ModuleStep = Range & {
-    index: u64,
-    running: bool
-}
-
-export type GraphWalk = {
-    check: ProjectCheck,
-    count: u64,
-    index: u64
-}
-
-export type FunctionWalk = GraphWalk & {
+export type CallIndex = {
     valid: bool,
+    buckets: CallBucket[]
+}
+
+export type ModuleStep = {
+    check: ProjectCheck,
+    roots: string[],
+    index: u64,
+    buckets: CallBucket[]
+}
+
+export type FunctionWalk = {
+    check: ProjectCheck,
+    roots: string[],
+    index: u64,
+    buckets: CallBucket[],
+    valid: bool,
+    diagnostic?: string,
     running: bool
 }

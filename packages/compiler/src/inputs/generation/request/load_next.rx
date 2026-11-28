@@ -3,19 +3,31 @@
 
     <Args in={Request.LoadStep} out={Request.LoadStep} />
 
+    <Store from="documents" as="documents" />
+
     <Call
         fn="host.loadGenerationRoot"
         in={[
-            $in.load.request,
+            $in.load.host,
             $in.row,
-            $in.load.observed
+            $in.load.snapshot
         ]}
+    />
+
+    <Call
+        fn="append_documents"
+        in={{
+            loaded: $store.documents.loaded,
+            batch: $ctx.loadGenerationRoot,
+            row: $in.row
+        }}
+        setter={[$store.documents.loaded]}
     />
 
     <Return
         value={{
             load: $in.load,
-            row: $in.row + 1
+            row: $ctx.append_documents
         }}
     />
 </Module>

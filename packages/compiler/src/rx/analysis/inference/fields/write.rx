@@ -1,7 +1,10 @@
 <Module>
     <Type from="workflow" as="Fields" />
+    <Type from="../object_closure/effect" as="ObjectEffect" />
 
     <Args in={Fields.Write} out={u32} />
+
+    <Store from="../object_closure/object" as="object" />
 
     <Call
         fn="growth/capacity"
@@ -14,13 +17,16 @@
     />
 
     <Call
-        fn="host.appendFieldMember"
-        in={[
-            $in.site.frame,
-            $in.name,
-            $ctx.capacity
-        ]}
+        fn="../object_closure/stage"
+        in={{
+            object_step: ObjectEffect.Step.AppendMember,
+            name: $in.name,
+            capacity: $ctx.capacity
+        }}
+        setter={[$store.object.effect]}
     />
 
-    <Return value={$ctx.appendFieldMember} />
+    <Call fn="../object_closure/read_id" in={$store.object.effect} />
+
+    <Return value={$ctx.read_id} />
 </Module>

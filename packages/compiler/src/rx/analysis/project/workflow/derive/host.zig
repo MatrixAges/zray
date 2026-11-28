@@ -11,7 +11,7 @@ const source_graph = project.source_graph;
 const Frame = @import("../../history.zig").Frame;
 const Inputs = @import("../../call_inputs.zig");
 const entry_source = @import("../../entry.zig");
-const workflow = @import("../errors.zig");
+const workflow = @import("../execute.zig");
 const Error = zx.Error;
 const generated = @import("rx_options").generated_graph;
 
@@ -35,10 +35,40 @@ pub fn run(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: *c
 
     if (comptime generated) {
         const entry = @import("generated_rx_execute_derivation");
-        const input: std.meta.Child(entry.Input) = .{ .state = @ptrCast(&state), .retained = check_signatures, .shortcuts = @ptrCast(&state.shortcuts) };
-        var empty = std.heap.FixedBufferAllocator.init(&.{});
+        const Store = std.meta.Child(@FieldType(entry.zx_pending, "store_0"));
 
-        return entry.executeIn(empty.allocator(), &input) catch |err| workflow.errorSet(err);
+        const Native = struct {
+            state: *State,
+            snapshot: *std.meta.Child(Store),
+            store_0: *Store,
+            pub fn commit(native: *@This(), pending: anytype) Error!void {
+                const effect = pending.store_0 orelse return;
+                const work = native.state;
+
+                switch (effect.step) {
+                    .Modules => try work.modules(),
+                    .Graph => try work.graph(),
+                    .OrderSignatures => try work.orderSignatures(),
+                    .RestoreSignatures => native.snapshot.restored = work.restoreSignatures(),
+                    .AnalyzeSignatures => try work.analyzeSignatures(),
+                    .IndexSignatures => try work.index(),
+                    .LoadStores => try work.stores(),
+                    .PrepareFlow => try work.prepare(),
+                    .SolveFlow => try @import("../solve/host.zig").run(work),
+                    .CompleteShortcut => try work.completeShortcut(@intCast(effect.row.?)),
+                    .Publish => work.publish(),
+                }
+            }
+        };
+
+        var snapshot: std.meta.Child(Store) = .{ .step = .Modules, .row = null, .restored = false };
+        var store: Store = &snapshot;
+        var host: Native = .{ .state = &state, .snapshot = &snapshot, .store_0 = &store };
+
+        return workflow.run(entry, backing, &.{
+            .retained = check_signatures,
+            .shortcuts = @ptrCast(&state.shortcuts),
+        }, &host);
     }
 
     try state.modules();
@@ -51,7 +81,7 @@ pub fn run(allocator: std.mem.Allocator, backing: std.mem.Allocator, options: *c
     try @import("../solve/host.zig").run(&state);
 
     for (state.prepared.?.modules, 0..) |*module, row| {
-        if (module.deferred_shortcut) try completeDerivedShortcut(&state, row);
+        if (module.deferred_shortcut) try state.completeShortcut(row);
     }
 
     state.publish();
@@ -230,6 +260,16 @@ pub const State = struct {
 
         if (comptime generated) self.shortcuts = zx.memory.borrowReadColumn(bool, "deferred_shortcut", result.loaded.modules);
     }
+    fn completeShortcut(self: *State, row: usize) std.mem.Allocator.Error!void {
+        const module = &self.prepared.?.modules[row];
+        const signatures = self.frame.resolved;
+        const call = shorthand.call_index;
+        const plan = try shorthand.lower(self.allocator, module.calls.items(.node)[call], call, @fromBackingInt(signatures.inputs[row]), @fromBackingInt(signatures.outputs[row]));
+
+        module.calls.items(.node)[call] = plan.node;
+        module.calls.items(.input)[call] = plan.input;
+        module.plan = plan.flow;
+    }
 
     fn publish(self: *State) void {
         const dependencies = &self.dependencies.?;
@@ -251,61 +291,3 @@ pub const State = struct {
         return error.InvalidSource;
     }
 };
-
-fn borrow(handle: *anyopaque) *State {
-    return @ptrCast(@alignCast(handle));
-}
-
-pub fn prepareDerivedModules(handle: *anyopaque) Error!void {
-    return borrow(handle).modules();
-}
-
-pub fn collectDerivedGraph(handle: *anyopaque) Error!void {
-    return borrow(handle).graph();
-}
-
-pub fn orderDerivedSignatures(handle: *anyopaque) std.mem.Allocator.Error!void {
-    return borrow(handle).orderSignatures();
-}
-
-pub fn restoreDerivedSignatures(handle: *anyopaque) bool {
-    return borrow(handle).restoreSignatures();
-}
-
-pub fn analyzeDerivedSignatures(handle: *anyopaque) Error!void {
-    return borrow(handle).analyzeSignatures();
-}
-
-pub fn indexDerivedSignatures(handle: *anyopaque) Error!void {
-    return borrow(handle).index();
-}
-
-pub fn loadDerivedStores(handle: *anyopaque) Error!void {
-    return borrow(handle).stores();
-}
-
-pub fn prepareDerivedFlow(handle: *anyopaque) Error!void {
-    return borrow(handle).prepare();
-}
-
-pub fn solveDerivedFlow(handle: *anyopaque) Error!void {
-    return @import("../solve/host.zig").run(borrow(handle));
-}
-
-pub fn completeDerivedShortcut(handle: *anyopaque, index: u64) std.mem.Allocator.Error!void {
-    const state = borrow(handle);
-    const row: usize = @intCast(index);
-    const module = &state.prepared.?.modules[row];
-    const signatures = state.frame.resolved;
-    const call = shorthand.call_index;
-    const plan = try shorthand.lower(state.allocator, module.calls.items(.node)[call], call, @fromBackingInt(signatures.inputs[row]), @fromBackingInt(signatures.outputs[row]));
-
-    module.calls.items(.node)[call] = plan.node;
-    module.calls.items(.input)[call] = plan.input;
-
-    module.plan = plan.flow;
-}
-
-pub fn publishDerivedFrame(handle: *anyopaque) void {
-    borrow(handle).publish();
-}

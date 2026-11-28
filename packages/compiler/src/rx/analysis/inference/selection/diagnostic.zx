@@ -1,7 +1,5 @@
 import { invalid_source, missing_field, invalid_result, outside_result } from "./const"
 
-import type { ObjectFieldReplay } from "rx_project_host"
-
 export enum Issue {
     Source,
     Missing,
@@ -10,7 +8,6 @@ export enum Issue {
 }
 
 export type Report = {
-    frame: ObjectFieldReplay,
     issue: Issue
 }
 

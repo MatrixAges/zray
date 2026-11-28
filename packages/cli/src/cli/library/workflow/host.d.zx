@@ -1,30 +1,6 @@
-export type Build = opaque
-
-export enum BuildStatus {
-    Success,
-    Failed,
-    Retry,
-    Changed,
-    MissingEntry
-}
-
 export type Analysis = opaque
 
 export type Link = opaque
-
-export type Proof = opaque
-
-export declare function analyzeLibraryBuild(build: Build, entry: string?): bool throws { LibraryWorkflowFailure }
-export declare function linkLibraryBuild(build: Build): void throws { LibraryWorkflowFailure }
-export declare function collectBuildSources(build: Build): void throws { LibraryWorkflowFailure }
-export declare function openLibraryBuildCache(build: Build): void throws { LibraryWorkflowFailure }
-export declare function generateLibraryBundle(build: Build): bool throws { LibraryWorkflowFailure }
-export declare function reportLibraryBuildCache(build: Build): void throws { LibraryWorkflowFailure }
-export declare function resolveLibraryToolchain(build: Build): void throws { LibraryWorkflowFailure }
-export declare function resolveLibraryNativeProject(build: Build): void throws { LibraryWorkflowFailure }
-export declare function createLibraryStaging(build: Build): void throws { LibraryWorkflowFailure }
-export declare function stageLibraryBuild(build: Build): void throws { LibraryWorkflowFailure }
-export declare function publishLibraryBuild(build: Build): bool throws { LibraryWorkflowFailure }
 
 export declare function loadCompiledLibrary(analysis: Analysis): void throws { LibraryWorkflowFailure }
 export declare function beginLibraryAnalysis(analysis: Analysis): void throws { LibraryWorkflowFailure }
@@ -36,6 +12,3 @@ export declare function recordLibraryAnalysis(analysis: Analysis): bool throws {
 
 export declare function prepareLibraryLinkInput(link: Link, index: u64): void throws { LibraryWorkflowFailure }
 export declare function linkLibraryInputs(link: Link): void throws { LibraryWorkflowFailure }
-
-export declare function writeProofMessage(proof: Proof, message: string): void throws { LibraryWorkflowFailure }
-export declare function verifyPublicExport(proof: Proof, index: u64, output: string?): bool throws { LibraryWorkflowFailure }

@@ -1,64 +1,27 @@
 const std = @import("std");
-const rules = @import("partition_rules");
-const scheduling = rules.partition_cache_schedule;
-const ScheduleSignature = @typeInfo(@TypeOf(scheduling.executeValue)).@"fn";
-pub const Schedule = @typeInfo(ScheduleSignature.return_type.?).error_union.payload;
-const Options = std.meta.Child(@FieldType(std.meta.Child(ScheduleSignature.param_types[1].?), "options"));
+const native = @import("partition_abi").native.@"zig:partition_host";
+const Io = std.Io;
 
-pub const Keys = struct {
-    hex: []const []const u8,
-    /// Replaces presence with the entries safe to record before spawning any worker.
-    pub fn plan(self: Keys, allocator: std.mem.Allocator, previous: []const u8, present: []bool, options: *const Options) !Schedule {
-        const scheduled = try scheduling.executeValue(allocator, &.{
-            .state = &.{
-                .previous = previous,
-                .digests = self.hex,
-                .present = present,
-            },
-            .options = options,
-        });
+pub fn loadPartitionState(allocator: std.mem.Allocator, io: Io, objects: []const u8, state_file: []const u8) !native.loadPartitionState.Output {
+    const cwd = Io.Dir.cwd();
+    const path = try std.fs.path.join(allocator, &.{ objects, state_file });
 
-        if (scheduled.valid) |valid| {
-            @memcpy(present, valid);
-        }
+    const previous = cwd.readFileAlloc(io, path, allocator, .unlimited) catch |err| switch (err) {
+        error.FileNotFound => "",
+        else => return err,
+    };
 
-        return scheduled;
-    }
-    pub fn write(self: Keys, io: std.Io, allocator: std.mem.Allocator, path: []const u8, valid: []const bool) !void {
-        var arena = std.heap.ArenaAllocator.init(allocator);
+    try cwd.createDirPath(io, objects);
 
-        defer arena.deinit();
+    const result = try allocator.create(native.loadPartitionState.OutputValue);
 
-        const text = try rules.partition_cache_publish.executeIn(arena.allocator(), &.{
-            .digests = self.hex,
-            .valid = valid,
-        });
+    result.* = .{ .path = path, .previous = previous };
 
-        var file = try std.Io.Dir.cwd().createFileAtomic(io, path, .{ .replace = true });
+    return result;
+}
 
-        defer file.deinit(io);
+pub fn partitionObjectPresent(io: Io, path: []const u8) bool {
+    Io.Dir.cwd().access(io, path, .{}) catch return false;
 
-        try file.file.writeStreamingAll(io, text);
-        try file.replace(io);
-    }
-};
-
-pub fn complete(pending: []const u32, failures: []const ?[]const u8, valid: []bool) !bool {
-    var buffer: [1024]u8 = undefined;
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-
-    defer arena.deinit();
-
-    var scratch = std.heap.BufferFirstAllocator.init(&buffer, arena.allocator());
-
-    const outcome = try rules.partition_cache_complete.executeValue(scratch.allocator(), &.{
-        .pending = pending,
-        .failures = failures,
-    });
-
-    for (outcome.completed) |partition| {
-        valid[@intCast(partition)] = true;
-    }
-
-    return outcome.failed;
+    return true;
 }

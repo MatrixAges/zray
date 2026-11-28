@@ -2,8 +2,6 @@ export type RxApplication = opaque
 
 export type GatewayAnalysis = opaque
 
-export type GatewayBuild = opaque
-
 export type GatewayRoutes = {
     route_services: string[],
     service_routes: u32[]
@@ -22,13 +20,11 @@ export type ApplicationText = {
 }
 
 export declare function loadRxApplication(check: RxApplication): string? throws { SourceLoadFailure }
-export declare function buildRxGateway(check: RxApplication): Status throws { SourceLoadFailure }
 export declare function analyzeRxApplication(check: RxApplication): u64? throws { SourceLoadFailure }
 export declare function verifyRxApplication(check: RxApplication): bool throws { SourceLoadFailure }
 export declare function generateRxFpga(check: RxApplication): bool throws { SourceLoadFailure }
 export declare function openRxApplicationCache(check: RxApplication): void throws { SourceLoadFailure }
 export declare function emitRxApplicationText(check: RxApplication): ApplicationText? throws { SourceLoadFailure }
-export declare function printRxApplicationText(check: RxApplication, source: string): void throws { SourceLoadFailure }
 export declare function emitRxApplicationModules(check: RxApplication): bool throws { SourceLoadFailure }
 export declare function collectRxInitializers(check: RxApplication): void throws { SourceLoadFailure }
 export declare function emitRxInitializers(check: RxApplication): void throws { SourceLoadFailure }
@@ -43,16 +39,11 @@ export declare function collectGatewayDocuments(check: GatewayAnalysis): bool th
 export declare function analyzeGatewayDocument(check: GatewayAnalysis): GatewayRoutes? throws { SourceLoadFailure }
 export declare function analyzeGatewayServices(check: GatewayAnalysis, service_names: string[]): bool throws { SourceLoadFailure }
 
-export declare function loadGatewayBuild(check: GatewayBuild): bool throws { SourceLoadFailure }
-export declare function linkGatewayBuild(check: GatewayBuild): bool throws { SourceLoadFailure }
-export declare function bindGatewayBuildRoutes(check: GatewayBuild): void throws { SourceLoadFailure }
-export declare function openGatewayBuildCache(check: GatewayBuild): void throws { SourceLoadFailure }
-export declare function collectGatewayBuildSources(check: GatewayBuild): void throws { SourceLoadFailure }
-export declare function emitGatewayBuildServices(check: GatewayBuild): bool throws { SourceLoadFailure }
-export declare function assembleGatewayBuild(check: GatewayBuild): void throws { SourceLoadFailure }
-export declare function assembleEmptyGatewayBuild(check: GatewayBuild): void throws { SourceLoadFailure }
-export declare function attachGatewayRunner(check: GatewayBuild): void throws { SourceLoadFailure }
-export declare function reportGatewayBuildCache(check: GatewayBuild): void throws { SourceLoadFailure }
-export declare function resolveGatewayToolchain(check: GatewayBuild): void throws { SourceLoadFailure }
-export declare function resolveGatewayNativeProject(check: GatewayBuild): void throws { SourceLoadFailure }
-export declare function runGatewayBackend(check: GatewayBuild): Status throws { SourceLoadFailure }
+export declare function loadGatewayBuild(check: RxApplication): bool throws { SourceLoadFailure }
+export declare function linkGatewayBuild(check: RxApplication): bool throws { SourceLoadFailure }
+export declare function bindGatewayBuildRoutes(check: RxApplication): void throws { SourceLoadFailure }
+export declare function collectGatewayBuildSources(check: RxApplication): void throws { SourceLoadFailure }
+export declare function emitGatewayBuildServices(check: RxApplication): bool throws { SourceLoadFailure }
+export declare function assembleGatewayBuild(check: RxApplication): void throws { SourceLoadFailure }
+export declare function assembleEmptyGatewayBuild(check: RxApplication): void throws { SourceLoadFailure }
+export declare function attachGatewayRunner(check: RxApplication): void throws { SourceLoadFailure }

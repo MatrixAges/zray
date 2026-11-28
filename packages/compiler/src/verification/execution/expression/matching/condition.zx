@@ -1,0 +1,31 @@
+import connect from "../../../predicate/connect"
+import { Operator } from "../../../predicate/model"
+
+import type { Value } from "../effect/model"
+
+export type Input = {
+    subject?: Value,
+    test: string
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    const { subject, test } = in
+
+    if (subject == null) {
+        return test
+    }
+
+    const text = subject.text
+
+    if (text == null) {
+        return test
+    }
+
+    return connect({
+        operator: Operator.Equal,
+        left: text,
+        right: test
+    })
+}

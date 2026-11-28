@@ -3,14 +3,17 @@
     <Type from="model" as="Projection" />
     <Type from="diagnostic" as="Diagnostic" />
     <Type from="../fields/view" as="Fields" />
+    <Type from="../object_closure/effect" as="ObjectEffect" />
 
     <Args in={Selection.Input} out={void} />
+
+    <Store from="../object_closure/object" as="object" />
 
     <If on={$in.mode != Fields.Mode.Inferred && $in.mode != Fields.Mode.Declared}>
         <Call
             module="report"
             in={{
-                frame: $in.frame,
+
                 issue: Diagnostic.Issue.Source
             }}
         />
@@ -18,11 +21,12 @@
 
     <If on={$in.mode == Fields.Mode.Declared}>
         <Call
-            fn="../fields/host.registerDeclaredReplayFields"
-            in={[
-                $in.frame,
-                $in.source.values
-            ]}
+            fn="../object_closure/stage"
+            in={{
+                object_step: ObjectEffect.Step.RegisterFields,
+                members: $in.source.values
+            }}
+            setter={[$store.object.effect]}
         />
     </If>
 
@@ -45,7 +49,7 @@
         <Call
             module="report"
             in={{
-                frame: $in.frame,
+
                 issue: Diagnostic.Issue.Missing
             }}
         />
@@ -55,12 +59,18 @@
         on={$ctx.project.status == Projection.Status.Ready &&
             ($ctx.project.count != 0 || $in.final)}
     >
-        <Call fn="../fields/host.refreshObjectReplayFields" in={$in.frame} />
+        <Call
+            fn="../object_closure/stage"
+            in={{
+                object_step: ObjectEffect.Step.RefreshFields
+            }}
+            setter={[$store.object.effect]}
+        />
 
         <Call
             module="application/run"
             in={{
-                frame: $in.frame,
+
                 field_view: $in.field_view,
                 ...$in.source,
                 declared: $in.mode == Fields.Mode.Declared,

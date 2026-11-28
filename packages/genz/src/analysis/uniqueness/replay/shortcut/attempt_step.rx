@@ -1,0 +1,54 @@
+<Module>
+    <Type from="attempt_model" as="Attempt" />
+    <Type from="phase" as="Replay" />
+    <Type from="../../program/driver/effect" as="Effect" />
+
+    <Args in={Attempt.Cursor} out={Attempt.Cursor} />
+
+    <Store from="../../program/driver/execution" as="driver" />
+
+    <Call
+        fn="../../program/driver/submit"
+        in={{
+            step: Effect.Step.ScanReplay,
+            phase: $in.phase,
+            recovered: $in.recovered
+        }}
+        setter={[$store.driver.exchange]}
+    />
+
+    <Task name="scan" out={$ctx.read.phase}>
+        <Call fn="../../program/driver/read" in={$store.driver.exchange} />
+    </Task>
+
+    <If
+        on={$ctx.task.scan == Replay.Phase.Done || $ctx.task.scan == Replay.Phase.Reject}
+    >
+        <Return
+            value={{
+                phase: $ctx.task.scan,
+                recovered: null,
+                running: false
+            }}
+        />
+    </If>
+
+    <Call
+        fn="../../program/driver/submit"
+        in={{
+            step: Effect.Step.RecoverVisit,
+            phase: $ctx.task.scan
+        }}
+        setter={[$store.driver.exchange]}
+    />
+
+    <Call fn="../../program/driver/read" in={$store.driver.exchange} />
+
+    <Return
+        value={{
+            phase: $ctx.task.scan,
+            recovered: $ctx.read.recovered,
+            running: true
+        }}
+    />
+</Module>

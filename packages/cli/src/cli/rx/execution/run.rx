@@ -21,11 +21,7 @@
             }}
         />
 
-        <Return
-            value={{
-                status: $ctx.loaded
-            }}
-        />
+        <Return value={$ctx.loaded} />
     </If>
 
     <Return

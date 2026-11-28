@@ -4,7 +4,7 @@ import conjunction from "../scalar/conjunction"
 import require from "./require"
 
 import type { ContractKind as Kind } from "core/contract_table/model"
-import type { SymbolicPath, SymbolicSession } from "verification_host"
+import type { ContractSource, ContractValue, SymbolicPath } from "verification_host"
 
 export enum Mode {
     Entry,
@@ -13,7 +13,8 @@ export enum Mode {
 }
 
 export type Input = SymbolicPath & {
-    session: SymbolicSession,
+    source: ContractSource,
+    output?: ContractValue,
     kinds: Kind[],
     selected: Kind,
     mode: Mode
@@ -29,11 +30,11 @@ export default function (in: Input): Output {
     }, {
         while: state => state.row < in.kinds.length,
         next: state => {
-            const { session, kinds, selected, mode } = in
+            const { source, output, kinds, selected, mode } = in
 
             if (kinds[state.row] == selected) {
                 const path = state.path
-                const clause = host.evaluateClause(session, state.row)
+                const clause = host.evaluateClause(source, state.row, output)
                 const only_safety = mode == Mode.Entry
 
                 if (only_safety) {
@@ -43,7 +44,7 @@ export default function (in: Input): Output {
                     })
 
                     if (violation != null) {
-                        const obligation = host.bindSymbolicBoolean(session, violation)
+                        const obligation = host.bindSymbolicBoolean(source, violation)
                         state.violations = state.violations.push(obligation)[0]
                     }
                 }
@@ -52,7 +53,7 @@ export default function (in: Input): Output {
                     left: clause.safe,
                     right: clause.predicate
                 })
-                const valid = host.bindSymbolicBoolean(session, checked)
+                const valid = host.bindSymbolicBoolean(source, checked)
 
                 if (!only_safety) {
                     const violation = require({
@@ -61,7 +62,7 @@ export default function (in: Input): Output {
                     })
 
                     if (violation != null) {
-                        const obligation = host.bindSymbolicBoolean(session, violation)
+                        const obligation = host.bindSymbolicBoolean(source, violation)
                         state.violations = state.violations.push(obligation)[0]
                     }
                 }
@@ -71,7 +72,7 @@ export default function (in: Input): Output {
                     right: valid
                 })
 
-                state.path = host.bindSymbolicBoolean(session, combined)
+                state.path = host.bindSymbolicBoolean(source, combined)
             }
 
             state.row += 1

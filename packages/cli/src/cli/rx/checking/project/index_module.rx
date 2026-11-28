@@ -13,22 +13,21 @@
 
     <Call fn="match_calls" />
 
-    <If on={$ctx.match_calls.length != 0}>
-        <Call
-            fn="../index.recordCheckFunctionCalls"
-            in={[
-                $in.check,
-                $in.index,
-                $ctx.match_calls
-            ]}
-        />
-    </If>
+    <Call
+        fn="group_calls"
+        in={{
+            owner: $in.roots[$in.index],
+            calls: $ctx.match_calls,
+            buckets: $in.buckets
+        }}
+    />
 
     <Return
         value={{
-            ...$in,
+            check: $in.check,
+            roots: $in.roots,
             index: $in.index + 1,
-            running: $in.index + 1 < $in.count
+            buckets: $ctx.group_calls
         }}
     />
 </Module>

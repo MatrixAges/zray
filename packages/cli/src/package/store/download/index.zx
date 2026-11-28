@@ -1,1 +1,2 @@
-export { readBody, readLocalArchive, receiveHead } from "package_download_host"
+export { readFile } from "std:fs"
+export { readBody, receiveHead } from "package_download_host"

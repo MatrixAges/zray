@@ -185,7 +185,3 @@ pub fn deepenLoopInitial(handle: *anyopaque, value: u32) Error!u32 {
 
     return @backingInt(try @import("../../iteration_value/conversion.zig").convert(&frame.context, frame.type_id, @fromBackingInt(value), false));
 }
-
-pub fn releaseLoopPlanningScratch(handle: *anyopaque) void {
-    _ = Frame.borrow(handle).renewal_workspace.scratch.reset(.free_all);
-}

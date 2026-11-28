@@ -1,0 +1,25 @@
+<Store name="rx_flow_traversal" version={1}>
+    <Type from="operation" as="Traversal" />
+
+    <Object name="effect">
+        <Field name="step" type={Traversal.Step} value={Traversal.Step.Refresh} />
+        <Field name="next" type={u64?} value={null} />
+        <Field name="item" type={u32?} value={null} />
+        <Field name="row" type={u64?} value={null} />
+        <Field name="visible" type={bool?} value={null} />
+        <Field name="bindings" type={u64?} value={null} />
+        <Field name="id" type={u32?} value={null} />
+        <Field name="returned" type={bool?} value={null} />
+        <Field name="kind" type={Traversal.FlowKind?} value={null} />
+        <Field name="first" type={u32?} value={null} />
+        <Field name="exhaustive" type={bool?} value={null} />
+        <Field name="output" type={Traversal.FlowPublish?} value={null} />
+        <Field name="parallel" type={bool?} value={null} />
+        <Field name="coverage" type={Traversal.Coverage?} value={null} />
+        <Field name="facts" type={u64?} value={null} />
+        <Field name="value" type={u32?} value={null} />
+        <Field name="flag" type={bool} value={false} />
+        <Field name="result_id" type={u32?} value={null} />
+        <Field name="truth" type={bool?} value={null} />
+    </Object>
+</Store>

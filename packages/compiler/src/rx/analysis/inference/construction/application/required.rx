@@ -2,15 +2,19 @@
     <Type from="model" as="Construction" />
     <Type from="../activate" as="Activation" />
     <Type from="../diagnostic" as="Diagnostic" />
+    <Type from="../../object_closure/effect" as="ObjectEffect" />
 
     <Args in={Construction.Required} out={void} />
 
+    <Store from="../../object_closure/object" as="object" />
+
     <Call
-        fn="host.describeConstructedTarget"
-        in={[
-            $in.frame,
-            $in.target
-        ]}
+        fn="../../object_closure/stage"
+        in={{
+            object_step: ObjectEffect.Step.DescribeTarget,
+            target: $in.target
+        }}
+        setter={[$store.object.effect]}
     />
 
     <Call
@@ -24,13 +28,14 @@
     <Switch on={$ctx.activate}>
         <Case value={Activation.Effect.Infer}>
             <Call
-                fn="host.inferConstructedField"
-                in={[
-                    $in.frame,
-                    $in.part,
-                    $in.name,
-                    $in.target
-                ]}
+                fn="../../object_closure/stage"
+                in={{
+                    object_step: ObjectEffect.Step.InferField,
+                    row: $in.part,
+                    name: $in.name,
+                    target: $in.target
+                }}
+                setter={[$store.object.effect]}
             />
         </Case>
 
@@ -38,7 +43,7 @@
             <Call
                 module="../report"
                 in={{
-                    frame: $in.frame,
+
                     row: null,
                     issue: Diagnostic.Issue.MissingField
                 }}

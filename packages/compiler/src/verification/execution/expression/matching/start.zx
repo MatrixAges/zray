@@ -1,0 +1,25 @@
+import integers from "std:integer"
+
+import type { Value } from "../effect/model"
+import type { Payload } from "../model"
+import type { Walk as Output } from "./model"
+
+export type Input = Payload & {
+    subject?: Value,
+    value: Value
+}
+
+export default function (in: Input): Output {
+    const { columns, payload, subject, value } = in
+
+    const first = integers.widen(columns.match_first[payload])
+    const count = integers.widen(columns.match_count[payload])
+
+    return {
+        columns,
+        row: first + count,
+        first,
+        subject,
+        value
+    }
+}

@@ -24,7 +24,6 @@ const StoreHost = if (generated) struct {
             self.store_0.* = next;
 
             if (next.has_seed) self.frame.seed = @fromBackingInt(next.seed);
-            if (next.changed_name.len != 0) self.frame.changed_name = next.changed_name;
         }
 
         if (pending.store_1) |next| {
@@ -127,7 +126,7 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
 
     comptime std.debug.assert(@typeInfo(node.ExpressionId).@"enum".tag_type == u32);
 
-    var store_value: std.meta.Child(StoreState) = .{ .has_seed = false, .seed = 0, .changed_name = &.{} };
+    var store_value: std.meta.Child(StoreState) = .{ .has_seed = false, .seed = 0, .changed_name = null };
     var store_ptr: StoreState = &store_value;
 
     var store_1_value: std.meta.Child(StoreParameters) = .{
@@ -142,6 +141,9 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
 
     var store_1_ptr: StoreParameters = &store_1_value;
     var host: StoreHost = .{ .frame = frame, .store_0 = &store_ptr, .store_1 = &store_1_ptr };
+    const Facts = std.meta.Child(@FieldType(Input, "assignment_facts"));
+    const types = ir.TypeTable.borrow(std.meta.Child(@FieldType(Facts, "types")), self.program.types);
+    const facts: Facts = .{ .types = &types, .selected = self.state_plan.selected };
 
     const input: Input = .{
         .frame = @ptrCast(self),
@@ -150,6 +152,9 @@ fn execute(frame: *Frame, temporary: std.mem.Allocator, renewal_source: ?*const 
         .loop_seq = @ptrCast(&frame.loop),
         .projected_seq = @ptrCast(&frame.projected_body),
         .loop_frame = @ptrCast(frame),
+        .context = @ptrCast(&frame.context),
+        .assignment_facts = &facts,
+        .state_active = self.state_active,
         .loop_state = &frame.state_info,
         .guard_info = &frame.guard_info,
         .id = @backingInt(frame.id),
@@ -207,7 +212,7 @@ fn runSeed(frame: *Frame) Lower.Error!?node.ExpressionId {
     if (projected) {
         const mutable = @import("iteration/renewal_seed.zig").needsEntries(self, frame.id);
 
-        try emit.declareLoopState(handle, .State, true, mutable, @backingInt(frame.initial_state));
+        try emit.declareSeedState(handle, .State, true, mutable, @backingInt(frame.initial_state));
     }
 
     const first = try emit.lowerLoopFirstTest(handle);
@@ -226,7 +231,7 @@ fn runSeed(frame: *Frame) Lower.Error!?node.ExpressionId {
         .first = if (first) |id| @fromBackingInt(id) else null,
     };
 
-    if (!projected) try emit.declareLoopState(handle, frame.initial.parameters, false, true, @backingInt(frame.initial_state));
+    if (!projected) try emit.declareSeedState(handle, frame.initial.parameters, false, true, @backingInt(frame.initial_state));
 
     const prefix = try emit.enterLoweredLoop(handle);
     const written = try emit.writeLoopUpdate(handle);

@@ -1,0 +1,12 @@
+import type { Value } from "../expression/effect/model"
+
+export type Input = {
+    values: Value[],
+    value: Value
+}
+
+export type Output = Value[]
+
+export default function (in: Input): Output {
+    return in.values.push(in.value)[0]
+}

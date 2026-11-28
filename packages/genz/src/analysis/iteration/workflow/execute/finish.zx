@@ -19,6 +19,7 @@ export default function (in: Input): Output {
         initial_plan,
         projected,
         initial_value,
+        changed_name,
         update
     } = in
 
@@ -26,14 +27,21 @@ export default function (in: Input): Output {
         loop_frame,
         initial_value,
         in.state,
-        in.spans
+        in.spans,
+        changed_name
     )
 
     if (projected) {
         const first = update.first
 
         if (first != null) {
-            return host.finishSkippedLoop(loop_frame, initial_value, result, first)
+            return host.finishSkippedLoop(
+                loop_frame,
+                initial_value,
+                result,
+                first,
+                changed_name
+            )
         }
 
         return finishBlock({

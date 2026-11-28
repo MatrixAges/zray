@@ -44,7 +44,6 @@ pub const Frame = struct {
         self.tables = .{ .base = &self.base, .delta = &empty_table };
 
         self.view = .{
-            .frame = @ptrCast(self),
             .graph = &self.graph_view,
             .parents = graph.parents(),
             .tables = &self.tables,
@@ -55,14 +54,20 @@ pub const Frame = struct {
     pub fn close(self: *Frame) void {
         if (self.scratch.previous != null) self.scratch.close(self.scope);
     }
-
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
-pub fn recordResolveType(handle: *anyopaque, node: u32, type_id: u32) void {
-    const frame = Frame.borrow(handle);
+pub fn commit(frame: *Frame, effect: anytype) zx.Error!void {
+    switch (effect.resolve_step) {
+        .Record => recordType(frame, effect.node.?, effect.type_id.?),
+        .Reject => return reportFailure(frame, effect.node.?, effect.code.?, effect.message.?),
+        .Prepare => prepareConstruction(frame, effect.node.?, effect.object.?),
+        .RejectType => return frontend.reportTypeConstruction(&frame.graph.types, .{ .start = 0, .end = 0 }, effect.code.?, effect.message.?),
+        .Publish => try publishType(frame, effect),
+        .Finish => frame.close(),
+    }
+}
+
+fn recordType(frame: *Frame, node: u32, type_id: u32) void {
     const graph = frame.graph;
 
     frame.rows.items(.argument)[node] = type_id;
@@ -71,15 +76,13 @@ pub fn recordResolveType(handle: *anyopaque, node: u32, type_id: u32) void {
     graph.object_revision += 1;
 }
 
-pub fn reportResolveFailure(handle: *anyopaque, node: u32, code: []const u8, message: []const u8) zx.Error!void {
-    const frame = Frame.borrow(handle);
+fn reportFailure(frame: *Frame, node: u32, code: []const u8, message: []const u8) zx.Error!void {
     const tag = std.meta.stringToEnum(@FieldType(zx.Diagnostic, "code"), code) orelse unreachable;
 
     return frame.graph.reporter.fail(tag, frame.rows.items(.span)[node], message);
 }
 
-pub fn prepareResolveConstruction(handle: *anyopaque, node: u32, object: bool) void {
-    const frame = Frame.borrow(handle);
+fn prepareConstruction(frame: *Frame, node: u32, object: bool) void {
     const names = if (object) Graph.Fields.viewFromValues(@ptrCast(frame.rows.items(.members)[node])).names() else &.{};
 
     frame.base = zx.ir.TypeTable.borrow(Table, frame.graph.types.items.view());
@@ -87,35 +90,18 @@ pub fn prepareResolveConstruction(handle: *anyopaque, node: u32, object: bool) v
     _ = frame.scratch.open(frame.scope, frame.graph.scratch);
 }
 
-pub fn reportResolveConstruction(handle: *anyopaque, code: []const u8, message: []const u8) zx.Error!void {
-    const frame = Frame.borrow(handle);
-
-    return frontend.reportTypeConstruction(&frame.graph.types, .{ .start = 0, .end = 0 }, code, message);
-}
-
-pub fn bindResolvedType(
-    handle: *anyopaque,
-    kind: u8,
-    first: u32,
-    second: u32,
-    label: []const u8,
-    children: []const u32,
-    field_names: []const []const u8,
-    field_types: []const u32,
-    names: []const []const u8,
-) std.mem.Allocator.Error!void {
-    const frame = Frame.borrow(handle);
+fn publishType(frame: *Frame, effect: anytype) std.mem.Allocator.Error!void {
     const graph = frame.graph;
 
     const delta: zx.ir.TypeTable = .{
-        .kinds = &.{kind},
-        .first = &.{first},
-        .second = &.{second},
-        .labels = &.{label},
-        .children = children,
-        .field_types = field_types,
-        .field_names = field_names,
-        .names = names,
+        .kinds = &.{effect.kind.?},
+        .first = &.{effect.first.?},
+        .second = &.{effect.second.?},
+        .labels = &.{effect.label.?},
+        .children = effect.children.?,
+        .field_types = effect.field_types.?,
+        .field_names = effect.field_names.?,
+        .names = effect.names.?,
     };
 
     const empty = .{
@@ -138,8 +124,4 @@ pub fn bindResolvedType(
     var pending = try writer.prepare(frame.scope.active, delta, empty);
 
     pending.publish();
-}
-
-pub fn finishResolveConstruction(handle: *anyopaque) void {
-    Frame.borrow(handle).close();
 }

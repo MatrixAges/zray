@@ -1,10 +1,13 @@
 <Module>
     <Type from="model" as="Shortcut" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Shortcut.Deferred} out={Shortcut.Deferred} />
 
+    <Store from="derivation" as="derivation" />
+
     <Call
-        fn="host.readColumnBool"
+        fn="columns.readColumnBool"
         in={[
             $in.shortcuts,
             $in.row
@@ -13,11 +16,12 @@
 
     <If on={$ctx.readColumnBool}>
         <Call
-            fn="host.completeDerivedShortcut"
-            in={[
-                $in.state,
-                $in.row
-            ]}
+            fn="stage"
+            in={{
+                step: Effect.Step.CompleteShortcut,
+                row: $in.row
+            }}
+            setter={[$store.derivation.effect]}
         />
     </If>
 

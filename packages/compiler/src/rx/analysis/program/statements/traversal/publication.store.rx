@@ -1,0 +1,19 @@
+<Store name="rx_body_statements" version={1}>
+    <Type from="publication" as="Publication" />
+
+    <Object name="effect">
+        <Field name="step" type={Publication.Step} value={Publication.Step.Reserve} />
+        <Field name="slots" type={u64?} value={null} />
+        <Field name="block" type={u32?} value={null} />
+        <Field name="row" type={u32?} value={null} />
+        <Field name="borrowed" type={bool?} value={null} />
+        <Field name="value" type={u32?} value={null} />
+        <Field name="parallel" type={bool?} value={null} />
+        <Field name="item" type={u32?} value={null} />
+        <Field name="id" type={u32} value={0} />
+        <Field name="optional_id" type={u32?} value={null} />
+        <Field name="explicit_input" type={bool} value={false} />
+        <Field name="addition" type={bool} value={false} />
+        <Field name="needs_initializers" type={bool} value={false} />
+    </Object>
+</Store>

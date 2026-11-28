@@ -1,38 +1,59 @@
 <Module>
     <Type from="driver/model" as="Driver" />
+    <Type from="driver/effect" as="Effect" />
 
     <Args in={Driver.Input} out={bool} />
 
+    <Store from="driver/execution" as="driver" />
+
     <Call module="driver/prepare" in={$in} />
 
-    <Call fn="driver/index.prepareOwnershipBodies" in={$in.frame} />
-
     <Call
-        fn="../replay/shortcut/attempt"
+        fn="driver/submit"
         in={{
-            frame: $in.frame,
-            available: $ctx.prepare
+            step: Effect.Step.PrepareBodies
         }}
+        setter={[$store.driver.exchange]}
     />
 
+    <Call module="../replay/shortcut/attempt" in={$ctx.prepare} />
+
     <If on={!$ctx.attempt}>
-        <Call fn="driver/index.prepareOwnershipWorkers" in={$in.frame} />
-        <Call fn="driver/index.prepareOwnershipQueue" in={$in.frame} />
-        <Call fn="driver/index.bindOwnershipMemoRows" in={$in.frame} />
+        <Call
+            fn="driver/submit"
+            in={{
+                step: Effect.Step.PrepareWorkers
+            }}
+            setter={[$store.driver.exchange]}
+        />
+
+        <Call
+            fn="driver/submit"
+            in={{
+                step: Effect.Step.PrepareQueue
+            }}
+            setter={[$store.driver.exchange]}
+        />
+
+        <Call
+            fn="driver/submit"
+            in={{
+                step: Effect.Step.BindMemoRows
+            }}
+            setter={[$store.driver.exchange]}
+        />
 
         <Call
             module="driver/convergence"
             in={{
-                frame: $in.frame,
                 running: true
             }}
         />
 
         <Call
-            fn="driver/round"
+            module="driver/round"
             in={{
-                frame: $in.frame,
-                kind: Driver.Kind.Plan,
+                kind: Effect.Kind.Plan,
                 exhausted: false
             }}
         />

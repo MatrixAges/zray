@@ -1,0 +1,28 @@
+<Module>
+    <Type from="model" as="Block" />
+    <Type from="effect/model" as="Operation" />
+
+    <Args in={Block.Result} out={string[]} />
+
+    <Call module="evaluate" in={$in.expression} />
+
+    <Call
+        module="guard"
+        in={{
+            path: $in.path,
+            violations: $in.violations,
+            safe: $ctx.evaluate.safe
+        }}
+    />
+
+    <Call
+        module="effect/run"
+        in={{
+            step: Operation.Step.Return,
+            path: $ctx.guard,
+            value: $ctx.evaluate
+        }}
+    />
+
+    <Return value={$ctx.run.path.violations} />
+</Module>

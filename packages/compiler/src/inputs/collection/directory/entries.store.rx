@@ -1,0 +1,8 @@
+<Store name="input_directory_entries" version={1}>
+    <Type from="model" as="Directory" />
+
+    <Object name="collected">
+        <Field name="batches" type={Directory.Files[]} value={[]} />
+        <Field name="count" type={u64} value={0} />
+    </Object>
+</Store>

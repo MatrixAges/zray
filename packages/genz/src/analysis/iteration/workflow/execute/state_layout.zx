@@ -1,0 +1,22 @@
+import host from "lowering_host"
+import { IterationResource } from "lowering_host"
+
+import { Layout } from "../../parameters/layout"
+
+import type { Declaration } from "./update_model"
+
+export type Input = Declaration.Pick("frame", "context", "type_id", "layout")
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    return match in.layout {
+        Layout.Plain => host.lowerType(in.frame, in.type_id, false),
+        Layout.Deep => host.materializeIterationResource(
+            in.context,
+            in.type_id,
+            IterationResource.IterationType
+        ),
+        _ => host.lowerLayout(in.frame, in.type_id)
+    }
+}

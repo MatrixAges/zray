@@ -1,68 +1,68 @@
-export type PartitionDriver = mutable_opaque
+export type PartitionHash = opaque
 
-export type PartitionInputs = {
-    target: PartitionDriver,
-    external: string[],
-    offsets: u64[]
+export type PartitionHashPrefix = {
+    prefix: PartitionHash,
+    executable: string,
+    arguments: string[],
+    types?: u64,
+    signatures?: u64
 }
 
-export type PartitionObjects = {
-    target: PartitionDriver,
-    paths: string[]
+export type PartitionMember = {
+    partition: u32,
+    row: u32
 }
 
-export type PartitionSchedule = {
-    target: PartitionDriver,
-    pending: u32[],
-    invalidate: bool
-}
-
-export type PartitionResults = {
-    target: PartitionDriver,
-    diagnostics: string?[],
-    failed: bool
-}
-
-export declare function startPartitionHash(target: PartitionDriver): void
-    throws { PartitionHost }
-
-export declare function hashExternalInput(target: PartitionDriver, path: string): void
-    throws { PartitionHost }
-
-export declare function allocatePartitionKeys(target: PartitionDriver, count: u64): void
-    throws { PartitionHost }
-
-export declare function hashPartitionMembers(
-    target: PartitionDriver,
-    row: u64,
+export type PartitionMemberRange = {
+    prefix: PartitionHash,
+    paths: string[],
+    hashes: u64[],
+    members: PartitionMember[],
     first: u64,
     end: u64
-): void
+}
 
-export declare function loadPartitionObjects(
-    target: PartitionDriver,
-    state_file: string
-): PartitionObjects throws { PartitionHost }
+export type PartitionStateFile = {
+    path: u8[],
+    previous: u8[]
+}
 
-export declare function recordPartitionPresence(
-    target: PartitionDriver,
-    row: u64,
+export type PartitionCompilation = {
+    zig: string,
+    pending: u32[],
+    arguments: string[],
+    indexed: u32[]
+}
+
+export declare function startPartitionHash(
+    allocator,
+    io,
+    in: PartitionHashPrefix
+): PartitionHash throws
+
+export declare function hashExternalInput(
+    allocator,
+    io,
+    prefix: PartitionHash,
     path: string
-): void
+): PartitionHash throws
 
-export declare function schedulePartitionObjects(target: PartitionDriver): PartitionSchedule
-    throws { PartitionHost }
+export declare function hashPartitionMembers(
+    allocator,
+    in: PartitionMemberRange
+): u8[] throws
 
-export declare function publishPartitionState(target: PartitionDriver): void
-    throws { PartitionHost }
+export declare function loadPartitionState(
+    allocator,
+    io,
+    objects: string,
+    state_file: string
+): PartitionStateFile throws
 
-export declare function compilePartitionObjects(target: PartitionDriver): void
-    throws { PartitionHost }
+export declare function partitionObjectPresent(io, path: string): bool
 
-export declare function completePartitionObjects(target: PartitionDriver): PartitionResults
-    throws { PartitionHost }
-
-export declare function reportPartitionDiagnostic(
-    target: PartitionDriver,
-    diagnostic: string
-): void throws { PartitionHost }
+export declare function compilePartitionObjects(
+    allocator,
+    io,
+    in: PartitionCompilation
+): string?[] throws

@@ -1,0 +1,34 @@
+<Module>
+    <Type from="model" as="Expression" />
+
+    <Args in={Expression.Payload} out={Expression.Outcome} />
+
+    <Call module="matching/subject" in={$in} />
+
+    <If on={$ctx.subject != null && $ctx.subject.text == null}>
+        <Return
+            value={{
+                diagnostic: "formal verification does not yet model this expression"
+            }}
+        />
+    </If>
+
+    <Call module="evaluate" in={$in.columns.match_fallbacks[$in.payload]} />
+
+    <Call
+        fn="matching/start"
+        in={{
+            ...$in,
+            subject: $ctx.subject,
+            value: $ctx.evaluate
+        }}
+    />
+
+    <Loop on={$in.row > $in.first && $in.unsupported != true}>
+        <Call module="matching/next" />
+    </Loop>
+
+    <Call fn="matching/finish" />
+
+    <Return value={$ctx.finish} />
+</Module>

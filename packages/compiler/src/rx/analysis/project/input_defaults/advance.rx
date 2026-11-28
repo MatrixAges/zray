@@ -1,23 +1,29 @@
 <Module>
     <Type from="model" as="Defaults" />
+    <Type from="../constraints/collection/effect" as="CollectionEffect" />
 
     <Args in={Defaults.Cursor} out={Defaults.Cursor} />
+
+    <Store from="../constraints/collection/collection" as="collection" />
 
     <Call fn="next" in={$in} />
 
     <If on={$ctx.next.input != null}>
         <Call
-            fn="host.defaultConstraintInput"
-            in={[
-                $in.frame,
-                $ctx.next.input
-            ]}
+            fn="../constraints/collection/stage"
+            in={{
+                collection_step: CollectionEffect.Step.DefaultInput,
+                input: $ctx.next.input
+            }}
+            setter={[$store.collection.effect]}
         />
+
+        <Call fn="../constraints/collection/read_parents" in={$store.collection.effect} />
 
         <Return
             value={{
                 ...$in,
-                parents: $ctx.defaultConstraintInput,
+                parents: $ctx.read_parents,
                 next: $ctx.next.next
             }}
         />

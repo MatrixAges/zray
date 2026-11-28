@@ -2,25 +2,28 @@
     <Type from="effect" as="Effect" />
     <Type from="host" as="Host" />
     <Type from="model" as="Model" />
+    <Type from="operation" as="Operation" />
 
     <Args in={Effect.Input} out={void} />
+
+    <Store from="operations" as="operations" />
 
     <Switch on={$in.action}>
         <Case value={Model.Action.Return}>
             <Call
-                fn="host.evaluateFlowReturn"
-                in={[
-                    $in.frame,
-                    $in.item,
-                    $in.returns != null
-                ]}
+                fn="stage"
+                in={{
+                    step: Operation.Step.EvaluateReturn,
+                    item: $in.item,
+                    returned: $in.returns != null
+                }}
+                setter={[$store.operations.effect]}
             />
 
             <If on={$in.returns == null}>
                 <Call
                     module="write_step"
                     in={{
-                        frame: $in.frame,
                         index:
                             $in.cursor.target_first +
                             ($in.position - $in.cursor.target_start),
@@ -32,47 +35,51 @@
 
         <Case value={Model.Action.OpenTask}>
             <Call
-                fn="host.openFlowTask"
-                in={[
-                    $in.frame,
-                    $in.position,
-                    $in.item,
-                    false
-                ]}
+                fn="stage"
+                in={{
+                    step: Operation.Step.OpenTask,
+                    row: $in.position,
+                    item: $in.item,
+                    parallel: false
+                }}
+                setter={[$store.operations.effect]}
             />
         </Case>
 
         <Case value={Model.Action.OpenParallelTask}>
             <Call
-                fn="host.openFlowTask"
-                in={[
-                    $in.frame,
-                    $in.position,
-                    $in.item,
-                    true
-                ]}
+                fn="stage"
+                in={{
+                    step: Operation.Step.OpenTask,
+                    row: $in.position,
+                    item: $in.item,
+                    parallel: true
+                }}
+                setter={[$store.operations.effect]}
             />
         </Case>
 
         <Case value={Model.Action.OpenParallel}>
             <Call
-                fn="host.openFlowParallel"
-                in={[
-                    $in.frame,
-                    $in.position,
-                    $in.item
-                ]}
+                fn="stage"
+                in={{
+                    step: Operation.Step.OpenParallel,
+                    row: $in.position,
+                    item: $in.item
+                }}
+                setter={[$store.operations.effect]}
             />
         </Case>
 
         <Case value={Model.Action.OpenSelection}>
             <Call
-                fn="host.openFlowSelection"
-                in={[
-                    $in.frame,
-                    $in.position,
-                    $in.item
-                ]}
+                fn="stage"
+                in={{
+                    step: Operation.Step.OpenSelection,
+                    row: $in.position,
+                    item: $in.item
+                }}
+                setter={[$store.operations.effect]}
             />
         </Case>
 
@@ -80,7 +87,6 @@
             <Call
                 module="cases/open"
                 in={$in.pick([
-                    "frame",
                     "position",
                     "lengths",
                     "labels",
@@ -97,7 +103,6 @@
             <Call
                 module="tasks/close"
                 in={{
-                    frame: $in.frame,
                     lengths: $in.lengths,
                     saved_bindings: $in.saved_bindings,
                     cursor: $in.cursor,
@@ -112,7 +117,6 @@
             <Call
                 module="tasks/close"
                 in={{
-                    frame: $in.frame,
                     lengths: $in.lengths,
                     saved_bindings: $in.saved_bindings,
                     cursor: $in.cursor,
@@ -124,13 +128,18 @@
         </Case>
 
         <Case value={Model.Action.CloseParallel}>
-            <Call fn="host.mergeFlowParallelBindings" in={$in.frame} />
+            <Call
+                fn="stage"
+                in={{
+                    step: Operation.Step.MergeBindings
+                }}
+                setter={[$store.operations.effect]}
+            />
 
             <If on={$in.returns == null}>
                 <Call
                     module="write_step"
                     in={{
-                        frame: $in.frame,
                         index: $in.cursor.destination,
                         kind: Host.FlowKind.Parallel
                     }}
@@ -140,15 +149,24 @@
 
         <Case value={Model.Action.CloseSelection}>
             <If on={$in.returns == null}>
-                <Call fn="host.checkFlowSelection" in={$in.frame} />
+                <Task name="check_flow_selection" out={$ctx.read_flag}>
+                    <Call
+                        fn="stage"
+                        in={{
+                            step: Operation.Step.CheckSelection
+                        }}
+                        setter={[$store.operations.effect]}
+                    />
+
+                    <Call fn="read_flag" in={$store.operations.effect} />
+                </Task>
 
                 <Call
                     module="write_step"
                     in={{
-                        frame: $in.frame,
                         index: $in.cursor.destination,
                         kind: Host.FlowKind.Selection,
-                        exhaustive: $ctx.checkFlowSelection
+                        exhaustive: $ctx.task.check_flow_selection
                     }}
                 />
             </If>
@@ -158,7 +176,6 @@
             <Call
                 module="cases/close"
                 in={$in.pick([
-                    "frame",
                     "lengths",
                     "saved_bindings",
                     "saved_facts",

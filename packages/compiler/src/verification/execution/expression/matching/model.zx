@@ -1,0 +1,11 @@
+import type { Value } from "../effect/model"
+import type { Columns } from "../model"
+
+export type Walk = {
+    columns: Columns,
+    row: u64,
+    first: u64,
+    subject: Value?,
+    value: Value,
+    unsupported?: bool
+}

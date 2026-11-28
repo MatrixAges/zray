@@ -22,8 +22,24 @@ pub const Value = struct {
     }
 };
 
-pub const Evaluation = struct { value: Value, safe: []const u8 = "true" };
-pub const Binding = struct { bound: bool = false, value: Value = undefined };
+pub const Evaluation = struct {
+    value: Value,
+    safe: []const u8 = "true",
+    pub fn fromView(source: anytype) Evaluation {
+        return .{ .value = Value.borrow(source.text, source.fields), .safe = source.safe };
+    }
+    pub fn view(self: Evaluation, comptime View: type, allocator: std.mem.Allocator) std.mem.Allocator.Error!View {
+        const result = try allocator.create(std.meta.Child(View));
+        result.* = self.descriptor(std.meta.Child(View));
+
+        return result;
+    }
+
+    pub fn descriptor(self: Evaluation, comptime View: type) View {
+        return .{ .safe = self.safe, .text = self.value.scalar, .fields = std.mem.sliceAsBytes(self.value.fields) };
+    }
+};
+
 pub const Integer = struct { width: u16, signed: bool };
 
 pub fn integer(target: ir.Type) ?Integer {

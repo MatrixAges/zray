@@ -1,0 +1,38 @@
+<Module>
+    <Type from="update_model" as="Loop" />
+    <Type from="../../state/model" as="State" />
+
+    <Args in={Loop.Declaration} out={State.Output} />
+
+    <Store from="state" as="loop_state" />
+
+    <Call
+        fn="state_layout"
+        in={$in.pick([
+            "frame",
+            "context",
+            "type_id",
+            "layout"
+        ])}
+    />
+
+    <Call fn="index.astExpressionCount" in={$in.writer} />
+
+    <Call
+        module="../../state/build"
+        in={{
+            writer: $in.writer,
+            body: $in.body_seq,
+            declaration: {
+                name: $in.name,
+                layout: $ctx.state_layout,
+                initial: $in.initial_state,
+                mutable: $in.mutable
+            },
+            tracking: $store.loop_state.state.changed_name,
+            expression_base: $ctx.astExpressionCount
+        }}
+    />
+
+    <Return value={$ctx.build} />
+</Module>

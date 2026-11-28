@@ -18,41 +18,6 @@ export declare function refreshSolverObjects(state: ConstraintRound): void
 
 export declare function refreshSolverAssignments(frame: ConstraintRound): void
 
-export declare function recordResolveType(frame: TypeResolver, node: u32, type_id: u32): void
-
-export declare function reportResolveFailure(
-    frame: TypeResolver,
-    node: u32,
-    code: string,
-    message: string
-): void throws { OutOfMemory, InvalidSource }
-
-export declare function prepareResolveConstruction(
-    frame: TypeResolver,
-    node: u32,
-    object: bool
-): void
-
-export declare function reportResolveConstruction(
-    frame: TypeResolver,
-    code: string,
-    message: string
-): void throws { OutOfMemory, InvalidSource }
-
-export declare function bindResolvedType(
-    frame: TypeResolver,
-    kind: u8,
-    first: u32,
-    second: u32,
-    label: string,
-    children: u32[],
-    field_names: string[],
-    field_types: u32[],
-    names: string[]
-): void throws { OutOfMemory }
-
-export declare function finishResolveConstruction(frame: TypeResolver): void
-
 export declare function refreshAssignmentTypes(frame: ConstraintRound): void
 
 export declare function assignmentRevision(frame: AssignmentApplication): u64
@@ -92,47 +57,4 @@ export declare function reserveKnownIndex(frame: KnownRegistration, capacity: u6
     throws { OutOfMemory }
 
 export declare function rejectKnownType(frame: KnownRegistration): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function prepareUnificationFrame(
-    target: UnificationTarget,
-    left: u32,
-    right: u32,
-    depth: u64,
-    rooted: bool
-): void throws { OutOfMemory }
-
-export declare function walkUnificationFrames(target: UnificationTarget, depth: u64): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function appendUnificationFrame(target: UnificationTarget): void
-    throws { OutOfMemory }
-
-export declare function alignUnificationFields(
-    target: UnificationTarget,
-    existing_names: string[]?,
-    existing_values: u32[],
-    incoming_values: u32[],
-    closed: bool
-): void throws { OutOfMemory }
-
-export declare function popUnificationFrame(target: UnificationTarget): void
-
-export declare function mergeUnificationFields(target: UnificationTarget): u32[]
-    throws { OutOfMemory }
-
-export declare function commitUnification(
-    target: UnificationTarget,
-    parent: u32,
-    child: u32,
-    first_allowed: u16?,
-    second_allowed: u16?,
-    first_fallback: u8?,
-    second_fallback: u8?,
-    kind: u8,
-    argument: u32,
-    members: u32[]
-): void throws { OutOfMemory, InvalidSource }
-
-export declare function internUnificationType(target: UnificationTarget, type_id: u32): u32
     throws { OutOfMemory, InvalidSource }

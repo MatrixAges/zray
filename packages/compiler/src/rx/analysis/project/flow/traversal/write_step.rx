@@ -1,19 +1,23 @@
 <Module>
     <Type from="publish_step" as="Step" />
+    <Type from="operation" as="Operation" />
 
-    <Args in={Step.Request} out={void} />
+    <Args in={Step.Input} out={void} />
 
-    <Call fn="publish_step" in={$in.omit(["frame"])} />
+    <Store from="operations" as="operations" />
+
+    <Call fn="publish_step" in={$in} />
 
     <Call
-        fn="host.writeFlowStep"
-        in={[
-            $in.frame,
-            $ctx.publish_step.index,
-            $ctx.publish_step.kind,
-            $ctx.publish_step.first,
-            $ctx.publish_step.exhaustive,
-            $ctx.publish_step.output
-        ]}
+        fn="stage"
+        in={{
+            step: Operation.Step.Publish,
+            row: $ctx.publish_step.index,
+            kind: $ctx.publish_step.kind,
+            first: $ctx.publish_step.first,
+            exhaustive: $ctx.publish_step.exhaustive,
+            output: $ctx.publish_step.output
+        }}
+        setter={[$store.operations.effect]}
     />
 </Module>

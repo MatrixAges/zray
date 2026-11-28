@@ -1,0 +1,29 @@
+import conjunction from "../../../scalar/conjunction"
+import { unsupported_message } from "../const"
+
+import type { Outcome as Output } from "../model"
+import type { Walk as Input } from "./model"
+
+export default function (in: Input): Output {
+    if (in.unsupported == true) {
+        return {
+            diagnostic: unsupported_message
+        }
+    }
+
+    const subject = in.subject
+
+    if (subject == null) {
+        return {
+            value: in.value
+        }
+    }
+
+    return {
+        value: in.value,
+        safe: conjunction({
+            left: subject.safe,
+            right: in.value.safe
+        })
+    }
+}

@@ -1,14 +1,8 @@
 import type { ReadColumn, ListColumn, WriteColumn } from "memory"
 import type { Planned } from "../ordered/model"
+import type { Phase } from "./phase"
 
-export enum Phase {
-    Start,
-    Settled,
-    Demanded,
-    Planned,
-    Done,
-    Reject
-}
+export { Phase } from "./phase"
 
 export type Cursor = {
     body: u64,

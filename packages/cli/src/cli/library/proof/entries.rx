@@ -11,7 +11,7 @@
         <Call
             module="verify_entry"
             in={{
-                proof: $in.proof,
+                compilation: $in.compilation,
                 exports: $in.exports,
                 output_base: $in.output_base,
                 index: 0,

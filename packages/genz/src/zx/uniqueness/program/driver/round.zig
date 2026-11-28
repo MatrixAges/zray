@@ -5,7 +5,8 @@ const Context = @import("../host.zig").Context;
 const Round = @import("../../work/round.zig");
 const PlanWriter = @import("../visit/plan_writer.zig");
 const visits = @import("../visits.zig");
-const Api = @import("../driver.zig").Api;
+const Kind = @import("../driver.zig").RoundKind;
+const Claim = struct { body: ?u64, grew: bool, exhausted: bool };
 const Error = std.mem.Allocator.Error;
 const Self = @This();
 
@@ -15,8 +16,7 @@ plans: PlanWriter = undefined,
 columns: Round.Frame = undefined,
 feedback: ?Round.Feedback = null,
 plan: Function.Plan = undefined,
-claimed: Api.RoundClaim = undefined,
-pub fn open(self: *Self, ctx: *Context, kind: Api.RoundKind, exhausted: bool) Error!void {
+pub fn open(self: *Self, ctx: *Context, kind: Kind, exhausted: bool) Error!void {
     const rounds = &ctx.rounds.?;
 
     switch (kind) {
@@ -46,7 +46,7 @@ pub fn close(self: *Self, ctx: *Context) void {
     self.arena.deinit();
 }
 
-pub fn claim(self: *Self, ctx: *Context, kind: Api.RoundKind) Error!*const Api.RoundClaim {
+pub fn claim(self: *Self, ctx: *Context, kind: Kind) Error!Claim {
     const rounds = &ctx.rounds.?;
     const following = ctx.replay.trace != null;
 
@@ -54,7 +54,7 @@ pub fn claim(self: *Self, ctx: *Context, kind: Api.RoundKind) Error!*const Api.R
         inline else => |phase| try rounds.work.advance(memoKind(phase), @field(Round.Phase, @tagName(phase)), &self.columns, self.feedback, following, &rounds.ahead, ctx.memo),
     };
 
-    self.claimed = .{
+    return .{
         .body = switch (next.visit) {
             .body => |index| index,
             .done, .exhausted => null,
@@ -62,11 +62,9 @@ pub fn claim(self: *Self, ctx: *Context, kind: Api.RoundKind) Error!*const Api.R
         .grew = next.grew,
         .exhausted = next.visit == .exhausted,
     };
-
-    return &self.claimed;
 }
 
-pub fn visit(self: *Self, ctx: *Context, kind: Api.RoundKind, body: usize) Error!void {
+pub fn visit(self: *Self, ctx: *Context, kind: Kind, body: usize) Error!void {
     self.feedback = switch (kind) {
         .Settle => try visits.settle(ctx, &self.arena, body),
         .Demand => try visits.demand(ctx, &self.arena, body),
@@ -78,7 +76,7 @@ pub fn visit(self: *Self, ctx: *Context, kind: Api.RoundKind, body: usize) Error
     };
 }
 
-fn memoKind(comptime kind: Api.RoundKind) Memo.Kind {
+fn memoKind(comptime kind: Kind) Memo.Kind {
     return switch (kind) {
         .Settle => .settled,
         .Demand => .demanded,

@@ -1,5 +1,4 @@
 import type { State as KnownTypes } from "core/integer/map/model"
-import type { UnificationTarget } from "rx_project_host"
 import type { Rooted } from "../unification/admission/model"
 import type { Action, Operands, Step } from "../unification/application/model"
 import type { Route } from "../unification/model"
@@ -26,7 +25,6 @@ export type Frame = Operands & {
 }
 
 export type Publication = {
-    target: UnificationTarget,
     frame: Frame,
     members: u32[]
 }
@@ -41,7 +39,6 @@ export type Candidate = {
 }
 
 export type Merge = {
-    target: UnificationTarget,
     candidate: Candidate,
     depth: u64
 }
@@ -54,6 +51,11 @@ export type Stack = {
 
 export type Request = Merge & {
     stack: Stack
+}
+
+export type MergeInput = Request & {
+    left: u32,
+    right: u32
 }
 
 export type Cursor = Request & {

@@ -3,6 +3,7 @@ const zx = @import("zx");
 const ir = zx.ir;
 const terms = @import("terms.zig");
 const Expressions = @import("expressions.zig");
+const expression = @import("execution/expression.zig");
 const Value = terms.Value;
 const Self = @This();
 const Graph = @import("graph.zig");
@@ -36,16 +37,23 @@ pub fn generate(self: *Self, result_allocator: std.mem.Allocator, scratch: std.m
     return workflow.generate(self, result_allocator, scratch);
 }
 
-pub fn evaluateContract(self: *Self, clause: ir.Contract, output: ?Value) zx.Error!terms.Evaluation {
+pub fn evaluateContract(self: *const Self, clause: ir.Contract, output: ?Value) zx.Error!terms.Evaluation {
     const checkpoint = self.scratch.checkpoint();
 
     defer self.scratch.rewindRetainingCapacity(checkpoint);
 
-    const environment = try self.scratch.allocator().alloc(terms.Binding, clause.symbols.count());
+    const allocator = self.scratch.allocator();
+    const environment = try allocator.alloc(expression.Binding, clause.symbols.count());
 
-    environment[0] = .{ .bound = true, .value = self.input };
+    @memset(environment, null);
 
-    if (clause.kind == .ensures) environment[1] = if (output) |value| .{ .bound = true, .value = value } else .{};
+    const input = terms.Evaluation{ .value = self.input };
+
+    environment[0] = try input.view(expression.BoundValue, allocator);
+
+    if (clause.kind == .ensures) {
+        if (output) |value| environment[1] = try (terms.Evaluation{ .value = value }).view(expression.BoundValue, allocator);
+    }
 
     var view = self.program;
 
@@ -57,7 +65,7 @@ pub fn evaluateContract(self: *Self, clause: ir.Contract, output: ?Value) zx.Err
     return evaluator.evaluate(clause.predicate);
 }
 
-pub fn boolean(self: *Self, value: []const u8) zx.Error![]const u8 {
+pub fn boolean(self: *const Self, value: []const u8) zx.Error![]const u8 {
     return self.graph.?.bind(value, 0, .{ .file_name = self.program.file_name, .span = .{ .start = 0, .end = 0 } });
 }
 

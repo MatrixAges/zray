@@ -1,0 +1,10 @@
+export type Input = {
+    violations: string[],
+    term: string
+}
+
+export type Output = string[]
+
+export default function (in: Input): Output {
+    return in.violations.push(in.term)[0]
+}

@@ -6,8 +6,6 @@ import {
     ambiguous_field
 } from "./const"
 
-import type { ObjectConstructionRow } from "rx_project_host"
-
 export enum Issue {
     InvalidDeclared,
     InvalidSpread,
@@ -17,7 +15,6 @@ export enum Issue {
 }
 
 export type Report = {
-    frame: ObjectConstructionRow,
     row?: u64,
     issue: Issue
 }

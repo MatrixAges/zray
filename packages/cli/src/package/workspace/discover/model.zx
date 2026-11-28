@@ -1,7 +1,7 @@
-import type { Search } from "package_workspace_host"
+import type { Project } from "package_workspace_host"
 
 export type SearchInput = {
-    search: Search,
+    search: Project,
     directory: string
 }
 

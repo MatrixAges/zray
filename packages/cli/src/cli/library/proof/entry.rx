@@ -7,9 +7,9 @@
         <Call fn="message" in={$in.item} />
 
         <Call
-            fn="index.writeProofMessage"
+            fn="index.writeCompilationDiagnostic"
             in={[
-                $in.proof,
+                $in.compilation,
                 $ctx.message
             ]}
         />
@@ -28,9 +28,9 @@
     <Call fn="message" in={$in.item} />
 
     <Call
-        fn="index.writeProofMessage"
+        fn="index.writeCompilationDiagnostic"
         in={[
-            $in.proof,
+            $in.compilation,
             $ctx.message
         ]}
     />
@@ -38,7 +38,7 @@
     <Call
         fn="index.verifyPublicExport"
         in={[
-            $in.proof,
+            $in.compilation,
             $in.index,
             $ctx.output
         ]}

@@ -1,0 +1,14 @@
+<Store name="uniqueness_program_execution" version={1}>
+    <Type from="effect" as="Driver" />
+    <Type from="../../replay/shortcut/phase" as="Replay" />
+
+    <Object name="exchange">
+        <Field name="request" type={Driver.Request?} value={null} />
+        <Field name="available" type={bool} value={false} />
+        <Field name="body" type={u64?} value={null} />
+        <Field name="grew" type={bool} value={false} />
+        <Field name="exhausted" type={bool} value={false} />
+        <Field name="phase" type={Replay.Phase} value={Replay.Phase.Start} />
+        <Field name="recovered" type={u32?} value={null} />
+    </Object>
+</Store>

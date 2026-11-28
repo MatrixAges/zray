@@ -11,7 +11,7 @@
     <Call
         fn="index.analyzeLibraryBuild"
         in={[
-            $in.build,
+            $in.compilation,
             $in.has_exports ? null : $in.fallback_entry
         ]}
     />
@@ -20,21 +20,21 @@
         <Return value={Library.BuildStatus.Failed} />
     </If>
 
-    <Call fn="index.linkLibraryBuild" in={$in.build} />
-    <Call fn="index.collectBuildSources" in={$in.build} />
-    <Call fn="index.openLibraryBuildCache" in={$in.build} />
-    <Call fn="index.generateLibraryBundle" in={$in.build} />
+    <Call fn="index.linkLibraryBuild" in={$in.compilation} />
+    <Call fn="index.collectBuildSources" in={$in.compilation} />
+    <Call fn="../../compilation/index.openCompilationGeneration" in={$in.compilation} />
+    <Call fn="index.generateLibraryBundle" in={$in.compilation} />
 
     <If on={!$ctx.generateLibraryBundle}>
         <Return value={Library.BuildStatus.Failed} />
     </If>
 
-    <Call fn="index.reportLibraryBuildCache" in={$in.build} />
-    <Call fn="index.resolveLibraryToolchain" in={$in.build} />
-    <Call fn="index.resolveLibraryNativeProject" in={$in.build} />
-    <Call fn="index.createLibraryStaging" in={$in.build} />
-    <Call fn="index.stageLibraryBuild" in={$in.build} />
-    <Call fn="index.publishLibraryBuild" in={$in.build} />
+    <Call fn="../../compilation/index.reportCompilationGeneration" in={$in.compilation} />
+    <Call fn="index.resolveLibraryToolchain" in={$in.compilation} />
+    <Call fn="index.resolveLibraryNativeProject" in={$in.compilation} />
+    <Call fn="index.createLibraryStaging" in={$in.compilation} />
+    <Call fn="index.stageLibraryBuild" in={$in.compilation} />
+    <Call fn="index.publishLibraryBuild" in={$in.compilation} />
 
     <If on={$ctx.publishLibraryBuild}>
         <Return value={Library.BuildStatus.Success} />

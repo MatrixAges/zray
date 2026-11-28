@@ -1,0 +1,51 @@
+<Module>
+    <Type from="model" as="Expression" />
+
+    <Args in={Expression.Payload} out={Expression.Outcome} />
+
+    <Task name="test" out={$ctx.evaluate}>
+        <Call module="evaluate" in={$in.columns.conditional_conditions[$in.payload]} />
+    </Task>
+
+    <Task name="yes" out={$ctx.evaluate}>
+        <Call module="evaluate" in={$in.columns.conditional_yes[$in.payload]} />
+    </Task>
+
+    <Task name="no" out={$ctx.evaluate}>
+        <Call module="evaluate" in={$in.columns.conditional_no[$in.payload]} />
+    </Task>
+
+    <If on={$ctx.task.test.text != null}>
+        <Call
+            module="select"
+            in={{
+                condition: $ctx.task.test.text,
+                yes: $ctx.task.yes,
+                no: $ctx.task.no
+            }}
+        />
+
+        <Call
+            fn="guarded"
+            in={{
+                condition: $ctx.task.test.text,
+                test: $ctx.task.test,
+                yes: $ctx.task.yes,
+                no: $ctx.task.no
+            }}
+        />
+
+        <Return
+            value={{
+                value: $ctx.select,
+                safe: $ctx.guarded
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            diagnostic: "formal verification does not yet model this expression"
+        }}
+    />
+</Module>

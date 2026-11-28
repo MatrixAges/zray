@@ -1,16 +1,12 @@
 export {
-    registerCheckRoot,
-    registerCheckSource,
     registerStoreCheckImport,
     loadCheckProject,
     collectCheckDocuments,
     collectCheckTypes,
-    reserveCheckGraph,
     buildCheckGraph,
     readCheckCallModule,
-    recordCheckFunctionCalls,
     checkStoreTypes,
-    checkFunction,
+    prepareCheckFunction,
     checkCompiledModules,
     checkModulePaths,
     loadStoreCheckRoot,
@@ -20,8 +16,7 @@ export {
     loadFunctionProject,
     loadFunctionSources,
     analyzeFunctionSignatures,
-    reportFunctionDelegate,
     analyzeCheckedFunction
 } from "rx_checking_host"
 
-export type { ProjectCheck, StoreCheck, FunctionCheck } from "rx_checking_host"
+export type { ProjectCheck, StoreCheck } from "rx_checking_host"

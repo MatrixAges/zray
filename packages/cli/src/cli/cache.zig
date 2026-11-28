@@ -4,9 +4,10 @@ const zx = @import("zx");
 const SemanticCache = compiler.project.SemanticCache;
 const identity = @import("cache_identity").digest;
 const Self = @This();
-const Effects = @import("sources/effects.zig");
-const Error = Effects.Error;
+const Compilation = @import("compilation/state.zig").State;
+const Error = @import("sources/effects.zig").Error;
 const Kind = enum { source, native };
+const access = @import("cli_source").save_disk_semantic_cache;
 
 io: std.Io,
 allocator: std.mem.Allocator,
@@ -17,6 +18,7 @@ discarded: usize = 0,
 written: usize = 0,
 native_loaded: usize = 0,
 native_written: usize = 0,
+seen: std.StringHashMapUnmanaged(void) = .empty,
 pub fn init(io: std.Io, allocator: std.mem.Allocator, backing: std.mem.Allocator, root: []const u8) !Self {
     const directory = try std.fs.path.join(allocator, &.{ root, ".zxc", "cache", "semantic", &std.fmt.bytesToHex(identity(), .lower) });
 
@@ -30,36 +32,31 @@ pub fn deinit(self: *Self) void {
     self.* = undefined;
 }
 
-const Access = struct {
-    disk: *Self,
-    cache: *SemanticCache,
-    sources: []const compiler.project.Source = &.{},
-    project: *const compiler.project.Options = undefined,
-    seen: std.StringHashMapUnmanaged(void) = .empty,
-    failure: Effects.Failure = .{},
-    fn get(handle: *const anyopaque) *Access {
-        return Effects.state(Access, handle);
+pub fn load(state: *Compilation) !void {
+    const disk = &state.storage.?;
+    const reference = state;
+
+    defer {
+        disk.seen.deinit(disk.allocator);
+
+        disk.seen = .empty;
     }
-};
 
-pub fn load(self: *Self, sources: []const compiler.project.Source, project: compiler.project.Options, cache: *SemanticCache) !void {
-    var state: Access = .{ .disk = self, .sources = sources, .project = &project, .cache = cache };
-    const reference = &state;
-
-    defer state.seen.deinit(self.allocator);
-
-    @import("cli_source").load_disk_semantic_cache.executeIn(self.allocator, &.{
-        .disk = @ptrCast(&reference),
-        .count = sources.len,
+    access.executeIn(disk.allocator, &.{
+        .compilation = @ptrCast(&reference),
+        .read_count = state.sources.len,
+        .source_dirty = &.{},
+        .native_dirty = &.{},
     }) catch |err| return state.failure.unwrap(err);
 }
 
 pub fn loadDiskSemanticSource(handle: *const anyopaque, index: u64) Error!void {
-    const self = Access.get(handle);
-    const disk = self.disk;
-    const cache = self.cache;
+    const self = Compilation.get(handle);
+    const disk = &self.storage.?;
+    const cache = &self.semantic.?;
+    const project = self.loaded.project;
     const source = &self.sources[@intCast(index)];
-    const path = std.fs.path.resolve(disk.allocator, &.{ self.project.root_dir, source.path }) catch |err| return self.failure.save(err);
+    const path = std.fs.path.resolve(disk.allocator, &.{ project.root_dir, source.path }) catch |err| return self.failure.save(err);
 
     defer disk.allocator.free(path);
 
@@ -69,20 +66,19 @@ pub fn loadDiskSemanticSource(handle: *const anyopaque, index: u64) Error!void {
 
     if (parsed.diagnostic() != null) return;
 
-    const imports: ImportLoader = .{ .disk = disk, .cache = cache, .seen = &self.seen };
+    const imports: ImportLoader = .{ .disk = disk, .cache = cache };
 
     switch (parsed.*) {
-        .native => |result| SemanticCache.prefetch(zx.syntax.header.Native{ .program = result.value.parsed.ast }, path, self.project, imports) catch |err| return self.failure.save(err),
-        .indexed => |*result| if (compiler.project.ParseCache.indexed_enabled) SemanticCache.prefetch(result.header(), path, self.project, imports) catch |err| return self.failure.save(err) else unreachable,
+        .native => |result| SemanticCache.prefetch(zx.syntax.header.Native{ .program = result.value.parsed.ast }, path, &project, imports) catch |err| return self.failure.save(err),
+        .indexed => |*result| if (compiler.project.ParseCache.indexed_enabled) SemanticCache.prefetch(result.header(), path, &project, imports) catch |err| return self.failure.save(err) else unreachable,
     }
 }
 
 const ImportLoader = struct {
     disk: *Self,
     cache: *SemanticCache,
-    seen: *std.StringHashMapUnmanaged(void),
     pub fn loadNative(self: @This(), key: []const u8) !void {
-        const found = try self.seen.getOrPut(self.disk.allocator, key);
+        const found = try self.disk.seen.getOrPut(self.disk.allocator, key);
 
         if (found.found_existing) return;
         if (try self.disk.loadEntry(self.cache.allocator, &self.cache.native.items, key, .native)) self.disk.native_loaded += 1;
@@ -115,8 +111,9 @@ fn loadEntry(self: *Self, allocator: std.mem.Allocator, entries: *SemanticCache.
     return true;
 }
 
-pub fn save(self: *Self, cache: *SemanticCache) !void {
-    var arena = std.heap.ArenaAllocator.init(self.allocator);
+pub fn save(state: *Compilation) !void {
+    const cache = &state.semantic.?;
+    var arena = std.heap.ArenaAllocator.init(state.context.allocator);
 
     defer arena.deinit();
 
@@ -129,21 +126,22 @@ pub fn save(self: *Self, cache: *SemanticCache) !void {
     for (source_values, 0..) |entry, index| source_dirty[index] = entry.dirty;
     for (native_values, 0..) |entry, index| native_dirty[index] = entry.dirty;
 
-    var state: Access = .{ .disk = self, .cache = cache };
-    const reference = &state;
+    const reference = state;
 
-    @import("cli_source").save_disk_semantic_cache.executeIn(owned, &.{
-        .disk = @ptrCast(&reference),
+    access.executeIn(owned, &.{
+        .compilation = @ptrCast(&reference),
+        .read_count = null,
         .source_dirty = source_dirty,
         .native_dirty = native_dirty,
     }) catch |err| return state.failure.unwrap(err);
 }
 
 pub fn saveDiskSemanticEntry(handle: *const anyopaque, is_native: bool, index: u64) Error!void {
-    const self = Access.get(handle);
-    const disk = self.disk;
+    const self = Compilation.get(handle);
+    const disk = &self.storage.?;
+    const cache = &self.semantic.?;
     const row: usize = @intCast(index);
-    const entries = if (is_native) &self.cache.native.items else &self.cache.entries;
+    const entries = if (is_native) &cache.native.items else &cache.entries;
     const key = entries.keys.items[row];
     const entry = entries.values.items[row];
     const kind: Kind = if (is_native) .native else .source;

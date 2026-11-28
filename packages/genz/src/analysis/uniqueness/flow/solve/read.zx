@@ -1,0 +1,5 @@
+import type { Exchange as Input, Result as Output } from "./effect"
+
+export default function (in: Input): Output {
+    return in.omit(["request"])
+}

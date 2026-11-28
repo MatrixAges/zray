@@ -6,7 +6,7 @@
     <Call
         module="entry"
         in={{
-            proof: $in.proof,
+            compilation: $in.compilation,
             index: $in.index,
             item: $in.exports[$in.index],
             output_base: $in.output_base

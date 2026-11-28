@@ -1,25 +1,8 @@
-export type SymbolicSession = mutable_opaque
+export type ContractSource = opaque
 
-export type SymbolicBlock = mutable_opaque
-
-export type SymbolicExpression = mutable_opaque
-
-export enum SymbolicOperand {
-    First,
-    Second,
-    Third,
-    Result
-}
-
-export type SymbolicOutcome = {
-    safe: string,
+export type ContractValue = {
     text?: string,
     fields: u8[]
-}
-
-export type CallSafety = {
-    argument: string,
-    callee: string
 }
 
 export type SymbolicPath = {
@@ -32,87 +15,12 @@ export type ClauseTerm = {
     predicate: string
 }
 
-export type CallKey = {
-    target: u32,
-    start: u64,
-    length: u64,
-    digest: u64
-}
-
-export type CallProbe = {
-    safe?: string,
-    key?: CallKey
-}
-
-export declare function evaluateClause(session: SymbolicSession, row: u64): ClauseTerm
-    throws { OutOfMemory, InvalidSource }
-
-export declare function bindSymbolicBoolean(session: SymbolicSession, term: string): string
-    throws { OutOfMemory, InvalidSource }
-
-export declare function selectSymbolicReturn(session: SymbolicSession, row: u64): string
-    throws { OutOfMemory, InvalidSource }
-
-export declare function evaluateSymbolicStatement(block: SymbolicBlock, expression: u32?): SymbolicOutcome
-    throws { OutOfMemory, InvalidSource }
-
-export declare function bindSymbolicStatement(
-    block: SymbolicBlock,
-    symbol: u32,
-    value: SymbolicOutcome,
-    field: u64?
-): void
-
-export declare function publishSymbolicStatementReturn(
-    block: SymbolicBlock,
-    path: SymbolicPath,
-    value: SymbolicOutcome
-): string[] throws { OutOfMemory, InvalidSource }
-
-export declare function runSymbolicChild(
+export declare function evaluateClause(
     allocator,
-    block: SymbolicBlock,
-    body: u32,
-    path: SymbolicPath
-): SymbolicPath throws { OutOfMemory, InvalidSource }
+    source: ContractSource,
+    row: u64,
+    output: ContractValue?
+): ClauseTerm throws { OutOfMemory, InvalidSource }
 
-export declare function evaluateSymbolicOperand(
-    frame: SymbolicExpression,
-    slot: SymbolicOperand,
-    expression: u32
-): SymbolicOutcome throws { OutOfMemory, InvalidSource }
-
-export declare function selectSymbolicExpression(
-    frame: SymbolicExpression,
-    condition: string,
-    yes: SymbolicOperand,
-    no: SymbolicOperand
-): void throws { OutOfMemory, InvalidSource }
-
-export declare function retainSymbolicExpression(frame: SymbolicExpression, safe: string): string
+export declare function bindSymbolicBoolean(source: ContractSource, term: string): string
     throws { OutOfMemory, InvalidSource }
-
-export declare function bindSymbolicExpressionSafety(frame: SymbolicExpression, safe: string): string
-    throws { OutOfMemory, InvalidSource }
-
-export declare function runSymbolicExpressionCall(
-    frame: SymbolicExpression,
-    target: u32,
-    argument: u32
-): CallSafety throws { OutOfMemory, InvalidSource }
-
-export declare function findSymbolicCallee(
-    allocator,
-    frame: SymbolicExpression,
-    target: u32
-): CallProbe throws { OutOfMemory }
-
-export declare function evaluateSymbolicCallee(
-    frame: SymbolicExpression,
-    target: u32
-): string throws { OutOfMemory, InvalidSource }
-
-export declare function publishSymbolicCallee(
-    frame: SymbolicExpression,
-    probe: CallProbe
-): void throws { OutOfMemory }

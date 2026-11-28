@@ -1,4 +1,4 @@
-import { FlowPublish } from "rx_project_host"
+import { FlowPublish } from "../operation"
 
 export type Input = bool?
 

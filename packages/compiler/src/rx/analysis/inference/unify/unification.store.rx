@@ -1,0 +1,27 @@
+<Store name="rx_unification" version={1}>
+    <Type from="effect" as="Unification" />
+
+    <Object name="effect">
+        <Field name="step" type={Unification.Step} value={Unification.Step.Prepare} />
+        <Field name="left" type={u32?} value={null} />
+        <Field name="right" type={u32?} value={null} />
+        <Field name="depth" type={u64?} value={null} />
+        <Field name="rooted" type={bool?} value={null} />
+        <Field name="existing_names" type={string[]?} value={null} />
+        <Field name="existing_values" type={u32[]?} value={null} />
+        <Field name="incoming_values" type={u32[]?} value={null} />
+        <Field name="closed" type={bool?} value={null} />
+        <Field name="parent" type={u32?} value={null} />
+        <Field name="child" type={u32?} value={null} />
+        <Field name="first_allowed" type={u16?} value={null} />
+        <Field name="second_allowed" type={u16?} value={null} />
+        <Field name="first_fallback" type={u8?} value={null} />
+        <Field name="second_fallback" type={u8?} value={null} />
+        <Field name="kind" type={u8?} value={null} />
+        <Field name="argument" type={u32?} value={null} />
+        <Field name="members" type={u32[]?} value={null} />
+        <Field name="type_id" type={u32?} value={null} />
+        <Field name="id" type={u32} value={0} />
+        <Field name="merged" type={u32[]} value={[]} />
+    </Object>
+</Store>

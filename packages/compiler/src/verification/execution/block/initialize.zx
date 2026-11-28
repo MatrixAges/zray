@@ -6,8 +6,6 @@ export default function (in: Input): Output {
     const end = in.first + in.count
 
     return {
-        block: in.block,
-        session: in.session,
         scope: in.scope,
         path: in.path,
         violations: in.violations,

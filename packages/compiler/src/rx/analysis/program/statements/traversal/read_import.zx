@@ -1,0 +1,13 @@
+import type { Publication as Input } from "./publication"
+
+export type Output = {
+    addition: bool,
+    needs_initializers: bool
+}
+
+export default function (in: Input): Output {
+    return {
+        addition: in.addition,
+        needs_initializers: in.needs_initializers
+    }
+}

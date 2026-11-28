@@ -1,0 +1,16 @@
+<Module>
+    <Type from="model" as="Model" />
+
+    <Args in={Model.ByteArtifact} out={void} />
+
+    <Call fn="index.fromText" in={$in.path} />
+
+    <Call
+        fn="index.writeFileAtomic"
+        in={{
+            path: $ctx.fromText,
+            data: $in.data,
+            make_path: true
+        }}
+    />
+</Module>

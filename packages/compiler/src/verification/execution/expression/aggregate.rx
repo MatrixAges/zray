@@ -1,0 +1,19 @@
+<Module>
+    <Type from="aggregate/model" as="Aggregate" />
+    <Type from="model" as="Expression" />
+
+    <Args in={Aggregate.Input} out={Expression.Outcome} />
+
+    <Call fn="aggregate/start" in={$in} />
+
+    <Loop on={$in.field < $in.end}>
+        <Call module="aggregate/next" />
+    </Loop>
+
+    <Return
+        value={{
+            fields: $ctx.next.fields,
+            safe: $ctx.next.safe
+        }}
+    />
+</Module>

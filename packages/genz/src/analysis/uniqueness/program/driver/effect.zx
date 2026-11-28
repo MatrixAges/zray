@@ -1,0 +1,49 @@
+import type { Phase } from "../../replay/shortcut/phase"
+
+export enum Kind {
+    Settle,
+    Demand,
+    Plan
+}
+
+export enum Step {
+    PrepareStorage,
+    PrepareIdentities,
+    PrepareReplay,
+    PrepareBodies,
+    PrepareWorkers,
+    PrepareQueue,
+    BindMemoRows,
+    BeginRound,
+    ClaimBody,
+    VisitBody,
+    PublishRound,
+    FinishRound,
+    BeginReplay,
+    ScanReplay,
+    RecoverVisit,
+    PublishReplay,
+    FinishReplay
+}
+
+export type Request = {
+    step: Step,
+    kind?: Kind,
+    exhausted?: bool,
+    body?: u64,
+    phase?: Phase,
+    recovered?: u32
+}
+
+export type Result = {
+    available: bool,
+    body?: u64,
+    grew: bool,
+    exhausted: bool,
+    phase: Phase,
+    recovered?: u32
+}
+
+export type Exchange = Result & {
+    request?: Request
+}

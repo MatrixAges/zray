@@ -1,7 +1,7 @@
-import type { Build } from "library_workflow_host"
+import type { Compilation } from "compilation_host"
 
 export type Input = {
-    build: Build,
+    compilation: Compilation,
     has_exports: bool,
     fallback_entry?: string,
     watching: bool

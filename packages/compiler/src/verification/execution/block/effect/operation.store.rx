@@ -1,0 +1,25 @@
+<Store name="symbolic_block_operation" version={1}>
+    <Type from="model" as="Operation" />
+    <Type from="../../expression/effect/model" as="Expression" />
+
+    <Object name="exchange">
+        <Field name="bindings" type={Expression.Value?[]} value={[]} />
+        <Field name="request" type={Operation.Effect?} value={null} />
+
+        <Field
+            name="result"
+            type={Operation.Result}
+            value={{
+                value: {
+                    fields: [],
+                    safe: "true"
+                },
+                path: {
+                    path: "true",
+                    violations: []
+                },
+                term: ""
+            }}
+        />
+    </Object>
+</Store>

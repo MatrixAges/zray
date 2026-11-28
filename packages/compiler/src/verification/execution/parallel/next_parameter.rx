@@ -1,0 +1,26 @@
+<Module>
+    <Type from="model" as="Parallel" />
+
+    <Args in={Parallel.Parameters} out={Parallel.Parameters} />
+
+    <Call fn="argument" in={$in} />
+
+    <Call module="../block/evaluate" />
+
+    <Call
+        module="../block/guard"
+        in={{
+            path: $in.path,
+            violations: $in.violations,
+            safe: $ctx.evaluate.safe
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            ...$ctx.guard,
+            row: $in.row + 1
+        }}
+    />
+</Module>

@@ -2,23 +2,35 @@
     <Type from="index" as="IO" />
     <Type from="model" as="Compile" />
 
-    <Args in={Compile.Request} out={IO.Status} />
+    <Args in={Compile.Request} out={Compile.Outcome} />
 
     <Call fn="index.readCompilationSource" in={$in.compilation} />
 
     <If on={!$ctx.readCompilationSource}>
-        <Return value={IO.Status.Failed} />
+        <Return
+            value={{
+                status: IO.Status.Failed
+            }}
+        />
     </If>
 
     <Call fn="index.openCompilationCaches" in={$in.compilation} />
     <Call fn="index.readCompilationDependencies" in={$in.compilation} />
 
     <If on={$ctx.readCompilationDependencies == IO.Dependencies.Invalid}>
-        <Return value={IO.Status.Failed} />
+        <Return
+            value={{
+                status: IO.Status.Failed
+            }}
+        />
     </If>
 
     <If on={$ctx.readCompilationDependencies == IO.Dependencies.Rx}>
-        <Return value={IO.Status.RunRx} />
+        <Return
+            value={{
+                status: IO.Status.RunRx
+            }}
+        />
     </If>
 
     <Call
@@ -47,13 +59,21 @@
     <If on={$in.settings.native}>
         <Call module="native" in={$in} />
 
-        <Return value={$ctx.native} />
+        <Return
+            value={{
+                status: $ctx.native
+            }}
+        />
     </If>
 
     <Call fn="index.emitCompilationText" in={$in.compilation} />
 
     <If on={$ctx.emitCompilationText == null}>
-        <Return value={IO.Status.Failed} />
+        <Return
+            value={{
+                status: IO.Status.Failed
+            }}
+        />
 
         <Else>
             <Call module="cache/finish" in={$in} />

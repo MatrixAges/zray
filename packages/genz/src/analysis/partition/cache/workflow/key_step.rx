@@ -1,0 +1,27 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.Keys} out={Cache.Keys} />
+
+    <Call
+        fn="host.hashPartitionMembers"
+        in={{
+            prefix: $in.prefix,
+            paths: $in.files.paths,
+            hashes: $in.files.hashes,
+            members: $in.files.members,
+            first: $in.files.offsets[$in.row],
+            end: $in.files.offsets[$in.row + 1]
+        }}
+    />
+
+    <Call
+        fn="keys"
+        in={{
+            keys: $in,
+            digest: $ctx.hashPartitionMembers
+        }}
+    />
+
+    <Return value={$ctx.keys} />
+</Module>

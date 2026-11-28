@@ -1,17 +1,56 @@
 <Module>
-    <Type from="frame" as="Frame" />
     <Type from="../model" as="Model" />
+    <Type from="effect" as="Inference" />
 
-    <Args in={Frame.Input} out={void} />
+    <Args in={Model.History} out={void} />
 
-    <Call fn="frame" in={$in} />
-    <Call fn="host.compileProjectBodies" in={$in.state} />
+    <Store from="inference" as="inference" />
+
+    <Call fn="../history" in={$in} />
 
     <Call
-        fn="host.publishInferredStores"
-        in={[
-            $in.state,
-            $ctx.frame == Model.Reuse.Frame
-        ]}
+        fn="stage"
+        in={{
+            step: Inference.Step.Normalize
+        }}
+        setter={[$store.inference.effect]}
+    />
+
+    <If on={$ctx.history == Model.Reuse.Frame}>
+        <Call
+            fn="stage"
+            in={{
+                step: Inference.Step.Restore
+            }}
+            setter={[$store.inference.effect]}
+        />
+
+        <Else>
+            <Call
+                fn="stage"
+                in={{
+                    step: Inference.Step.Derive,
+                    signatures: $ctx.history == Model.Reuse.Signatures
+                }}
+                setter={[$store.inference.effect]}
+            />
+        </Else>
+    </If>
+
+    <Call
+        fn="stage"
+        in={{
+            step: Inference.Step.Compile
+        }}
+        setter={[$store.inference.effect]}
+    />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Inference.Step.Publish,
+            retained: $ctx.history == Model.Reuse.Frame
+        }}
+        setter={[$store.inference.effect]}
     />
 </Module>

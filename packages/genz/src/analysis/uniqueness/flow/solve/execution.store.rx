@@ -1,0 +1,10 @@
+<Store name="uniqueness_flow_execution" version={1}>
+    <Type from="effect" as="Flow" />
+
+    <Object name="exchange">
+        <Field name="request" type={Flow.Request?} value={null} />
+        <Field name="held" type={bool[][]} value={[]} />
+        <Field name="hits" type={bool[]} value={[]} />
+        <Field name="changed" type={bool} value={false} />
+    </Object>
+</Store>

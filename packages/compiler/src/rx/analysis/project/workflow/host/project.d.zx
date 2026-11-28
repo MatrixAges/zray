@@ -1,68 +1,12 @@
-export declare function normalizeProjectSources(state: Inference): void
-    throws { OutOfMemory, InvalidSource }
+export type DeclaredPort = {
+    row: u64,
+    offset: u64,
+    input: u32,
+    output: u32
+}
 
-export declare function restoreDerivedFrame(state: Inference): void
-
-export declare function deriveProjectFrame(state: Inference, signatures: bool): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function compileProjectBodies(state: Inference): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function publishInferredStores(state: Inference, retained: bool): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function prepareDerivedModules(state: Derivation): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function collectDerivedGraph(state: Derivation): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function orderDerivedSignatures(state: Derivation): void
-    throws { OutOfMemory }
-
-export declare function restoreDerivedSignatures(state: Derivation): bool
-
-export declare function analyzeDerivedSignatures(state: Derivation): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function indexDerivedSignatures(state: Derivation): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function loadDerivedStores(state: Derivation): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function prepareDerivedFlow(state: Derivation): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function solveDerivedFlow(state: Derivation): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function completeDerivedShortcut(state: Derivation, row: u64): void
-    throws { OutOfMemory }
-
-export declare function publishDerivedFrame(state: Derivation): void
-
-export declare function openFlowPorts(state: Solver): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function commitFlowPorts(state: Solver, batches: PortBatch[]): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function openFlowCollection(state: Solver): void
-
-export declare function releaseFlowCollection(state: Solver): void
-
-export declare function openFlowSolver(state: Solver): void
-
-export declare function releaseFlowPending(state: Solver): void
-
-export declare function bindFlowSignatures(state: Solver): void
-
-export declare function publishFlowSignatures(
-    state: Solver,
-    bindings: u32[],
-    tasks: u32[],
-    inputs: u32[],
-    outputs: u32[]
-): void
+export type PortBatch = {
+    first: u64,
+    offsets: u64[],
+    declared?: DeclaredPort
+}

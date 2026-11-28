@@ -1,34 +1,44 @@
 <Module>
     <Type from="../effect" as="Effect" />
+    <Type from="../operation" as="Operation" />
 
     <Args in={Effect.TaskClose} out={void} />
 
-    <Call
-        fn="../host.inferFlowTaskOutput"
-        in={[
-            $in.frame,
-            $in.parallel
-        ]}
-    />
+    <Store from="../operations" as="operations" />
+
+    <Task name="infer_flow_task_output" out={$ctx.read_id}>
+        <Call
+            fn="../stage"
+            in={{
+                step: Operation.Step.InferTaskOutput,
+                parallel: $in.parallel
+            }}
+            setter={[$store.operations.effect]}
+        />
+
+        <Call fn="../read_id" in={$store.operations.effect} />
+    </Task>
 
     <If on={$in.parallel && $in.returns != null}>
         <Call
-            fn="../host.requestParallelTaskOutput"
-            in={[
-                $in.frame,
-                $in.returns.output,
-                $in.returns.returned
-            ]}
+            fn="../stage"
+            in={{
+                step: Operation.Step.RequestTaskOutput,
+                value: $in.returns.output,
+                returned: $in.returns.returned
+            }}
+            setter={[$store.operations.effect]}
         />
     </If>
 
     <Call
-        fn="../host.bindFlowTaskOutput"
-        in={[
-            $in.frame,
-            $in.parallel,
-            $ctx.inferFlowTaskOutput,
-            $in.saved_bindings
-        ]}
+        fn="../stage"
+        in={{
+            step: Operation.Step.BindTaskOutput,
+            parallel: $in.parallel,
+            value: $ctx.task.infer_flow_task_output,
+            bindings: $in.saved_bindings
+        }}
+        setter={[$store.operations.effect]}
     />
 </Module>

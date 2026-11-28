@@ -3,6 +3,8 @@ const zx = @import("zx");
 const Statements = @import("../statements.zig");
 const Flow = @import("../flow.zig");
 const Writer = @import("../control/writer.zig");
+const execution = @import("../../project/workflow/execute.zig");
+const host_api = @import("traversal/host.zig");
 const generated = @import("rx_options").generated_graph;
 const rule = if (generated) @import("generated_rx_execute_statements") else void;
 pub const Input = if (generated) std.meta.Child(rule.Input) else void;
@@ -25,7 +27,7 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
     const layout = std.mem.bytesAsSlice(u32, std.mem.sliceAsBytes(self.plan.rows));
     const root = self.plan.root();
 
-    var state: @import("traversal/host.zig").State = .{
+    var state: host_api.State = .{
         .statements = self,
         .allocator = allocator,
         .root = root,
@@ -52,7 +54,6 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
         .events = &.{},
         .row = 0,
         .offset = 0,
-        .frame = @ptrCast(&state),
         .shape = &.{
             .steps = &.{
                 .kinds = zx.columns.slice(@FieldType(Steps, "kinds"), @as([]const Flow.Kind, steps.items(.kind))),
@@ -76,7 +77,31 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
 
     errdefer self.restoreBindings(bindings);
 
-    input.events = (try execute(allocator, &input)).events.?;
+    const Store = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
+
+    const Host = struct {
+        state: *host_api.State,
+        reply: *std.meta.Child(Store),
+        store_0: *Store,
+        pub fn commit(host: *@This(), pending: rule.zx_pending) Statements.Error!void {
+            const effect = pending.store_0 orelse return;
+
+            try host_api.apply(host.state, effect, host.reply);
+        }
+    };
+
+    var reply = execution.snapshot(std.meta.Child(Store), .{
+        .step = .Reserve,
+        .id = 0,
+        .explicit_input = false,
+        .addition = false,
+        .needs_initializers = false,
+    });
+
+    var store: Store = &reply;
+    var host: Host = .{ .state = &state, .reply = &reply, .store_0 = &store };
+
+    input.events = (try execute(allocator, &input, &host)).events.?;
     scopes.bindings = state.scope_counts;
     scopes.values = state.scope_values;
     input.started = true;
@@ -89,7 +114,7 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
 
     while (true) {
         var scratch = std.heap.BufferFirstAllocator.init(&bytes, arena.allocator());
-        const output = try execute(scratch.allocator(), &input);
+        const output = try execute(scratch.allocator(), &input, &host);
 
         if (output.block) |block| return @fromBackingInt(block);
 
@@ -104,8 +129,8 @@ pub fn lower(self: *const Statements, allocator: std.mem.Allocator, root_writer:
     }
 }
 
-fn execute(allocator: std.mem.Allocator, input: *const Input) Statements.Error!Output {
-    return rule.executeIn(allocator, input) catch |err| switch (@as(anyerror, err)) {
+fn execute(allocator: std.mem.Allocator, input: *const Input, host: anytype) Statements.Error!Output {
+    return rule.executeIn(allocator, input, host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.IntegerOverflow, error.Overflow => error.OutOfMemory,
         error.UnreachableFlow => error.UnreachableFlow,
         error.IncompleteFlow => error.IncompleteFlow,

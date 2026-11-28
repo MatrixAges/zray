@@ -28,7 +28,6 @@ pub const State = struct {
     writer: *Writer.Cursor = undefined,
     call: Invocation = undefined,
     call_binding_count: usize = undefined,
-    imported: @import("rx_execution_abi").layouts.@"zig:rx_project_host".BodyImport = undefined,
     control: Control = undefined,
     view: Cursor = undefined,
     pub fn initControl(self: *State, layout: []const u32) void {
@@ -73,14 +72,21 @@ pub const State = struct {
         if (effect.restore) |count| statements.restoreBindings(@intCast(count));
         if (effect.binding) |symbol| try statements.publishBinding(@fromBackingInt(symbol));
     }
-
-    pub fn borrow(handle: *anyopaque) *State {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
-pub fn reserveBodyStatements(handle: *anyopaque, slots: u64) Error!void {
-    const state = State.borrow(handle);
+pub fn apply(state: *State, effect: anytype, reply: anytype) Error!void {
+    switch (effect.step) {
+        .Reserve => try reserve(state, effect.slots.?),
+        .SelectWriter => selectWriter(state, effect.block.?),
+        .EvaluateValue => reply.id = @backingInt(try state.statements.evaluateValue(effect.row.?, effect.borrowed.?)),
+        .DefineTask => reply.id = @backingInt(try state.statements.taskSymbol(effect.row.?, @fromBackingInt(effect.value.?))),
+        .EvaluateLabel => reply.optional_id = try evaluateCaseLabel(state, effect.row.?),
+        .InitializeCase => state.writer.* = Writer.Cursor.init(state.row.first),
+        else => try @import("call.zig").apply(state, effect, reply),
+    }
+}
+
+fn reserve(state: *State, slots: u64) Error!void {
     var scopes: std.MultiArrayList(Scope) = .empty;
 
     try scopes.setCapacity(state.allocator, @intCast(slots));
@@ -91,39 +97,16 @@ pub fn reserveBodyStatements(handle: *anyopaque, slots: u64) Error!void {
     state.writers = try state.allocator.alloc(Writer.Cursor, state.statements.plan.rows[state.root].tag);
 }
 
-pub fn selectBodyWriter(handle: *anyopaque, block: u32) void {
-    const state = State.borrow(handle);
-
+fn selectWriter(state: *State, block: u32) void {
     state.row = &state.statements.plan.rows[block];
     state.writer = if (block == state.root) state.root_writer else &state.writers[state.row.tag];
     state.view.cells = state.writer.cells();
 }
 
-pub fn evaluateBodyValue(handle: *anyopaque, row: u32, borrowed: bool) Error!u32 {
-    return @backingInt(try State.borrow(handle).statements.evaluateValue(row, borrowed));
-}
-
-pub fn defineBodyTaskBinding(handle: *anyopaque, row: u32, value: u32) Error!u32 {
-    const state = State.borrow(handle);
-
-    return @backingInt(try state.statements.taskSymbol(row, @fromBackingInt(value)));
-}
-
-pub fn publishBodyBinding(handle: *anyopaque, symbol: u32) Error!void {
-    try State.borrow(handle).statements.publishBinding(@fromBackingInt(symbol));
-}
-
-pub fn evaluateBodyCaseLabel(handle: *anyopaque, row: u32) Error!?u32 {
-    const state = State.borrow(handle);
+fn evaluateCaseLabel(state: *State, row: u32) Error!?u32 {
     const program = state.statements.flow.cases.items(.value)[row] orelse return null;
 
     return @backingInt(try inlineValue(state.statements.builder, program.*, false));
-}
-
-pub fn initializeBodyCase(handle: *anyopaque) void {
-    const state = State.borrow(handle);
-
-    state.writer.* = Writer.Cursor.init(state.row.first);
 }
 
 pub fn requireBodyBlock(valid: bool) error{InvalidModule}!void {

@@ -1,0 +1,73 @@
+<Module>
+    <Type from="model" as="Match" />
+    <Type from="../effect/model" as="Operation" />
+
+    <Args in={Match.Walk} out={Match.Walk} />
+
+    <Task name="test" out={$ctx.evaluate}>
+        <Call
+            module="../evaluate"
+            in={$in.columns.match_conditions[$in.row - 1]}
+        />
+    </Task>
+
+    <Task name="yes" out={$ctx.evaluate}>
+        <Call
+            module="../evaluate"
+            in={$in.columns.match_results[$in.row - 1]}
+        />
+    </Task>
+
+    <If on={$ctx.task.test.text != null}>
+        <Call
+            fn="condition"
+            in={{
+                subject: $in.subject,
+                test: $ctx.task.test.text
+            }}
+        />
+
+        <Call
+            module="../select"
+            in={{
+                condition: $ctx.condition,
+                yes: $ctx.task.yes,
+                no: $in.value
+            }}
+        />
+
+        <Call
+            fn="../guarded"
+            in={{
+                condition: $ctx.condition,
+                test: $ctx.task.test,
+                yes: $ctx.task.yes,
+                no: $in.value
+            }}
+        />
+
+        <Call
+            module="../effect/run"
+            in={{
+                step: Operation.Step.Retain,
+                value: $ctx.select,
+                text: $ctx.guarded
+            }}
+        />
+
+        <Return
+            value={{
+                ...$in,
+                row: $in.row - 1,
+                value: $ctx.run.value
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            unsupported: true
+        }}
+    />
+</Module>

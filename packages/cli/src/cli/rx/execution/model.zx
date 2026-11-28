@@ -21,5 +21,6 @@ export type Build = {
 
 export type EntryOutcome = {
     status: Status,
-    diagnostic?: string
+    diagnostic?: string,
+    stdout?: string
 }

@@ -1,0 +1,37 @@
+export enum Step {
+    BeginWalk,
+    Prepare,
+    Push,
+    Align,
+    Pop,
+    MergeFields,
+    Publish,
+    Intern
+}
+
+export type Command = {
+    step: Step,
+    left?: u32,
+    right?: u32,
+    depth?: u64,
+    rooted?: bool,
+    existing_names?: string[],
+    existing_values?: u32[],
+    incoming_values?: u32[],
+    closed?: bool,
+    parent?: u32,
+    child?: u32,
+    first_allowed?: u16,
+    second_allowed?: u16,
+    first_fallback?: u8,
+    second_fallback?: u8,
+    kind?: u8,
+    argument?: u32,
+    members?: u32[],
+    type_id?: u32
+}
+
+export type Effect = Command & {
+    id: u32,
+    merged: u32[]
+}

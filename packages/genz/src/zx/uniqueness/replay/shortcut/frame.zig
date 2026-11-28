@@ -8,7 +8,7 @@ const Cursor = @import("../shortcut.zig");
 const Replacements = @import("replacements.zig");
 const scan = @import("scan.zig");
 const Error = std.mem.Allocator.Error;
-const Api = @import("../../program/driver.zig").Api;
+const Phase = @import("../../program/driver.zig").ReplayPhase;
 const Self = @This();
 
 scratch: std.heap.ArenaAllocator,
@@ -26,7 +26,7 @@ pub fn close(self: *Self) void {
     self.scratch.deinit();
 }
 
-pub fn advance(self: *Self, ctx: *Context, phase: Api.ReplayPhase, recovered: ?u32) Error!Api.ReplayPhase {
+pub fn advance(self: *Self, ctx: *Context, phase: Phase, recovered: ?u32) Error!Phase {
     if (!self.scratch.reset(.retain_capacity)) return error.OutOfMemory;
 
     const next = try scan.advance(ctx, &ctx.memo.trace.?, self.scratch.allocator(), self.staged.allocator(), &self.replacements, .{
@@ -42,7 +42,7 @@ pub fn advance(self: *Self, ctx: *Context, phase: Api.ReplayPhase, recovered: ?u
     return @fromBackingInt(@backingInt(next.cursor.phase));
 }
 
-pub fn recover(self: *Self, ctx: *Context, phase: Api.ReplayPhase) Error!u32 {
+pub fn recover(self: *Self, ctx: *Context, phase: Phase) Error!u32 {
     return switch (phase) {
         .Settled => prepare(.settled, ctx, self.body, &self.growth, self.scratch.allocator()),
         .Demanded => prepare(.demanded, ctx, self.body, &self.growth, self.scratch.allocator()),

@@ -1,0 +1,22 @@
+import type { Output as Batch } from "./flatten"
+import type { Collected } from "./model"
+
+export type Input = {
+    collected: Collected,
+    batch: Batch
+}
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    const { collected, batch } = in
+
+    if (batch.count != 0) {
+        $store.entries.collected = {
+            batches: collected.batches.push(batch.batch)[0],
+            count: collected.count + batch.count
+        }
+    }
+}

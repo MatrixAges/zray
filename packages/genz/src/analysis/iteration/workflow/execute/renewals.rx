@@ -15,8 +15,6 @@
             }}
         />
 
-        <Call fn="index.releaseLoopPlanningScratch" in={$in.loop_frame} />
-
         <Return value={$ctx.check} />
     </If>
 

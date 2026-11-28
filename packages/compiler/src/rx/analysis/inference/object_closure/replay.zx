@@ -1,11 +1,9 @@
-import type { ObjectReplay } from "rx_project_host"
 import type { Scan as Construction, Row as Constructed } from "../construction/workflow"
 import type { Diagnostic } from "../projections/site"
 import type { Scan as Selection, Row as Selected } from "../selection/workflow"
 import type { Context } from "./workflow"
 
 export type View = {
-    frame: ObjectReplay,
     constructions: Construction,
     construction: Constructed,
     selections: Selection,

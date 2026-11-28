@@ -69,7 +69,6 @@
         <Call
             module="commit"
             in={{
-                target: $in.target,
                 frame: $in.candidate.frame,
                 members: $in.candidate.frame.members
             }}

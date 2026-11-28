@@ -1,22 +1,27 @@
-import type { Execution, RoundKind, RoundOutcome } from "ownership_host"
+import type { Kind } from "./effect"
 
-export type Kind = RoundKind
+export enum Outcome {
+    Stable,
+    Grew,
+    Exhausted
+}
 
 export type Input = {
-    frame: Execution,
     persistent: bool,
     recording: bool
 }
 
 export type Round = {
-    frame: Execution,
     kind: Kind,
     exhausted: bool
 }
 
-export type Outcome = RoundOutcome
+export type Cursor = {
+    kind: Kind,
+    outcome: Outcome,
+    running: bool
+}
 
 export type Convergence = {
-    frame: Execution,
     running: bool
 }

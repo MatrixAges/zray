@@ -4,9 +4,6 @@ const Collection = @import("../collection.zig");
 const Defaults = @import("../../input_defaults.zig");
 const Input = @import("../../workflow/solve/abi.zig").Collection;
 const Columns = std.meta.Child(@FieldType(Input, "default_columns"));
-const layouts = @import("rx_execution_abi").layouts.@"zig:rx_project_host";
-const Module = layouts.ConstraintModule;
-const Body = layouts.ConstraintBody;
 
 pub const Frame = struct {
     state: *Collection = undefined,
@@ -14,112 +11,77 @@ pub const Frame = struct {
     edges: std.meta.Child(@FieldType(Columns, "edges")) = undefined,
     known: std.meta.Child(@FieldType(Input, "default_known")) = undefined,
     columns: Columns = undefined,
-    module: Module = undefined,
-    body: Body = undefined,
     pub fn bind(self: *Frame, state: *Collection) void {
         self.state = state;
 
         self.input = .{
-            .frame = @ptrCast(self),
             .modules = state.modules.len,
             .default_columns = &self.columns,
             .default_known = &self.known,
         };
     }
+    pub fn commit(frame: *Frame, effect: anytype, reply: anytype) zx.Error!void {
+        const state = frame.state;
 
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
+        switch (effect.collection_step) {
+            .Open => {
+                const index: usize = @intCast(effect.row.?);
+                reply.shortcut = state.open(index);
+                reply.input_fixed = state.states.items(.input_fixed)[index];
+            },
+            .Release => state.scope.reset(0),
+            .Forward => {
+                try state.walker.forwardShortcut();
+
+                frame.summarize(reply);
+            },
+            .Infer => {
+                try state.walker.inferBody();
+
+                frame.summarize(reply);
+            },
+            .DefaultOutput => try Defaults.default(state.graph, state.walker.output),
+            .PublishPort => {
+                const index: usize = @intCast(effect.row.?);
+
+                state.states.items(.input_fixed)[index] = effect.fixed.?;
+                state.states.items(.binding_end)[index] = effect.binding_end.?;
+                state.states.items(.task_end)[index] = effect.task_end.?;
+            },
+            .OpenDefaults => reply.parents = frame.openDefaults(),
+            .DefaultInput => {
+                try Defaults.default(state.graph, @fromBackingInt(effect.input.?));
+
+                reply.parents = state.graph.parents();
+            },
+        }
     }
-    fn summarize(self: *Frame) *const Body {
-        const state = self.state;
+    fn summarize(frame: *Frame, reply: anytype) void {
+        const state = frame.state;
+        reply.returned = state.walker.returned;
+        reply.used = state.expression.input_used;
+        reply.bindings = state.requests.bindings.len;
+        reply.tasks = state.requests.tasks.items.len;
+    }
 
-        self.body = .{
-            .returned = state.walker.returned,
-            .used = state.expression.input_used,
-            .binding_end = state.requests.bindings.len,
-            .task_end = state.requests.tasks.items.len,
+    fn openDefaults(frame: *Frame) []const u32 {
+        const state = frame.state;
+        const graph = state.graph;
+        const edges = graph.pending.assignments.slice();
+
+        frame.edges = .{
+            .left = @ptrCast(edges.items(.value)),
+            .right = @ptrCast(edges.items(.expected)),
         };
 
-        return &self.body;
+        frame.known = graph.pending.known_types.borrow(@TypeOf(frame.known));
+
+        frame.columns = .{
+            .inputs = @ptrCast(state.states.items(.input)),
+            .fixed = state.states.items(.input_fixed),
+            .edges = &frame.edges,
+        };
+
+        return graph.parents();
     }
 };
-
-pub fn openConstraintModule(handle: *anyopaque, row: u64) *const Module {
-    const frame = Frame.borrow(handle);
-    const index: usize = @intCast(row);
-    const shortcut = frame.state.open(index);
-
-    frame.module = .{
-        .shortcut = shortcut,
-        .fixed = frame.state.states.items(.input_fixed)[index],
-    };
-
-    return &frame.module;
-}
-
-pub fn releaseConstraintScope(handle: *anyopaque) void {
-    Frame.borrow(handle).state.scope.reset(0);
-}
-
-pub fn forwardConstraintShortcut(handle: *anyopaque) zx.Error!*const Body {
-    const frame = Frame.borrow(handle);
-
-    try frame.state.walker.forwardShortcut();
-
-    return frame.summarize();
-}
-
-pub fn inferConstraintBody(handle: *anyopaque) zx.Error!*const Body {
-    const frame = Frame.borrow(handle);
-    const walker = &frame.state.walker;
-
-    try walker.inferBody();
-
-    return frame.summarize();
-}
-
-pub fn defaultConstraintOutput(handle: *anyopaque) zx.Error!void {
-    const state = Frame.borrow(handle).state;
-
-    try Defaults.default(state.graph, state.walker.output);
-}
-
-pub fn commitConstraintPort(handle: *anyopaque, row: u64, fixed: bool, binding_end: u64, task_end: u64) void {
-    const states = Frame.borrow(handle).state.states;
-    const index: usize = @intCast(row);
-
-    states.items(.input_fixed)[index] = fixed;
-    states.items(.binding_end)[index] = binding_end;
-    states.items(.task_end)[index] = task_end;
-}
-
-pub fn openConstraintDefaults(handle: *anyopaque) []const u32 {
-    const frame = Frame.borrow(handle);
-    const state = frame.state;
-    const graph = state.graph;
-    const edges = graph.pending.assignments.slice();
-
-    frame.edges = .{
-        .left = @ptrCast(edges.items(.value)),
-        .right = @ptrCast(edges.items(.expected)),
-    };
-
-    frame.known = graph.pending.known_types.borrow(@TypeOf(frame.known));
-
-    frame.columns = .{
-        .inputs = @ptrCast(state.states.items(.input)),
-        .fixed = state.states.items(.input_fixed),
-        .edges = &frame.edges,
-    };
-
-    return graph.parents();
-}
-
-pub fn defaultConstraintInput(handle: *anyopaque, input: u32) zx.Error![]const u32 {
-    const frame = Frame.borrow(handle);
-    const graph = frame.state.graph;
-
-    try Defaults.default(graph, @fromBackingInt(input));
-
-    return graph.parents();
-}

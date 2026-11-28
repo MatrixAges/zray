@@ -1,0 +1,17 @@
+import type { Effect, PortBatch } from "./effect"
+
+export type Input = Effect.Omit("batches") & {
+    batches?: PortBatch[]
+}
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.flow.effect = {
+        flow_step: in.flow_step,
+        batches: in.batches ?? [],
+        signatures: in.signatures
+    }
+}

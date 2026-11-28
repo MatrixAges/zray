@@ -1,7 +1,9 @@
 <Module>
     <Type from="model" as="Request" />
 
-    <Args in={Request.Load} out={void} />
+    <Args in={Request.Load} out={u8[][]} />
+
+    <Store from="documents" as="documents" />
 
     <Loop on={$in.row < $in.load.roots}>
         <Call
@@ -12,4 +14,8 @@
             }}
         />
     </Loop>
+
+    <Call fn="read_documents" in={$store.documents.loaded} />
+
+    <Return value={$ctx.read_documents} />
 </Module>

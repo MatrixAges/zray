@@ -1,0 +1,25 @@
+<Store name="rx_type_resolution" version={1}>
+    <Type from="effect" as="Resolution" />
+
+    <Object name="effect">
+        <Field
+            name="resolve_step"
+            type={Resolution.Step}
+            value={Resolution.Step.Record}
+        />
+
+        <Field name="node" type={u32?} value={null} />
+        <Field name="type_id" type={u32?} value={null} />
+        <Field name="code" type={string?} value={null} />
+        <Field name="message" type={string?} value={null} />
+        <Field name="object" type={bool?} value={null} />
+        <Field name="kind" type={u8?} value={null} />
+        <Field name="first" type={u32?} value={null} />
+        <Field name="second" type={u32?} value={null} />
+        <Field name="label" type={string?} value={null} />
+        <Field name="children" type={u32[]?} value={null} />
+        <Field name="field_names" type={string[]?} value={null} />
+        <Field name="field_types" type={u32[]?} value={null} />
+        <Field name="names" type={string[]?} value={null} />
+    </Object>
+</Store>

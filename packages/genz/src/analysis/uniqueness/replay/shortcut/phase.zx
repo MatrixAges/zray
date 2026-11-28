@@ -1,0 +1,8 @@
+export enum Phase {
+    Start,
+    Settled,
+    Demanded,
+    Planned,
+    Done,
+    Reject
+}

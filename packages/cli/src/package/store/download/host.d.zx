@@ -6,17 +6,6 @@ export type ResponseHead = {
     length?: u64
 }
 
-export declare function readLocalArchive(allocator, io, path: string, limit: u64): u8[]
-    throws {
-        AccessDenied, AntivirusInterference, BadPathName, Canceled, ConnectionResetByPeer,
-        DeviceBusy, FileBusy, FileLocksUnsupported, FileNotFound, FileTooBig, InputOutput,
-        InvalidPath, InvalidUtf8, IsDir, LockViolation, NameTooLong, NetworkNotFound,
-        NoDevice, NoSpaceLeft, NotDir, NotOpenForReading, OutOfMemory, PathAlreadyExists,
-        PermissionDenied, PipeBusy, ProcessFdQuotaExceeded, ReadOnlyFileSystem,
-        SocketUnconnected, StreamTooLong, SymLinkLoop, SystemFdQuotaExceeded, SystemResources,
-        Unexpected, WouldBlock
-    } concurrent
-
 export declare function receiveHead(reader: ResponseReader, url: string): ResponseHead throws {
     PackageDownloadHostFailure
 }

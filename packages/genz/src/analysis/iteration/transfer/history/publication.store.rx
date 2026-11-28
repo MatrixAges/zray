@@ -1,0 +1,8 @@
+<Store name="iteration_transfer_publication" version={1}>
+    <Object name="record">
+        <Field name="type_id" type={u32} value={0} />
+        <Field name="owner" type={u32} value={0} />
+        <Field name="value" type={u32} value={0} />
+        <Field name="ready" type={u32} value={0} />
+    </Object>
+</Store>

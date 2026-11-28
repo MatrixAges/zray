@@ -1,0 +1,17 @@
+import type { Operation, State } from "./model"
+
+export type Input = {
+    operation: Operation,
+    previous: State
+}
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.selection.state = {
+        ...in.previous,
+        operation: in.operation
+    }
+}

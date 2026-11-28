@@ -42,6 +42,11 @@ export type Artifact = {
     source: string
 }
 
+export type ByteArtifact = {
+    path: string,
+    data: u8[]
+}
+
 export type Paths = Workspace.Pick("directory", "separator")
 
 export type ViewGroup = Workspace & {

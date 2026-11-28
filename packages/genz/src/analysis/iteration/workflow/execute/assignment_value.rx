@@ -1,0 +1,34 @@
+<Module>
+    <Type from="emission_model" as="Loop" />
+    <Type from="../../step/model" as="Step" />
+
+    <Args in={Loop.AssignmentValue} out={u32} />
+
+    <If on={$in.assignment == Step.Assignment.Projected}>
+        <Call
+            fn="index.projectLoopAssignment"
+            in={[
+                $in.loop_frame,
+                $in.value
+            ]}
+        />
+
+        <Return value={$ctx.projectLoopAssignment} />
+    </If>
+
+    <If on={$in.assignment == Step.Assignment.State}>
+        <Call
+            fn="index.clipCollectionTarget"
+            in={[
+                $in.writer,
+                $in.loop_seq,
+                $in.body,
+                $in.value
+            ]}
+        />
+
+        <Return value={$ctx.clipCollectionTarget} />
+    </If>
+
+    <Return value={$in.value} />
+</Module>

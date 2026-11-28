@@ -2,7 +2,7 @@
     <Object name="state">
         <Field name="has_seed" type={bool} value={false} />
         <Field name="seed" type={u32} value={0} />
-        <Field name="changed_name" type={u8[]} value={[]} />
+        <Field name="changed_name" type={u8[]?} value={null} />
     </Object>
 
     <Object name="parameters">

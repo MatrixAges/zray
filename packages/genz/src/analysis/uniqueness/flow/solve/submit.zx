@@ -1,0 +1,14 @@
+import type { Request as Input } from "./effect"
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.flow.exchange = {
+        request: in,
+        held: [],
+        hits: [],
+        changed: false
+    }
+}

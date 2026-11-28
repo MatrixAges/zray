@@ -1,22 +1,30 @@
 <Module>
     <Type from="../workflow" as="Traversal" />
+    <Type from="../publication" as="Publication" />
 
     <Args in={Traversal.CallResult} out={Traversal.Effect} />
 
-    <Call
-        fn="../host.registerBodyCallResult"
-        in={[
-            $in.frame,
-            $in.value,
-            false
-        ]}
-    />
+    <Store from="../publication" as="publication" />
+
+    <Task name="register_body_call_result" out={$ctx.read_optional_id}>
+        <Call
+            fn="../stage"
+            in={{
+                step: Publication.Step.RegisterResult,
+                value: $in.value,
+                parallel: false
+            }}
+            setter={[$store.publication.effect]}
+        />
+
+        <Call fn="../read_optional_id" in={$store.publication.effect} />
+    </Task>
 
     <Call
         fn="../../../control/write/binding"
         in={{
             writer: $in.control.writer,
-            symbol: $ctx.registerBodyCallResult,
+            symbol: $ctx.task.register_body_call_result,
             value: $in.value
         }}
     />
@@ -24,7 +32,7 @@
     <Return
         value={{
             statement: $ctx.binding,
-            binding: $ctx.registerBodyCallResult
+            binding: $ctx.task.register_body_call_result
         }}
     />
 </Module>

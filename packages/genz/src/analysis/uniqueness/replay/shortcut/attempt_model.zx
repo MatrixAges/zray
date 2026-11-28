@@ -1,0 +1,7 @@
+import type { Phase } from "./phase"
+
+export type Cursor = {
+    phase: Phase,
+    recovered?: u32,
+    running: bool
+}

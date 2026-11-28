@@ -2,8 +2,11 @@
     <Type from="model" as="Calls" />
     <Type from="../host" as="Host" />
     <Type from="../model" as="Model" />
+    <Type from="../operation" as="Operation" />
 
     <Args in={Calls.Batch} out={Calls.Batch} />
+
+    <Store from="../operations" as="operations" />
 
     <Call
         fn="../host.readLengthSlot"
@@ -13,58 +16,86 @@
         ]}
     />
 
+    <Task name="prepare_flow_call" out={$ctx.read_flag}>
+        <Call
+            fn="../stage"
+            in={{
+                step: Operation.Step.PrepareCall,
+                item: $in.items[$in.row]
+            }}
+            setter={[$store.operations.effect]}
+        />
+
+        <Call fn="../read_flag" in={$store.operations.effect} />
+    </Task>
+
     <Call
-        fn="../host.prepareFlowCall"
-        in={[
-            $in.frame,
-            $in.items[$in.row]
-        ]}
+        fn="../stage"
+        in={{
+            step: Operation.Step.BindGetters
+        }}
+        setter={[$store.operations.effect]}
     />
 
-    <Call fn="../host.bindFlowGetters" in={$in.frame} />
-
-    <If on={$ctx.prepareFlowCall}>
-        <Call fn="../host.evaluateFlowArgument" in={$in.frame} />
+    <If on={$ctx.task.prepare_flow_call}>
+        <Call
+            fn="../stage"
+            in={{
+                step: Operation.Step.EvaluateArgument
+            }}
+            setter={[$store.operations.effect]}
+        />
 
         <Else>
-            <Call fn="../host.createFlowUnitArgument" in={$in.frame} />
+            <Call
+                fn="../stage"
+                in={{
+                    step: Operation.Step.CreateUnit
+                }}
+                setter={[$store.operations.effect]}
+            />
         </Else>
     </If>
 
     <Call fn="../select_result" in={$in.results} />
 
-    <Call
-        fn="../host.registerFlowCall"
-        in={[
-            $in.frame,
-            $ctx.select_result.row,
-            $ctx.select_result.visible,
-            $ctx.select_result.next,
-            $ctx.readLengthSlot
-        ]}
-    />
+    <Task name="register_flow_call" out={$ctx.read_id}>
+        <Call
+            fn="../stage"
+            in={{
+                step: Operation.Step.RegisterCall,
+                row: $ctx.select_result.row,
+                visible: $ctx.select_result.visible,
+                next: $ctx.select_result.next,
+                bindings: $ctx.readLengthSlot
+            }}
+            setter={[$store.operations.effect]}
+        />
 
-    <If on={$ctx.registerFlowCall != null}>
+        <Call fn="../read_id" in={$store.operations.effect} />
+    </Task>
+
+    <If on={$ctx.task.register_flow_call != null}>
         <If on={$in.cursor.region == Model.Region.Parallel}>
             <Call
-                fn="../host.checkFlowParallelCall"
-                in={[
-                    $in.frame,
-                    $in.items[$in.row],
-                    $ctx.registerFlowCall
-                ]}
+                fn="../stage"
+                in={{
+                    step: Operation.Step.CheckCall,
+                    item: $in.items[$in.row],
+                    id: $ctx.task.register_flow_call
+                }}
+                setter={[$store.operations.effect]}
             />
 
             <Else>
                 <Call
                     module="../write_step"
                     in={{
-                        frame: $in.frame,
                         index:
                             $in.cursor.target_first +
                             ($in.row - $in.cursor.target_start),
                         kind: Host.FlowKind.Call,
-                        first: $ctx.registerFlowCall
+                        first: $ctx.task.register_flow_call
                     }}
                 />
             </Else>

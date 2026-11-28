@@ -1,7 +1,10 @@
 <Module>
     <Type from="model" as="Resolve" />
+    <Type from="effect" as="Resolution" />
 
     <Args in={Resolve.Request} out={Resolve.Request} />
+
+    <Store from="resolution" as="resolution" />
 
     <Call fn="walk" in={$in} />
 
@@ -11,12 +14,13 @@
 
     <If on={$ctx.walk.route == Resolve.Route.Record}>
         <Call
-            fn="host.recordResolveType"
-            in={[
-                $in.resolver.frame,
-                $ctx.walk.node,
-                $ctx.walk.completed ?? 0
-            ]}
+            fn="stage"
+            in={{
+                resolve_step: Resolution.Step.Record,
+                node: $ctx.walk.node,
+                type_id: $ctx.walk.completed ?? 0
+            }}
+            setter={[$store.resolution.effect]}
         />
 
         <Return
@@ -30,12 +34,13 @@
     <Call module="construct" in={$ctx.walk} />
 
     <Call
-        fn="host.recordResolveType"
-        in={[
-            $in.resolver.frame,
-            $ctx.walk.node,
-            $ctx.construct
-        ]}
+        fn="stage"
+        in={{
+            resolve_step: Resolution.Step.Record,
+            node: $ctx.walk.node,
+            type_id: $ctx.construct
+        }}
+        setter={[$store.resolution.effect]}
     />
 
     <Return

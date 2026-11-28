@@ -1,20 +1,11 @@
-import type { CallSafety, SymbolicExpression } from "verification_host"
-import type { Input as Description } from "../../graph/call"
+import type { Value } from "../expression/effect/model"
 
-export type Input = Description & {
-    frame: SymbolicExpression,
+export type Input = {
+    target: u32,
     argument: u32
 }
 
-export type Safety = CallSafety
-
 export type Solve = {
-    frame: SymbolicExpression,
     target: u32,
-    argument_safe: string
-}
-
-export type Outcome = {
-    safety?: CallSafety,
-    diagnostic?: string
+    argument: Value
 }

@@ -2,24 +2,20 @@ import integers from "std:integer"
 import { UnaryOperator } from "core/expression_table/kinds"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
-import host from "verification_host"
-import { SymbolicOperand } from "verification_host"
 
 import numeric from "../../scalar/numeric"
 import evaluateUnary from "../../scalar/unary"
 import { unsupported_message } from "./const"
 
-import type { Outcome as Output, TypedPayload as Input } from "./model"
+import type { Value } from "./effect/model"
+import type { Outcome as Output, TypedPayload } from "./model"
+
+export type Input = TypedPayload & {
+    operand: Value
+}
 
 export default function (in: Input): Output {
-    const { frame, columns, payload, types, type_id } = in
-
-    const operand =
-        host.evaluateSymbolicOperand(
-            frame,
-            SymbolicOperand.First,
-            columns.unary_operands[payload]
-        )
+    const { operand, columns, payload, types, type_id } = in
 
     const text = operand.text
 

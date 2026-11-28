@@ -1,23 +1,27 @@
 <Module>
     <Type from="model" as="Projection" />
     <Type from="../../fields/view" as="Fields" />
+    <Type from="../../object_closure/effect" as="ObjectEffect" />
 
     <Args in={Projection.Cursor} out={Projection.Cursor} />
 
+    <Store from="../../object_closure/object" as="object" />
+
     <Call
-        fn="host.bindObjectSpreadFields"
-        in={[
-            $in.request.frame,
-            $in.root,
-            $in.mode == Fields.Mode.Declared,
-            $in.mode == Fields.Mode.Inferred
-        ]}
+        fn="../../object_closure/stage"
+        in={{
+            object_step: ObjectEffect.Step.BindSpread,
+            root: $in.root,
+            declared: $in.mode == Fields.Mode.Declared,
+            inferred: $in.mode == Fields.Mode.Inferred
+        }}
+        setter={[$store.object.effect]}
     />
 
     <Call
         module="readiness"
         in={{
-            frame: $in.request.frame,
+
             readiness: $in.request.readiness,
             ...$in.pick([
                 "row",
@@ -28,14 +32,15 @@
     />
 
     <Call
-        fn="host.commitObjectSpread"
-        in={[
-            $in.request.frame,
-            $in.row,
-            $in.root,
-            !$ctx.readiness,
-            $in.root == $in.request.scan.result
-        ]}
+        fn="../../object_closure/stage"
+        in={{
+            object_step: ObjectEffect.Step.CommitSpread,
+            row: $in.row,
+            root: $in.root,
+            open: !$ctx.readiness,
+            aliases: $in.root == $in.request.scan.result
+        }}
+        setter={[$store.object.effect]}
     />
 
     <Call

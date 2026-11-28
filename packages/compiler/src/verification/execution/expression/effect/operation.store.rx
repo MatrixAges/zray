@@ -1,0 +1,26 @@
+<Store name="symbolic_expression_operation" version={1}>
+    <Type from="model" as="Operation" />
+
+    <Object name="exchange">
+        <Field name="request" type={Operation.Effect?} value={null} />
+
+        <Field
+            name="result"
+            type={Operation.Result}
+            value={{
+                text: "",
+                value: {
+                    fields: [],
+                    safe: "true"
+                },
+                description: {
+                    target: 0,
+                    calls: [],
+                    stores: 0,
+                    external: false,
+                    depth: 0
+                }
+            }}
+        />
+    </Object>
+</Store>

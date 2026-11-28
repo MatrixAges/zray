@@ -1,0 +1,81 @@
+<Module>
+    <Type from="update_model" as="Loop" />
+    <Type from="../../step/model" as="Step" />
+    <Type from="../../parameters/layout" as="Parameters" />
+
+    <Args in={Loop.Evaluate} out={Loop.Update} />
+
+    <If on={$in.schedule.assignment == Step.Assignment.Projected}>
+        <Call
+            module="declare_state"
+            in={{
+                ...$in.pick([
+                    "frame",
+                    "writer",
+                    "body_seq",
+                    "context",
+                    "type_id",
+                    "initial_state"
+                ]),
+                name: $in.seed_name,
+                layout: Parameters.Layout.State,
+                mutable: $in.renewals.first != $in.renewals.end
+            }}
+        />
+
+        <Call
+            fn="evaluate_step"
+            in={$in.pick([
+                "frame",
+                "loop_frame",
+                "schedule",
+                "renewals",
+                "name",
+                "seed_name"
+            ])}
+        />
+
+        <Return
+            value={{
+                ...$ctx.evaluate_step,
+                mark: $ctx.declare_state
+            }}
+        />
+    </If>
+
+    <Call
+        fn="evaluate_step"
+        in={$in.pick([
+            "frame",
+            "loop_frame",
+            "schedule",
+            "renewals",
+            "name",
+            "seed_name"
+        ])}
+    />
+
+    <Call
+        module="declare_state"
+        in={{
+            ...$in.pick([
+                "frame",
+                "writer",
+                "body_seq",
+                "context",
+                "type_id",
+                "name",
+                "initial_state"
+            ]),
+            layout: $in.initial_plan.parameters,
+            mutable: true
+        }}
+    />
+
+    <Return
+        value={{
+            ...$ctx.evaluate_step,
+            mark: $ctx.declare_state
+        }}
+    />
+</Module>

@@ -1,35 +1,17 @@
 <Module>
     <Type from="model" as="Parallel" />
+    <Type from="../block/effect/model" as="Operation" />
 
     <Args in={Parallel.Bindings} out={Parallel.Bindings} />
 
     <Call
-        fn="bind"
-        in={$in.pick([
-            "symbols",
-            "first",
-            "index"
-        ])}
+        module="../block/effect/run"
+        in={{
+            step: Operation.Step.Bind,
+            row: $in.symbols[$in.first + $in.index],
+            value: $in.values[$in.index]
+        }}
     />
-
-    <If on={$ctx.bind != null}>
-        <Call
-            fn="index.bindSymbolicStatement"
-            in={[
-                $in.block,
-                $ctx.bind,
-                $in.values[$in.index],
-                null
-            ]}
-        />
-
-        <Return
-            value={{
-                ...$in,
-                index: $in.index + 1
-            }}
-        />
-    </If>
 
     <Return
         value={{

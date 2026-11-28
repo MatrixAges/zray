@@ -1,8 +1,0 @@
-export {
-    recordResolveType,
-    reportResolveFailure,
-    prepareResolveConstruction,
-    reportResolveConstruction,
-    bindResolvedType,
-    finishResolveConstruction
-} from "rx_project_host"

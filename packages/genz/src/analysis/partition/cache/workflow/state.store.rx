@@ -1,0 +1,5 @@
+<Store name="partition_cache_state" version={1}>
+    <Object name="objects">
+        <Field name="valid" type={bool[]} value={[]} />
+    </Object>
+</Store>

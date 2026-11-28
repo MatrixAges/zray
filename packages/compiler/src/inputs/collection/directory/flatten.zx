@@ -1,61 +1,36 @@
-import memory from "memory"
-
-import type { ListColumn } from "memory"
+import type { Files } from "./model"
 
 export type Input = {
-    files: ListColumn,
-    paths: ListColumn,
-    groups: u64,
+    files: u8[][],
     width: u64,
     copy_paths: bool
 }
 
 export type Output = {
-    records: u8[][],
-    paths: string[]
+    batch: Files,
+    count: u64
 }
 
 export default function (in: Input): Output {
-    const empty_records: u8[][] = []
-    const empty_paths: string[] = []
+    const { files, width, copy_paths } = in
 
-    return loop({
-        group: 0,
-        records: empty_records,
-        paths: empty_paths
+    const count = loop({
+        row: 0,
+        count: 0
     }, {
-        while: state => state.group < in.groups,
+        while: state => state.row < files.length,
         next: state => {
-            const chunk = memory.borrowListBytes(in.files, state.group)
-            const count = chunk.length / in.width
-
-            state.records = state.records.push(chunk)[0]
-
-            if (in.copy_paths) {
-                state.paths = loop({
-                    row: 0,
-                    paths: state.paths
-                }, {
-                    while: item => item.row < count,
-                    next: item => {
-                        item.paths = item.paths.push(
-                            memory.readListText(
-                                in.paths,
-                                state.group,
-                                item.row
-                            )
-                        )[0]
-                        item.row += 1
-                    },
-                    return: item => item.paths
-                })
-            }
-
-            state.group += 1
+            state.count += files[state.row].length / width
+            state.row += 1
         },
-        return: state => ({
-            records: state.records,
-            paths: state.paths
-        })
+        return: state => state.count
     })
+
+    return {
+        batch: {
+            records: files,
+            copy_paths
+        },
+        count
+    }
 }

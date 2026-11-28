@@ -1,0 +1,88 @@
+<Module>
+    <Type from="model" as="Selection" />
+    <Type from="../effect/model" as="Operation" />
+    <Type from="../../../predicate/model" as="Predicate" />
+
+    <Args in={Selection.Cases} out={Selection.Cases} />
+
+    <Call fn="label" in={$in} />
+
+    <If on={$ctx.label == null}>
+        <Return
+            value={{
+                ...$in,
+                row: $in.row + 1,
+                fallback: $in.scope.control.case_bodies[$in.row]
+            }}
+        />
+    </If>
+
+    <Call module="../evaluate" in={$ctx.label} />
+
+    <Call
+        fn="../../../predicate/connect"
+        in={{
+            left: $in.subject,
+            right: $ctx.evaluate.text ?? "",
+            operator: Predicate.Operator.Equal
+        }}
+    />
+
+    <Task name="guard" out={$ctx.boolean}>
+        <Call
+            fn="../../../scalar/conjunction"
+            in={{
+                left: $in.path,
+                right: $ctx.connect
+            }}
+        />
+
+        <Call module="../boolean" />
+    </Task>
+
+    <Call
+        module="../effect/run"
+        in={{
+            step: Operation.Step.Child,
+            row: $in.scope.control.case_bodies[$in.row],
+            path: {
+                path: $ctx.task.guard,
+                violations: $in.violations
+            }
+        }}
+    />
+
+    <Task name="continued" out={$ctx.boolean}>
+        <Call
+            fn="../../../scalar/disjunction"
+            in={{
+                left: $in.continuation,
+                right: $ctx.run.path.path
+            }}
+        />
+
+        <Call module="../boolean" />
+    </Task>
+
+    <Task name="unmatched" out={$ctx.boolean}>
+        <Call
+            fn="../../../predicate/exclude"
+            in={{
+                left: $in.unmatched,
+                right: $ctx.connect
+            }}
+        />
+
+        <Call module="../boolean" />
+    </Task>
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1,
+            violations: $ctx.run.path.violations,
+            continuation: $ctx.task.continued,
+            unmatched: $ctx.task.unmatched
+        }}
+    />
+</Module>

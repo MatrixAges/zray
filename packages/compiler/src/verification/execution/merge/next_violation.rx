@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Merge" />
+
+    <Args in={Merge.Safety} out={Merge.Safety} />
+
+    <Call
+        fn="../../predicate/exclude"
+        in={{
+            left: $in.safe,
+            right: $in.violations[$in.row]
+        }}
+    />
+
+    <Call
+        module="operate"
+        in={{
+            step: Merge.Step.Boolean,
+            term: $ctx.exclude
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1,
+            safe: $ctx.operate
+        }}
+    />
+</Module>

@@ -1,12 +1,4 @@
-export type Inference = mutable_opaque
-
-export type Derivation = mutable_opaque
-
-export type Solver = mutable_opaque
-
 export type ConstraintRound = mutable_opaque
-
-export type TypeResolver = mutable_opaque
 
 export type AssignmentApplication = mutable_opaque
 
@@ -14,75 +6,13 @@ export type AssignmentRegistration = mutable_opaque
 
 export type KnownRegistration = mutable_opaque
 
-export type UnificationTarget = mutable_opaque
-
-export type ObjectReadiness = mutable_opaque
-
-export type ObjectReplay = mutable_opaque
-
-export type ObjectFieldReplay = mutable_opaque
-
-export type FieldAccess = mutable_opaque
-
-export type ObjectConstructionRow = mutable_opaque
-
 export type OptionalQuery = mutable_opaque
 
 export type ProjectionGraph = mutable_opaque
 
 export type ProjectionSpans = opaque
 
-export type DeclaredPort = {
-    row: u64,
-    offset: u64,
-    input: u32,
-    output: u32
-}
-
-export type PortBatch = {
-    first: u64,
-    offsets: u64[],
-    declared?: DeclaredPort
-}
-
-export type ConstraintCollection = mutable_opaque
-
-export type ConstraintModule = {
-    shortcut: bool,
-    fixed: bool
-}
-
-export type ConstraintBody = {
-    returned: bool,
-    used: bool,
-    binding_end: u64,
-    task_end: u64
-}
-
-export type FlowTraversal = mutable_opaque
-
 export type ModulePreparation = opaque
-
-export enum FlowKind {
-    Call,
-    Parallel,
-    Return,
-    Task,
-    Selection
-}
-
-export enum FlowPublish {
-    None,
-    Evaluate,
-    Constant
-}
-
-export type BodyStatements = mutable_opaque
-
-export type BodyImport = {
-    addition: bool,
-    needs_initializers: bool
-}
 
 export enum OperandColumn {
     binary_left,

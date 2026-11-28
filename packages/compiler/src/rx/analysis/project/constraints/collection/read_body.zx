@@ -1,0 +1,12 @@
+import type { Body, Effect as Input } from "./effect"
+
+export type Output = Body
+
+export default function (in: Input): Output {
+    return {
+        returned: in.returned,
+        used: in.used,
+        binding_end: in.bindings,
+        task_end: in.tasks
+    }
+}

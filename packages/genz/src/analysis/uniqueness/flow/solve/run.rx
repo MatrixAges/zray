@@ -1,15 +1,28 @@
 <Module>
     <Type from="model" as="Flow" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Flow.Input} out={void} />
 
-    <Call fn="index.initializeFlow" in={$in.flow} />
+    <Store from="execution" as="flow" />
+
+    <Call
+        fn="submit"
+        in={{
+            step: Effect.Step.Initialize
+        }}
+        setter={[$store.flow.exchange]}
+    />
+
+    <Task name="initial" out={$ctx.read}>
+        <Call fn="read" in={$store.flow.exchange} />
+    </Task>
 
     <Call
         module="../../layers/plan"
         in={{
             ...$in.functions,
-            held: $ctx.initializeFlow,
+            held: $ctx.task.initial.held,
             remembered: $in.remembered
         }}
     />
@@ -19,7 +32,7 @@
             module="../fixpoint/create"
             in={{
                 ...$in.functions,
-                held: $ctx.initializeFlow
+                held: $ctx.task.initial.held
             }}
         />
 
@@ -27,11 +40,11 @@
             <Call
                 module="recursive"
                 in={{
-                    flow: $in.flow,
                     queue: {
                         ...$ctx.create,
                         changed: null
                     },
+                    started: false,
                     running: true
                 }}
             />
@@ -39,21 +52,34 @@
 
         <Else>
             <If on={$in.remembered}>
-                <Call fn="index.reserveFlowMemo" in={$in.flow} />
+                <Call
+                    fn="submit"
+                    in={{
+                        step: Effect.Step.ReserveMemo
+                    }}
+                    setter={[$store.flow.exchange]}
+                />
             </If>
 
             <If on={$ctx.plan.order.length != 0}>
-                <Call fn="index.openFlowWorkers" in={$in.flow} />
+                <Call
+                    fn="submit"
+                    in={{
+                        step: Effect.Step.OpenWorkers
+                    }}
+                    setter={[$store.flow.exchange]}
+                />
+
+                <Call fn="read" in={$store.flow.exchange} />
 
                 <Loop on={$in.running}>
                     <Call
                         module="layer"
                         in={{
-                            flow: $in.flow,
                             remembered: $in.remembered,
                             order: $ctx.plan.order,
                             ends: $ctx.plan.ends,
-                            hits: $ctx.openFlowWorkers,
+                            hits: $ctx.read.hits,
                             layer: 0,
                             first: 0,
                             running: $ctx.plan.ends.length != 0

@@ -1,0 +1,18 @@
+<Module>
+    <Type from="effect/model" as="Operation" />
+    <Type from="model" as="Expression" />
+
+    <Args in={Expression.Selection} out={Operation.Value} />
+
+    <Call
+        module="effect/run"
+        in={{
+            step: Operation.Step.Select,
+            text: $in.condition,
+            yes: $in.yes,
+            no: $in.no
+        }}
+    />
+
+    <Return value={$ctx.run.value} />
+</Module>

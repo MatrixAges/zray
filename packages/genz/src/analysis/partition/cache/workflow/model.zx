@@ -1,3 +1,48 @@
-import type { PartitionInputs } from "partition_host"
+import type { PartitionHash, PartitionMember } from "partition_host"
 
-export type Input = PartitionInputs
+export type Files = {
+    paths: string[],
+    hashes: u64[],
+    members: PartitionMember[],
+    offsets: u64[]
+}
+
+export type Input = Files & {
+    prefix: PartitionHash,
+    zig: string,
+    generated: string,
+    objects: string,
+    arguments: string[],
+    external: string[],
+    types?: u64,
+    signatures?: u64
+}
+
+export type External = {
+    paths: string[],
+    prefix: PartitionHash,
+    row: u64
+}
+
+export type Keys = {
+    files: Files,
+    prefix: PartitionHash,
+    digests: u8[][],
+    row: u64
+}
+
+export type Presence = {
+    paths: string[],
+    present: bool[],
+    row: u64
+}
+
+export type Diagnostics = {
+    messages: string?[],
+    row: u64
+}
+
+export type Publish = {
+    path: u8[],
+    digests: u8[][]
+}

@@ -1,0 +1,54 @@
+<Module>
+    <Type from="../effect" as="Effect" />
+    <Type from="../operation" as="Operation" />
+
+    <Args in={Effect.Coverage} out={Operation.Coverage?} />
+
+    <If on={!$in.inference}>
+        <Return value={null} />
+    </If>
+
+    <Call
+        fn="is_default"
+        in={$in.pick([
+            "labels",
+            "position",
+            "fallback"
+        ])}
+    />
+
+    <If on={$ctx.is_default}>
+        <Loop on={!$in.stopped && $in.position < $in.end}>
+            <Call
+                module="lookahead"
+                in={{
+                    labels: $in.labels,
+                    fallback: $in.fallback,
+                    end: $in.end,
+                    position: $in.position + 1,
+                    stopped: $in.case_stopped,
+                    remaining: $in.case_remaining
+                }}
+            />
+        </Loop>
+
+        <Return
+            value={{
+                truth: $ctx.lookahead.remaining,
+                stopped: true,
+                remaining: $ctx.lookahead.remaining
+            }}
+        />
+    </If>
+
+    <Call
+        fn="record_case"
+        in={$in.pick([
+            "truth",
+            "case_remaining",
+            "case_stopped"
+        ])}
+    />
+
+    <Return value={$ctx.record_case} />
+</Module>

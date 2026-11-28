@@ -1,0 +1,54 @@
+<Module>
+    <Type from="../effect" as="Effect" />
+    <Type from="../operation" as="Operation" />
+
+    <Args in={Effect.Lookahead} out={Effect.Lookahead} />
+
+    <Store from="../operations" as="operations" />
+
+    <Call
+        fn="is_default"
+        in={$in.pick([
+            "labels",
+            "position",
+            "fallback"
+        ])}
+    />
+
+    <If on={$ctx.is_default}>
+        <Return
+            value={{
+                ...$in,
+                position: $in.position + 1
+            }}
+        />
+    </If>
+
+    <Call
+        fn="../stage"
+        in={{
+            step: Operation.Step.ReadLabel,
+            row: $in.position
+        }}
+        setter={[$store.operations.effect]}
+    />
+
+    <Call fn="../read_truth" in={$store.operations.effect} />
+
+    <Call
+        fn="../../../../condition/coverage"
+        in={{
+            remaining: $in.remaining,
+            label: $ctx.read_truth
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            position: $in.position + 1,
+            stopped: $ctx.coverage.stopped,
+            remaining: $ctx.coverage.remaining
+        }}
+    />
+</Module>

@@ -56,11 +56,11 @@
 
         <If on={$ctx.acquire.downloaded}>
             <Call
-                fn="index.write"
-                in={[
-                    $ctx.blob_path,
-                    $ctx.acquire.bytes
-                ]}
+                module="../../workspace_files/write_bytes"
+                in={{
+                    path: $ctx.blob_path,
+                    data: $ctx.acquire.bytes
+                }}
             />
         </If>
 

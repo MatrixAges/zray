@@ -1,0 +1,9 @@
+<Store name="rx_constraint_flow" version={1}>
+    <Type from="effect" as="Flow" />
+
+    <Object name="effect">
+        <Field name="flow_step" type={Flow.Step} value={Flow.Step.OpenPorts} />
+        <Field name="batches" type={Flow.PortBatch[]} value={[]} />
+        <Field name="signatures" type={Flow.Signatures?} value={null} />
+    </Object>
+</Store>

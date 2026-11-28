@@ -1,0 +1,19 @@
+import { Phase } from "../../replay/shortcut/phase"
+
+import type { Request as Input } from "./effect"
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.driver.exchange = {
+        request: in,
+        available: false,
+        body: null,
+        grew: false,
+        exhausted: false,
+        phase: Phase.Start,
+        recovered: null
+    }
+}

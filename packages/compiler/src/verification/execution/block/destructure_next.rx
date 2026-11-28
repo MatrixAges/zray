@@ -1,0 +1,33 @@
+<Module>
+    <Type from="destructure" as="Destructure" />
+    <Type from="effect/model" as="Operation" />
+
+    <Args in={Destructure.Output} out={Destructure.Output} />
+
+    <If on={$in.symbols[$in.first + $in.field] != null}>
+        <Call
+            fn="../expression/field"
+            in={{
+                value: $in.value,
+                layout: $in.layout,
+                index: $in.field
+            }}
+        />
+
+        <Call
+            module="effect/run"
+            in={{
+                step: Operation.Step.Bind,
+                row: $in.symbols[$in.first + $in.field],
+                value: $ctx.field
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            field: $in.field + 1
+        }}
+    />
+</Module>

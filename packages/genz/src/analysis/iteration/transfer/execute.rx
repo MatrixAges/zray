@@ -3,19 +3,34 @@
 
     <Args in={Transfer.Execute} out={Transfer.Published} />
 
+    <Store from="history/publication" as="history" />
+
     <Call module="build" in={$in.request} />
 
     <Call
         fn="publish_ast"
         in={{
             ...$in.pick([
-                "frame",
                 "writer",
-                "body",
-                "context"
+                "body"
             ]),
             output: $ctx.build
         }}
+    />
+
+    <Call
+        fn="history/publish"
+        in={$ctx.build.record}
+        setter={[$store.history.record]}
+    />
+
+    <Call
+        fn="../../statements/rows.finishGeneratedAst"
+        in={[
+            $in.frame,
+            $ctx.build.serial,
+            true
+        ]}
     />
 
     <Return value={$ctx.publish_ast} />

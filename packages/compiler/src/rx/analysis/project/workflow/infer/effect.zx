@@ -1,0 +1,13 @@
+export enum Step {
+    Normalize,
+    Restore,
+    Derive,
+    Compile,
+    Publish
+}
+
+export type Effect = {
+    step: Step,
+    signatures: bool,
+    retained: bool
+}

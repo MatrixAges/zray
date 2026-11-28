@@ -1,4 +1,6 @@
 import type { Output as RenewalPlan } from "../../deferred/model"
+import type { Layout } from "../../parameters/layout"
+import type { Tracker } from "../../state/model"
 import type { Output as StepPlan } from "../../step/model"
 import type { Input } from "./model"
 
@@ -16,19 +18,50 @@ export type StorageInput = Input.Pick(
 export type Update = {
     condition: u32,
     value: u32,
-    first?: u32
+    first?: u32,
+    mark?: Tracker
 }
 
-export type Renewals = Input.Pick("loop_frame", "renewal_source") & {
+export type Renewals = Input.Pick("renewal_source") & {
     owner: u32,
     schedule: StepPlan
 }
 
 export type Evaluate =
-    Input.Pick("frame", "loop_frame", "parameters", "initial_plan") & {
+    Input.Pick(
+        "frame",
+        "writer",
+        "body_seq",
+        "loop_frame",
+        "context",
+        "type_id",
+        "initial_plan"
+    ) & {
         schedule: StepPlan,
         renewals: RenewalPlan,
         name: u8[],
         seed_name: u8[],
         initial_state: u32
     }
+
+export type Evaluation = Evaluate.Pick(
+    "frame",
+    "loop_frame",
+    "schedule",
+    "renewals",
+    "name",
+    "seed_name"
+)
+
+export type Declaration = Evaluate.Pick(
+    "frame",
+    "writer",
+    "body_seq",
+    "context",
+    "type_id",
+    "initial_state"
+) & {
+    name: u8[],
+    layout: Layout,
+    mutable: bool
+}

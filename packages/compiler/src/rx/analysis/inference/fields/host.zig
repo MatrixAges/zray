@@ -4,6 +4,7 @@ const Graph = @import("../types.zig");
 const Nodes = @import("../nodes.zig");
 const View = @import("view.zig");
 const errors = @import("../../project/workflow/errors.zig");
+const execution = @import("../../project/workflow/execute.zig");
 const rule = @import("generated_rx_read_field");
 const Input = std.meta.Child(rule.Input);
 const Site = std.meta.Child(@FieldType(Input, "site"));
@@ -51,7 +52,6 @@ pub const Frame = struct {
         };
 
         self.site = .{
-            .frame = @ptrCast(self),
             .receiver = &self.receiver,
             .members = &self.members,
             .prefix = layout.prefix,
@@ -61,32 +61,60 @@ pub const Frame = struct {
 
         return shape;
     }
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
 pub fn read(graph: *Graph, target: Graph.Id, root: Graph.Id, name: []const u8, span: zx.Span, open: bool) zx.Error!Graph.Id {
     var frame: Frame = .{ .graph = graph, .target = target, .root = root, .span = span };
+
     _ = frame.bind();
 
     const input: Input = .{ .site = &frame.site, .name = name, .open = open };
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const outcome = zx.columns.invoke(rule.executeValue, empty.allocator(), &input) catch |err| return errors.errorSet(err);
+    const Store = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
+
+    const Host = struct {
+        frame: *Frame,
+        reply: *std.meta.Child(Store),
+        store_0: *Store,
+        pub fn commit(host: *@This(), pending: rule.zx_pending) zx.Error!void {
+            const effect = pending.store_0 orelse return;
+
+            try apply(host.frame, effect, host.reply);
+        }
+    };
+
+    var reply = execution.snapshot(std.meta.Child(Store), .{ .object_step = .AddNode, .id = 0, .ready = false });
+    var store: Store = &reply;
+    var host: Host = .{ .frame = &frame, .reply = &reply, .store_0 = &store };
+    var arena = std.heap.ArenaAllocator.init(graph.scratch);
+
+    defer arena.deinit();
+
+    var bytes: [512]u8 = undefined;
+    var scratch = std.heap.BufferFirstAllocator.init(&bytes, arena.allocator());
+
+    const outcome = rule.executeIn(scratch.allocator(), &input, &host) catch |err| return switch (@as(anyerror, err)) {
+        error.Overflow, error.IntegerOverflow => error.OutOfMemory,
+        else => errors.errorSet(err),
+    };
 
     if (outcome.revised) graph.revision += 1;
 
     return @fromBackingInt(outcome.value);
 }
 
-pub fn addFieldNode(handle: *anyopaque) zx.Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try frame.graph.add(.unknown, frame.span));
+pub fn apply(frame: *Frame, effect: anytype, reply: anytype) zx.Error!void {
+    switch (effect.object_step) {
+        .AddNode => reply.id = @backingInt(try frame.graph.add(.unknown, frame.span)),
+        .AppendMember => reply.id = try appendFieldMember(frame, effect.name.?, effect.capacity),
+        .RegisterType => reply.id = @backingInt(try frame.graph.known(@fromBackingInt(effect.type_id.?), frame.span)),
+        .RequireList => _ = try frame.graph.payload(frame.target, .list, frame.span),
+        .AppendLength => try appendLengthProjection(frame, effect.source.?),
+        .RejectAccess => return frame.graph.reporter.fail(.type_mismatch, frame.span, effect.message.?),
+        else => unreachable,
+    }
 }
 
-pub fn appendFieldMember(handle: *anyopaque, name: []const u8, capacity: ?u64) zx.Error!u32 {
-    const frame = Frame.borrow(handle);
+fn appendFieldMember(frame: *Frame, name: []const u8, capacity: ?u64) zx.Error!u32 {
     const graph = frame.graph;
     const value = try graph.add(.unknown, frame.span);
     const owned_name = try graph.types.allocator.dupe(u8, name);
@@ -100,20 +128,7 @@ pub fn appendFieldMember(handle: *anyopaque, name: []const u8, capacity: ?u64) z
     return @backingInt(value);
 }
 
-pub fn registerFieldType(handle: *anyopaque, type_id: u32) zx.Error!u32 {
-    const frame = Frame.borrow(handle);
-
-    return @backingInt(try frame.graph.known(@fromBackingInt(type_id), frame.span));
-}
-
-pub fn requireFieldList(handle: *anyopaque) zx.Error!void {
-    const frame = Frame.borrow(handle);
-
-    _ = try frame.graph.payload(frame.target, .list, frame.span);
-}
-
-pub fn appendLengthProjection(handle: *anyopaque, value: u32) std.mem.Allocator.Error!void {
-    const frame = Frame.borrow(handle);
+fn appendLengthProjection(frame: *Frame, value: u32) std.mem.Allocator.Error!void {
     const pending = &frame.graph.pending;
 
     try pending.lengths.append(pending.allocator, .{
@@ -121,10 +136,4 @@ pub fn appendLengthProjection(handle: *anyopaque, value: u32) std.mem.Allocator.
         .value = @fromBackingInt(value),
         .span = frame.span,
     });
-}
-
-pub fn rejectFieldAccess(handle: *anyopaque, message: []const u8) zx.Error!void {
-    const frame = Frame.borrow(handle);
-
-    return frame.graph.reporter.fail(.type_mismatch, frame.span, message);
 }

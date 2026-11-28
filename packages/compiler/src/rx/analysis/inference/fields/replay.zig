@@ -38,14 +38,20 @@ pub const Frame = struct {
         self.view = .{ .object = &self.object, .parents = self.graph.parents(), .known = &self.known, .site = &self.access.site };
         self.bound = true;
     }
-
-    pub fn from(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
-pub fn refreshObjectReplayFields(handle: *anyopaque) void {
-    const frame = Frame.from(handle);
+pub fn apply(frame: *Frame, effect: anytype, reply: anytype) zx.Error!void {
+    switch (effect.object_step) {
+        .RefreshFields => refresh(frame),
+        .ExpectField => try frame.graph.expect(@fromBackingInt(effect.source.?), @fromBackingInt(effect.target.?), frame.span),
+        .RegisterFields => try @import("../known.zig").registerMembers(frame.graph, effect.members.?, frame.span),
+        .UnifyFields => try frame.graph.unify(@fromBackingInt(effect.target.?), @fromBackingInt(effect.source.?), frame.span),
+        .RejectField => return frame.graph.reporter.fail(if (effect.name_error.?) .name else .type_mismatch, frame.span, effect.message.?),
+        else => try Access.apply(&frame.access, effect, reply),
+    }
+}
+
+fn refresh(frame: *Frame) void {
     const was_bound = frame.bound;
     const previous_kind = if (was_bound) frame.access.receiver.kind else undefined;
     const previous_count = if (was_bound) frame.access.members.values.len else 0;
@@ -55,28 +61,4 @@ pub fn refreshObjectReplayFields(handle: *anyopaque) void {
     if (was_bound and (frame.access.receiver.kind != previous_kind or frame.access.members.values.len != previous_count)) {
         frame.graph.revision += 1;
     }
-}
-
-pub fn expectObjectReplayField(handle: *anyopaque, source: u32, target: u32) zx.Error!void {
-    const frame = Frame.from(handle);
-
-    try frame.graph.expect(@fromBackingInt(source), @fromBackingInt(target), frame.span);
-}
-
-pub fn registerDeclaredReplayFields(handle: *anyopaque, members: []const u32) zx.Error!void {
-    const frame = Frame.from(handle);
-
-    try @import("../known.zig").registerMembers(frame.graph, members, frame.span);
-}
-
-pub fn unifyReplayFields(handle: *anyopaque, target: u32, source: ?u32) zx.Error!void {
-    const frame = Frame.from(handle);
-
-    try frame.graph.unify(@fromBackingInt(target), @fromBackingInt(source.?), frame.span);
-}
-
-pub fn reportReplayFieldError(handle: *anyopaque, name_error: bool, message: []const u8) zx.Error!void {
-    const frame = Frame.from(handle);
-
-    return frame.graph.reporter.fail(if (name_error) .name else .type_mismatch, frame.span, message);
 }

@@ -1,0 +1,25 @@
+export type Documents = {
+    batches: u8[][]
+}
+
+export type Input = {
+    loaded: Documents,
+    batch: u8[],
+    row: u64
+}
+
+export type Output = u64
+
+export default function (in: Input, {
+    $store
+}): Output {
+    const { loaded, batch, row } = in
+
+    if (batch.length != 0) {
+        $store.documents.loaded = {
+            batches: loaded.batches.push(batch)[0]
+        }
+    }
+
+    return row + 1
+}

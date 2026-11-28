@@ -2,8 +2,11 @@
     <Type from="model" as="Construction" />
     <Type from="../application" as="Application" />
     <Type from="../diagnostic" as="Diagnostic" />
+    <Type from="../../object_closure/effect" as="ObjectEffect" />
 
     <Args in={Construction.Cursor} out={Construction.Cursor} />
+
+    <Store from="../../object_closure/object" as="object" />
 
     <Call
         fn="../replay"
@@ -41,7 +44,7 @@
     <Call
         module="source"
         in={{
-            frame: $in.request.frame,
+
             part: $in.request.parts[$ctx.replay.row],
             target: $ctx.target,
             source: $ctx.replay.source,
@@ -52,12 +55,13 @@
     <Switch on={$ctx.replay.effect}>
         <Case value={Application.Effect.Bind}>
             <Call
-                fn="host.expectObjectReplayField"
-                in={[
-                    $in.request.fields,
-                    $ctx.source,
-                    $ctx.target
-                ]}
+                fn="../../object_closure/stage"
+                in={{
+                    object_step: ObjectEffect.Step.ExpectField,
+                    source: $ctx.source,
+                    target: $ctx.target
+                }}
+                setter={[$store.object.effect]}
             />
         </Case>
 
@@ -65,7 +69,7 @@
             <Call
                 module="../report"
                 in={{
-                    frame: $in.request.frame,
+
                     row: null,
                     issue: Diagnostic.Issue.AmbiguousField
                 }}
@@ -76,7 +80,7 @@
             <Call
                 module="required"
                 in={{
-                    frame: $in.request.frame,
+
                     part: $in.request.parts[$ctx.replay.row],
                     name: $in.request.names[$ctx.replay.row],
                     target: $ctx.target,
@@ -87,7 +91,13 @@
         </Case>
     </Switch>
 
-    <Call fn="host.refreshObjectReplayFields" in={$in.request.fields} />
+    <Call
+        fn="../../object_closure/stage"
+        in={{
+            object_step: ObjectEffect.Step.RefreshFields
+        }}
+        setter={[$store.object.effect]}
+    />
 
     <Return
         value={{

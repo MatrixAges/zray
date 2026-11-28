@@ -13,14 +13,14 @@
         />
 
         <Call
-            fn="index.readLocalArchive"
-            in={[
-                $ctx.local,
-                $in.maximum_archive
-            ]}
+            fn="index.readFile"
+            in={{
+                path: $ctx.local,
+                max_bytes: $in.maximum_archive
+            }}
         />
 
-        <If on={$ctx.readLocalArchive.length > $in.maximum_archive}>
+        <If on={$ctx.readFile.length > $in.maximum_archive}>
             <Return
                 value={{
                     status: Download.Status.PackageArchiveTooLarge
@@ -31,7 +31,7 @@
         <Return
             value={{
                 status: Download.Status.Ready,
-                body: $ctx.readLocalArchive
+                body: $ctx.readFile
             }}
         />
     </If>

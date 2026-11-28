@@ -61,7 +61,6 @@ pub fn bind(self: *Self, graph: *Graph, closure: *Closure, scope: *zx.memory.Are
     };
 
     self.view = .{
-        .frame = @ptrCast(self),
         .constructions = &self.constructions,
         .construction = &self.construction,
         .selections = &self.selections,
@@ -81,13 +80,17 @@ fn refresh(self: *Self) void {
     self.selections.revision = self.context.revision;
 }
 
-pub fn from(handle: *anyopaque) *Self {
-    return @ptrCast(@alignCast(handle));
-}
-
-pub fn finishObjectRow(handle: *anyopaque) void {
-    const frame = from(handle);
-
-    frame.memory.close(frame.scope);
-    frame.refresh();
+pub fn commit(self: *Self, effect: anytype, reply: anytype) zx.Error!void {
+    switch (effect.object_step) {
+        .UpdateReadiness => reply.ready = try Readiness.updateReadiness(&self.readiness, effect.rebuild.?, effect.position.?, effect.spread.?, effect.shared.?),
+        .OpenConstruction => Construction.openRow(self, effect.row.?, effect.root.?, effect.final.?),
+        .OpenSelection => @import("../selection/host.zig").openRow(self, effect.row.?, effect.root.?),
+        .FinishRow => {
+            self.memory.close(self.scope);
+            self.refresh();
+        },
+        .ReserveSpreads, .BindSpread, .CommitSpread, .RegisterSource, .DescribeTarget, .InferField, .RejectConstruction =>
+            try Construction.apply(&self.constructed, effect, reply),
+        else => try Fields.apply(&self.fields, effect, reply),
+    }
 }

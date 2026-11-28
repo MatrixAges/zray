@@ -1,15 +1,17 @@
 <Module>
     <Type from="model" as="Plan" />
     <Type from="workflow" as="Traversal" />
+    <Type from="publication" as="Publication" />
 
     <Args in={Traversal.Write} out={Traversal.Step} />
+
+    <Store from="publication" as="publication" />
 
     <Switch on={$in.event.action}>
         <Case value={Plan.Action.Calls}>
             <Call
                 module="calls/step"
                 in={{
-                    frame: $in.frame,
                     control: $in.control,
                     indices: $in.call_ids,
                     first: $in.event.first,
@@ -32,7 +34,6 @@
                 <Call
                     module="calls/step"
                     in={{
-                        frame: $in.frame,
                         control: $in.control,
                         indices: $in.call_ids,
                         first: $in.event.first,
@@ -69,20 +70,25 @@
         </Case>
 
         <Case value={Plan.Action.Return}>
-            <Call
-                fn="host.evaluateBodyValue"
-                in={[
-                    $in.frame,
-                    $in.event.first,
-                    false
-                ]}
-            />
+            <Task name="evaluate_body_value" out={$ctx.read_id}>
+                <Call
+                    fn="stage"
+                    in={{
+                        step: Publication.Step.EvaluateValue,
+                        row: $in.event.first,
+                        borrowed: false
+                    }}
+                    setter={[$store.publication.effect]}
+                />
+
+                <Call fn="read_id" in={$store.publication.effect} />
+            </Task>
 
             <Call
                 fn="../../control/write/result"
                 in={{
                     writer: $in.control.writer,
-                    value: $ctx.evaluateBodyValue
+                    value: $ctx.task.evaluate_body_value
                 }}
             />
 
@@ -96,20 +102,25 @@
         </Case>
 
         <Case value={Plan.Action.ReturnBorrowed}>
-            <Call
-                fn="host.evaluateBodyValue"
-                in={[
-                    $in.frame,
-                    $in.event.first,
-                    true
-                ]}
-            />
+            <Task name="evaluate_body_value" out={$ctx.read_id}>
+                <Call
+                    fn="stage"
+                    in={{
+                        step: Publication.Step.EvaluateValue,
+                        row: $in.event.first,
+                        borrowed: true
+                    }}
+                    setter={[$store.publication.effect]}
+                />
+
+                <Call fn="read_id" in={$store.publication.effect} />
+            </Task>
 
             <Call
                 fn="../../control/write/result"
                 in={{
                     writer: $in.control.writer,
-                    value: $ctx.evaluateBodyValue
+                    value: $ctx.task.evaluate_body_value
                 }}
             />
 
@@ -142,21 +153,26 @@
         </Case>
 
         <Case value={Plan.Action.OpenSelection}>
-            <Call
-                fn="host.evaluateBodyValue"
-                in={[
-                    $in.frame,
-                    $in.event.first,
-                    false
-                ]}
-            />
+            <Task name="evaluate_body_value" out={$ctx.read_id}>
+                <Call
+                    fn="stage"
+                    in={{
+                        step: Publication.Step.EvaluateValue,
+                        row: $in.event.first,
+                        borrowed: false
+                    }}
+                    setter={[$store.publication.effect]}
+                />
+
+                <Call fn="read_id" in={$store.publication.effect} />
+            </Task>
 
             <Call
                 fn="scope_save"
                 in={{
                     active: $in.scopes.active,
                     slot: $in.event.slot,
-                    value: $ctx.evaluateBodyValue
+                    value: $ctx.task.evaluate_body_value
                 }}
             />
 
@@ -170,24 +186,35 @@
         </Case>
 
         <Case value={Plan.Action.OpenCase}>
-            <Call
-                fn="host.evaluateBodyCaseLabel"
-                in={[
-                    $in.frame,
-                    $in.event.first
-                ]}
-            />
+            <Task name="evaluate_body_case_label" out={$ctx.read_optional_id}>
+                <Call
+                    fn="stage"
+                    in={{
+                        step: Publication.Step.EvaluateLabel,
+                        row: $in.event.first
+                    }}
+                    setter={[$store.publication.effect]}
+                />
+
+                <Call fn="read_optional_id" in={$store.publication.effect} />
+            </Task>
 
             <Call
                 fn="scope_save"
                 in={{
                     active: $in.scopes.active,
                     slot: $in.event.slot,
-                    value: $ctx.evaluateBodyCaseLabel
+                    value: $ctx.task.evaluate_body_case_label
                 }}
             />
 
-            <Call fn="host.initializeBodyCase" in={$in.frame} />
+            <Call
+                fn="stage"
+                in={{
+                    step: Publication.Step.InitializeCase
+                }}
+                setter={[$store.publication.effect]}
+            />
 
             <Return
                 value={{
@@ -220,7 +247,6 @@
             <Call
                 module="finish_task"
                 in={$in.pick([
-                    "frame",
                     "control",
                     "scopes",
                     "event"
@@ -238,7 +264,6 @@
             <Call
                 module="finish_task"
                 in={$in.pick([
-                    "frame",
                     "control",
                     "scopes",
                     "event"

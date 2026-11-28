@@ -1,0 +1,13 @@
+import type { Scope } from "../model"
+
+export type Cases = {
+    scope: Scope,
+    row: u64,
+    end: u64,
+    subject: string,
+    path: string,
+    unmatched: string,
+    continuation: string,
+    fallback?: u32,
+    violations: string[]
+}

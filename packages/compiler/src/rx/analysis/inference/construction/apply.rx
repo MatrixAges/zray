@@ -2,15 +2,18 @@
     <Type from="workflow" as="Construction" />
     <Type from="../fields/view" as="Fields" />
     <Type from="diagnostic" as="Diagnostic" />
+    <Type from="../object_closure/effect" as="ObjectEffect" />
 
     <Args in={Construction.Row} out={void} />
+
+    <Store from="../object_closure/object" as="object" />
 
     <Switch on={$in.mode}>
         <Case value={Fields.Mode.Invalid}>
             <Call
                 module="report"
                 in={{
-                    frame: $in.projection.frame,
+
                     row: null,
                     issue: Diagnostic.Issue.InvalidSpread
                 }}
@@ -21,7 +24,7 @@
             <Call
                 module="report"
                 in={{
-                    frame: $in.projection.frame,
+
                     row: null,
                     issue: Diagnostic.Issue.InvalidDeclared
                 }}
@@ -41,13 +44,18 @@
     />
 
     <If on={$ctx.resolve.names.length != 0}>
-        <Call fn="../fields/host.refreshObjectReplayFields" in={$in.fields} />
+        <Call
+            fn="../object_closure/stage"
+            in={{
+                object_step: ObjectEffect.Step.RefreshFields
+            }}
+            setter={[$store.object.effect]}
+        />
 
         <Call
             module="application/run"
             in={{
-                frame: $in.projection.frame,
-                fields: $in.fields,
+
                 field_view: $in.field_view,
                 shape: $in.shape,
                 ...$ctx.resolve

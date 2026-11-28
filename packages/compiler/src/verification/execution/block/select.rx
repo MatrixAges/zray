@@ -1,0 +1,50 @@
+<Module>
+    <Type from="model" as="Block" />
+
+    <Args in={Block.Payload} out={Block.Outcome} />
+
+    <Call module="evaluate" in={$in.scope.control.selection_subjects[$in.payload]} />
+
+    <Call
+        module="guard"
+        in={{
+            path: $in.path,
+            violations: $in.violations,
+            safe: $ctx.evaluate.safe
+        }}
+    />
+
+    <Call
+        fn="selection/start"
+        in={{
+            scope: $in.scope,
+            payload: $in.payload,
+            subject: $ctx.evaluate.text ?? "",
+            path: $ctx.guard.path,
+            violations: $ctx.guard.violations
+        }}
+    />
+
+    <Loop on={$in.row < $in.end}>
+        <Call module="selection/next" />
+    </Loop>
+
+    <Call module="selection/fallback" />
+
+    <Call
+        fn="../../scalar/disjunction"
+        in={{
+            left: $ctx.next.continuation,
+            right: $ctx.fallback.path
+        }}
+    />
+
+    <Call module="boolean" />
+
+    <Return
+        value={{
+            path: $ctx.boolean,
+            violations: $ctx.fallback.violations
+        }}
+    />
+</Module>

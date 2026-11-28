@@ -1,16 +1,10 @@
-import { loadDiskSemanticSource } from "compilation_host"
+import type { ReadInput as Input, ReadWalk } from "./model"
 
-import type { ReadInput as Input } from "./model"
-
-export type Output = void
+export type Output = ReadWalk
 
 export default function (in: Input): Output {
-    const loaded = loop(0, {
-        while: row => row < in.count,
-        next: row => {
-            loadDiskSemanticSource(in.disk, row)
-
-            row += 1
-        }
-    })
+    return {
+        ...in,
+        index: 0
+    }
 }

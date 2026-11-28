@@ -4,19 +4,31 @@
     <Args in={Project.FunctionWalk} out={Project.FunctionWalk} />
 
     <Call
-        fn="../index.checkFunction"
+        fn="../index.prepareCheckFunction"
         in={[
             $in.check,
-            $in.index
+            $in.index,
+            $in.buckets[$in.index].calls
         ]}
+    />
+
+    <Call
+        module="../function/run"
+        in={{
+            check: $in.check,
+            path: $ctx.prepareCheckFunction,
+            has_calls: $in.buckets[$in.index].calls.length != 0,
+            module_paths: $in.roots
+        }}
     />
 
     <Return
         value={{
             ...$in,
             index: $in.index + 1,
-            valid: $ctx.checkFunction,
-            running: $ctx.checkFunction && $in.index + 1 < $in.count
+            valid: $ctx.run.valid,
+            diagnostic: $ctx.run.diagnostic,
+            running: $ctx.run.valid && $in.index + 1 < $in.buckets.length
         }}
     />
 </Module>

@@ -2,10 +2,14 @@
     <Type from="index" as="IO" />
     <Type from="model" as="Compile" />
 
-    <Args in={Compile.Request} out={IO.Status} />
+    <Args in={Compile.Request} out={Compile.Outcome} />
 
     <If on={$in.settings.linting}>
-        <Return value={IO.Status.Linting} />
+        <Return
+            value={{
+                status: IO.Status.Linting
+            }}
+        />
     </If>
 
     <If on={$in.settings.formatting}>
@@ -25,27 +29,47 @@
     <Call fn="../lint/is_rx" />
 
     <If on={$ctx.is_rx && !$in.settings.library}>
-        <Return value={IO.Status.RunRx} />
+        <Return
+            value={{
+                status: IO.Status.RunRx
+            }}
+        />
     </If>
 
     <Call fn="index.loadCompilationProject" in={$in.compilation} />
 
     <If on={!$ctx.loadCompilationProject}>
-        <Return value={IO.Status.Failed} />
+        <Return
+            value={{
+                status: IO.Status.Failed
+            }}
+        />
     </If>
 
     <Call fn="../lint/is_manifest" in={$ctx.resolveCompilationEntry} />
 
     <If on={$in.settings.verifying && $ctx.is_manifest}>
-        <Return value={IO.Status.LibraryProof} />
+        <Return
+            value={{
+                status: IO.Status.LibraryProof
+            }}
+        />
     </If>
 
     <If on={$in.settings.native && $in.settings.library}>
-        <Return value={IO.Status.LibraryBuild} />
+        <Return
+            value={{
+                status: IO.Status.LibraryBuild
+            }}
+        />
     </If>
 
     <If on={$ctx.is_rx}>
-        <Return value={IO.Status.RunRx} />
+        <Return
+            value={{
+                status: IO.Status.RunRx
+            }}
+        />
     </If>
 
     <Call module="application" in={$in} />

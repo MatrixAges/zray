@@ -1,75 +1,9 @@
-export declare function updateObjectReadiness(
-    frame: ObjectReadiness,
-    rebuild: bool,
-    position: u64,
-    spread: bool,
-    shared: bool
-): bool throws { OutOfMemory }
+export declare function borrowSequenceElementSpans(owner: ProjectionGraph, row: u64): ProjectionSpans
 
-export declare function openConstructionRow(frame: ObjectReplay, row: u64, root: u32, final: bool): void
-
-export declare function openSelectionRow(frame: ObjectReplay, row: u64, root: u32): void
-
-export declare function finishObjectRow(frame: ObjectReplay): void
-
-export declare function refreshObjectReplayFields(frame: ObjectFieldReplay): void
-
-export declare function expectObjectReplayField(
-    frame: ObjectFieldReplay,
-    source: u32,
-    target: u32
-): void throws { OutOfMemory, InvalidSource }
-
-export declare function registerDeclaredReplayFields(frame: ObjectFieldReplay, members: u32[]): void
-    throws { OutOfMemory, InvalidSource }
-
-export declare function unifyReplayFields(
-    frame: ObjectFieldReplay,
-    target: u32,
-    source: u32?
-): void throws { OutOfMemory, InvalidSource }
-
-export declare function reportReplayFieldError(
-    frame: ObjectFieldReplay,
-    name_error: bool,
-    message: string
-): void throws { OutOfMemory, InvalidSource }
-
-export declare function reserveObjectSpreadColumns(frame: ObjectConstructionRow): void
-    throws { OutOfMemory }
-
-export declare function bindObjectSpreadFields(
-    frame: ObjectConstructionRow,
-    root: u32,
-    declared: bool,
-    inferred: bool
-): void
-
-export declare function commitObjectSpread(
-    frame: ObjectConstructionRow,
+export declare function expectSequenceMembers(
+    owner: ProjectionGraph,
     row: u64,
-    root: u32,
-    open: bool,
-    aliases: bool
-): void
-
-export declare function registerConstructedSource(
-    frame: ObjectConstructionRow,
-    index: u64,
-    type_id: u32?
-): u32 throws { OutOfMemory, InvalidSource }
-
-export declare function describeConstructedTarget(frame: ObjectConstructionRow, target: u32): void
-
-export declare function inferConstructedField(
-    frame: ObjectConstructionRow,
-    index: u64,
-    name: string,
-    target: u32
-): void throws { OutOfMemory, InvalidSource }
-
-export declare function reportObjectConstruction(
-    frame: ObjectConstructionRow,
-    row: u64?,
-    message: string
+    members: u32[],
+    repeated: u32?,
+    declared: bool
 ): void throws { OutOfMemory, InvalidSource }

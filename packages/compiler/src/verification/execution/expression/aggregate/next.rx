@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Aggregate" />
+
+    <Args in={Aggregate.Walk} out={Aggregate.Walk} />
+
+    <Call fn="item" in={$in} />
+
+    <Call module="../evaluate" in={$ctx.item.expression} />
+
+    <Call
+        fn="../../../scalar/conjunction"
+        in={{
+            left: $in.safe,
+            right: $ctx.evaluate.safe
+        }}
+    />
+
+    <Call module="../bind_safety" />
+
+    <Call
+        fn="advance"
+        in={{
+            walk: $in,
+            index: $ctx.item.index,
+            value: $ctx.evaluate,
+            safe: $ctx.bind_safety
+        }}
+    />
+
+    <Return value={$ctx.advance} />
+</Module>

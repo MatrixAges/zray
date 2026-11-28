@@ -63,7 +63,6 @@ changed_name: []const u8 = &.{},
 parameters: if (generated) Parameters else ?SeedParameters = if (generated) .{} else null,
 initial_state: node.ExpressionId = undefined,
 schedule: if (generated) void else Step.Plan = undefined,
-renewal_workspace: *@import("../../growth/renew_workspace.zig") = undefined,
 step_scope: union(UpdateScope) {
     None,
     Projected: state_scope.Frame(.Projected),

@@ -1,0 +1,7 @@
+import type { Documents as Input } from "./append_documents"
+
+export type Output = u8[][]
+
+export default function (in: Input): Output {
+    return in.batches
+}

@@ -2,21 +2,24 @@
     <Type from="index" as="IO" />
     <Type from="model" as="Execution" />
 
-    <Args in={Execution.Request} out={IO.Status} />
+    <Args in={Execution.Request} out={Execution.EntryOutcome} />
 
     <Call fn="index.emitRxApplicationText" in={$in.application} />
 
     <If on={$ctx.emitRxApplicationText == null}>
-        <Return value={IO.Status.Failed} />
+        <Return
+            value={{
+                status: IO.Status.Failed
+            }}
+        />
 
         <Else>
             <If on={$in.settings.output == null}>
-                <Call
-                    fn="index.printRxApplicationText"
-                    in={[
-                        $in.application,
-                        $ctx.emitRxApplicationText.source
-                    ]}
+                <Return
+                    value={{
+                        status: IO.Status.Success,
+                        stdout: $ctx.emitRxApplicationText.source
+                    }}
                 />
 
                 <Else>
@@ -32,7 +35,11 @@
                 </Else>
             </If>
 
-            <Return value={IO.Status.Success} />
+            <Return
+                value={{
+                    status: IO.Status.Success
+                }}
+            />
         </Else>
     </If>
 </Module>

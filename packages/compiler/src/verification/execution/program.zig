@@ -149,13 +149,7 @@ fn reject(conditions: *Conditions, diagnostic: anytype) zx.Error {
 }
 
 fn runBody(conditions: *Conditions, path: []const u8) zx.Error![]const u8 {
-    const environment = try conditions.scratch.allocator().alloc(terms.Binding, conditions.program.symbols.count());
-
-    @memset(environment, .{});
-
-    environment[0] = .{ .bound = true, .value = conditions.input };
-
-    return block.execute(conditions, conditions.program.body.block(), environment, path);
+    return block.execute(conditions, conditions.program.body.block(), path);
 }
 
 fn parameter(conditions: *Conditions, result: std.mem.Allocator, rows: *[]const *const Parameter) std.mem.Allocator.Error!terms.Value {

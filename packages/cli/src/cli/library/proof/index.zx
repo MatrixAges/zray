@@ -1,4 +1,4 @@
 export {
-    writeProofMessage,
+    writeCompilationDiagnostic,
     verifyPublicExport
-} from "library_workflow_host"
+} from "compilation_host"

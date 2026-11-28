@@ -1,0 +1,21 @@
+import guard from "../../predicate/guard"
+
+import type { Value } from "./effect/model"
+
+export type Input = {
+    condition: string,
+    test: Value,
+    yes: Value,
+    no: Value
+}
+
+export type Output = string
+
+export default function (in: Input): Output {
+    return guard({
+        condition: in.condition,
+        safe: in.test.safe,
+        yes: in.yes.safe,
+        no: in.no.safe
+    })
+}

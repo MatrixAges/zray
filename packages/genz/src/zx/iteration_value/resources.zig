@@ -26,9 +26,3 @@ pub fn cacheIterationType(handle: *anyopaque, id: u32, value: u32) Error!void {
 
     return context.types.put(context.lowering.allocator, @fromBackingInt(id), @fromBackingInt(value));
 }
-
-pub fn recordIterationTransfer(handle: *anyopaque, type_id: u32, owner: u32, value: u32, ready: u32) Error!void {
-    const context: *Context = @ptrCast(@alignCast(handle));
-
-    return context.transfers.retain(context.lowering.allocator, type_id, owner, value, ready);
-}

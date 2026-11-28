@@ -9,6 +9,8 @@ const Disk = @import("../cache.zig");
 const Libraries = @import("../library/inputs.zig");
 const sources = @import("../sources.zig");
 const toolchain = @import("../toolchain.zig");
+const library_build = @import("../library/build.zig");
+const library_proof = @import("../library/verify.zig");
 const Dependencies = @import("cli_abi").native.@"zig:compilation_host".Dependencies;
 
 pub const State = struct {
@@ -28,6 +30,8 @@ pub const State = struct {
     text_view: @import("cli_abi").layouts.@"zig:compilation_host".CompilationText = undefined,
     bundle: ?compiler.zig.ModuleBundle = null,
     paths: toolchain.Paths = undefined,
+    library_build: ?library_build.Build = null,
+    library_proof: ?*const library_proof.Inputs = null,
     failure: Effects.Failure = .{},
     pub fn get(handle: *const anyopaque) *State {
         return Effects.state(State, handle);
@@ -85,7 +89,14 @@ pub fn run(context: Compile.Context) !Compile.Status {
 
     const result = entry.executeIn(context.allocator, &request, context.io) catch |err| return state.failure.unwrap(err);
 
-    return switch (result) {
+    if (result.diagnostic) |message| {
+        try context.stderr.writeAll(message);
+        try context.stderr.flush();
+    }
+
+    if (result.stdout) |source| try context.stdout.writeAll(source);
+
+    return switch (result.status) {
         .Success => .success,
         .Failed => .failed,
         .BackendFailed => .backend_failed,
@@ -144,7 +155,7 @@ pub fn loadCompilationProject(handle: *const anyopaque) Error!bool {
 fn runLibraryProof(self: *State) !Compile.Status {
     const context = &self.context;
 
-    const result = @import("../library/verify.zig").run(context.*, self.loaded, self.inputs()) catch |err| {
+    const result = library_proof.run(self) catch |err| {
         if (err == error.OutOfMemory or err == error.Canceled) return err;
         try context.stderr.print("{s}: public module verification: {s}\n", .{ context.options.input, @errorName(err) });
         try context.stderr.flush();
@@ -158,7 +169,7 @@ fn runLibraryProof(self: *State) !Compile.Status {
 fn runLibraryBuild(self: *State) !Compile.Status {
     const context = &self.context;
 
-    const result = @import("../library/build.zig").run(context.*, self.loaded, self.inputs().?) catch |err| {
+    const result = library_build.run(self) catch |err| {
         if (err == error.OutOfMemory or err == error.Canceled) return err;
         try context.stderr.print("{s}: library build: {s}\n", .{ context.options.input, @errorName(err) });
         try context.stderr.flush();

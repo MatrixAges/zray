@@ -1,5 +1,11 @@
 import type { AstSequence, AstWriter } from "ast_rows"
-import type { LoopAdmission, LoopFrame, Lowering } from "lowering_host"
+import type {
+    IterationResourceFrame,
+    LoopAdmission,
+    LoopFrame,
+    Lowering
+} from "lowering_host"
+import type { Facts as AssignmentFacts } from "../../assignment/model"
 import type { Source as RenewalSource } from "../../deferred/model"
 import type { Output as InitialPlan } from "../../initial/model"
 import type { Membership, View } from "../../parameters/model"
@@ -25,6 +31,9 @@ export type Input = {
     loop_seq: AstSequence,
     projected_seq: AstSequence,
     loop_frame: LoopFrame,
+    context: IterationResourceFrame,
+    assignment_facts: AssignmentFacts,
+    state_active: bool,
     loop_state: LoopState,
     guard_info: GuardInfo,
     id: u32,

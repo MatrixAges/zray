@@ -1,10 +1,8 @@
-import type { ObjectFieldReplay } from "rx_project_host"
 import type { Mode } from "../../fields/view"
 import type { View } from "../../fields/workflow"
 import type { Input as Replay } from "../replay"
 
 export type Input = {
-    frame: ObjectFieldReplay,
     field_view: View,
     source: Replay.Pick("names", "values"),
     mode: Mode,
@@ -14,7 +12,6 @@ export type Input = {
 }
 
 export type Request = Replay.Pick("names", "values", "declared", "indices", "all") & {
-    frame: ObjectFieldReplay,
     field_view: View,
     count: u64,
     final: bool

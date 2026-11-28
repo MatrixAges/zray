@@ -1,10 +1,8 @@
 import type { ColumnLengths, ReadColumn } from "memory"
-import type { FlowTraversal } from "rx_project_host"
 import type { Cursor, Plan, SavedReturn } from "./model"
 import type { Rows as ResultRows } from "./select_result"
 
 export type Request = Plan & {
-    frame: FlowTraversal,
     cursor: Cursor,
     lengths: ColumnLengths,
     labels: ReadColumn,

@@ -1,0 +1,44 @@
+<Module>
+    <Type from="model" as="Parallel" />
+
+    <Args in={Parallel.Calls} out={Parallel.Calls} />
+
+    <Call module="../block/evaluate" in={$in.rows[$in.next]} />
+
+    <Call
+        fn="collect"
+        in={{
+            values: $in.values,
+            value: $ctx.evaluate
+        }}
+    />
+
+    <Call
+        module="../block/violation"
+        in={{
+            path: $in.launch,
+            violations: $in.violations,
+            safe: $ctx.evaluate.safe
+        }}
+    />
+
+    <Call
+        fn="../../scalar/conjunction"
+        in={{
+            left: $in.path,
+            right: $ctx.evaluate.safe
+        }}
+    />
+
+    <Call module="../block/boolean" />
+
+    <Return
+        value={{
+            ...$in,
+            next: $in.next + 1,
+            path: $ctx.boolean,
+            violations: $ctx.violation,
+            values: $ctx.collect
+        }}
+    />
+</Module>

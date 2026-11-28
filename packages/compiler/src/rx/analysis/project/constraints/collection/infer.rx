@@ -1,19 +1,43 @@
 <Module>
-    <Type from="model" as="Collection" />
+    <Type from="effect" as="CollectionEffect" />
 
-    <Args in={Collection.Body} out={Collection.ConstraintBody} />
+    <Args in={bool} out={CollectionEffect.Body} />
 
-    <If on={$in.shortcut}>
-        <Call fn="host.forwardConstraintShortcut" in={$in.frame} />
+    <Store from="collection" as="collection" />
 
-        <Return value={$ctx.forwardConstraintShortcut} />
+    <If on={$in}>
+        <Call
+            fn="stage"
+            in={{
+                collection_step: CollectionEffect.Step.Forward
+            }}
+            setter={[$store.collection.effect]}
+        />
+
+        <Call fn="read_body" in={$store.collection.effect} />
+
+        <Return value={$ctx.read_body} />
     </If>
 
-    <Call fn="host.inferConstraintBody" in={$in.frame} />
+    <Call
+        fn="stage"
+        in={{
+            collection_step: CollectionEffect.Step.Infer
+        }}
+        setter={[$store.collection.effect]}
+    />
 
-    <If on={!$ctx.inferConstraintBody.returned}>
-        <Call fn="host.defaultConstraintOutput" in={$in.frame} />
+    <Call fn="read_body" in={$store.collection.effect} />
+
+    <If on={!$ctx.read_body.returned}>
+        <Call
+            fn="stage"
+            in={{
+                collection_step: CollectionEffect.Step.DefaultOutput
+            }}
+            setter={[$store.collection.effect]}
+        />
     </If>
 
-    <Return value={$ctx.inferConstraintBody} />
+    <Return value={$ctx.read_body} />
 </Module>

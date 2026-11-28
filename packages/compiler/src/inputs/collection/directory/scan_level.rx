@@ -3,86 +3,47 @@
 
     <Args in={Directory.Step} out={Directory.Step} />
 
+    <Store from="entries" as="entries" />
+
     <Call
         fn="host.listGenerationLevel"
         in={[
-            $in.scan.scan,
-            $in.parents
-        ]}
-    />
-
-    <Call
-        fn="count"
-        in={{
-            parents: $in.parents,
-            directories: $in.scan.directories,
-            files: $in.scan.files
-        }}
-    />
-
-    <Call
-        fn="host.selectGenerationAllocator"
-        in={[
-            $in.scan.scan,
-            1 - $in.frontier
+            $in.scan.reader,
+            $in.parents,
+            $in.scan.workers > 1 && $in.parents.length > 1
         ]}
     />
 
     <Call
         fn="children"
         in={{
-            level: {
-                parents: $in.parents,
-                directories: $in.scan.directories,
-                files: $in.scan.files
-            }
+            parents: $in.parents,
+            directories: $ctx.listGenerationLevel.directories
         }}
-    />
-
-    <Call
-        fn="host.selectGenerationAllocator"
-        in={[
-            $in.scan.scan,
-            null
-        ]}
     />
 
     <Call
         fn="flatten"
         in={{
-            files: $in.scan.files,
-            paths: $in.scan.paths,
-            groups: $in.parents.length,
+            files: $ctx.listGenerationLevel.files,
             width: $in.scan.width,
-            copy_paths: $ctx.listGenerationLevel
+            copy_paths: $in.scan.workers > 1 && $in.parents.length > 1
         }}
     />
 
     <Call
-        fn="host.commitGenerationFiles"
-        in={[
-            $in.scan.scan,
-            $ctx.flatten.records,
-            $ctx.flatten.paths,
-            $ctx.listGenerationLevel
-        ]}
-    />
-
-    <Call
-        fn="host.retireGenerationLevel"
-        in={[
-            $in.scan.scan,
-            $in.frontier
-        ]}
-    />
-
-    <Call
-        fn="next_level"
+        fn="append_entries"
         in={{
-            step: $in,
+            collected: $store.entries.collected,
+            batch: $ctx.flatten
+        }}
+        setter={[$store.entries.collected]}
+    />
+
+    <Return
+        value={{
+            scan: $in.scan,
             parents: $ctx.children
         }}
     />
-
-    <Return value={$ctx.next_level} />
 </Module>

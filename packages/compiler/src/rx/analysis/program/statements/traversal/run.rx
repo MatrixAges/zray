@@ -1,7 +1,10 @@
 <Module>
     <Type from="workflow" as="Traversal" />
+    <Type from="publication" as="Publication" />
 
     <Args in={Traversal.Request} out={Traversal.Output} />
+
+    <Store from="publication" as="publication" />
 
     <If on={!$in.started}>
         <Call
@@ -14,11 +17,12 @@
         />
 
         <Call
-            fn="host.reserveBodyStatements"
-            in={[
-                $in.frame,
-                $ctx.walk.slots
-            ]}
+            fn="stage"
+            in={{
+                step: Publication.Step.Reserve,
+                slots: $ctx.walk.slots
+            }}
+            setter={[$store.publication.effect]}
         />
 
         <Return
@@ -32,7 +36,6 @@
         <Call
             module="step"
             in={{
-                frame: $in.frame,
                 control: $in.control,
                 scopes: $in.scopes,
                 events: $in.events,
@@ -55,11 +58,12 @@
     </If>
 
     <Call
-        fn="host.selectBodyWriter"
-        in={[
-            $in.frame,
-            $in.root
-        ]}
+        fn="stage"
+        in={{
+            step: Publication.Step.SelectWriter,
+            block: $in.root
+        }}
+        setter={[$store.publication.effect]}
     />
 
     <If on={$in.implicit_return}>

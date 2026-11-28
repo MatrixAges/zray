@@ -1,4 +1,3 @@
-import type { ObjectFieldReplay } from "rx_project_host"
 import type { Mode } from "../fields/view"
 import type { View } from "../fields/workflow"
 import type { Input as Activation } from "./activate"
@@ -11,7 +10,6 @@ export type Scan = Queue.Omit("first")
 export type Row = {
     mode: Mode,
     parts: Parts,
-    fields: ObjectFieldReplay,
     field_view: View,
     shape: Activation.Omit("route"),
     projection: Projection

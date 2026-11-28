@@ -1,29 +1,45 @@
 <Module>
     <Type from="model" as="Model" />
 
-    <Args in={Model.Input} out={bool} />
+    <Args in={Model.Input} out={Model.Result} />
 
     <Call fn="../index.loadFunctionProject" in={$in.check} />
 
     <If on={$ctx.loadFunctionProject == null}>
-        <Return value={false} />
+        <Return
+            value={{
+                valid: false
+            }}
+        />
 
         <Else>
             <Call fn="../index.loadFunctionSources" in={$in.check} />
 
             <If on={$ctx.loadFunctionSources == null}>
-                <Return value={false} />
+                <Return
+                    value={{
+                        valid: false
+                    }}
+                />
             </If>
 
             <If on={!$in.has_calls || $ctx.loadFunctionSources == true}>
                 <Call fn="../index.analyzeFunctionSignatures" in={$in.check} />
 
                 <If on={!$ctx.analyzeFunctionSignatures.valid}>
-                    <Return value={false} />
+                    <Return
+                        value={{
+                            valid: false
+                        }}
+                    />
                 </If>
 
                 <If on={!$ctx.analyzeFunctionSignatures.default_call}>
-                    <Return value={true} />
+                    <Return
+                        value={{
+                            valid: true
+                        }}
+                    />
                 </If>
 
                 <If on={$ctx.analyzeFunctionSignatures.deferred_sources.length != 0}>
@@ -33,22 +49,29 @@
                             delegate:
                                 $ctx.analyzeFunctionSignatures.deferred_sources[0],
                             root: $ctx.loadFunctionProject,
-                            module_paths: $in.module_paths,
-                            module_count: $in.module_count
+                            module_paths: $in.module_paths
                         }}
                     />
 
-                    <If on={!$ctx.has_delegate}>
-                        <Call fn="../index.reportFunctionDelegate" in={$in.check} />
-                    </If>
+                    <Call
+                        fn="delegate_result"
+                        in={{
+                            path: $in.path,
+                            found: $ctx.has_delegate
+                        }}
+                    />
 
-                    <Return value={$ctx.has_delegate} />
+                    <Return value={$ctx.delegate_result} />
                 </If>
             </If>
 
             <Call fn="../index.analyzeCheckedFunction" in={$in.check} />
 
-            <Return value={$ctx.analyzeCheckedFunction} />
+            <Return
+                value={{
+                    valid: $ctx.analyzeCheckedFunction
+                }}
+            />
         </Else>
     </If>
 </Module>

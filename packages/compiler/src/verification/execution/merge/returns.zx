@@ -1,27 +1,13 @@
-import host from "verification_host"
-
 import { smt_false } from "../../scalar/const"
-import disjunction from "../../scalar/disjunction"
 
-import type { Input } from "./model"
+import type { Returns as Output } from "./model"
 
-export type Output = string
+export type Input = u64
 
 export default function (in: Input): Output {
-    return loop({
+    return {
         row: 0,
+        end: in,
         reached: smt_false
-    }, {
-        while: state => state.row < in.returns,
-        next: state => {
-            const path = host.selectSymbolicReturn(in.target, state.row)
-            const reached = disjunction({
-                left: state.reached,
-                right: path
-            })
-            state.reached = host.bindSymbolicBoolean(in.target, reached)
-            state.row += 1
-        },
-        return: state => state.reached
-    })
+    }
 }

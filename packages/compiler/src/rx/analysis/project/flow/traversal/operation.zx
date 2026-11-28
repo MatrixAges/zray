@@ -1,0 +1,73 @@
+export enum FlowKind {
+    Call,
+    Parallel,
+    Return,
+    Task,
+    Selection
+}
+
+export enum FlowPublish {
+    None,
+    Evaluate,
+    Constant
+}
+
+export type Coverage = {
+    truth?: bool,
+    stopped?: bool,
+    remaining?: bool
+}
+
+export enum Step {
+    Refresh,
+    PrepareCall,
+    BindGetters,
+    EvaluateArgument,
+    CreateUnit,
+    RegisterCall,
+    CheckCall,
+    EvaluateReturn,
+    Publish,
+    OpenTask,
+    OpenParallel,
+    OpenSelection,
+    EvaluateLabel,
+    ReadLabel,
+    RefineCase,
+    PushCase,
+    PrepareTaskOutput,
+    EvaluateTaskOutput,
+    InferTaskOutput,
+    RequestTaskOutput,
+    BindTaskOutput,
+    FinishTask,
+    MergeBindings,
+    CheckSelection,
+    FinishCase,
+    Pop
+}
+
+export type Command = {
+    step: Step,
+    next?: u64,
+    item?: u32,
+    row?: u64,
+    visible?: bool,
+    bindings?: u64,
+    id?: u32,
+    returned?: bool,
+    kind?: FlowKind,
+    first?: u32,
+    exhaustive?: bool,
+    output?: FlowPublish,
+    parallel?: bool,
+    coverage?: Coverage,
+    facts?: u64,
+    value?: u32
+}
+
+export type Operation = Command & {
+    flag: bool,
+    result_id?: u32,
+    truth?: bool
+}

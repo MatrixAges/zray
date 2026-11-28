@@ -5,30 +5,36 @@
 
     <Call fn="parameters" in={$in} />
 
+    <Loop on={$in.row < $in.end}>
+        <Call module="next_parameter" />
+    </Loop>
+
     <Call
         fn="calls"
         in={{
-            ...$in,
-            violations: $ctx.parameters.violations,
-            launch: $ctx.parameters.path
+            ...$ctx.next_parameter,
+            row: $ctx.parameters.row
         }}
     />
+
+    <Loop on={$in.next < $in.end}>
+        <Call module="next_call" />
+    </Loop>
 
     <Loop on={$in.index < $in.values.length}>
         <Call
             module="next_binding"
             in={{
-                block: $in.block,
                 symbols: $in.scope.control.parallel_symbols,
-                first: $ctx.calls.first,
-                values: $ctx.calls.values,
+                first: $ctx.parameters.row,
+                values: $ctx.next_call.values,
                 index: 0
             }}
         />
     </Loop>
 
     <Return
-        value={$ctx.calls.pick([
+        value={$ctx.next_call.pick([
             "path",
             "violations"
         ])}

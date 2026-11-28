@@ -7,7 +7,7 @@ const Inputs = @import("../../call_inputs.zig");
 const target = @import("../../../call/target.zig");
 const Frame = @import("../../history.zig").Frame;
 const registry = @import("../../../store/registry.zig");
-const workflow = @import("../errors.zig");
+const workflow = @import("../execute.zig");
 const Error = zx.Error;
 const generated = @import("rx_options").generated_graph;
 
@@ -40,15 +40,34 @@ pub const State = struct {
 
         if (comptime generated) {
             const entry = @import("generated_rx_execute_inference");
+            const Store = std.meta.Child(@FieldType(entry.zx_pending, "store_0"));
 
-            const input: std.meta.Child(entry.Input) = .{
-                .state = @ptrCast(self),
-                .history = &.{ .previous = previous, .bodies_only = bodies_only, .stores = stores },
+            const Native = struct {
+                state: *State,
+                store_0: *Store,
+                pub fn commit(native: *@This(), pending: anytype) Error!void {
+                    const effect = pending.store_0 orelse return;
+                    const state = native.state;
+
+                    switch (effect.step) {
+                        .Normalize => try state.normalize(),
+                        .Restore => state.restore(),
+                        .Derive => try state.derive(effect.signatures),
+                        .Compile => try state.compile(),
+                        .Publish => try state.publishStores(effect.retained),
+                    }
+                }
             };
 
-            var empty = std.heap.FixedBufferAllocator.init(&.{});
+            const snapshot: std.meta.Child(Store) = .{ .step = .Normalize, .signatures = false, .retained = false };
+            var store: Store = &snapshot;
+            var host: Native = .{ .state = self, .store_0 = &store };
 
-            return entry.executeIn(empty.allocator(), &input) catch |err| workflow.errorSet(err);
+            return workflow.run(entry, self.backing, &.{
+                .previous = previous,
+                .bodies_only = bodies_only,
+                .stores = stores,
+            }, &host);
         }
 
         const retained = previous and bodies_only;
@@ -102,27 +121,3 @@ pub const State = struct {
         self.result = result;
     }
 };
-
-fn state(handle: *anyopaque) *State {
-    return @ptrCast(@alignCast(handle));
-}
-
-pub fn normalizeProjectSources(handle: *anyopaque) Error!void {
-    return state(handle).normalize();
-}
-
-pub fn restoreDerivedFrame(handle: *anyopaque) void {
-    state(handle).restore();
-}
-
-pub fn deriveProjectFrame(handle: *anyopaque, signatures: bool) Error!void {
-    return state(handle).derive(signatures);
-}
-
-pub fn compileProjectBodies(handle: *anyopaque) Error!void {
-    return state(handle).compile();
-}
-
-pub fn publishInferredStores(handle: *anyopaque, retained: bool) Error!void {
-    return state(handle).publishStores(retained);
-}

@@ -1,13 +1,11 @@
 import type { ReadColumn } from "memory"
-import type { Input as Signatures } from "./signatures/model"
 
-export type Input = Signatures & {
-    shortcuts: ReadColumn
+export type Input = {
+    shortcuts: ReadColumn,
+    retained: bool
 }
 
-export type Resolve = Input.Omit("retained")
-
-export type Deferred = Resolve.Pick("state", "shortcuts") & {
+export type Deferred = Input.Pick("shortcuts") & {
     count: u64,
     row: u64
 }

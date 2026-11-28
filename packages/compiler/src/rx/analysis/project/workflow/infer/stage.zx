@@ -1,0 +1,18 @@
+import type { Effect } from "./effect"
+
+export type Input = Effect.Pick("step") & {
+    signatures?: bool,
+    retained?: bool
+}
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.inference.effect = {
+        step: in.step,
+        signatures: in.signatures ?? false,
+        retained: in.retained ?? false
+    }
+}

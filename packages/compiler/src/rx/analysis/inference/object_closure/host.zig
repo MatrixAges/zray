@@ -33,11 +33,11 @@ pub const Session = struct {
             .marks = &cache.marks,
         };
     }
+
     pub fn context(self: *Session) Context {
         const kinds: []const Kind = self.graph.nodes.items(.kind);
 
         return .{
-            .frame = @ptrCast(self),
             .cache = &self.cache,
             .kinds = zx.columns.slice(@FieldType(Context, "kinds"), kinds),
             .revision = self.graph.object_revision,
@@ -45,14 +45,9 @@ pub const Session = struct {
             .selections = self.graph.pending.selections.len,
         };
     }
-
-    fn borrow(handle: *anyopaque) *Session {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
-pub fn updateObjectReadiness(handle: *anyopaque, rebuild: bool, position: u64, spread: bool, shared: bool) std.mem.Allocator.Error!bool {
-    const session = Session.borrow(handle);
+pub fn updateReadiness(session: *Session, rebuild: bool, position: u64, spread: bool, shared: bool) std.mem.Allocator.Error!bool {
     const closure = session.closure;
     const graph = session.graph;
     const update = @import("generated_rx_update_object_readiness");

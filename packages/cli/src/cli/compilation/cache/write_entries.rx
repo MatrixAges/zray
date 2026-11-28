@@ -7,7 +7,7 @@
         <Call
             fn="../index.saveDiskSemanticEntry"
             in={[
-                $in.disk,
+                $in.compilation,
                 $in.is_native,
                 $in.index
             ]}

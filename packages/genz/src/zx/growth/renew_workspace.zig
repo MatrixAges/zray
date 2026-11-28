@@ -1,9 +1,7 @@
 const std = @import("std");
 const zx = @import("zx");
 const ir = zx.ir;
-const Self = @This();
 
-scratch: std.heap.ArenaAllocator,
 pub const Request = struct {
     type_id: ir.TypeId,
     roots: []const u32,
@@ -25,14 +23,12 @@ pub noinline fn run(frame: anytype, comptime Source: type, request: Request, com
         .state_type = @backingInt(request.type_id),
     };
 
-    var workspace: Self = .{ .scratch = .init(self.workspace) };
+    var scratch = std.heap.ArenaAllocator.init(self.workspace);
 
-    defer workspace.scratch.deinit();
-
-    frame.renewal_workspace = &workspace;
+    defer scratch.deinit();
 
     var planning_buffer: [std.heap.page_size_min]u8 = undefined;
-    var planning = std.heap.BufferFirstAllocator.init(&planning_buffer, workspace.scratch.allocator());
+    var planning = std.heap.BufferFirstAllocator.init(&planning_buffer, scratch.allocator());
     const source: Source = .{ .facts = &facts, .records = &records };
 
     return execute(frame, planning.allocator(), &source);

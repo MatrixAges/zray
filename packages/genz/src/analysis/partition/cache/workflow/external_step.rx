@@ -1,0 +1,21 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.External} out={Cache.External} />
+
+    <Call
+        fn="host.hashExternalInput"
+        in={[
+            $in.prefix,
+            $in.paths[$in.row]
+        ]}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            prefix: $ctx.hashExternalInput,
+            row: $in.row + 1
+        }}
+    />
+</Module>

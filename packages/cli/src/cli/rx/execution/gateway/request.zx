@@ -1,7 +1,0 @@
-import type { GatewayBuild } from "rx_execution_host"
-import type { Settings } from "../../../compilation/model"
-
-export type Request = {
-    gateway: GatewayBuild,
-    settings: Settings
-}

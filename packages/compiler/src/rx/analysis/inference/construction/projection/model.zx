@@ -1,9 +1,7 @@
-import type { ObjectConstructionRow } from "rx_project_host"
 import type { Context } from "../../object_closure/workflow"
 import type { Request as Sources, Output as Spread, Step } from "../sources"
 
 export type Request = {
-    frame: ObjectConstructionRow,
     scan: Sources.Omit("first", "keys"),
     members: Members,
     readiness: Context
@@ -19,6 +17,5 @@ export type Cursor = Step & {
 }
 
 export type Readiness = Spread.Pick("row", "root", "action") & {
-    frame: ObjectConstructionRow,
     readiness: Context
 }

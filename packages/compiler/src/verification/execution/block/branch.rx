@@ -1,0 +1,106 @@
+<Module>
+    <Type from="model" as="Block" />
+    <Type from="effect/model" as="Operation" />
+
+    <Args in={Block.Payload} out={Block.Outcome} />
+
+    <Call module="evaluate" in={$in.scope.control.branch_conditions[$in.payload]} />
+
+    <Call
+        module="guard"
+        in={{
+            path: $in.path,
+            violations: $in.violations,
+            safe: $ctx.evaluate.safe
+        }}
+    />
+
+    <Task
+        name="yes"
+        out={{
+            entry: $ctx.boolean,
+            remaining: $ctx.run.path
+        }}
+    >
+        <Call
+            fn="../../scalar/conjunction"
+            in={{
+                left: $ctx.guard.path,
+                right: $ctx.evaluate.text ?? ""
+            }}
+        />
+
+        <Call module="boolean" />
+
+        <Call
+            module="effect/run"
+            in={{
+                step: Operation.Step.Child,
+                row: $in.scope.control.branch_yes[$in.payload],
+                path: {
+                    path: $ctx.boolean,
+                    violations: $ctx.guard.violations
+                }
+            }}
+        />
+    </Task>
+
+    <Task
+        name="no"
+        out={{
+            entry: $ctx.boolean,
+            remaining: $ctx.run.path
+        }}
+    >
+        <Call
+            fn="../../predicate/exclude"
+            in={{
+                left: $ctx.guard.path,
+                right: $ctx.evaluate.text ?? ""
+            }}
+        />
+
+        <Call module="boolean" />
+
+        <Call
+            module="effect/run"
+            in={{
+                step: Operation.Step.Child,
+                row: $in.scope.control.branch_no[$in.payload],
+                path: {
+                    path: $ctx.boolean,
+                    violations: $ctx.task.yes.remaining.violations
+                }
+            }}
+        />
+    </Task>
+
+    <If
+        on={$ctx.task.yes.remaining.path == $ctx.task.yes.entry &&
+            $ctx.task.no.remaining.path == $ctx.task.no.entry}
+    >
+        <Return
+            value={{
+                path: $ctx.guard.path,
+                violations: $ctx.task.no.remaining.violations
+            }}
+        />
+    </If>
+
+    <Call
+        fn="../../scalar/disjunction"
+        in={{
+            left: $ctx.task.yes.remaining.path,
+            right: $ctx.task.no.remaining.path
+        }}
+    />
+
+    <Call module="boolean" />
+
+    <Return
+        value={{
+            path: $ctx.boolean,
+            violations: $ctx.task.no.remaining.violations
+        }}
+    />
+</Module>

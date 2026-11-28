@@ -1,23 +1,28 @@
-import type { SymbolicOutcome, SymbolicBlock, SymbolicPath } from "verification_host"
-import type { Payload } from "../block/model"
+import type { Path } from "../block/effect/model"
+import type { Payload, Scope } from "../block/model"
+import type { Value } from "../expression/effect/model"
 
 export type Input = Payload
 
-export type Output = SymbolicPath
+export type Output = Path
 
-export type Calls = Input & {
-    launch: string
+export type Parameters = Path & {
+    scope: Scope,
+    row: u64,
+    end: u64
 }
 
-export type Completed = SymbolicPath & {
-    first: u64,
-    values: SymbolicOutcome[]
+export type Calls = Path & {
+    rows: u32[],
+    next: u64,
+    end: u64,
+    launch: string,
+    values: Value[]
 }
 
 export type Bindings = {
-    block: SymbolicBlock,
     symbols: u32?[],
     first: u64,
-    values: SymbolicOutcome[],
+    values: Value[],
     index: u64
 }

@@ -1,0 +1,19 @@
+export enum Step {
+    Modules,
+    Graph,
+    OrderSignatures,
+    RestoreSignatures,
+    AnalyzeSignatures,
+    IndexSignatures,
+    LoadStores,
+    PrepareFlow,
+    SolveFlow,
+    CompleteShortcut,
+    Publish
+}
+
+export type Effect = {
+    step: Step,
+    row?: u64,
+    restored: bool
+}

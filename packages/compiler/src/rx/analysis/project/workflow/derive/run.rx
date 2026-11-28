@@ -1,15 +1,107 @@
 <Module>
     <Type from="model" as="Derivation" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Derivation.Input} out={void} />
 
-    <Call fn="host.prepareDerivedModules" in={$in.state} />
-    <Call fn="host.collectDerivedGraph" in={$in.state} />
+    <Store from="derivation" as="derivation" />
 
-    <Call module="signatures/read" in={$in.omit(["shortcuts"])} />
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.Modules
+        }}
+        setter={[$store.derivation.effect]}
+    />
 
-    <Call fn="host.loadDerivedStores" in={$in.state} />
-    <Call fn="host.prepareDerivedFlow" in={$in.state} />
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.Graph
+        }}
+        setter={[$store.derivation.effect]}
+    />
 
-    <Call module="resolve" in={$in.omit(["retained"])} />
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.OrderSignatures
+        }}
+        setter={[$store.derivation.effect]}
+    />
+
+    <If on={$in.retained}>
+        <Call
+            fn="stage"
+            in={{
+                step: Effect.Step.RestoreSignatures
+            }}
+            setter={[$store.derivation.effect]}
+        />
+    </If>
+
+    <Call fn="restored" in={$store.derivation.effect} />
+
+    <If on={!$ctx.restored}>
+        <Call
+            fn="stage"
+            in={{
+                step: Effect.Step.AnalyzeSignatures
+            }}
+            setter={[$store.derivation.effect]}
+        />
+    </If>
+
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.IndexSignatures
+        }}
+        setter={[$store.derivation.effect]}
+    />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.LoadStores
+        }}
+        setter={[$store.derivation.effect]}
+    />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.PrepareFlow
+        }}
+        setter={[$store.derivation.effect]}
+    />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.SolveFlow
+        }}
+        setter={[$store.derivation.effect]}
+    />
+
+    <Call fn="columns.columnLength" in={$in.shortcuts} />
+
+    <Loop on={$in.row < $in.count}>
+        <Call
+            module="complete"
+            in={{
+                shortcuts: $in.shortcuts,
+                count: $ctx.columnLength,
+                row: 0
+            }}
+        />
+    </Loop>
+
+    <Call
+        fn="stage"
+        in={{
+            step: Effect.Step.Publish
+        }}
+        setter={[$store.derivation.effect]}
+    />
 </Module>

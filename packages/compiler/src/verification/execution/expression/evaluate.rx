@@ -1,0 +1,15 @@
+<Module>
+    <Type from="effect/model" as="Operation" />
+
+    <Args in={u32} out={Operation.Value} />
+
+    <Call
+        module="effect/run"
+        in={{
+            step: Operation.Step.Evaluate,
+            row: $in
+        }}
+    />
+
+    <Return value={$ctx.run.value} />
+</Module>

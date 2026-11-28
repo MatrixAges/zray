@@ -1,12 +1,10 @@
 export {
     loadRxApplication,
-    buildRxGateway,
     analyzeRxApplication,
     verifyRxApplication,
     generateRxFpga,
     openRxApplicationCache,
     emitRxApplicationText,
-    printRxApplicationText,
     emitRxApplicationModules,
     collectRxInitializers,
     emitRxInitializers,
@@ -22,21 +20,15 @@ export {
     loadGatewayBuild,
     linkGatewayBuild,
     bindGatewayBuildRoutes,
-    openGatewayBuildCache,
     collectGatewayBuildSources,
     emitGatewayBuildServices,
     assembleGatewayBuild,
     assembleEmptyGatewayBuild,
     attachGatewayRunner,
-    reportGatewayBuildCache,
-    resolveGatewayToolchain,
-    resolveGatewayNativeProject,
-    runGatewayBackend,
     Status
 } from "rx_execution_host"
 
 export type {
     RxApplication,
-    GatewayAnalysis,
-    GatewayBuild
+    GatewayAnalysis
 } from "rx_execution_host"

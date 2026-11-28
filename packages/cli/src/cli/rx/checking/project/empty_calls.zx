@@ -1,0 +1,20 @@
+import type { CallBucket } from "./model"
+
+export type Input = u64
+
+export type Output = CallBucket[]
+
+export default function (in: Input): Output {
+    const bucket: CallBucket = {
+        calls: []
+    }
+
+    const empty: CallBucket[] = []
+
+    return loop(empty, {
+        while: buckets => buckets.length < in,
+        next: buckets => {
+            buckets = buckets.push(bucket)[0]
+        }
+    })
+}

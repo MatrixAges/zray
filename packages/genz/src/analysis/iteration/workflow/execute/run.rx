@@ -80,7 +80,6 @@
     <Call
         module="renewals"
         in={{
-            loop_frame: $in.loop_frame,
             renewal_source: $in.renewal_source,
             owner: $in.id,
             schedule: $ctx.plan
@@ -88,12 +87,15 @@
     />
 
     <Call
-        fn="evaluate"
+        module="evaluate"
         in={{
             ...$in.pick([
                 "frame",
+                "writer",
+                "body_seq",
                 "loop_frame",
-                "parameters",
+                "context",
+                "type_id",
                 "initial_plan"
             ]),
             schedule: $ctx.plan,
@@ -116,10 +118,13 @@
                 "body",
                 "loop_frame",
                 "guard_info",
-                "initial_plan"
+                "initial_plan",
+                "type_id",
+                "assignment_facts"
             ]),
             schedule: $ctx.plan,
             renewals: $ctx.renewals,
+            state_active: $in.state_active || $in.initial_plan.state_scope,
             projected: $ctx.parameters.projected,
             state: $in.loop_state.reference,
             initial_value: $ctx.initial.initial_value,

@@ -1,4 +1,4 @@
-import type { Compilation, CompilationText } from "compilation_host"
+import type { Compilation, CompilationText, Status } from "compilation_host"
 
 export type Settings = {
     formatting: bool,
@@ -22,6 +22,12 @@ export type Request = {
     input: u8[],
     explicit_config: bool,
     formatting_notice: string
+}
+
+export type Outcome = {
+    status: Status,
+    stdout?: string,
+    diagnostic?: string
 }
 
 export type Query = Request & {

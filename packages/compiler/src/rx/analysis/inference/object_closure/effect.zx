@@ -1,0 +1,52 @@
+export enum Step {
+    UpdateReadiness,
+    OpenConstruction,
+    OpenSelection,
+    FinishRow,
+    RefreshFields,
+    ExpectField,
+    RegisterFields,
+    UnifyFields,
+    RejectField,
+    ReserveSpreads,
+    BindSpread,
+    CommitSpread,
+    RegisterSource,
+    DescribeTarget,
+    InferField,
+    RejectConstruction,
+    AddNode,
+    AppendMember,
+    RegisterType,
+    AppendLength,
+    RequireList,
+    RejectAccess
+}
+
+export type Command = {
+    object_step: Step,
+    row?: u64,
+    root?: u32,
+    final?: bool,
+    rebuild?: bool,
+    position?: u64,
+    spread?: bool,
+    shared?: bool,
+    source?: u32,
+    target?: u32,
+    members?: u32[],
+    name_error?: bool,
+    message?: string,
+    declared?: bool,
+    inferred?: bool,
+    open?: bool,
+    aliases?: bool,
+    type_id?: u32,
+    name?: string,
+    capacity?: u64
+}
+
+export type Effect = Command & {
+    id: u32,
+    ready: bool
+}

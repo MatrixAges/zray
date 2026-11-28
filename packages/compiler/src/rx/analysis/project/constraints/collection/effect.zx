@@ -1,0 +1,36 @@
+export enum Step {
+    Open,
+    Release,
+    Forward,
+    Infer,
+    DefaultOutput,
+    PublishPort,
+    OpenDefaults,
+    DefaultInput
+}
+
+export type Body = {
+    returned: bool,
+    used: bool,
+    binding_end: u64,
+    task_end: u64
+}
+
+export type Command = {
+    collection_step: Step,
+    row?: u64,
+    fixed?: bool,
+    binding_end?: u64,
+    task_end?: u64,
+    input?: u32
+}
+
+export type Effect = Command & {
+    shortcut: bool,
+    input_fixed: bool,
+    returned: bool,
+    used: bool,
+    bindings: u64,
+    tasks: u64,
+    parents: u32[]
+}

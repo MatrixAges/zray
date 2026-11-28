@@ -1,0 +1,17 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.Presence} out={Cache.Presence} />
+
+    <Call fn="host.partitionObjectPresent" in={$in.paths[$in.row]} />
+
+    <Call
+        fn="presence"
+        in={{
+            state: $in,
+            present: $ctx.partitionObjectPresent
+        }}
+    />
+
+    <Return value={$ctx.presence} />
+</Module>

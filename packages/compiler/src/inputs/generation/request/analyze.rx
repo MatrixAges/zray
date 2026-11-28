@@ -1,22 +1,67 @@
 <Module>
     <Type from="model" as="Request" />
 
-    <Args in={Request.Analyze} out={string?} />
+    <Args in={Request.Analyze} out={Request.Summary} />
 
-    <If on={$in.analysis_available}>
-        <Call fn="host.restoreGenerationAnalysis" in={$in.request} />
+    <If on={$in.fingerprints.previous != null}>
+        <Call
+            fn="host.restoreGenerationAnalysis"
+            in={[
+                $in.host,
+                $in.fingerprints.previous
+            ]}
+        />
 
-        <Return value={$ctx.restoreGenerationAnalysis} />
+        <Return
+            value={{
+                text: $ctx.restoreGenerationAnalysis,
+                failure: null
+            }}
+        />
     </If>
 
-    <Call fn="host.prepareGenerationTemplates" in={$in.request} />
-    <Call fn="host.prepareGenerationModules" in={$in.request} />
+    <Call
+        fn="host.prepareGenerationTemplates"
+        in={[
+            $in.host,
+            $in.catalog
+        ]}
+    />
 
-    <If on={!$in.interfaces_loaded}>
-        <Return value={null} />
+    <Call
+        fn="host.prepareGenerationModules"
+        in={[
+            $in.host,
+            $in.catalog,
+            $in.packages
+        ]}
+    />
+
+    <If on={$in.registered.failure != null}>
+        <Return
+            value={{
+                text: null,
+                failure: $in.registered.failure
+            }}
+        />
     </If>
 
-    <Call fn="host.generateFromPreparedInputs" in={$in.request} />
+    <Call
+        fn="host.generateFromPreparedInputs"
+        in={[
+            $in.host,
+            $in.fingerprints.fingerprints,
+            $in.packages,
+            $in.registered.bindings,
+            $ctx.prepareGenerationTemplates,
+            $ctx.prepareGenerationModules
+        ]}
+    />
 
-    <Return value={$ctx.generateFromPreparedInputs} />
+    <Return
+        value={{
+            text: $ctx.generateFromPreparedInputs,
+            failure: null
+        }}
+    />
 </Module>

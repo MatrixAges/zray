@@ -1,7 +1,10 @@
 <Module>
     <Type from="../object_closure/replay" as="Objects" />
+    <Type from="../object_closure/effect" as="ObjectEffect" />
 
     <Args in={Objects.ConstructionCursor} out={Objects.ConstructionCursor} />
+
+    <Store from="../object_closure/object" as="object" />
 
     <Call
         fn="queue"
@@ -21,18 +24,25 @@
     </If>
 
     <Call
-        fn="host.openConstructionRow"
-        in={[
-            $in.request.view.frame,
-            $ctx.queue.position,
-            $ctx.queue.root,
-            $in.request.final
-        ]}
+        fn="../object_closure/stage"
+        in={{
+            object_step: ObjectEffect.Step.OpenConstruction,
+            row: $ctx.queue.position,
+            root: $ctx.queue.root,
+            final: $in.request.final
+        }}
+        setter={[$store.object.effect]}
     />
 
     <Call module="apply" in={$in.request.view.construction} />
 
-    <Call fn="../object_closure/host.finishObjectRow" in={$in.request.view.frame} />
+    <Call
+        fn="../object_closure/stage"
+        in={{
+            object_step: ObjectEffect.Step.FinishRow
+        }}
+        setter={[$store.object.effect]}
+    />
 
     <Return
         value={{

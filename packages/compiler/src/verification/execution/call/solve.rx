@@ -1,45 +1,45 @@
 <Module>
     <Type from="model" as="Call" />
+    <Type from="../expression/effect/model" as="Operation" />
 
-    <Args in={Call.Solve} out={Call.Safety} />
+    <Args in={Call.Solve} out={Operation.Value} />
 
-    <Call
-        fn="host.findSymbolicCallee"
-        in={[
-            $in.frame,
-            $in.target
-        ]}
-    />
-
-    <If on={$ctx.findSymbolicCallee.safe != null}>
-        <Return
-            value={{
-                argument: $in.argument_safe,
-                callee: $ctx.findSymbolicCallee.safe
+    <Task name="probe" out={$ctx.run}>
+        <Call
+            module="../expression/effect/run"
+            in={{
+                step: Operation.Step.FindCall,
+                row: $in.target,
+                value: $in.argument
             }}
         />
+    </Task>
+
+    <If on={$ctx.task.probe.key == null}>
+        <Return value={$ctx.task.probe.value} />
     </If>
 
-    <Call
-        fn="host.evaluateSymbolicCallee"
-        in={[
-            $in.frame,
-            $in.target
-        ]}
-    />
+    <Task name="execution" out={$ctx.run}>
+        <Call
+            module="../expression/effect/run"
+            in={{
+                step: Operation.Step.ExecuteCall,
+                row: $in.target,
+                value: $in.argument
+            }}
+        />
+    </Task>
 
-    <Call
-        fn="host.publishSymbolicCallee"
-        in={[
-            $in.frame,
-            $ctx.findSymbolicCallee
-        ]}
-    />
+    <Task name="publish">
+        <Call
+            module="../expression/effect/run"
+            in={{
+                step: Operation.Step.PublishCall,
+                key: $ctx.task.probe.key,
+                value: $ctx.task.execution.value
+            }}
+        />
+    </Task>
 
-    <Return
-        value={{
-            argument: $in.argument_safe,
-            callee: $ctx.evaluateSymbolicCallee
-        }}
-    />
+    <Return value={$ctx.task.execution.value} />
 </Module>

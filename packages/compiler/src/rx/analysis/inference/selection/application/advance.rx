@@ -1,7 +1,10 @@
 <Module>
     <Type from="model" as="Selection" />
+    <Type from="../../object_closure/effect" as="ObjectEffect" />
 
     <Args in={Selection.Cursor} out={Selection.Cursor} />
+
+    <Store from="../../object_closure/object" as="object" />
 
     <Call
         fn="../replay"
@@ -39,15 +42,22 @@
     />
 
     <Call
-        fn="../../fields/host.unifyReplayFields"
-        in={[
-            $in.request.frame,
-            $ctx.target,
-            $ctx.replay.source
-        ]}
+        fn="../../object_closure/stage"
+        in={{
+            object_step: ObjectEffect.Step.UnifyFields,
+            target: $ctx.target,
+            source: $ctx.replay.source
+        }}
+        setter={[$store.object.effect]}
     />
 
-    <Call fn="../../fields/host.refreshObjectReplayFields" in={$in.request.frame} />
+    <Call
+        fn="../../object_closure/stage"
+        in={{
+            object_step: ObjectEffect.Step.RefreshFields
+        }}
+        setter={[$store.object.effect]}
+    />
 
     <Return
         value={{

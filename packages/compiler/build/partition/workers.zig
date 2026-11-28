@@ -1,17 +1,17 @@
 const std = @import("std");
 const rules = @import("partition_rules");
-const Schedule = @import("state.zig").Schedule;
+const native = @import("partition_abi").native.@"zig:partition_host";
 
-pub fn compile(io: std.Io, allocator: std.mem.Allocator, zig: []const u8, schedule: Schedule) ![]const ?[]const u8 {
-    const pending = schedule.pending;
+pub fn compilePartitionObjects(allocator: std.mem.Allocator, io: std.Io, input: native.compilePartitionObjects.Input) ![]const ?[]const u8 {
+    const pending = input.pending;
     const results = try allocator.alloc(?[]const u8, pending.len);
 
     var work: Work = .{
         .io = io,
         .owner = allocator,
-        .zig = zig,
-        .arguments = schedule.arguments.values,
-        .indexed = schedule.arguments.indexed,
+        .zig = input.zig,
+        .arguments = input.arguments,
+        .indexed = input.indexed,
         .pending = pending,
         .results = results,
     };

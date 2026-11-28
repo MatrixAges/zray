@@ -5,26 +5,71 @@ const Expressions = @import("../expressions.zig");
 const Evaluation = @import("../terms.zig").Evaluation;
 const Value = @import("../terms.zig").Value;
 const rule = @import("generated_walk_symbolic_expression");
-const native = @import("output_execution_abi").layouts.@"zig:verification_host";
+const call = @import("call.zig");
 const Input = std.meta.Child(rule.Input);
-const Operand = native.SymbolicOperand;
-
 pub const Columns = std.meta.Child(@FieldType(Input, "columns"));
 pub const Types = std.meta.Child(@FieldType(Input, "types"));
+pub const Environment = @FieldType(Input, "environment");
+pub const Binding = std.meta.Elem(Environment);
+pub const BoundValue = @typeInfo(Binding).optional.child;
+const Store = std.meta.Child(@FieldType(rule.zx_pending, "store_0"));
+const Exchange = std.meta.Child(Store);
+const Result = std.meta.Child(@FieldType(Exchange, "result"));
 
-pub const Frame = struct {
+const Host = struct {
     evaluator: *Expressions,
-    id: ir.ExprId,
     target: ir.TypeId,
     span: zx.Span,
-    call_safety: native.CallSafety = undefined,
-    slots: [std.enums.values(Operand).len]Evaluation = undefined,
-    outcomes: [std.enums.values(Operand).len]native.SymbolicOutcome = undefined,
-    pub fn borrow(handle: *anyopaque) *@This() {
-        return @ptrCast(@alignCast(handle));
-    }
-    pub fn at(frame: *@This(), slot: Operand) *Evaluation {
-        return &frame.slots[@backingInt(slot)];
+    temporary: std.mem.Allocator,
+    store_0: *Store,
+    pub fn commit(host: *Host, pending: anytype) zx.Error!void {
+        const operation = pending.store_0 orelse return;
+        const request = operation.request.?;
+        const evaluator = host.evaluator;
+        const allocator = host.temporary;
+        const exchange = try allocator.create(Exchange);
+        const result = try allocator.create(Result);
+        result.* = operation.result.*;
+        result.key = null;
+
+        switch (request.step) {
+            .Evaluate => {
+                const value = try evaluator.evaluate(@fromBackingInt(request.row.?));
+
+                result.value = try value.view(@TypeOf(result.value), allocator);
+            },
+            .Bind => result.text = try evaluator.boolean(request.text.?, host.span),
+            .Select => {
+                const yes = Evaluation.fromView(request.yes.?);
+                const no = Evaluation.fromView(request.no.?);
+                const selected = try evaluator.graph.select(evaluator.program, host.target, request.text.?, yes.value, no.value, host.span);
+                result.value = try (Evaluation{ .value = selected }).view(@TypeOf(result.value), allocator);
+            },
+            .Retain => {
+                const value = try evaluator.retainAt(host.target, host.span, .{
+                    .value = Evaluation.fromView(request.value.?).value,
+                    .safe = request.text.?,
+                });
+
+                result.value = try value.view(@TypeOf(result.value), allocator);
+            },
+            .DescribeCall => {
+                const description = try allocator.create(std.meta.Child(@TypeOf(result.description)));
+
+                description.* = call.describeCallee(evaluator, request.row.?, @TypeOf(description.*));
+                result.description = description;
+            },
+            .FindCall => try call.probeCallee(evaluator, request.row.?, Evaluation.fromView(request.value.?).value, result, allocator),
+            .ExecuteCall => {
+                const value = try call.executeCallee(evaluator, request.row.?, Evaluation.fromView(request.value.?).value);
+
+                result.value = try value.view(@TypeOf(result.value), allocator);
+            },
+            .PublishCall => try call.publishCallee(evaluator, request.key.?, Evaluation.fromView(request.value.?)),
+        }
+
+        exchange.* = .{ .request = null, .result = result };
+        host.store_0.* = exchange;
     }
 };
 
@@ -45,30 +90,45 @@ pub fn execute(evaluator: *Expressions, id: ir.ExprId, target: ir.TypeId, span: 
         evaluator.types = zx.columns.borrow(Types, types);
     }
 
-    var frame: Frame = .{ .evaluator = evaluator, .id = id, .target = target, .span = span };
-    const bound = zx.memory.borrowReadColumn(bool, "bound", evaluator.environment);
-    const values = zx.memory.borrowReadColumn(Value, "value", evaluator.environment);
+    const layout = Value.layout(std.meta.Child(@FieldType(Input, "layout")));
 
     const input: Input = .{
-        .frame = @ptrCast(&frame),
         .columns = &evaluator.columns.?,
         .types = &evaluator.types.?,
         .id = @backingInt(id),
         .depth = depth,
-        .environment = &.{ .bound = @ptrCast(&bound), .values = @ptrCast(&values), .width = @sizeOf(Value) },
+        .environment = evaluator.environment,
+        .layout = &layout,
     };
 
-    const outcome = zx.columns.invoke(rule.executeIn, evaluator.allocator, &input) catch |err| return @import("context.zig").failure(err);
+    var effects = zx.Arena.initSmall(evaluator.scratch.child);
+    var buffer: [2048]u8 = undefined;
+    var temporary = std.heap.BufferFirstAllocator.init(&buffer, effects.allocator());
+
+    defer effects.deinit();
+
+    var store: Store = &.{
+        .request = null,
+        .result = &.{
+            .text = "",
+            .value = &.{ .text = null, .fields = &.{}, .safe = "true" },
+            .key = null,
+            .description = &.{ .target = 0, .calls = &.{}, .stores = 0, .external = false, .depth = 0 },
+        },
+    };
+
+    var host: Host = .{
+        .evaluator = evaluator,
+        .target = target,
+        .span = span,
+        .temporary = temporary.allocator(),
+        .store_0 = &store,
+    };
+
+    const outcome = rule.executeIn(evaluator.allocator, &input, &host) catch |err| return @import("context.zig").failure(err);
 
     if (outcome.diagnostic) |message| return evaluator.reporter.fail(.unsupported, span, message);
     if (outcome.contract) |message| return evaluator.reporter.fail(.contract, span, message);
-    if (outcome.reference) |row| return .{ .value = std.mem.bytesAsValue(Value, row[0..@sizeOf(Value)]).* };
-
-    if (outcome.projection) |index| {
-        const source = frame.at(.First);
-
-        return .{ .value = source.value.fields[index], .safe = source.safe };
-    }
 
     if (outcome.fields) |rows| {
         const fields = try evaluator.allocator.alloc(Value, rows.len);
@@ -78,52 +138,13 @@ pub fn execute(evaluator: *Expressions, id: ir.ExprId, target: ir.TypeId, span: 
         return .{ .value = .{ .fields = fields }, .safe = outcome.safe orelse "true" };
     }
 
-    if (outcome.scalar) |text| {
-        frame.at(.Result).* = .{
-            .value = .{ .scalar = text },
-            .safe = outcome.safe orelse "true",
-        };
-    } else if (outcome.safe) |safe| {
-        frame.at(.Result).safe = safe;
+    if (outcome.value) |source| {
+        var evaluated = Evaluation.fromView(source);
+
+        if (outcome.safe) |safe| evaluated.safe = safe;
+
+        return evaluated;
     }
 
-    return frame.at(.Result).*;
-}
-
-pub fn evaluateSymbolicOperand(handle: *anyopaque, slot: Operand, expression: u32) zx.Error!*const native.SymbolicOutcome {
-    const frame = Frame.borrow(handle);
-    const value = try frame.evaluator.evaluate(@fromBackingInt(expression));
-
-    frame.at(slot).* = value;
-
-    const outcome = &frame.outcomes[@backingInt(slot)];
-
-    outcome.* = .{
-        .safe = value.safe,
-        .text = value.value.scalar,
-        .fields = std.mem.sliceAsBytes(value.value.fields),
-    };
-
-    return outcome;
-}
-
-pub fn selectSymbolicExpression(handle: *anyopaque, condition: []const u8, yes: Operand, no: Operand) zx.Error!void {
-    const frame = Frame.borrow(handle);
-    const evaluator = frame.evaluator;
-
-    frame.at(.Result).value = try evaluator.graph.select(evaluator.program, frame.target, condition, frame.at(yes).value, frame.at(no).value, frame.span);
-}
-
-pub fn retainSymbolicExpression(handle: *anyopaque, safe: []const u8) zx.Error![]const u8 {
-    const frame = Frame.borrow(handle);
-    const result = frame.at(.Result);
-    result.* = try frame.evaluator.retainAt(frame.target, frame.span, .{ .value = result.value, .safe = safe });
-
-    return result.safe;
-}
-
-pub fn bindSymbolicExpressionSafety(handle: *anyopaque, safe: []const u8) zx.Error![]const u8 {
-    const frame = Frame.borrow(handle);
-
-    return frame.evaluator.boolean(safe, frame.span);
+    return .{ .value = .{ .scalar = outcome.scalar }, .safe = outcome.safe orelse "true" };
 }

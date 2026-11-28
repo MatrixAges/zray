@@ -17,7 +17,7 @@ pub fn writeCompilationDiagnostic(handle: *const anyopaque, message: []const u8)
 pub fn loadCompilationCache(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
 
-    self.storage.?.load(self.sources, self.loaded.project, &self.semantic.?) catch |err| {
+    @import("../cache.zig").load(self) catch |err| {
         if (err == error.OutOfMemory) return self.failure.save(err);
 
         self.context.stderr.print("zxc cache read: {s}\n", .{@errorName(err)}) catch |issue| return self.failure.save(issue);
@@ -27,7 +27,7 @@ pub fn loadCompilationCache(handle: *const anyopaque) Error!void {
 pub fn saveCompilationCache(handle: *const anyopaque) Error!void {
     const self = State.get(handle);
 
-    self.storage.?.save(&self.semantic.?) catch |err| {
+    @import("../cache.zig").save(self) catch |err| {
         if (err == error.OutOfMemory) return self.failure.save(err);
 
         self.context.stderr.print("zxc cache write: {s}\n", .{@errorName(err)}) catch |issue| return self.failure.save(issue);
@@ -201,10 +201,4 @@ pub fn buildCompilationModules(handle: *const anyopaque) Error!native.Compilatio
     const result = native.run(&self.context, bundle, &project, self.paths) catch |err| return self.failure.save(err);
 
     return native.sourceStatusAs(native.CompilationStatus, result);
-}
-
-pub fn printCompilationText(handle: *const anyopaque, source: []const u8) Error!void {
-    const self = State.get(handle);
-
-    self.context.stdout.writeAll(source) catch |err| return self.failure.save(err);
 }

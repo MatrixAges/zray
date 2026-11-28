@@ -1,0 +1,34 @@
+import integers from "std:integer"
+
+import { smt_true } from "../../../scalar/const"
+
+import type { Input, Walk as Output } from "./model"
+
+export default function (in: Input): Output {
+    const { columns, payload, object } = in
+
+    const count = match object {
+        true => columns.object_count[payload],
+        _ => columns.sequence_count[payload]
+    }
+
+    const first = match object {
+        true => columns.object_first[payload],
+        _ => columns.sequence_first[payload]
+    }
+
+    const watched = match object {
+        true => columns.object_evaluation_count[payload],
+        _ => 0
+    }
+
+    return {
+        ...in,
+        field: 0,
+        first: integers.widen(first),
+        end: integers.widen(count) + integers.widen(watched),
+        watch_end: integers.widen(watched),
+        safe: smt_true,
+        fields: []
+    }
+}

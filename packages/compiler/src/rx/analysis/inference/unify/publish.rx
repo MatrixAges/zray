@@ -1,18 +1,28 @@
 <Module>
     <Type from="model" as="Walk" />
     <Type from="../unification/application/model" as="Application" />
+    <Type from="effect" as="Unification" />
 
     <Args in={Walk.Request} out={void} />
 
+    <Store from="unification" as="unification" />
+
     <If on={$in.stack.frame.snapshot.action == Application.Action.Object}>
-        <Call fn="host.mergeUnificationFields" in={$in.target} />
+        <Call
+            fn="stage"
+            in={{
+                step: Unification.Step.MergeFields
+            }}
+            setter={[$store.unification.effect]}
+        />
+
+        <Call fn="read_members" in={$store.unification.effect} />
 
         <Call
             module="commit"
             in={{
-                target: $in.target,
                 frame: $in.stack.frame.snapshot,
-                members: $ctx.mergeUnificationFields
+                members: $ctx.read_members
             }}
         />
     </If>
@@ -21,12 +31,17 @@
         <Call
             module="commit"
             in={{
-                target: $in.target,
                 frame: $in.stack.frame.snapshot,
                 members: $in.stack.frame.snapshot.members
             }}
         />
     </If>
 
-    <Call fn="host.popUnificationFrame" in={$in.target} />
+    <Call
+        fn="stage"
+        in={{
+            step: Unification.Step.Pop
+        }}
+        setter={[$store.unification.effect]}
+    />
 </Module>

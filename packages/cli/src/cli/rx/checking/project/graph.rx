@@ -1,49 +1,53 @@
 <Module>
     <Type from="model" as="Graph" />
 
-    <Args in={Graph.Graph} out={bool} />
+    <Args in={Graph.Graph} out={Graph.CallIndex} />
 
-    <Call
-        fn="../index.reserveCheckGraph"
-        in={[
-            $in.check,
-            $in.gateway ? $in.first_module : $in.owner
-        ]}
-    />
+    <Call fn="empty_calls" in={$in.source_count} />
 
-    <Loop on={$in.index < $in.count}>
-        <Call
-            module="source_row"
-            in={{
-                check: $in.check,
-                count: $in.source_count,
-                index: 0
-            }}
-        />
-    </Loop>
-
-    <Loop on={$in.index < $in.count}>
-        <Call
-            module="root_row"
-            in={{
-                check: $in.check,
-                count: $in.module_count,
-                index: 0
-            }}
-        />
-    </Loop>
-
-    <Call fn="../index.buildCheckGraph" in={$in.check} />
-
-    <If on={$ctx.buildCheckGraph}>
-        <Call
-            module="index_calls"
-            in={{
-                check: $in.check,
-                count: $in.module_count
+    <If on={$in.gateway && $in.roots.length == 0}>
+        <Return
+            value={{
+                valid: true,
+                buckets: $ctx.empty_calls
             }}
         />
     </If>
 
-    <Return value={$ctx.buildCheckGraph} />
+    <Call
+        fn="../index.buildCheckGraph"
+        in={[
+            $in.check,
+            $in.gateway ? $in.roots[0] : $in.owner,
+            $in.roots
+        ]}
+    />
+
+    <If on={$ctx.buildCheckGraph}>
+        <Loop on={$in.index < $in.roots.length}>
+            <Call
+                module="index_module"
+                in={{
+                    check: $in.check,
+                    roots: $in.roots,
+                    index: 0,
+                    buckets: $ctx.empty_calls
+                }}
+            />
+        </Loop>
+
+        <Return
+            value={{
+                valid: true,
+                buckets: $ctx.index_module.buckets
+            }}
+        />
+    </If>
+
+    <Return
+        value={{
+            valid: false,
+            buckets: []
+        }}
+    />
 </Module>

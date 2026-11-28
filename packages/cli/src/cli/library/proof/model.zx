@@ -1,4 +1,4 @@
-import type { Proof } from "library_workflow_host"
+import type { Compilation } from "compilation_host"
 
 export type Export = {
     name: string,
@@ -6,13 +6,13 @@ export type Export = {
 }
 
 export type Input = {
-    proof: Proof,
+    compilation: Compilation,
     exports: Export[],
     output_base?: string
 }
 
 export type Entries = {
-    proof: Proof,
+    compilation: Compilation,
     exports: Export[],
     output_base?: string,
     index: u64,
@@ -21,7 +21,7 @@ export type Entries = {
 }
 
 export type Entry = {
-    proof: Proof,
+    compilation: Compilation,
     index: u64,
     item: Export,
     output_base?: string

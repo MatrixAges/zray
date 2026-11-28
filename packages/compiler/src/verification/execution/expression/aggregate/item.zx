@@ -1,0 +1,30 @@
+import integers from "std:integer"
+
+import type { Item as Output, Walk as Input } from "./model"
+
+export default function (in: Input): Output {
+    const { columns, payload, field, watch_end } = in
+
+    if (field < watch_end) {
+        const first = integers.widen(columns.object_evaluation_first[payload])
+
+        return {
+            expression: columns.object_evaluation_values[first + field]
+        }
+    }
+
+    const index = field - watch_end
+    const row = in.first + index
+
+    if (in.object) {
+        return {
+            index: columns.object_field_indices[row],
+            expression: columns.object_field_values[row]
+        }
+    }
+
+    return {
+        index: integers.narrow(index),
+        expression: columns.sequence_items[row]
+    }
+}

@@ -1,8 +1,11 @@
 <Module>
     <Type from="../object_closure/replay" as="Objects" />
     <Type from="../object_closure/query" as="Query" />
+    <Type from="../object_closure/effect" as="ObjectEffect" />
 
     <Args in={Objects.SelectionCursor} out={Objects.SelectionCursor} />
+
+    <Store from="../object_closure/object" as="object" />
 
     <Call
         fn="../object_closure/selection"
@@ -28,14 +31,15 @@
 
     <If on={$ctx.selection.plan.action == Query.Action.Rebuild}>
         <Call
-            fn="host.updateObjectReadiness"
-            in={[
-                $in.request.view.readiness.frame,
-                true,
-                $ctx.selection.plan.position,
-                false,
-                $ctx.selection.plan.shared
-            ]}
+            fn="../object_closure/stage"
+            in={{
+                object_step: ObjectEffect.Step.UpdateReadiness,
+                rebuild: true,
+                position: $ctx.selection.plan.position,
+                spread: false,
+                shared: $ctx.selection.plan.shared
+            }}
+            setter={[$store.object.effect]}
         />
 
         <Return
@@ -65,17 +69,20 @@
 
     <If on={$ctx.selection.plan.action == Query.Action.Propagate}>
         <Call
-            fn="host.updateObjectReadiness"
-            in={[
-                $in.request.view.readiness.frame,
-                false,
-                $ctx.selection.plan.position,
-                false,
-                $ctx.selection.plan.shared
-            ]}
+            fn="../object_closure/stage"
+            in={{
+                object_step: ObjectEffect.Step.UpdateReadiness,
+                rebuild: false,
+                position: $ctx.selection.plan.position,
+                spread: false,
+                shared: $ctx.selection.plan.shared
+            }}
+            setter={[$store.object.effect]}
         />
 
-        <If on={!$ctx.updateObjectReadiness}>
+        <Call fn="../object_closure/read_ready" in={$store.object.effect} />
+
+        <If on={!$ctx.read_ready}>
             <If on={$in.request.final}>
                 <Call
                     fn="reject_incomplete"
@@ -103,12 +110,13 @@
     </If>
 
     <Call
-        fn="host.openSelectionRow"
-        in={[
-            $in.request.view.frame,
-            $ctx.selection.row,
-            $ctx.selection.root
-        ]}
+        fn="../object_closure/stage"
+        in={{
+            object_step: ObjectEffect.Step.OpenSelection,
+            row: $ctx.selection.row,
+            root: $ctx.selection.root
+        }}
+        setter={[$store.object.effect]}
     />
 
     <Call
@@ -119,7 +127,13 @@
         }}
     />
 
-    <Call fn="../object_closure/host.finishObjectRow" in={$in.request.view.frame} />
+    <Call
+        fn="../object_closure/stage"
+        in={{
+            object_step: ObjectEffect.Step.FinishRow
+        }}
+        setter={[$store.object.effect]}
+    />
 
     <Return
         value={{

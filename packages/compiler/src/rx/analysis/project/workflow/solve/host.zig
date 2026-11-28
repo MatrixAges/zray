@@ -16,6 +16,7 @@ const SignatureHost = @import("../../signatures/host.zig");
 const Requests = @import("../../signatures/requests.zig");
 const abi = @import("abi.zig");
 const workflow = @import("../errors.zig");
+const execution = @import("../execute.zig");
 const Error = zx.Error;
 const generated = @import("rx_options").generated_graph;
 
@@ -75,33 +76,81 @@ pub fn run(derivation: *Derivation) Error!void {
         state.stages = &stages;
 
         const input: abi.Input = .{
-            .frame = @ptrCast(&state),
             .ports = &stages.ports,
             .collection = &stages.collection.input,
             .solve = &stages.inference.input,
             .signatures = &stages.signatures.input,
         };
 
-        const Store = std.meta.Child(@FieldType(abi.entry.zx_pending, "store_0"));
+        const FlowSlot = comptime abi.slot("flow_step");
+        const ReplaySlot = comptime abi.slot("step");
+        const ObjectSlot = comptime abi.slot("object_step");
+        const CollectionSlot = comptime abi.slot("collection_step");
+        const ResolveSlot = comptime abi.slot("resolve_step");
+        const Flow = std.meta.Child(abi.Store(FlowSlot));
+        const Replay = std.meta.Child(abi.Store(ReplaySlot));
+        const Object = std.meta.Child(abi.Store(ObjectSlot));
+        const Collected = std.meta.Child(abi.Store(CollectionSlot));
+        const Resolution = std.meta.Child(abi.Store(ResolveSlot));
 
-        var snapshot: std.meta.Child(Store) = .{
-            .step = .RefreshBindings,
-            .row = null,
-            .left = null,
-            .right = null,
-            .diagnostic = null,
-            .id = 0,
+        const flow_snapshot: Flow = .{
+            .flow_step = .OpenPorts,
+            .batches = &.{},
+            .signatures = null,
         };
 
-        var store: Store = &snapshot;
+        var replay_snapshot = execution.snapshot(Replay, .{ .step = .RefreshBindings, .id = 0 });
+        var object_snapshot = execution.snapshot(Object, .{ .object_step = .FinishRow, .id = 0, .ready = false });
+
+        var collection_snapshot = execution.snapshot(Collected, .{
+            .collection_step = .Open,
+            .shortcut = false,
+            .input_fixed = false,
+            .returned = false,
+            .used = false,
+            .bindings = 0,
+            .tasks = 0,
+            .parents = @as([]const u32, &.{}),
+        });
+
+        const resolution_snapshot = execution.snapshot(Resolution, .{ .resolve_step = .Record });
+        var flow: abi.Store(FlowSlot) = &flow_snapshot;
+        var replay: abi.Store(ReplaySlot) = &replay_snapshot;
+        var object: abi.Store(ObjectSlot) = &object_snapshot;
+        var collection: abi.Store(CollectionSlot) = &collection_snapshot;
+        var resolution: abi.Store(ResolveSlot) = &resolution_snapshot;
 
         const Host = struct {
-            frame: *Inference,
-            snapshot: *std.meta.Child(Store),
-            store_0: *Store,
-            pub fn commit(host: *@This(), pending: anytype) Error!void {
-                const effect = pending.store_0 orelse return;
-                const frame = host.frame;
+            state: *State,
+            replay_snapshot: *Replay,
+            object_snapshot: *Object,
+            collection_snapshot: *Collected,
+            store_0: *abi.Store("store_0") = undefined,
+            store_1: *abi.Store("store_1") = undefined,
+            store_2: *abi.Store("store_2") = undefined,
+            store_3: *abi.Store("store_3") = undefined,
+            store_4: *abi.Store("store_4") = undefined,
+            pub fn commit(host: *@This(), pending: abi.entry.zx_pending) Error!void {
+                const work = host.state;
+                const current = work.stages;
+                const frame = &current.inference;
+
+                if (@field(pending, FlowSlot)) |effect| switch (effect.flow_step) {
+                    .OpenPorts => try openFlowPorts(work),
+                    .PublishPorts => try commitFlowPorts(work, zx.columns.slice([]const *const PortBatch, effect.batches)),
+                    .OpenCollection => openFlowCollection(work),
+                    .ReleaseCollection => releaseFlowCollection(work),
+                    .OpenSolver => openFlowSolver(work),
+                    .ReleasePending => releaseFlowPending(work),
+                    .BindSignatures => bindFlowSignatures(work),
+                    .PublishSignatures => publishFlowSignatures(work, effect.signatures.?),
+                };
+
+                if (@field(pending, ObjectSlot)) |effect| try frame.objects.commit(effect, host.object_snapshot);
+                if (@field(pending, CollectionSlot)) |effect| try current.collection.commit(effect, host.collection_snapshot);
+                if (@field(pending, ResolveSlot)) |effect| try @import("../../../inference/resolve/host.zig").commit(&frame.resolution, effect);
+
+                const effect = @field(pending, ReplaySlot) orelse return;
 
                 switch (effect.step) {
                     .UnifyBinding => try frame.bindings.unify(@intCast(effect.row.?), effect.right.?),
@@ -109,13 +158,24 @@ pub fn run(derivation: *Derivation) Error!void {
                     .RejectBinding => return frame.bindings.reject(effect.diagnostic.?),
                     .MergeNonNull => try frame.non_null.merge(@intCast(effect.row.?), effect.left.?, effect.right.?),
                     .RefreshNonNull => frame.non_null.refresh(),
-                    .ReserveNonNull => host.snapshot.id = try frame.non_null.reserve(@intCast(effect.row.?), effect.right.?),
-                    .RegisterNonNull => host.snapshot.id = try frame.non_null.register(@intCast(effect.row.?), effect.right.?),
+                    .ReserveNonNull => host.replay_snapshot.id = try frame.non_null.reserve(@intCast(effect.row.?), effect.right.?),
+                    .RegisterNonNull => host.replay_snapshot.id = try frame.non_null.register(@intCast(effect.row.?), effect.right.?),
                 }
             }
         };
 
-        var host: Host = .{ .frame = &stages.inference, .snapshot = &snapshot, .store_0 = &store };
+        var host: Host = .{
+            .state = &state,
+            .replay_snapshot = &replay_snapshot,
+            .object_snapshot = &object_snapshot,
+            .collection_snapshot = &collection_snapshot,
+        };
+
+        @field(host, FlowSlot) = &flow;
+        @field(host, ReplaySlot) = &replay;
+        @field(host, ObjectSlot) = &object;
+        @field(host, CollectionSlot) = &collection;
+        @field(host, ResolveSlot) = &resolution;
 
         return abi.entry.executeIn(stages.scope.allocator(), &input, &host) catch |err| state.report(switch (@as(anyerror, err)) {
             error.Overflow, error.IntegerOverflow => error.OutOfMemory,
@@ -204,12 +264,7 @@ const State = struct {
     }
 };
 
-fn borrow(handle: *anyopaque) *State {
-    return @ptrCast(@alignCast(handle));
-}
-
-pub fn openFlowPorts(handle: *anyopaque) Error!void {
-    const state = borrow(handle);
+fn openFlowPorts(state: *State) Error!void {
     const stages = state.stages;
     const modules = state.derivation.prepared.?.modules;
 
@@ -231,8 +286,7 @@ pub fn openFlowPorts(handle: *anyopaque) Error!void {
     };
 }
 
-pub fn commitFlowPorts(handle: *anyopaque, batches: []const *const PortBatch) Error!void {
-    const state = borrow(handle);
+fn commitFlowPorts(state: *State, batches: []const *const PortBatch) Error!void {
     const stages = state.stages;
 
     try PortPublication.apply(&state.graph, state.ports, batches);
@@ -242,8 +296,7 @@ pub fn commitFlowPorts(handle: *anyopaque, batches: []const *const PortBatch) Er
     stages.declarations.reset(0);
 }
 
-pub fn openFlowCollection(handle: *anyopaque) void {
-    const state = borrow(handle);
+fn openFlowCollection(state: *State) void {
     const stages = state.stages;
 
     stages.body.graph = &state.graph;
@@ -254,21 +307,18 @@ pub fn openFlowCollection(handle: *anyopaque) void {
     stages.collection.bind(&stages.body);
 }
 
-pub fn releaseFlowCollection(handle: *anyopaque) void {
-    const stages = borrow(handle).stages;
+fn releaseFlowCollection(state: *State) void {
+    const stages = state.stages;
 
     stages.scope.active = stages.idle;
     _ = stages.collection_scratch.reset(.free_all);
 }
 
-pub fn openFlowSolver(handle: *anyopaque) void {
-    const state = borrow(handle);
-
+fn openFlowSolver(state: *State) void {
     state.stages.inference.bind(&state.graph, &state.resolver, &state.stages.scope);
 }
 
-pub fn releaseFlowPending(handle: *anyopaque) void {
-    const state = borrow(handle);
+fn releaseFlowPending(state: *State) void {
     const stages = state.stages;
 
     stages.scope.active = stages.idle;
@@ -277,8 +327,7 @@ pub fn releaseFlowPending(handle: *anyopaque) void {
     state.releasePending();
 }
 
-pub fn bindFlowSignatures(handle: *anyopaque) void {
-    const state = borrow(handle);
+fn bindFlowSignatures(state: *State) void {
     const stages = state.stages;
     const resolution = &stages.inference.resolution;
     const table = Signatures.borrow(state.ports, state.requests);
@@ -289,24 +338,17 @@ pub fn bindFlowSignatures(handle: *anyopaque) void {
     stages.signatures.bind(&state.graph, table, &resolution.view);
 }
 
-pub fn publishFlowSignatures(
-    handle: *anyopaque,
-    bindings: []const u32,
-    tasks: []const u32,
-    inputs: []const u32,
-    outputs: []const u32,
-) void {
-    const state = borrow(handle);
+fn publishFlowSignatures(state: *State, signatures: anytype) void {
     const stages = state.stages;
     const table = stages.signatures.table;
     const requests = &state.requests;
     const ports = state.ports;
 
     if (ports.len != 0) {
-        @memcpy(@as([]u32, @ptrCast(requests.bindings.items(.value))), bindings);
-        @memcpy(requests.tasks.items, tasks);
-        @memcpy(@as([]u32, @ptrCast(ports.items(.input))), inputs);
-        @memcpy(@as([]u32, @ptrCast(ports.items(.output))), outputs);
+        @memcpy(@as([]u32, @ptrCast(requests.bindings.items(.value))), signatures.bindings);
+        @memcpy(requests.tasks.items, signatures.tasks);
+        @memcpy(@as([]u32, @ptrCast(ports.items(.input))), signatures.inputs);
+        @memcpy(@as([]u32, @ptrCast(ports.items(.output))), signatures.outputs);
     }
 
     stages.scope.active = stages.idle;

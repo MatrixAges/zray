@@ -1,0 +1,24 @@
+<Module>
+    <Type from="model" as="Block" />
+
+    <Args in={Block.Guard} out={Block.Outcome} />
+
+    <Call module="violation" in={$in} />
+
+    <Call
+        fn="../../scalar/conjunction"
+        in={{
+            left: $in.path,
+            right: $in.safe
+        }}
+    />
+
+    <Call module="boolean" />
+
+    <Return
+        value={{
+            path: $ctx.boolean,
+            violations: $ctx.violation
+        }}
+    />
+</Module>

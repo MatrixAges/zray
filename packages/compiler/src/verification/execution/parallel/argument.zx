@@ -1,0 +1,14 @@
+import integers from "std:integer"
+
+import type { Parameters as Input } from "./model"
+
+export type Output = u32
+
+export default function (in: Input): Output {
+    const { scope, row } = in
+
+    const call = integers.widen(scope.control.parallel_values[row])
+    const payload = integers.widen(scope.expression_payloads[call])
+
+    return scope.call_arguments[payload]
+}

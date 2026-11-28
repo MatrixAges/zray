@@ -1,6 +1,6 @@
 import type { LoopEmissionSpans } from "lowering_host"
 import type { Output as RenewalPlan } from "../../deferred/model"
-import type { Output as StepPlan } from "../../step/model"
+import type { Assignment as AssignmentKind, Output as StepPlan } from "../../step/model"
 import type { Input } from "./model"
 import type { Update } from "./update_model"
 
@@ -14,7 +14,10 @@ export type Emit =
         "body",
         "loop_frame",
         "guard_info",
-        "initial_plan"
+        "initial_plan",
+        "type_id",
+        "assignment_facts",
+        "state_active"
     ) & {
         schedule: StepPlan,
         renewals: RenewalPlan,
@@ -27,19 +30,45 @@ export type Emit =
 export type Growth = Emit.Pick("loop_frame", "renewals", "schedule")
 
 export type Assignment = Emit.Pick(
+    "frame",
     "writer",
     "loop_frame",
     "loop_seq",
     "body",
     "schedule",
-    "update"
+    "update",
+    "state",
+    "type_id",
+    "assignment_facts",
+    "state_active"
 )
+
+export type AssignmentValue =
+    Assignment.Pick("loop_frame", "writer", "loop_seq", "body") & {
+        assignment: AssignmentKind,
+        value: u32
+    }
+
+export type Assigned = {
+    prefix: u64,
+    count: u32
+}
 
 export type Recovery = Emit.Pick("loop_frame", "state") & {
     restore: bool
 }
 
 export type Finish =
-    Emit.Omit("schedule", "renewals", "loop_seq", "projected_seq", "body") & {
+    Emit.Omit(
+        "schedule",
+        "renewals",
+        "loop_seq",
+        "projected_seq",
+        "body",
+        "type_id",
+        "assignment_facts",
+        "state_active"
+    ) & {
+        changed_name?: u8[],
         spans: LoopEmissionSpans
     }

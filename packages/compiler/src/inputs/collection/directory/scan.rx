@@ -1,17 +1,22 @@
 <Module>
     <Type from="scan_shape" as="Directory" />
+    <Type from="model" as="Files" />
 
-    <Args in={Directory.Input} out={void} />
+    <Args in={Directory.Input} out={Files.Collected} />
 
-    <Loop on={$in.running}>
+    <Store from="entries" as="entries" />
+
+    <Loop on={$in.parents.length != 0}>
         <Call
             module="scan_level"
             in={{
                 scan: $in,
-                parents: $in.initial,
-                frontier: 0,
-                running: true
+                parents: $in.initial
             }}
         />
     </Loop>
+
+    <Call fn="read_entries" in={$store.entries.collected} />
+
+    <Return value={$ctx.read_entries} />
 </Module>

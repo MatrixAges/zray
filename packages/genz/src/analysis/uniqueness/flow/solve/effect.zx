@@ -1,0 +1,31 @@
+export enum Step {
+    Initialize,
+    ReserveMemo,
+    OpenWorkers,
+    SolveLayer,
+    KeepMemo,
+    PublishMemo,
+    OpenRecursive,
+    RetainFacts,
+    Visit
+}
+
+export type Request = {
+    step: Step,
+    order?: u32[],
+    first?: u64,
+    end?: u64,
+    row?: u64,
+    index?: u32,
+    retained?: bool
+}
+
+export type Result = {
+    held: bool[][],
+    hits: bool[],
+    changed: bool
+}
+
+export type Exchange = Result & {
+    request?: Request
+}

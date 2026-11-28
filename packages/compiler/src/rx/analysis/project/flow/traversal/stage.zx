@@ -1,0 +1,14 @@
+import type { Command as Input } from "./operation"
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.operations.effect = {
+        ...in,
+        flag: false,
+        result_id: null,
+        truth: null
+    }
+}

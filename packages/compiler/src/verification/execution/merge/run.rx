@@ -3,17 +3,33 @@
 
     <Args in={Merge.Input} out={string} />
 
-    <Call fn="returns" in={$in} />
-    <Call fn="safety" in={$in} />
+    <Call fn="returns" in={$in.returns} />
+
+    <Loop on={$in.row < $in.end}>
+        <Call module="next_return" />
+    </Loop>
+
+    <Call fn="safety" in={$in.violations} />
+
+    <Loop on={$in.row < $in.violations.length}>
+        <Call module="next_violation" />
+    </Loop>
 
     <Call
-        fn="finish"
+        fn="../../scalar/conjunction"
         in={{
-            target: $in.target,
-            returned: $ctx.returns,
-            safe: $ctx.safety
+            left: $ctx.next_violation.safe,
+            right: $ctx.next_return.reached
         }}
     />
 
-    <Return value={$ctx.finish} />
+    <Call
+        module="operate"
+        in={{
+            step: Merge.Step.Boolean,
+            term: $ctx.conjunction
+        }}
+    />
+
+    <Return value={$ctx.operate} />
 </Module>

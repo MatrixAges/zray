@@ -1,0 +1,51 @@
+<Module>
+    <Type from="../../program/driver/effect" as="Effect" />
+    <Type from="phase" as="Replay" />
+
+    <Args in={bool} out={bool} />
+
+    <Store from="../../program/driver/execution" as="driver" />
+
+    <If on={!$in}>
+        <Return value={false} />
+    </If>
+
+    <Call
+        fn="../../program/driver/submit"
+        in={{
+            step: Effect.Step.BeginReplay
+        }}
+        setter={[$store.driver.exchange]}
+    />
+
+    <Loop on={$in.running}>
+        <Call
+            module="attempt_step"
+            in={{
+                phase: Replay.Phase.Start,
+                recovered: null,
+                running: true
+            }}
+        />
+    </Loop>
+
+    <If on={$ctx.attempt_step.phase == Replay.Phase.Done}>
+        <Call
+            fn="../../program/driver/submit"
+            in={{
+                step: Effect.Step.PublishReplay
+            }}
+            setter={[$store.driver.exchange]}
+        />
+    </If>
+
+    <Call
+        fn="../../program/driver/submit"
+        in={{
+            step: Effect.Step.FinishReplay
+        }}
+        setter={[$store.driver.exchange]}
+    />
+
+    <Return value={$ctx.attempt_step.phase == Replay.Phase.Done} />
+</Module>

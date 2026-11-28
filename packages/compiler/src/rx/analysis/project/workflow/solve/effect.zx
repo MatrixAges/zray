@@ -1,0 +1,36 @@
+export enum Step {
+    OpenPorts,
+    PublishPorts,
+    OpenCollection,
+    ReleaseCollection,
+    OpenSolver,
+    ReleasePending,
+    BindSignatures,
+    PublishSignatures
+}
+
+export type DeclaredPort = {
+    row: u64,
+    offset: u64,
+    input: u32,
+    output: u32
+}
+
+export type PortBatch = {
+    first: u64,
+    offsets: u64[],
+    declared?: DeclaredPort
+}
+
+export type Signatures = {
+    bindings: u32[],
+    tasks: u32[],
+    inputs: u32[],
+    outputs: u32[]
+}
+
+export type Effect = {
+    flow_step: Step,
+    batches: PortBatch[],
+    signatures?: Signatures
+}

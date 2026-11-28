@@ -18,7 +18,6 @@ const Context = struct {
     body: Sequence,
     loop: Sequence,
     binding: Sequence,
-    renewal_workspace: *RenewalWorkspace = undefined,
     fn deinit(self: *Context) void {
         self.binding.deinit();
         self.loop.deinit();

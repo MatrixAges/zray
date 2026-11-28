@@ -2,6 +2,8 @@ export {
     astExpressionCount,
     astStatementCount,
     clipCollectionTarget,
+    finishAstSequence,
+    readAstOrigin,
     takeAstSequence
 } from "ast_rows"
 export {
@@ -9,11 +11,10 @@ export {
     enterLoopRepresentation,
     addLoopParameterMembers,
     openLoopParameterContext,
-    releaseLoopPlanningScratch,
     emitLoopRenewals,
+    projectLoopAssignment,
     renameIterationParameters,
     maskLoopBorrowedFields,
     declareProjectedLoopState,
     restoreLoopFields
 } from "lowering_host"
-export { commitLoopUpdate, projectLoopAssignment } from "lowering_host"

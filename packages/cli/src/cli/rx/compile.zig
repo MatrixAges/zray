@@ -6,11 +6,12 @@ const analyze = @import("analyze.zig");
 const cache = @import("../generation_cache.zig");
 const toolchain = @import("../toolchain.zig");
 const native = @import("../build/native.zig");
+const gateway = @import("gateway/compile.zig");
 const effects = @import("../sources/effects.zig");
 const Error = effects.Error;
 const Text = @import("cli_abi").layouts.@"zig:rx_execution_host".ApplicationText;
 
-const State = struct {
+pub const State = struct {
     context: *const Compile.Context,
     loaded: project.Loaded = undefined,
     parsing: ?compiler.project.ParseCache = null,
@@ -24,8 +25,9 @@ const State = struct {
     initializers: []const compiler.zig.store_initializers.Initializer.Borrowed = &.{},
     paths: toolchain.Paths = undefined,
     native_project: project.Loaded = undefined,
+    gateway: ?gateway.Build = null,
     failure: effects.Failure = .{},
-    fn get(handle: *const anyopaque) *State {
+    pub fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);
     }
     fn closeStore(self: *State) void {
@@ -38,7 +40,15 @@ const State = struct {
     fn deinit(self: *State) void {
         self.closeStore();
 
-        if (self.bundle) |*bundle| bundle.deinit();
+        if (self.bundle) |*bundle| {
+            if (self.gateway != null) {
+                if (bundle.runner) |runner| self.context.allocator.free(runner);
+            }
+
+            bundle.deinit();
+        }
+
+        if (self.gateway) |*build| build.deinit(self.context.allocator);
         if (self.text) |text| self.context.allocator.free(text);
 
         self.type_output.deinit();
@@ -102,9 +112,18 @@ pub fn run(context: Compile.Context) !Compile.Status {
 
     defer state.deinit();
 
-    const outcome = entry.executeIn(context.allocator, &request, context.io) catch |err| return state.failure.unwrap(err);
+    const outcome = entry.executeIn(context.allocator, &request, context.io) catch |err| {
+        const cause = state.failure.unwrap(err);
+
+        if (state.gateway == null) return cause;
+
+        _ = state.reportFailure(cause) catch |failure| return state.failure.unwrap(failure);
+
+        return .failed;
+    };
 
     if (outcome.diagnostic) |message| try context.stderr.print("{s}\n", .{message});
+    if (outcome.stdout) |source| try context.stdout.writeAll(source);
 
     return native.status(outcome.status);
 }
@@ -126,18 +145,6 @@ pub fn loadRxApplication(handle: *const anyopaque) Error!?[]const u8 {
     }
 
     return self.loaded.project.entry;
-}
-
-pub fn buildRxGateway(handle: *const anyopaque) Error!native.RxStatus {
-    const self = State.get(handle);
-
-    const result = @import("gateway/compile.zig").run(self.context, &self.loaded) catch |err| {
-        _ = try self.reportFailure(err);
-
-        return .Failed;
-    };
-
-    return native.sourceStatusAs(native.RxStatus, result);
 }
 
 pub fn analyzeRxApplication(handle: *const anyopaque) Error!?u64 {
@@ -200,12 +207,6 @@ pub fn emitRxApplicationText(handle: *const anyopaque) Error!?*const Text {
     self.text_view = .{ .source = result.source, .abi = self.type_output.written() };
 
     return &self.text_view;
-}
-
-pub fn printRxApplicationText(handle: *const anyopaque, source: []const u8) Error!void {
-    const self = State.get(handle);
-
-    self.context.stdout.writeAll(source) catch |err| return self.failure.save(err);
 }
 
 pub fn emitRxApplicationModules(handle: *const anyopaque) Error!bool {

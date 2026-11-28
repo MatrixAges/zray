@@ -1,15 +1,19 @@
 <Module>
     <Type from="../effect" as="Effect" />
+    <Type from="../operation" as="Operation" />
 
     <Args in={Effect.BranchClose} out={void} />
 
+    <Store from="../operations" as="operations" />
+
     <Call
-        fn="../host.finishFlowCase"
-        in={[
-            $in.frame,
-            $in.returns == null ? $in.cursor.destination : null,
-            $in.saved_facts,
-            $in.saved_bindings
-        ]}
+        fn="../stage"
+        in={{
+            step: Operation.Step.FinishCase,
+            row: $in.returns == null ? $in.cursor.destination : null,
+            facts: $in.saved_facts,
+            bindings: $in.saved_bindings
+        }}
+        setter={[$store.operations.effect]}
     />
 </Module>

@@ -1,17 +1,14 @@
-import memory from "memory"
-
 import qualify from "../qualify"
 
-import type { Level } from "./model"
-
 export type Input = {
-    level: Level
+    parents: string[],
+    directories: string[][]
 }
 
 export type Output = string[]
 
 export default function (in: Input): Output {
-    const { parents, directories } = in.level
+    const { parents, directories } = in
 
     const empty: string[] = []
 
@@ -22,7 +19,7 @@ export default function (in: Input): Output {
         while: state => state.group < parents.length,
         next: state => {
             const parent = parents[state.group]
-            const names = memory.readTextListColumn(directories, state.group)
+            const names = directories[state.group]
 
             state.next = loop({
                 row: 0,

@@ -1,10 +1,8 @@
-import type { ObjectReadiness } from "rx_project_host"
 import type { Kind } from "../unification/model"
 import type { Cache } from "./cache"
 import type { Input } from "./query"
 
 export type Context = {
-    frame: ObjectReadiness,
     cache: Cache,
     kinds: Kind[],
     revision: u64,

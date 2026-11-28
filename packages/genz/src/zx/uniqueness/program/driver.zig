@@ -10,7 +10,11 @@ const Result = Analysis.Result;
 const Round = @import("driver/round.zig");
 const Replay = @import("../replay/shortcut/frame.zig");
 const program = @import("generated_uniqueness_program");
-pub const Api = @import("execution_abi").layouts.@"zig:ownership_host";
+const Store = std.meta.Child(@FieldType(program.zx_pending, "store_0"));
+const Exchange = std.meta.Child(Store);
+const Request = std.meta.Child(std.meta.Child(@FieldType(Exchange, "request")));
+pub const RoundKind = std.meta.Child(@FieldType(Request, "kind"));
+pub const ReplayPhase = @FieldType(Exchange, "phase");
 const Error = std.mem.Allocator.Error;
 const Self = @This();
 
@@ -34,7 +38,6 @@ pub fn run(ctx: *Context, preparation: Preparation) Error!Result {
     defer frame.close();
 
     const input: std.meta.Child(program.Input) = .{
-        .frame = @ptrCast(&frame),
         .persistent = ctx.memo.persistent,
         .recording = ctx.memo.record_trace,
     };
@@ -46,7 +49,24 @@ pub fn run(ctx: *Context, preparation: Preparation) Error!Result {
 
         defer scratch.deinit();
 
-        break :execute try program.executeIn(memory.allocator(), &input);
+        const temporary = memory.allocator();
+
+        var store: Store = &.{
+            .request = null,
+            .available = false,
+            .body = null,
+            .grew = false,
+            .exhausted = false,
+            .phase = .Start,
+            .recovered = null,
+        };
+
+        var host: Host = .{ .frame = &frame, .temporary = temporary, .store_0 = &store };
+
+        break :execute program.executeIn(temporary, &input, &host) catch |err| switch (@as(anyerror, err)) {
+            error.OutOfMemory, error.IntegerOverflow, error.Overflow => return error.OutOfMemory,
+            else => unreachable,
+        };
     };
 
     ctx.release();
@@ -56,9 +76,57 @@ pub fn run(ctx: *Context, preparation: Preparation) Error!Result {
     return frame.result;
 }
 
-fn borrow(handle: *anyopaque) *Self {
-    return @ptrCast(@alignCast(handle));
-}
+const Host = struct {
+    frame: *Self,
+    temporary: std.mem.Allocator,
+    store_0: *Store,
+    pub fn commit(host: *Host, pending: anytype) Error!void {
+        const exchange = pending.store_0 orelse return;
+        const effect = exchange.request.?;
+        const frame = host.frame;
+        const ctx = frame.ctx;
+
+        const reply = switch (effect.step) {
+            .PrepareReplay, .ClaimBody, .ScanReplay, .RecoverVisit => try host.temporary.create(Exchange),
+            else => null,
+        };
+
+        var next = exchange.*;
+
+        switch (effect.step) {
+            .PrepareStorage => try frame.prepareStorage(),
+            .PrepareIdentities => try frame.prepareIdentities(),
+            .PrepareReplay => next.available = try frame.prepareReplay(),
+            .PrepareBodies => ctx.bodies.* = try Bodies.init(ctx.temporary, frame.preparation.program, ctx.calls.callees, frame.identities),
+            .PrepareWorkers => frame.ahead = try ctx.prepareWorkers(),
+            .PrepareQueue => try frame.prepareQueue(),
+            .BindMemoRows => ctx.rounds.?.ahead.memo_rows.init(ctx.bodies),
+            .BeginRound => try frame.beginRound(effect.kind.?, effect.exhausted.?),
+            .ClaimBody => {
+                const claim = try frame.active.round.claim(ctx, effect.kind.?);
+
+                next.body = claim.body;
+                next.grew = claim.grew;
+                next.exhausted = claim.exhausted;
+            },
+            .VisitBody => try frame.active.round.visit(ctx, effect.kind.?, @intCast(effect.body.?)),
+            .PublishRound => frame.result = frame.active.round.plans.result(),
+            .FinishRound => frame.close(),
+            .BeginReplay => frame.active = .{ .replay = .init(ctx.workspace) },
+            .ScanReplay => next.phase = try frame.active.replay.advance(ctx, effect.phase.?, effect.recovered),
+            .RecoverVisit => next.recovered = try frame.active.replay.recover(ctx, effect.phase.?),
+            .PublishReplay => frame.result = try frame.active.replay.publish(ctx),
+            .FinishReplay => frame.close(),
+        }
+
+        if (reply) |saved| {
+            saved.* = next;
+            host.store_0.* = saved;
+        } else {
+            host.store_0.* = exchange;
+        }
+    }
+};
 
 fn close(self: *Self) void {
     switch (self.active) {
@@ -70,8 +138,7 @@ fn close(self: *Self) void {
     self.active = .none;
 }
 
-pub fn prepareOwnershipStorage(handle: *anyopaque) Error!void {
-    const self = borrow(handle);
+fn prepareStorage(self: *Self) Error!void {
     const input = &self.preparation;
     const ctx = self.ctx;
     const prepared = try @import("../summaries/storage.zig").prepare(ctx.temporary, input.summary_allocator, input.program, input.basis);
@@ -81,8 +148,7 @@ pub fn prepareOwnershipStorage(handle: *anyopaque) Error!void {
     ctx.summaries.return_allocations = input.return_allocations;
 }
 
-pub fn prepareOwnershipIdentities(handle: *anyopaque) Error!void {
-    const self = borrow(handle);
+fn prepareIdentities(self: *Self) Error!void {
     const input = &self.preparation;
     const ctx = self.ctx;
 
@@ -90,94 +156,24 @@ pub fn prepareOwnershipIdentities(handle: *anyopaque) Error!void {
     self.identities = try Identity.bodies(ctx.temporary, input.program, ctx.calls.active, &self.shared_identity, input.basis.contents);
 }
 
-pub fn prepareOwnershipReplay(handle: *anyopaque) Error!bool {
-    const self = borrow(handle);
+fn prepareReplay(self: *Self) Error!bool {
     const ctx = self.ctx;
     const memo = ctx.memo;
     const previous = if (memo.trace) |*trace| trace else null;
     const key = Identity.combine(&self.shared_identity, std.mem.sliceAsBytes(ctx.exported));
-
     ctx.replay.* = try .init(ctx.temporary, memo.arena.child_allocator, previous, key, self.identities, ctx.calls.callees);
 
-    if (ctx.replay.trace == null) return false;
-
-    self.active = .{ .replay = .init(ctx.workspace) };
-
-    return true;
+    return ctx.replay.trace != null;
 }
 
-pub fn prepareOwnershipBodies(handle: *anyopaque) Error!void {
-    const self = borrow(handle);
-    const ctx = self.ctx;
-
-    ctx.bodies.* = try Bodies.init(ctx.temporary, self.preparation.program, ctx.calls.callees, self.identities);
-}
-
-pub fn prepareOwnershipWorkers(handle: *anyopaque) Error!void {
-    const self = borrow(handle);
-
-    self.ahead = try self.ctx.prepareWorkers();
-}
-
-pub fn prepareOwnershipQueue(handle: *anyopaque) Error!void {
-    const self = borrow(handle);
+fn prepareQueue(self: *Self) Error!void {
     const ctx = self.ctx;
     const prepared = try Analysis.Work.open(ctx.workspace, ctx.roundMemory(), ctx.calls.callees, ctx.exported);
     ctx.rounds = .{ .work = prepared.work, .reverse = prepared.reverse, .ahead = self.ahead };
 }
 
-pub fn bindOwnershipMemoRows(handle: *anyopaque) void {
-    const ctx = borrow(handle).ctx;
-
-    ctx.rounds.?.ahead.memo_rows.init(ctx.bodies);
-}
-
-pub fn beginOwnershipRound(handle: *anyopaque, kind: Api.RoundKind, exhausted: bool) Error!void {
-    const self = borrow(handle);
-
+fn beginRound(self: *Self, kind: RoundKind, exhausted: bool) Error!void {
     self.active = .{ .round = .{ .arena = .init(self.ctx.workspace) } };
 
     try self.active.round.open(self.ctx, kind, exhausted);
-}
-
-pub fn claimOwnershipBody(handle: *anyopaque, kind: Api.RoundKind) Error!*const Api.RoundClaim {
-    const self = borrow(handle);
-
-    return self.active.round.claim(self.ctx, kind);
-}
-
-pub fn visitOwnershipBody(handle: *anyopaque, kind: Api.RoundKind, body: u64) Error!void {
-    const self = borrow(handle);
-
-    return self.active.round.visit(self.ctx, kind, @intCast(body));
-}
-
-pub fn finishOwnershipRound(handle: *anyopaque, publish: bool) void {
-    const self = borrow(handle);
-
-    if (publish) self.result = self.active.round.plans.result();
-
-    self.close();
-}
-
-pub fn scanOwnershipReplay(handle: *anyopaque, phase: Api.ReplayPhase, recovered: ?u32) Error!Api.ReplayPhase {
-    const self = borrow(handle);
-
-    return self.active.replay.advance(self.ctx, phase, recovered);
-}
-
-pub fn recoverOwnershipVisit(handle: *anyopaque, phase: Api.ReplayPhase) Error!u32 {
-    const self = borrow(handle);
-
-    return self.active.replay.recover(self.ctx, phase);
-}
-
-pub fn publishOwnershipReplay(handle: *anyopaque) Error!void {
-    const self = borrow(handle);
-
-    self.result = try self.active.replay.publish(self.ctx);
-}
-
-pub fn finishOwnershipReplay(handle: *anyopaque) void {
-    borrow(handle).close();
 }

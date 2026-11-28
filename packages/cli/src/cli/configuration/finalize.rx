@@ -18,11 +18,11 @@
 
     <If on={$in.write}>
         <Call
-            fn="../workspace_files/index.write"
-            in={[
-                $in.path,
-                $in.formatted
-            ]}
+            module="../workspace_files/write_bytes"
+            in={{
+                path: $in.path,
+                data: $in.formatted
+            }}
         />
 
         <Return

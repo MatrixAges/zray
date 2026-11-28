@@ -1,0 +1,29 @@
+import record from "../../../../condition/coverage"
+
+import type { CaseCoverage } from "../effect"
+import type { Coverage } from "../operation"
+
+export type Input = CaseCoverage.Pick("case_remaining", "case_stopped") & {
+    truth?: bool
+}
+
+export type Output = Coverage
+
+export default function (in: Input): Output {
+    if (in.case_stopped) {
+        return {
+            truth: in.truth
+        }
+    }
+
+    const next = record({
+        remaining: in.case_remaining,
+        label: in.truth
+    })
+
+    return {
+        truth: in.truth,
+        stopped: next.stopped,
+        remaining: next.remaining
+    }
+}

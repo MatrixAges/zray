@@ -1,0 +1,16 @@
+import type { Command as Input } from "./publication"
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.publication.effect = {
+        ...in,
+        id: 0,
+        optional_id: null,
+        explicit_input: false,
+        addition: false,
+        needs_initializers: false
+    }
+}

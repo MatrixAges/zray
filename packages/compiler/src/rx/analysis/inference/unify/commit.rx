@@ -1,21 +1,25 @@
 <Module>
     <Type from="model" as="Walk" />
+    <Type from="effect" as="Unification" />
 
     <Args in={Walk.Publication} out={void} />
 
+    <Store from="unification" as="unification" />
+
     <Call
-        fn="host.commitUnification"
-        in={[
-            $in.target,
-            $in.frame.parent,
-            $in.frame.child,
-            $in.frame.first_allowed,
-            $in.frame.second_allowed,
-            $in.frame.first_fallback,
-            $in.frame.second_fallback,
-            $in.frame.kind,
-            $in.frame.argument,
-            $in.members
-        ]}
+        fn="stage"
+        in={{
+            step: Unification.Step.Publish,
+            parent: $in.frame.parent,
+            child: $in.frame.child,
+            first_allowed: $in.frame.first_allowed,
+            second_allowed: $in.frame.second_allowed,
+            first_fallback: $in.frame.first_fallback,
+            second_fallback: $in.frame.second_fallback,
+            kind: $in.frame.kind,
+            argument: $in.frame.argument,
+            members: $in.members
+        }}
+        setter={[$store.unification.effect]}
     />
 </Module>

@@ -1,24 +1,16 @@
-import host from "partition_host"
+import type { Keys as Output } from "./model"
 
-import type { Input } from "./model"
-
-export type Output = void
+export type Input = {
+    keys: Output,
+    digest: u8[]
+}
 
 export default function (in: Input): Output {
-    const count = in.offsets.length - 1
+    const { keys, digest } = in
 
-    host.allocatePartitionKeys(in.target, count)
-
-    const position = loop(0, {
-        while: row => row < count,
-        next: row => {
-            host.hashPartitionMembers(
-                in.target,
-                row,
-                in.offsets[row],
-                in.offsets[row + 1]
-            )
-            row += 1
-        }
-    })
+    return {
+        ...keys,
+        digests: keys.digests.push(digest)[0],
+        row: keys.row + 1
+    }
 }

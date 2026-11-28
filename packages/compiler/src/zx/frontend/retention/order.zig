@@ -5,7 +5,7 @@ const Error = std.mem.Allocator.Error;
 pub fn fill(allocator: std.mem.Allocator, tree: anytype, result: anytype) Error!void {
     const rule = @import("generated_parser_type_order_write");
     const Input = std.meta.Child(rule.Input);
-    var arena = std.heap.ArenaAllocator.init(allocator);
+    var arena = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
 
     defer arena.deinit();
 

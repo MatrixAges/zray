@@ -10,14 +10,14 @@ const Error = effects.Error;
 const checking_abi = @import("cli_abi").layouts.@"zig:rx_checking_host";
 const checking_native = @import("cli_abi").native.@"zig:rx_checking_host";
 const CheckRows = checking_abi.CheckRows;
+const SelectedCall = checking_native.SelectedCall;
 const CallEdgeLayout = checking_abi.CallEdge;
 const CallEdge = checking_native.CallEdge;
 const CallReferenceLayout = checking_abi.CallReference;
 const CallReference = checking_native.CallReference;
 const ModuleCalls = checking_abi.ModuleCalls;
-const MatchedCall = checking_native.MatchedCall;
 
-const State = struct {
+pub const State = struct {
     io: std.Io,
     allocator: std.mem.Allocator,
     result_allocator: std.mem.Allocator,
@@ -31,9 +31,7 @@ const State = struct {
     owner: []const u8 = undefined,
     loaded: ?collection.Result = null,
     functions: []const rx.TextSource = &.{},
-    calls: []std.ArrayList(functions_check.Selection) = &.{},
     rows: CheckRows = undefined,
-    graph_entry: []const u8 = undefined,
     sources: []compiler.project.Source = &.{},
     roots: [][]const u8 = &.{},
     graph_result: ?graph.Result = null,
@@ -42,8 +40,9 @@ const State = struct {
     call_references: []CallReferenceLayout = &.{},
     call_reference_ptrs: []CallReference = &.{},
     module_calls: ModuleCalls = undefined,
+    function: ?functions_check.Function = null,
     failure: effects.Failure = .{},
-    fn get(handle: *const anyopaque) *State {
+    pub fn get(handle: *const anyopaque) *State {
         return effects.state(State, handle);
     }
     fn freeCallScratch(self: *State) void {
@@ -64,25 +63,23 @@ const State = struct {
         self.graph_result = null;
 
         self.freeCallScratch();
-        self.allocator.free(self.roots);
         self.allocator.free(self.sources);
 
-        self.roots = &.{};
         self.sources = &.{};
     }
 
     fn closeFunctions(self: *State) void {
+        if (self.function) |*function| function.deinit();
         if (self.scratch) |*scratch| scratch.deinit();
 
+        self.function = null;
         self.scratch = null;
     }
 
     fn deinit(self: *State) void {
         self.closeFunctions();
         self.closeGraph();
-        for (self.calls) |*rows| rows.deinit(self.allocator);
-
-        self.allocator.free(self.calls);
+        self.allocator.free(self.roots);
         if (self.loaded) |*loaded| loaded.deinit();
     }
 };
@@ -103,7 +100,11 @@ pub fn check(io: std.Io, allocator: std.mem.Allocator, result_allocator: std.mem
 
     defer state.deinit();
 
-    return @import("cli_source").check_rx_project.executeIn(allocator, @ptrCast(&reference)) catch |err| state.failure.unwrap(err);
+    const outcome = @import("cli_source").check_rx_project.executeIn(allocator, @ptrCast(&reference)) catch |err| return state.failure.unwrap(err);
+
+    if (outcome.diagnostic) |message| try writer.writeAll(message);
+
+    return outcome.valid;
 }
 
 pub fn loadCheckProject(handle: *const anyopaque) Error!bool {
@@ -154,51 +155,33 @@ pub fn collectCheckTypes(handle: *const anyopaque) Error!?*const CheckRows {
         .writer = self.writer,
     }) catch |err| return self.failure.save(err)) orelse return null;
 
-    self.calls = self.allocator.alloc(std.ArrayList(functions_check.Selection), self.functions.len) catch |err| return self.failure.save(err);
+    self.roots = self.allocator.alloc([]const u8, loaded.modules.len) catch |err| return self.failure.save(err);
 
-    @memset(self.calls, .empty);
+    for (loaded.modules, self.roots) |module, *path| path.* = module.path;
 
     self.rows = .{
         .source_count = self.functions.len,
-        .module_count = loaded.modules.len,
         .gateway = loaded.gateway != null,
         .owner = self.owner,
-        .first_module = if (loaded.modules.len != 0) loaded.modules[0].path else "",
+        .roots = self.roots,
     };
 
     return &self.rows;
 }
 
-pub fn reserveCheckGraph(handle: *const anyopaque, entry: []const u8) Error!void {
-    const self = State.get(handle);
-    const modules = self.loaded.?.data.modules;
-    const allocator = self.allocator;
-    self.graph_entry = entry;
-    self.sources = allocator.alloc(compiler.project.Source, self.functions.len) catch |err| return self.failure.save(err);
-    self.roots = allocator.alloc([]const u8, modules.len) catch |err| return self.failure.save(err);
-}
-
-pub fn registerCheckSource(handle: *const anyopaque, index: u64) void {
-    const self = State.get(handle);
-    const function = self.functions[@intCast(index)];
-
-    self.sources[@intCast(index)] = .{ .path = function.path, .source = function.source };
-}
-
-pub fn registerCheckRoot(handle: *const anyopaque, index: u64) void {
-    const self = State.get(handle);
-    const row: usize = @intCast(index);
-
-    self.roots[row] = self.loaded.?.data.modules[row].path;
-}
-
-pub fn buildCheckGraph(handle: *const anyopaque) Error!bool {
+pub fn buildCheckGraph(handle: *const anyopaque, entry: []const u8, roots: []const []const u8) Error!bool {
     const self = State.get(handle);
     const loaded = &self.loaded.?.data;
 
+    self.sources = self.allocator.alloc(compiler.project.Source, self.functions.len) catch |err| return self.failure.save(err);
+
+    for (self.functions, self.sources) |function, *source| {
+        source.* = .{ .path = function.path, .source = function.source };
+    }
+
     self.graph_result = graph.build(self.allocator, .{
-        .entry = self.graph_entry,
-        .additional_roots = self.roots,
+        .entry = entry,
+        .additional_roots = roots,
         .sources = self.sources,
         .modules = loaded.modules,
         .stores = loaded.stores,
@@ -277,19 +260,6 @@ pub fn readCheckCallModule(handle: *const anyopaque, index: u64) Error!*const Mo
     return &self.module_calls;
 }
 
-pub fn recordCheckFunctionCalls(handle: *const anyopaque, module: u64, calls: []const MatchedCall) Error!void {
-    const self = State.get(handle);
-    const owner = self.loaded.?.data.modules[@intCast(module)].path;
-
-    for (calls) |call| {
-        self.calls[@intCast(call.target_source)].append(self.allocator, .{
-            .owner = owner,
-            .location = .{ .line = call.line, .column = call.column, .offset = 0 },
-            .member = call.member,
-        }) catch |err| return self.failure.save(err);
-    }
-}
-
 pub fn checkStoreTypes(handle: *const anyopaque) Error!bool {
     const self = State.get(handle);
 
@@ -298,17 +268,27 @@ pub fn checkStoreTypes(handle: *const anyopaque) Error!bool {
     return @import("store_types.zig").validate(self.io, self.allocator, self.loaded.?.data, self.functions, self.project, self.writer) catch |err| return self.failure.save(err);
 }
 
-pub fn checkFunction(handle: *const anyopaque, index: u64) Error!bool {
+pub fn prepareCheckFunction(handle: *const anyopaque, index: u64, calls: []const SelectedCall) Error![]const u8 {
     const self = State.get(handle);
-    const allocator = self.scratch.?.allocator();
-    const row: usize = @intCast(index);
-    const function = self.functions[row];
+    const scratch = &self.scratch.?;
+
+    if (self.function) |*previous| {
+        previous.deinit();
+
+        self.function = null;
+        _ = scratch.reset(.retain_capacity);
+    }
+
+    const allocator = scratch.allocator();
+    const function = self.functions[@intCast(index)];
     const path = std.fs.path.resolve(allocator, &.{ self.root, function.path }) catch |err| return self.failure.save(err);
-    const valid = functions_check.validate(self.io, allocator, path, function.source, self.config_path, self.loaded.?.data.modules, self.calls[row].items, self.writer) catch |err| return self.failure.save(err);
+    const selections = allocator.alloc(functions_check.Selection, calls.len) catch |err| return self.failure.save(err);
 
-    if (valid) _ = self.scratch.?.reset(.retain_capacity);
+    for (calls, selections) |call, *selection| selection.* = call.*;
 
-    return valid;
+    self.function = functions_check.Function.init(allocator, path, function.source, selections);
+
+    return path;
 }
 
 pub fn checkCompiledModules(handle: *const anyopaque) Error!bool {

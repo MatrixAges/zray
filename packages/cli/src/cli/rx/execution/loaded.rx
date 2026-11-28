@@ -3,14 +3,14 @@
     <Type from="model" as="Execution" />
     <Type from="../collection/index" as="Collection" />
 
-    <Args in={Execution.Loaded} out={IO.Status} />
+    <Args in={Execution.Loaded} out={Execution.EntryOutcome} />
 
     <Call fn="../collection/kind" in={$in.entry} />
 
     <If on={$ctx.kind == Collection.Kind.Gateway}>
-        <Call fn="index.buildRxGateway" in={$in.application} />
+        <Call module="gateway/build" in={$in.omit(["entry"])} />
 
-        <Return value={$ctx.buildRxGateway} />
+        <Return value={$ctx.build} />
     </If>
 
     <Call fn="index.analyzeRxApplication" in={$in.application} />
@@ -27,5 +27,9 @@
         <Return value={$ctx.analyzed} />
     </If>
 
-    <Return value={IO.Status.Failed} />
+    <Return
+        value={{
+            status: IO.Status.Failed
+        }}
+    />
 </Module>

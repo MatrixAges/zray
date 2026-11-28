@@ -9,7 +9,6 @@
     <Call
         module="invoke"
         in={{
-            frame: $in.frame,
             item: $ctx.target
         }}
     />
@@ -18,7 +17,6 @@
         <Call
             module="parallel_member"
             in={{
-                frame: $in.frame,
                 control: $in.control,
                 position: $in.parallel_first + $in.offset,
                 value: $ctx.invoke
@@ -35,7 +33,6 @@
     <Call
         module="publish_call"
         in={{
-            frame: $in.frame,
             control: $in.control,
             value: $ctx.invoke
         }}

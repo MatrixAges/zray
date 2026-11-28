@@ -1,0 +1,32 @@
+import integers from "std:integer"
+
+export type Input = {
+    valid: bool[],
+    completed: u32[]
+}
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    const { completed } = in
+
+    const valid = loop({
+        valid: in.valid,
+        row: 0
+    }, {
+        while: state => state.row < completed.length,
+        next: state => {
+            const partition = integers.widen(completed[state.row])
+
+            state.valid[partition] = true
+            state.row += 1
+        },
+        return: state => state.valid
+    })
+
+    $store.state.objects = {
+        valid
+    }
+}

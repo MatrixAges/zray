@@ -1,20 +1,23 @@
 <Module>
     <Type from="workflow" as="Traversal" />
+    <Type from="publication" as="Publication" />
 
     <Args in={Traversal.Scan} out={Traversal.Step} />
 
+    <Store from="publication" as="publication" />
+
     <Call
-        fn="host.selectBodyWriter"
-        in={[
-            $in.frame,
-            $in.events[$in.row].block
-        ]}
+        fn="stage"
+        in={{
+            step: Publication.Step.SelectWriter,
+            block: $in.events[$in.row].block
+        }}
+        setter={[$store.publication.effect]}
     />
 
     <Call
         module="apply"
         in={{
-            frame: $in.frame,
             control: $in.control,
             scopes: $in.scopes,
             event: $in.events[$in.row],

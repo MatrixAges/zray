@@ -1,5 +1,4 @@
 import type { Tables } from "core/type_table/model"
-import type { TypeResolver } from "rx_project_host"
 import type { Kind } from "../unification/model"
 import type { Payload } from "./continuation"
 
@@ -26,7 +25,6 @@ export type View = {
 }
 
 export type Session = {
-    frame: TypeResolver,
     graph: View,
     parents: u32[],
     tables: Tables,

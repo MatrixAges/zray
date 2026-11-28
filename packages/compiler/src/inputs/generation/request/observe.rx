@@ -1,0 +1,18 @@
+<Module>
+    <Type from="model" as="Request" />
+
+    <Args in={Request.Observe} out={Request.Observation} />
+
+    <If on={$in.write}>
+        <Call fn="host.observeGenerationInputs" in={$in.host} />
+
+        <Return value={$ctx.observeGenerationInputs} />
+    </If>
+
+    <Return
+        value={{
+            snapshot: null,
+            digest: null
+        }}
+    />
+</Module>

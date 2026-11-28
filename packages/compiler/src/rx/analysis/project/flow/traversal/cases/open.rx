@@ -1,51 +1,70 @@
 <Module>
     <Type from="../effect" as="Effect" />
+    <Type from="../operation" as="Operation" />
 
     <Args in={Effect.Row} out={void} />
 
-    <Call
-        fn="../host.readLengthSlot"
-        in={[
-            $in.lengths,
-            0
-        ]}
-    />
+    <Store from="../operations" as="operations" />
+
+    <Task name="saved_bindings" out={$ctx.readLengthSlot}>
+        <Call
+            fn="../host.readLengthSlot"
+            in={[
+                $in.lengths,
+                0
+            ]}
+        />
+    </Task>
+
+    <Task name="evaluate_flow_case_label" out={$ctx.read_truth}>
+        <Call
+            fn="../stage"
+            in={{
+                step: Operation.Step.EvaluateLabel,
+                row: $in.position
+            }}
+            setter={[$store.operations.effect]}
+        />
+
+        <Call fn="../read_truth" in={$store.operations.effect} />
+    </Task>
 
     <Call
-        fn="../host.evaluateFlowCaseLabel"
-        in={[
-            $in.frame,
-            $in.position
-        ]}
-    />
-
-    <Call
-        fn="coverage"
+        module="coverage"
         in={{
             ...$in.omit(["lengths"]),
-            truth: $ctx.evaluateFlowCaseLabel
+            truth: $ctx.task.evaluate_flow_case_label
         }}
     />
 
+    <Task name="saved_facts" out={$ctx.readLengthSlot}>
+        <Call
+            fn="../host.readLengthSlot"
+            in={[
+                $in.lengths,
+                1
+            ]}
+        />
+    </Task>
+
     <Call
-        fn="refine"
+        fn="../stage"
         in={{
-            ...$in.pick([
-                "frame",
-                "position",
-                "lengths"
-            ]),
+            step: Operation.Step.RefineCase,
+            row: $in.position,
             coverage: $ctx.coverage
         }}
+        setter={[$store.operations.effect]}
     />
 
     <Call
-        fn="../host.pushFlowCase"
-        in={[
-            $in.frame,
-            $in.position,
-            $ctx.readLengthSlot,
-            $ctx.refine
-        ]}
+        fn="../stage"
+        in={{
+            step: Operation.Step.PushCase,
+            row: $in.position,
+            bindings: $ctx.task.saved_bindings,
+            facts: $ctx.task.saved_facts
+        }}
+        setter={[$store.operations.effect]}
     />
 </Module>

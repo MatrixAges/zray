@@ -1,6 +1,6 @@
 import type { Request } from "../workflow"
 
-export type Batch = Request.Pick("frame", "lengths", "items", "cursor", "results") & {
+export type Batch = Request.Pick("lengths", "items", "cursor", "results") & {
     row: u64,
     end: u64
 }

@@ -1,0 +1,14 @@
+import type { Effect } from "./effect"
+
+export type Input = Effect.Omit("restored")
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.derivation.effect = {
+        ...in,
+        restored: false
+    }
+}

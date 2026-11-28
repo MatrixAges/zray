@@ -3,6 +3,21 @@ const ir = @import("zx").ir;
 const node = @import("../../node.zig");
 const Context = @import("root.zig");
 const Lower = @import("../lower.zig");
+const generated = @import("generated_iteration_transfer");
+const Store = std.meta.Child(@FieldType(generated.zx_pending, "store_0"));
+
+const Host = struct {
+    context: *Context,
+    store_0: *Store,
+    pub fn commit(host: *Host, pending: anytype) Lower.Error!void {
+        const record = pending.store_0 orelse return;
+        const context = host.context;
+
+        try context.transfers.retain(context.lowering.allocator, record.type_id, record.owner, record.value, record.ready);
+
+        host.store_0.* = record;
+    }
+};
 
 pub const Result = struct {
     root: node.ExpressionId,
@@ -13,7 +28,6 @@ pub fn lower(context: *Context, body: anytype, type_id: ir.TypeId, source: node.
     const self = context.lowering;
     const kind = try self.typeExpr(type_id);
     const element = try self.typeExpr(self.program.typeOf(type_id).list);
-    const generated = @import("generated_iteration_transfer");
     const Call = std.meta.Child(generated.Input);
     const Input = std.meta.Child(@FieldType(Call, "request"));
     const history = context.transfers.view(std.meta.Child(@FieldType(Input, "history")));
@@ -34,7 +48,6 @@ pub fn lower(context: *Context, body: anytype, type_id: ir.TypeId, source: node.
         .frame = @ptrCast(self),
         .writer = @ptrCast(self),
         .body = @ptrCast(body),
-        .context = @ptrCast(context),
         .request = &input,
     };
 
@@ -44,7 +57,9 @@ pub fn lower(context: *Context, body: anytype, type_id: ir.TypeId, source: node.
 
     defer scratch.deinit();
 
-    const published = generated.executeIn(buffered.allocator(), &call) catch |err| return @import("../construction/publication.zig").failure(err);
+    var store: Store = &.{ .type_id = 0, .owner = 0, .value = 0, .ready = 0 };
+    var host: Host = .{ .context = context, .store_0 = &store };
+    const published = generated.executeIn(buffered.allocator(), &call, &host) catch |err| return @import("../construction/publication.zig").failure(err);
 
     return .{ .root = @fromBackingInt(published.root), .cached = @fromBackingInt(published.cached) };
 }

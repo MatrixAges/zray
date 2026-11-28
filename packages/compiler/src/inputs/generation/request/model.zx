@@ -1,7 +1,13 @@
-import type { GenerationRequest, PreparedGeneration } from "generation_host"
+import type {
+    GenerationArtifact,
+    GenerationIO,
+    GenerationObservation,
+    GenerationRegistration,
+    PreparedGeneration
+} from "generation_host"
 
 export type Input = {
-    request: GenerationRequest,
+    host: GenerationIO,
     write: bool,
     stamp_path: string,
     roots: u64
@@ -12,14 +18,28 @@ export type Current = {
     digest?: u8[]
 }
 
-export type Analyze = {
-    request: GenerationRequest,
-    interfaces_loaded: bool,
-    analysis_available: bool
+export type Observe = Input.Pick("host", "write")
+
+export type Observation = GenerationObservation
+
+export type Summary = {
+    text?: string,
+    failure?: u16
 }
 
-export type Load = Input.Pick("request", "roots") & {
-    observed: bool
+export type Prepared = {
+    packages: GenerationArtifact,
+    catalog: GenerationArtifact,
+    registered: GenerationRegistration,
+    fingerprints: PreparedGeneration
+}
+
+export type Analyze = Prepared & {
+    host: GenerationIO
+}
+
+export type Load = Input.Pick("host", "roots") & {
+    snapshot?: GenerationArtifact
 }
 
 export type LoadStep = {
@@ -27,4 +47,7 @@ export type LoadStep = {
     row: u64
 }
 
-export type Prepared = PreparedGeneration
+export type Prepare = {
+    host: GenerationIO,
+    documents: u8[][]
+}

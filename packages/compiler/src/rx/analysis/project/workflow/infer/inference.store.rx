@@ -1,0 +1,9 @@
+<Store name="rx_project_inference" version={1}>
+    <Type from="effect" as="Inference" />
+
+    <Object name="effect">
+        <Field name="step" type={Inference.Step} value={Inference.Step.Normalize} />
+        <Field name="signatures" type={bool} value={false} />
+        <Field name="retained" type={bool} value={false} />
+    </Object>
+</Store>

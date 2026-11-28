@@ -1,22 +1,30 @@
 <Module>
     <Type from="../workflow" as="Traversal" />
     <Type from="../../../control/write/parallel_member" as="Member" />
+    <Type from="../publication" as="Publication" />
 
     <Args in={Traversal.CallMember} out={Member.Row} />
 
-    <Call
-        fn="../host.registerBodyCallResult"
-        in={[
-            $in.frame,
-            $in.value,
-            true
-        ]}
-    />
+    <Store from="../publication" as="publication" />
+
+    <Task name="register_body_call_result" out={$ctx.read_optional_id}>
+        <Call
+            fn="../stage"
+            in={{
+                step: Publication.Step.RegisterResult,
+                value: $in.value,
+                parallel: true
+            }}
+            setter={[$store.publication.effect]}
+        />
+
+        <Call fn="../read_optional_id" in={$store.publication.effect} />
+    </Task>
 
     <Return
         value={{
             position: $in.position,
-            symbol: $ctx.registerBodyCallResult,
+            symbol: $ctx.task.register_body_call_result,
             value: $in.value
         }}
     />

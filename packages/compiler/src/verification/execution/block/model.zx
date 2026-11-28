@@ -1,5 +1,6 @@
 import type { Control, StatementKind } from "core/control_table/model"
-import type { SymbolicBlock, SymbolicPath, SymbolicSession } from "verification_host"
+import type { Layout } from "../../terms/layout"
+import type { Path as SymbolicPath } from "./effect/model"
 
 export type Outcome = SymbolicPath
 
@@ -7,13 +8,12 @@ export { StatementKind } from "core/control_table/model"
 
 export type Scope = {
     control: Control,
+    layout: Layout,
     expression_payloads: u32[],
     call_arguments: u32[]
 }
 
 export type Path = SymbolicPath & {
-    block: SymbolicBlock,
-    session: SymbolicSession,
     scope: Scope
 }
 
@@ -50,10 +50,14 @@ export type Traversal = Path & {
     unsupported?: bool
 }
 
-export type Cases = {
-    row: u64,
-    unmatched: string,
-    continuation: string,
-    fallback?: u32,
-    violations: string[]
+export type Guard = SymbolicPath & {
+    safe: string
+}
+
+export type Result = SymbolicPath & {
+    expression?: u32
+}
+
+export type Binding = Result & {
+    symbol?: u32
 }

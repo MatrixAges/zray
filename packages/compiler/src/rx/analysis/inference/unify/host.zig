@@ -4,16 +4,15 @@ const Graph = @import("../types.zig");
 const Fields = @import("../unification/fields.zig");
 const Commit = @import("../unification/commit.zig");
 const errors = @import("../../project/workflow/errors.zig");
+const execution = @import("../../project/workflow/execute.zig");
 const merge_rule = @import("generated_rx_merge_unification");
-const walk_rule = @import("generated_rx_walk_unification");
 const prepare_rule = @import("generated_rx_prepare_unification_frame");
 const plan_rule = @import("generated_rx_plan_unification_frame");
 const Merge = std.meta.Child(merge_rule.Input);
-const Request = std.meta.Child(walk_rule.Input);
 const Plan = std.meta.Child(prepare_rule.Input);
 const View = std.meta.Child(@FieldType(Plan, "view"));
 const Candidate = std.meta.Child(@FieldType(Merge, "candidate"));
-const Stack = std.meta.Child(@FieldType(Request, "stack"));
+const Stack = std.meta.Child(@FieldType(Merge, "stack"));
 const Row = std.meta.Child(@FieldType(Stack, "frame"));
 const Frame = std.meta.Child(@FieldType(Candidate, "frame"));
 const Known = std.meta.Child(@FieldType(Stack, "known"));
@@ -63,9 +62,6 @@ const Target = struct {
             .fallback = rows.items(.fallback),
         };
     }
-    fn borrow(handle: *anyopaque) *Target {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
 const Stored = struct { snapshot: Frame, fields: Fields.Alignment = .{} };
@@ -88,24 +84,77 @@ const Walk = struct {
 };
 
 pub fn merge(graph: *Graph, left: Graph.Id, right: Graph.Id, span: zx.Span, depth: usize) zx.Error!void {
-    var target: Target = .{ .graph = graph, .span = span };
+    const backing = graph.scratch;
+    var frame_buffer: [inline_frames]Stored = undefined;
+    var field_buffer: [inline_field_bytes]u8 = undefined;
+    var frame_memory = std.heap.BufferFirstAllocator.init(std.mem.asBytes(&frame_buffer), backing);
+    var field_memory = std.heap.BufferFirstAllocator.init(&field_buffer, backing);
+    var walk: Walk = .{ .frames = frame_memory.allocator(), .fields = field_memory.allocator() };
+
+    defer walk.stack.deinit(walk.frames);
+    defer while (walk.stack.pop()) |frame| walk.fields.free(frame.fields.positions);
+
+    var target: Target = .{ .graph = graph, .span = span, .walk = &walk };
 
     target.bind();
 
     target.candidate = .{ .frame = &target.pending };
 
-    try prepareUnificationFrame(@ptrCast(&target), @backingInt(left), @backingInt(right), depth, false);
+    const input: Merge = .{
+        .left = @backingInt(left),
+        .right = @backingInt(right),
+        .candidate = &target.candidate,
+        .stack = &walk.view,
+        .depth = depth,
+    };
 
-    const input: Merge = .{ .target = @ptrCast(&target), .candidate = &target.candidate, .depth = depth };
-    var empty = std.heap.FixedBufferAllocator.init(&.{});
-    const result = zx.columns.invoke(merge_rule.executeValue, empty.allocator(), &input) catch |err| return errors.errorSet(err);
+    const Store = std.meta.Child(@FieldType(merge_rule.zx_pending, "store_0"));
 
-    if (result) |issue| return target.graph.reporter.fail(if (issue.depth) .unsupported else .type_mismatch, target.span, issue.message);
+    const Host = struct {
+        target: *Target,
+        reply: *std.meta.Child(Store),
+        store_0: *Store,
+        pub fn commit(host: *@This(), pending: merge_rule.zx_pending) zx.Error!void {
+            const effect = pending.store_0 orelse return;
+            const work = host.target;
+
+            switch (effect.step) {
+                .BeginWalk => beginWalk(work),
+                .Prepare => prepareFrame(work, effect.left.?, effect.right.?, effect.depth.?, effect.rooted.?),
+                .Push => try appendFrame(work),
+                .Align => try alignFields(work.walk, effect.existing_names, effect.existing_values.?, effect.incoming_values.?, effect.closed.?),
+                .Pop => popFrame(work.walk),
+                .MergeFields => host.reply.merged = try publishFields(work),
+                .Publish => try commitFrame(work, effect),
+                .Intern => host.reply.id = try internType(work, effect.type_id.?),
+            }
+        }
+    };
+
+    var reply = execution.snapshot(std.meta.Child(Store), .{
+        .step = .Prepare,
+        .id = 0,
+        .merged = @as([]const u32, &.{}),
+    });
+
+    var store: Store = &reply;
+    var host: Host = .{ .target = &target, .reply = &reply, .store_0 = &store };
+    var arena = std.heap.ArenaAllocator.init(backing);
+
+    defer arena.deinit();
+
+    var cursor_buffer: [512]u8 = undefined;
+    var cursor_memory = std.heap.BufferFirstAllocator.init(&cursor_buffer, arena.allocator());
+
+    const result = merge_rule.executeIn(cursor_memory.allocator(), &input, &host) catch |err| return switch (@as(anyerror, err)) {
+        error.Overflow, error.IntegerOverflow => error.OutOfMemory,
+        else => errors.errorSet(err),
+    };
+
+    if (result) |issue| return graph.reporter.fail(if (issue.depth) .unsupported else .type_mismatch, span, issue.message);
 }
 
-pub fn prepareUnificationFrame(handle: *anyopaque, left: u32, right: u32, depth: u64, rooted: bool) std.mem.Allocator.Error!void {
-    const target = Target.borrow(handle);
-
+fn prepareFrame(target: *Target, left: u32, right: u32, depth: u64, rooted: bool) void {
     const input: std.meta.Child(plan_rule.Input) = .{
         .graph = &target.nodes,
         .types = &target.types,
@@ -126,17 +175,8 @@ pub fn prepareUnificationFrame(handle: *anyopaque, left: u32, right: u32, depth:
     target.pending = zx.columns.view(Frame, captured);
 }
 
-pub noinline fn walkUnificationFrames(handle: *anyopaque, depth: u64) zx.Error!void {
-    const target = Target.borrow(handle);
-    const allocator = target.graph.scratch;
-    var frame_buffer: [inline_frames]Stored = undefined;
-    var field_buffer: [inline_field_bytes]u8 = undefined;
-    var frame_memory = std.heap.BufferFirstAllocator.init(std.mem.asBytes(&frame_buffer), allocator);
-    var field_memory = std.heap.BufferFirstAllocator.init(&field_buffer, allocator);
-    var state: Walk = .{ .frames = frame_memory.allocator(), .fields = field_memory.allocator() };
-
-    defer state.stack.deinit(state.frames);
-    defer while (state.stack.pop()) |frame| state.fields.free(frame.fields.positions);
+fn beginWalk(target: *Target) void {
+    const state = target.walk;
 
     state.known = target.graph.pending.known_types.borrow(Known);
 
@@ -145,19 +185,9 @@ pub noinline fn walkUnificationFrames(handle: *anyopaque, depth: u64) zx.Error!v
         .parents = target.parents,
         .known = &state.known,
     };
-
-    target.walk = &state;
-
-    const input: Request = .{ .target = @ptrCast(handle), .candidate = &target.candidate, .stack = &state.view, .depth = depth };
-    var cursor_buffer: [256]u8 = undefined;
-    var cursor_memory = std.heap.BufferFirstAllocator.init(&cursor_buffer, allocator);
-    const result = zx.columns.invoke(walk_rule.executeValue, cursor_memory.allocator(), &input) catch |err| return errors.errorSet(err);
-
-    if (result) |issue| return target.graph.reporter.fail(if (issue.depth) .unsupported else .type_mismatch, target.span, issue.message);
 }
 
-pub fn appendUnificationFrame(handle: *anyopaque) std.mem.Allocator.Error!void {
-    const target = Target.borrow(handle);
+fn appendFrame(target: *Target) std.mem.Allocator.Error!void {
     const state = target.walk;
 
     try state.stack.append(state.frames, .{ .snapshot = target.pending });
@@ -165,8 +195,7 @@ pub fn appendUnificationFrame(handle: *anyopaque) std.mem.Allocator.Error!void {
     state.bind();
 }
 
-pub fn alignUnificationFields(handle: *anyopaque, existing_names: ?[]const []const u8, existing_values: []const u32, incoming_values: []const u32, closed: bool) std.mem.Allocator.Error!void {
-    const state = Target.borrow(handle).walk;
+fn alignFields(state: *Walk, existing_names: ?[]const []const u8, existing_values: []const u32, incoming_values: []const u32, closed: bool) std.mem.Allocator.Error!void {
     const existing = existing_names orelse Graph.Fields.viewFromValues(@ptrCast(existing_values)).names();
     const incoming = Graph.Fields.viewFromValues(@ptrCast(incoming_values)).names();
 
@@ -174,8 +203,7 @@ pub fn alignUnificationFields(handle: *anyopaque, existing_names: ?[]const []con
     state.bind();
 }
 
-pub fn popUnificationFrame(handle: *anyopaque) void {
-    const state = Target.borrow(handle).walk;
+fn popFrame(state: *Walk) void {
     const frame = state.stack.pop().?;
 
     state.fields.free(frame.fields.positions);
@@ -183,8 +211,7 @@ pub fn popUnificationFrame(handle: *anyopaque) void {
     if (state.stack.items.len != 0) state.bind();
 }
 
-pub fn mergeUnificationFields(handle: *anyopaque) std.mem.Allocator.Error![]const u32 {
-    const target = Target.borrow(handle);
+fn publishFields(target: *Target) std.mem.Allocator.Error![]const u32 {
     const frame = target.walk.current();
     const left = target.graph.mutableFields(frame.snapshot.left_members);
     const right = Graph.Fields.viewFromValues(@ptrCast(frame.snapshot.right_members));
@@ -193,22 +220,19 @@ pub fn mergeUnificationFields(handle: *anyopaque) std.mem.Allocator.Error![]cons
     return @ptrCast(published.values());
 }
 
-pub fn commitUnification(handle: *anyopaque, parent: u32, child: u32, first_allowed: ?u16, second_allowed: ?u16, first_fallback: ?u8, second_fallback: ?u8, kind: u8, argument: u32, members: []const u32) zx.Error!void {
-    const target = Target.borrow(handle);
-
+fn commitFrame(target: *Target, effect: anytype) zx.Error!void {
     try Commit.publish(
         target.graph,
-        @fromBackingInt(parent),
-        @fromBackingInt(child),
-        .{ .allowed = first_allowed, .fallback = first_fallback },
-        .{ .allowed = second_allowed, .fallback = second_fallback },
-        .{ .kind = @fromBackingInt(@intCast(kind)), .argument = argument, .members = members },
+        @fromBackingInt(effect.parent.?),
+        @fromBackingInt(effect.child.?),
+        .{ .allowed = effect.first_allowed, .fallback = effect.first_fallback },
+        .{ .allowed = effect.second_allowed, .fallback = effect.second_fallback },
+        .{ .kind = @fromBackingInt(@intCast(effect.kind.?)), .argument = effect.argument.?, .members = effect.members.? },
         target.span,
     );
 }
 
-pub fn internUnificationType(handle: *anyopaque, type_id: u32) zx.Error!u32 {
-    const target = Target.borrow(handle);
+fn internType(target: *Target, type_id: u32) zx.Error!u32 {
     const result = try target.graph.known(@fromBackingInt(type_id), target.span);
 
     target.bind();

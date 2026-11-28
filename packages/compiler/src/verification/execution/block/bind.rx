@@ -1,0 +1,30 @@
+<Module>
+    <Type from="model" as="Block" />
+    <Type from="effect/model" as="Operation" />
+
+    <Args in={Block.Binding} out={Block.Outcome} />
+
+    <Call module="evaluate" in={$in.expression} />
+
+    <Call
+        module="guard"
+        in={{
+            path: $in.path,
+            violations: $in.violations,
+            safe: $ctx.evaluate.safe
+        }}
+    />
+
+    <If on={$in.symbol != null}>
+        <Call
+            module="effect/run"
+            in={{
+                step: Operation.Step.Bind,
+                row: $in.symbol,
+                value: $ctx.evaluate
+            }}
+        />
+    </If>
+
+    <Return value={$ctx.guard} />
+</Module>

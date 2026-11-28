@@ -1,0 +1,7 @@
+import type { Payload as Input } from "../model"
+
+export type Output = u32?
+
+export default function (in: Input): Output {
+    return in.columns.match_subjects[in.payload]
+}

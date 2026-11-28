@@ -1,0 +1,29 @@
+<Module>
+    <Type from="model" as="Block" />
+
+    <Args in={Block.Guard} out={string[]} />
+
+    <Call
+        fn="../../contracts/require"
+        in={{
+            left: $in.path,
+            right: $in.safe
+        }}
+    />
+
+    <If on={$ctx.require != null}>
+        <Call module="boolean" in={$ctx.require} />
+
+        <Call
+            fn="append_violation"
+            in={{
+                violations: $in.violations,
+                term: $ctx.boolean
+            }}
+        />
+
+        <Return value={$ctx.append_violation} />
+    </If>
+
+    <Return value={$in.violations} />
+</Module>

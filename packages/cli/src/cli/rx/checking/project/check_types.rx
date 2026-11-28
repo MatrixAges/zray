@@ -1,20 +1,27 @@
 <Module>
     <Type from="model" as="Project" />
+    <Type from="../function/model" as="Function" />
 
-    <Args in={Project.Graph} out={bool} />
+    <Args in={Project.Graph} out={Function.Result} />
 
-    <If on={!$in.gateway || $in.module_count > 0}>
-        <Call module="graph" in={$in} />
+    <Call module="graph" in={$in} />
 
-        <If on={!$ctx.graph}>
-            <Return value={false} />
-        </If>
+    <If on={!$ctx.graph.valid}>
+        <Return
+            value={{
+                valid: false
+            }}
+        />
     </If>
 
     <Call fn="../index.checkStoreTypes" in={$in.check} />
 
     <If on={!$ctx.checkStoreTypes}>
-        <Return value={false} />
+        <Return
+            value={{
+                valid: false
+            }}
+        />
     </If>
 
     <Loop on={$in.running}>
@@ -22,25 +29,39 @@
             module="function_row"
             in={{
                 check: $in.check,
-                count: $in.source_count,
+                roots: $in.roots,
+                buckets: $ctx.graph.buckets,
                 index: 0,
                 valid: true,
-                running: $in.source_count != 0
+                running: $ctx.graph.buckets.length != 0
             }}
         />
     </Loop>
 
     <If on={!$ctx.function_row.valid}>
-        <Return value={false} />
+        <Return
+            value={{
+                valid: false,
+                diagnostic: $ctx.function_row.diagnostic
+            }}
+        />
     </If>
 
     <Call fn="../index.checkCompiledModules" in={$in.check} />
 
     <If on={!$ctx.checkCompiledModules}>
-        <Return value={false} />
+        <Return
+            value={{
+                valid: false
+            }}
+        />
     </If>
 
     <Call fn="../index.checkModulePaths" in={$in.check} />
 
-    <Return value={$ctx.checkModulePaths} />
+    <Return
+        value={{
+            valid: $ctx.checkModulePaths
+        }}
+    />
 </Module>

@@ -2,14 +2,18 @@ import integers from "std:integer"
 import { scalar_bool } from "core/type_table/const"
 import kind from "core/type_table/kind"
 import { Kind } from "core/type_table/model"
-import host from "verification_host"
-import { SymbolicOperand } from "verification_host"
 
 import numeric from "../../scalar/numeric"
 import { unsupported_message } from "./const"
 
 import type { Binary } from "../../scalar/model"
-import type { TypedPayload as Input } from "./model"
+import type { Value } from "./effect/model"
+import type { TypedPayload } from "./model"
+
+export type Input = TypedPayload & {
+    left_operand: Value,
+    right_operand: Value
+}
 
 export type Output = {
     operands?: Binary,
@@ -17,20 +21,11 @@ export type Output = {
 }
 
 export default function (in: Input): Output {
-    const { frame, columns, payload, types } = in
+    const {
+        left_operand, right_operand, columns, payload, types
+    } = in
 
     const left_id = columns.binary_left[payload]
-
-    const left_operand =
-        host.evaluateSymbolicOperand(frame, SymbolicOperand.First, left_id)
-
-    const right_operand =
-        host.evaluateSymbolicOperand(
-            frame,
-            SymbolicOperand.Second,
-            columns.binary_right[payload]
-        )
-
     const type_row = integers.widen(columns.types[integers.widen(left_id)])
     const shape = kind(types.kinds[type_row])
     const scalar_tag = types.first[type_row]

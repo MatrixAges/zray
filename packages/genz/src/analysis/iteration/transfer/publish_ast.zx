@@ -1,12 +1,11 @@
 import ast from "ast_rows"
 import { AstPayloadOwnership, AstSequenceMode } from "ast_rows"
-import host from "lowering_host"
 import { requireAllocation } from "memory"
 
 import type { Published as Output, PublishAst as Input } from "./execute_model"
 
 export default function (in: Input): Output {
-    const { frame, writer, body, context, output } = in
+    const { writer, body, output } = in
 
     requireAllocation(output.valid)
 
@@ -31,16 +30,6 @@ export default function (in: Input): Output {
         output.variables,
         AstSequenceMode.Owned
     )
-
-    host.recordIterationTransfer(
-        context,
-        output.record.type_id,
-        output.record.owner,
-        output.record.value,
-        output.record.ready
-    )
-
-    host.finishGeneratedAst(frame, output.serial, true)
 
     return {
         root: output.root,

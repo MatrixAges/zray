@@ -1,0 +1,23 @@
+import { missing_delegate } from "../const"
+
+import type { Result } from "./model"
+
+export type Input = {
+    path: string,
+    found: bool
+}
+
+export type Output = Result
+
+export default function (in: Input): Output {
+    if (in.found) {
+        return {
+            valid: true
+        }
+    }
+
+    return {
+        valid: false,
+        diagnostic: `${in.path}: ${missing_delegate}\n`
+    }
+}

@@ -3,6 +3,7 @@ import integers from "std:integer"
 import unpackSpan from "../../../tasks/worker/execute/reference"
 
 import type { Input as Frame } from "../../frame/model"
+import type { Assigned } from "./emission_model"
 
 export type Input = Frame.Omit(
     "prefix_start",
@@ -11,14 +12,14 @@ export type Input = Frame.Omit(
     "body_count"
 ) & {
     prefix: u64,
-    body: u64
+    body: Assigned
 }
 
 export type Output = Frame
 
 export default function (in: Input): Output {
     const prefix = unpackSpan(in.prefix)
-    const body = unpackSpan(in.body)
+    const body = unpackSpan(in.body.prefix)
 
     return {
         ...in.omit([
@@ -28,6 +29,6 @@ export default function (in: Input): Output {
         prefix_start: prefix.start,
         prefix_count: integers.widen(prefix.count),
         body_start: body.start,
-        body_count: integers.widen(body.count)
+        body_count: integers.widen(body.count) + integers.widen(in.body.count)
     }
 }

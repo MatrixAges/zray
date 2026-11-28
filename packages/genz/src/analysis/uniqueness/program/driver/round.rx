@@ -1,0 +1,51 @@
+<Module>
+    <Type from="model" as="Driver" />
+    <Type from="effect" as="Effect" />
+
+    <Args in={Driver.Round} out={Driver.Outcome} />
+
+    <Store from="execution" as="driver" />
+
+    <Call
+        fn="submit"
+        in={{
+            ...$in,
+            step: Effect.Step.BeginRound
+        }}
+        setter={[$store.driver.exchange]}
+    />
+
+    <Loop on={$in.running}>
+        <Call
+            module="visit_body"
+            in={{
+                kind: $in.kind,
+                outcome: Driver.Outcome.Stable,
+                running: true
+            }}
+        />
+    </Loop>
+
+    <If
+        on={$in.kind == Effect.Kind.Plan &&
+            $ctx.visit_body.outcome != Driver.Outcome.Exhausted}
+    >
+        <Call
+            fn="submit"
+            in={{
+                step: Effect.Step.PublishRound
+            }}
+            setter={[$store.driver.exchange]}
+        />
+    </If>
+
+    <Call
+        fn="submit"
+        in={{
+            step: Effect.Step.FinishRound
+        }}
+        setter={[$store.driver.exchange]}
+    />
+
+    <Return value={$ctx.visit_body.outcome} />
+</Module>

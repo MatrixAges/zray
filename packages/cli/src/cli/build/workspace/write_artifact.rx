@@ -6,10 +6,10 @@
     <Call fn="index.fromText" in={$in.source} />
 
     <Call
-        fn="index.write"
-        in={[
-            $in.path,
-            $ctx.fromText
-        ]}
+        module="write_bytes"
+        in={{
+            path: $in.path,
+            data: $ctx.fromText
+        }}
     />
 </Module>

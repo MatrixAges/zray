@@ -1,35 +1,46 @@
 <Module>
     <Type from="model" as="Walk" />
     <Type from="../unification/application/model" as="Application" />
+    <Type from="effect" as="Unification" />
 
     <Args in={Walk.Merge} out={void} />
 
-    <Call fn="host.appendUnificationFrame" in={$in.target} />
+    <Store from="unification" as="unification" />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Unification.Step.Push
+        }}
+        setter={[$store.unification.effect]}
+    />
 
     <Switch on={$in.candidate.frame.action}>
         <Case value={Application.Action.Object}>
             <Call
-                fn="host.alignUnificationFields"
-                in={[
-                    $in.target,
-                    null,
-                    $in.candidate.frame.left_members,
-                    $in.candidate.frame.right_members,
-                    false
-                ]}
+                fn="stage"
+                in={{
+                    step: Unification.Step.Align,
+                    existing_names: null,
+                    existing_values: $in.candidate.frame.left_members,
+                    incoming_values: $in.candidate.frame.right_members,
+                    closed: false
+                }}
+                setter={[$store.unification.effect]}
             />
         </Case>
 
         <Case value={Application.Action.KnownObject}>
             <Call
-                fn="host.alignUnificationFields"
-                in={[
-                    $in.target,
-                    $in.candidate.frame.declared,
-                    $in.candidate.frame.right_members,
-                    $in.candidate.frame.left_members,
-                    true
-                ]}
+                fn="stage"
+                in={{
+                    step: Unification.Step.Align,
+                    existing_names: $in.candidate.frame.declared,
+                    existing_values: $in.candidate.frame.right_members,
+                    incoming_values: $in.candidate.frame.left_members,
+                    closed: true
+                }}
+                setter={[$store.unification.effect]}
             />
         </Case>
     </Switch>

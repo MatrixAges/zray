@@ -18,7 +18,7 @@
             <Call
                 module="../report"
                 in={{
-                    frame: $in.frame,
+
                     row: $in.row,
                     issue: Diagnostic.Issue.UnknownSpread
                 }}
@@ -31,7 +31,7 @@
             <Call
                 module="../report"
                 in={{
-                    frame: $in.frame,
+
                     row: $in.row,
                     issue: Diagnostic.Issue.InvalidSpread
                 }}
@@ -44,7 +44,7 @@
             <Call
                 module="../report"
                 in={{
-                    frame: $in.frame,
+
                     row: $in.row,
                     issue: Diagnostic.Issue.InvalidDeclared
                 }}
@@ -69,7 +69,7 @@
         <Call
             module="../report"
             in={{
-                frame: $in.frame,
+
                 row: $in.row,
                 issue: Diagnostic.Issue.UnknownSpread
             }}

@@ -1,40 +1,50 @@
 <Module>
     <Type from="model" as="Call" />
-    <Type from="host" as="Host" />
+    <Type from="../expression/model" as="Expression" />
+    <Type from="../expression/effect/model" as="Operation" />
 
-    <Args in={Call.Input} out={Call.Outcome} />
+    <Args in={Call.Input} out={Expression.Outcome} />
 
-    <Call fn="prepare" in={$in} />
+    <Call
+        module="../expression/effect/run"
+        in={{
+            step: Operation.Step.DescribeCall,
+            row: $in.target
+        }}
+    />
 
-    <If on={$ctx.prepare != null}>
+    <Call fn="../../graph/call" in={$ctx.run.description} />
+
+    <If on={$ctx.call != null}>
         <Return
             value={{
-                diagnostic: $ctx.prepare
+                diagnostic: $ctx.call
             }}
         />
     </If>
 
-    <Call
-        fn="host.evaluateSymbolicOperand"
-        in={[
-            $in.frame,
-            Host.SymbolicOperand.First,
-            $in.argument
-        ]}
-    />
+    <Call module="../expression/evaluate" in={$in.argument} />
 
     <Call
         module="solve"
         in={{
-            frame: $in.frame,
             target: $in.target,
-            argument_safe: $ctx.evaluateSymbolicOperand.safe
+            argument: $ctx.evaluate
+        }}
+    />
+
+    <Call
+        fn="../../scalar/conjunction"
+        in={{
+            left: $ctx.evaluate.safe,
+            right: $ctx.solve.safe
         }}
     />
 
     <Return
         value={{
-            safety: $ctx.solve
+            value: $ctx.solve,
+            safe: $ctx.conjunction
         }}
     />
 </Module>

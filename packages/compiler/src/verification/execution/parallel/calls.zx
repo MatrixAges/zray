@@ -1,65 +1,13 @@
-import integers from "std:integer"
-import host from "verification_host"
-
-import require from "../../contracts/require"
-import conjunction from "../../scalar/conjunction"
-
-import type { SymbolicOutcome } from "verification_host"
-import type { Calls as Input, Completed as Output } from "./model"
+import type { Calls as Output, Parameters as Input } from "./model"
 
 export default function (in: Input): Output {
-    const { block, session, scope, payload, launch } = in
-
-    const control = scope.control
-    const first = integers.widen(control.parallel_first[payload])
-    const count = integers.widen(control.parallel_count[payload])
-
-    const values: SymbolicOutcome[] = []
-
-    const completed = loop({
-        index: 0,
-        path: launch,
-        violations: in.violations,
-        values
-    }, {
-        while: state => state.index < count,
-        next: state => {
-            const outcome = host.evaluateSymbolicStatement(
-                block,
-                control.parallel_values[first + state.index]
-            )
-
-            const { safe } = outcome
-
-            state.values = state.values.push({
-                safe,
-                text: outcome.text,
-                fields: outcome.fields
-            })[0]
-            const violation = require({
-                left: launch,
-                right: safe
-            })
-
-            if (violation != null) {
-                const obligation = host.bindSymbolicBoolean(session, violation)
-                state.violations = state.violations.push(obligation)[0]
-            }
-
-            const joined = conjunction({
-                left: state.path,
-                right: safe
-            })
-            state.path = host.bindSymbolicBoolean(session, joined)
-            state.index += 1
-        },
-        return: state => state
-    })
-
     return {
-        path: completed.path,
-        violations: completed.violations,
-        first,
-        values: completed.values
+        rows: in.scope.control.parallel_values,
+        next: in.row,
+        end: in.end,
+        launch: in.path,
+        path: in.path,
+        violations: in.violations,
+        values: []
     }
 }

@@ -1,0 +1,15 @@
+import { Outcome } from "./model"
+
+import type { Result } from "./effect"
+
+export type Input = Result.Pick("exhausted", "grew")
+
+export type Output = Outcome
+
+export default function (in: Input): Output {
+    return match {
+        in.exhausted => Outcome.Exhausted,
+        in.grew => Outcome.Grew,
+        _ => Outcome.Stable
+    }
+}

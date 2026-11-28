@@ -1,18 +1,27 @@
 <Module>
     <Type from="../index" as="IO" />
+    <Type from="../function/model" as="Function" />
 
-    <Args in={IO.ProjectCheck} out={bool} />
+    <Args in={IO.ProjectCheck} out={Function.Result} />
 
     <Call fn="../index.loadCheckProject" in={$in} />
 
     <If on={!$ctx.loadCheckProject}>
-        <Return value={false} />
+        <Return
+            value={{
+                valid: false
+            }}
+        />
     </If>
 
     <Call fn="../index.collectCheckDocuments" in={$in} />
 
     <If on={!$ctx.collectCheckDocuments}>
-        <Return value={false} />
+        <Return
+            value={{
+                valid: false
+            }}
+        />
     </If>
 
     <Call fn="../index.collectCheckTypes" in={$in} />
@@ -29,5 +38,9 @@
         <Return value={$ctx.check_types} />
     </If>
 
-    <Return value={false} />
+    <Return
+        value={{
+            valid: false
+        }}
+    />
 </Module>

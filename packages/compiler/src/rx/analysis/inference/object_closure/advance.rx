@@ -1,8 +1,11 @@
 <Module>
     <Type from="workflow" as="Readiness" />
     <Type from="query" as="Query" />
+    <Type from="effect" as="ObjectEffect" />
 
     <Args in={Readiness.Cursor} out={Readiness.Cursor} />
+
+    <Store from="object" as="object" />
 
     <Call
         fn="query"
@@ -17,21 +20,24 @@
             $ctx.query.action == Query.Action.Propagate}
     >
         <Call
-            fn="host.updateObjectReadiness"
-            in={[
-                $in.request.context.frame,
-                $ctx.query.action == Query.Action.Rebuild,
-                $ctx.query.position,
-                $in.request.query.spread,
-                $ctx.query.shared
-            ]}
+            fn="stage"
+            in={{
+                object_step: ObjectEffect.Step.UpdateReadiness,
+                rebuild: $ctx.query.action == Query.Action.Rebuild,
+                position: $ctx.query.position,
+                spread: $in.request.query.spread,
+                shared: $ctx.query.shared
+            }}
+            setter={[$store.object.effect]}
         />
+
+        <Call fn="read_ready" in={$store.object.effect} />
 
         <Return
             value={{
                 request: $in.request,
                 running: $ctx.query.action == Query.Action.Rebuild,
-                ready: $ctx.updateObjectReadiness
+                ready: $ctx.read_ready
             }}
         />
     </If>

@@ -1,12 +1,43 @@
 <Module>
     <Type from="model" as="Request" />
 
-    <Args in={Request.Input} out={Request.Prepared} />
+    <Args in={Request.Prepare} out={Request.Prepared} />
 
-    <Call fn="host.retainGenerationPackages" in={$in.request} />
-    <Call fn="host.classifyGenerationDocuments" in={$in.request} />
-    <Call fn="host.registerGenerationInterfaces" in={$in.request} />
-    <Call fn="host.fingerprintGenerationInputs" in={$in.request} />
+    <Call fn="host.retainGenerationPackages" in={$in.host} />
 
-    <Return value={$ctx.fingerprintGenerationInputs} />
+    <Call
+        fn="host.classifyGenerationDocuments"
+        in={[
+            $in.host,
+            $in.documents,
+            $ctx.retainGenerationPackages
+        ]}
+    />
+
+    <Call
+        fn="host.registerGenerationInterfaces"
+        in={[
+            $in.host,
+            $ctx.classifyGenerationDocuments
+        ]}
+    />
+
+    <Call
+        fn="host.fingerprintGenerationInputs"
+        in={[
+            $in.host,
+            $ctx.classifyGenerationDocuments,
+            $ctx.registerGenerationInterfaces.bindings,
+            $ctx.registerGenerationInterfaces.failure == null
+        ]}
+    />
+
+    <Return
+        value={{
+            packages: $ctx.retainGenerationPackages,
+            catalog: $ctx.classifyGenerationDocuments,
+            registered: $ctx.registerGenerationInterfaces,
+            fingerprints: $ctx.fingerprintGenerationInputs
+        }}
+    />
 </Module>

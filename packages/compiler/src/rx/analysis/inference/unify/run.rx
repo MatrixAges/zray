@@ -1,7 +1,18 @@
 <Module>
     <Type from="model" as="Walk" />
+    <Type from="effect" as="Unification" />
 
     <Args in={Walk.Request} out={Walk.Diagnostic?} />
+
+    <Store from="unification" as="unification" />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Unification.Step.BeginWalk
+        }}
+        setter={[$store.unification.effect]}
+    />
 
     <Call module="push" in={$in.omit(["stack"])} />
 

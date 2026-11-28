@@ -2,7 +2,7 @@
     <Type from="index" as="IO" />
     <Type from="model" as="Query" />
 
-    <Args in={Query.Query} out={IO.Status} />
+    <Args in={Query.Query} out={Query.Outcome} />
 
     <Call
         fn="index.analyzeCompilation"
@@ -21,17 +21,12 @@
             }}
         />
 
-        <Call
-            fn="index.writeCompilationDiagnostic"
-            in={[
-                $in.compilation,
-                $ctx.analysis_diagnostic
-            ]}
+        <Return
+            value={{
+                status: IO.Status.Failed,
+                diagnostic: $ctx.analysis_diagnostic
+            }}
         />
-
-        <Call fn="index.flushCompilationDiagnostics" in={$in.compilation} />
-
-        <Return value={IO.Status.Failed} />
     </If>
 
     <If on={$in.proof}>
@@ -40,7 +35,11 @@
         <If on={!$ctx.verifyCompilationProgram}>
             <Call fn="index.flushCompilationDiagnostics" in={$in.compilation} />
 
-            <Return value={IO.Status.Failed} />
+            <Return
+                value={{
+                    status: IO.Status.Failed
+                }}
+            />
         </If>
 
         <Else>
@@ -49,12 +48,20 @@
             <If on={!$ctx.generateCompilationFpga}>
                 <Call fn="index.flushCompilationDiagnostics" in={$in.compilation} />
 
-                <Return value={IO.Status.Failed} />
+                <Return
+                    value={{
+                        status: IO.Status.Failed
+                    }}
+                />
             </If>
         </Else>
     </If>
 
     <Call module="cache/finish" in={$in.omit(["proof"])} />
 
-    <Return value={IO.Status.Success} />
+    <Return
+        value={{
+            status: IO.Status.Success
+        }}
+    />
 </Module>

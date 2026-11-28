@@ -1,7 +1,5 @@
 export type Collection = opaque
 
-export type Search = opaque
-
 export type Source = opaque
 
 export type Project = opaque
@@ -65,10 +63,10 @@ export declare function publishMember(collection: Collection, path: string): voi
     SourceLoadFailure
 }
 
-export declare function readCandidate(search: Search, directory: string): Probe
+export declare function readCandidate(search: Project, directory: string): Probe
     throws { SourceLoadFailure }
-export declare function rememberCandidate(search: Search): void
-export declare function loadAncestor(search: Search, directory: string): MemberSearch?
+export declare function rememberCandidate(search: Project): void
+export declare function loadAncestor(search: Project, directory: string): MemberSearch?
     throws { SourceLoadFailure }
 
 export declare function physicalSource(source: Source, path: string): string throws {

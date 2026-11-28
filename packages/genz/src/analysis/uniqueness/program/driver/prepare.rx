@@ -1,17 +1,40 @@
 <Module>
     <Type from="model" as="Driver" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Driver.Input} out={bool} />
 
-    <Call fn="index.prepareOwnershipStorage" in={$in.frame} />
+    <Store from="execution" as="driver" />
+
+    <Call
+        fn="submit"
+        in={{
+            step: Effect.Step.PrepareStorage
+        }}
+        setter={[$store.driver.exchange]}
+    />
 
     <If on={$in.persistent}>
-        <Call fn="index.prepareOwnershipIdentities" in={$in.frame} />
+        <Call
+            fn="submit"
+            in={{
+                step: Effect.Step.PrepareIdentities
+            }}
+            setter={[$store.driver.exchange]}
+        />
 
         <If on={$in.recording}>
-            <Call fn="index.prepareOwnershipReplay" in={$in.frame} />
+            <Call
+                fn="submit"
+                in={{
+                    step: Effect.Step.PrepareReplay
+                }}
+                setter={[$store.driver.exchange]}
+            />
 
-            <Return value={$ctx.prepareOwnershipReplay} />
+            <Call fn="read" in={$store.driver.exchange} />
+
+            <Return value={$ctx.read.available} />
         </If>
     </If>
 

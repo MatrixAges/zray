@@ -1,45 +1,33 @@
 import integers from "std:integer"
-import host from "verification_host"
 
-import guard from "./guard"
+import type { Layout } from "../../terms/layout"
+import type { Value } from "../expression/effect/model"
+import type { Payload } from "./model"
 
-import type { SymbolicPath } from "verification_host"
-import type { Payload as Input } from "./model"
+export type Input = Payload.Pick("scope", "payload") & {
+    value: Value
+}
 
-export type Output = SymbolicPath
+export type Output = {
+    symbols: u32?[],
+    value: Value,
+    layout: Layout,
+    first: u64,
+    field: u64,
+    count: u64
+}
 
 export default function (in: Input): Output {
-    const { block, session, path, scope, payload } = in
+    const { scope, payload, value } = in
 
     const control = scope.control
 
-    const outcome =
-        host.evaluateSymbolicStatement(
-            block,
-            control.destructure_values[payload]
-        )
-
-    const next = guard({
-        session,
-        path,
-        violations: in.violations,
-        safe: outcome.safe
-    })
-
-    const first = integers.widen(control.destructure_first[payload])
-    const count = integers.widen(control.destructure_count[payload])
-
-    return loop(0, {
-        while: field => field < count,
-        next: field => {
-            const symbol = control.destructure_symbols[first + field]
-
-            if (symbol != null) {
-                host.bindSymbolicStatement(block, symbol, outcome, field)
-            }
-
-            field += 1
-        },
-        return: field => next
-    })
+    return {
+        symbols: control.destructure_symbols,
+        value,
+        layout: scope.layout,
+        first: integers.widen(control.destructure_first[payload]),
+        field: 0,
+        count: integers.widen(control.destructure_count[payload])
+    }
 }

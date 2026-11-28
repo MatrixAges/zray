@@ -1,0 +1,19 @@
+import type { AggregateField, Payload } from "../model"
+
+export type Input = Payload & {
+    object: bool
+}
+
+export type Walk = Input & {
+    field: u64,
+    first: u64,
+    end: u64,
+    watch_end: u64,
+    safe: string,
+    fields: AggregateField[]
+}
+
+export type Item = {
+    expression: u32,
+    index?: u32
+}

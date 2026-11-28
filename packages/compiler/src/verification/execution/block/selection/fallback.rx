@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Selection" />
+    <Type from="../effect/model" as="Operation" />
+
+    <Args in={Selection.Cases} out={Operation.Path} />
+
+    <Call
+        fn="../../../scalar/conjunction"
+        in={{
+            left: $in.path,
+            right: $in.unmatched
+        }}
+    />
+
+    <Call module="../boolean" />
+
+    <If on={$in.fallback != null}>
+        <Call
+            module="../effect/run"
+            in={{
+                step: Operation.Step.Child,
+                row: $in.fallback,
+                path: {
+                    path: $ctx.boolean,
+                    violations: $in.violations
+                }
+            }}
+        />
+
+        <Return value={$ctx.run.path} />
+    </If>
+
+    <Return
+        value={{
+            path: $ctx.boolean,
+            violations: $in.violations
+        }}
+    />
+</Module>

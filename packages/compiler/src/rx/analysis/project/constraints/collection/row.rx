@@ -1,41 +1,42 @@
 <Module>
     <Type from="model" as="Collection" />
+    <Type from="effect" as="CollectionEffect" />
 
     <Args in={Collection.Cursor} out={Collection.Cursor} />
 
-    <Call
-        fn="host.openConstraintModule"
-        in={[
-            $in.request.frame,
-            $in.row
-        ]}
-    />
+    <Store from="collection" as="collection" />
 
     <Call
-        module="infer"
+        fn="stage"
         in={{
-            frame: $in.request.frame,
-            shortcut: $ctx.openConstraintModule.shortcut
+            collection_step: CollectionEffect.Step.Open,
+            row: $in.row
         }}
+        setter={[$store.collection.effect]}
     />
+
+    <Call fn="read_opened" in={$store.collection.effect} />
+
+    <Call module="infer" in={$ctx.read_opened.shortcut} />
 
     <Call
         fn="publish"
         in={{
-            already_fixed: $ctx.openConstraintModule.fixed,
+            already_fixed: $ctx.read_opened.fixed,
             used: $ctx.infer.used
         }}
     />
 
     <Call
-        fn="host.commitConstraintPort"
-        in={[
-            $in.request.frame,
-            $in.row,
-            $ctx.publish.fixed,
-            $ctx.infer.binding_end,
-            $ctx.infer.task_end
-        ]}
+        fn="stage"
+        in={{
+            collection_step: CollectionEffect.Step.PublishPort,
+            row: $in.row,
+            fixed: $ctx.publish.fixed,
+            binding_end: $ctx.infer.binding_end,
+            task_end: $ctx.infer.task_end
+        }}
+        setter={[$store.collection.effect]}
     />
 
     <Return

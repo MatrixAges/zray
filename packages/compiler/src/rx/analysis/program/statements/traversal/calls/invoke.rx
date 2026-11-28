@@ -1,31 +1,113 @@
 <Module>
     <Type from="model" as="Calls" />
+    <Type from="../publication" as="Publication" />
 
     <Args in={Calls.Invocation} out={u32} />
 
+    <Store from="../publication" as="publication" />
+
+    <Task name="prepare_body_call" out={$ctx.read_explicit}>
+        <Call
+            fn="../stage"
+            in={{
+                step: Publication.Step.PrepareCall,
+                item: $in.item
+            }}
+            setter={[$store.publication.effect]}
+        />
+
+        <Call fn="../read_explicit" in={$store.publication.effect} />
+    </Task>
+
     <Call
-        fn="../host.prepareBodyCall"
-        in={[
-            $in.frame,
-            $in.item
-        ]}
+        fn="../stage"
+        in={{
+            step: Publication.Step.BindGetters
+        }}
+        setter={[$store.publication.effect]}
     />
 
-    <Call fn="../host.bindBodyGetters" in={$in.frame} />
-
-    <If on={$ctx.prepareBodyCall}>
-        <Call fn="../host.evaluateBodyArgument" in={$in.frame} />
+    <If on={$ctx.task.prepare_body_call}>
+        <Call
+            fn="../stage"
+            in={{
+                step: Publication.Step.EvaluateArgument
+            }}
+            setter={[$store.publication.effect]}
+        />
 
         <Else>
-            <Call fn="../host.createBodyUnitArgument" in={$in.frame} />
+            <Call
+                fn="../stage"
+                in={{
+                    step: Publication.Step.CreateUnit
+                }}
+                setter={[$store.publication.effect]}
+            />
         </Else>
     </If>
 
-    <Call fn="../host.resolveBodyCallStores" in={$in.frame} />
+    <Call
+        fn="../stage"
+        in={{
+            step: Publication.Step.ResolveStores
+        }}
+        setter={[$store.publication.effect]}
+    />
 
-    <Call module="import_function" in={$in.frame} />
+    <Task name="prepare_body_import" out={$ctx.read_import}>
+        <Call
+            fn="../stage"
+            in={{
+                step: Publication.Step.PrepareImport
+            }}
+            setter={[$store.publication.effect]}
+        />
 
-    <Call fn="../host.emitBodyCall" in={$in.frame} />
+        <Call fn="../read_import" in={$store.publication.effect} />
+    </Task>
 
-    <Return value={$ctx.emitBodyCall} />
+    <If on={$ctx.task.prepare_body_import.addition}>
+        <Call
+            fn="../stage"
+            in={{
+                step: Publication.Step.AppendTail
+            }}
+            setter={[$store.publication.effect]}
+        />
+    </If>
+
+    <If on={$ctx.task.prepare_body_import.needs_initializers}>
+        <Call
+            fn="../stage"
+            in={{
+                step: Publication.Step.LinkInitializers
+            }}
+            setter={[$store.publication.effect]}
+        />
+    </If>
+
+    <If on={$ctx.task.prepare_body_import.addition}>
+        <Call
+            fn="../stage"
+            in={{
+                step: Publication.Step.AppendEntry
+            }}
+            setter={[$store.publication.effect]}
+        />
+    </If>
+
+    <Task name="emit_body_call" out={$ctx.read_id}>
+        <Call
+            fn="../stage"
+            in={{
+                step: Publication.Step.EmitCall
+            }}
+            setter={[$store.publication.effect]}
+        />
+
+        <Call fn="../read_id" in={$store.publication.effect} />
+    </Task>
+
+    <Return value={$ctx.task.emit_body_call} />
 </Module>

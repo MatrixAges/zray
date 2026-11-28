@@ -1,15 +1,19 @@
 <Module>
     <Type from="model" as="Model" />
     <Type from="workflow" as="Traversal" />
+    <Type from="operation" as="Operation" />
 
     <Args in={Traversal.Iteration} out={Traversal.Iteration} />
 
+    <Store from="operations" as="operations" />
+
     <Call
-        fn="host.refreshFlowCursor"
-        in={[
-            $in.request.frame,
-            null
-        ]}
+        fn="stage"
+        in={{
+            step: Operation.Step.Refresh,
+            next: null
+        }}
+        setter={[$store.operations.effect]}
     />
 
     <Call
@@ -22,18 +26,18 @@
     />
 
     <Call
-        fn="host.refreshFlowCursor"
-        in={[
-            $in.request.frame,
-            $ctx.advance.next
-        ]}
+        fn="stage"
+        in={{
+            step: Operation.Step.Refresh,
+            next: $ctx.advance.next
+        }}
+        setter={[$store.operations.effect]}
     />
 
     <If on={$in.request.cursor.first < $ctx.advance.position}>
         <Call
             module="calls/run"
             in={{
-                frame: $in.request.frame,
                 items: $in.request.items,
                 lengths: $in.request.lengths,
                 cursor: $in.request.cursor,
@@ -47,7 +51,6 @@
     <Call
         module="apply"
         in={{
-            frame: $in.request.frame,
             lengths: $in.request.lengths,
             labels: $in.request.labels,
             fallback: $in.request.fallback,
@@ -67,7 +70,13 @@
     />
 
     <If on={$ctx.advance.pop}>
-        <Call fn="host.popFlowFrame" in={$in.request.frame} />
+        <Call
+            fn="stage"
+            in={{
+                step: Operation.Step.Pop
+            }}
+            setter={[$store.operations.effect]}
+        />
     </If>
 
     <Return

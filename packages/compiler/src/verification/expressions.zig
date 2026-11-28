@@ -12,7 +12,7 @@ const Types = source.Types;
 allocator: std.mem.Allocator,
 scratch: *zx.Arena,
 program: ir.Program,
-environment: []terms.Binding,
+environment: source.Environment,
 reporter: *zx.Reporter,
 graph: *Graph,
 cache: std.AutoHashMapUnmanaged(ir.ExprId, Evaluation) = .empty,

@@ -1,8 +1,11 @@
 <Module>
     <Type from="workflow" as="Access" />
     <Type from="model" as="Fields" />
+    <Type from="../object_closure/effect" as="ObjectEffect" />
 
     <Args in={Access.Read} out={Access.Outcome} />
+
+    <Store from="../object_closure/object" as="object" />
 
     <Call
         fn="plan"
@@ -38,26 +41,41 @@
         </Case>
 
         <Case value={Fields.Route.DeferLength}>
-            <Call fn="host.addFieldNode" in={$in.site.frame} />
+            <Call
+                fn="../object_closure/stage"
+                in={{
+                    object_step: ObjectEffect.Step.AddNode
+                }}
+                setter={[$store.object.effect]}
+            />
+
+            <Call fn="../object_closure/read_id" in={$store.object.effect} />
 
             <Call
-                fn="host.appendLengthProjection"
-                in={[
-                    $in.site.frame,
-                    $ctx.addFieldNode
-                ]}
+                fn="../object_closure/stage"
+                in={{
+                    object_step: ObjectEffect.Step.AppendLength,
+                    source: $ctx.read_id
+                }}
+                setter={[$store.object.effect]}
             />
 
             <Return
                 value={{
-                    value: $ctx.addFieldNode,
+                    value: $ctx.read_id,
                     revised: false
                 }}
             />
         </Case>
 
         <Case value={Fields.Route.RequireList}>
-            <Call fn="host.requireFieldList" in={$in.site.frame} />
+            <Call
+                fn="../object_closure/stage"
+                in={{
+                    object_step: ObjectEffect.Step.RequireList
+                }}
+                setter={[$store.object.effect]}
+            />
         </Case>
 
         <Default>
@@ -68,27 +86,31 @@
                 <Call fn="diagnostic" in={$ctx.plan.route} />
 
                 <Call
-                    fn="host.rejectFieldAccess"
-                    in={[
-                        $in.site.frame,
-                        $ctx.diagnostic
-                    ]}
+                    fn="../object_closure/stage"
+                    in={{
+                        object_step: ObjectEffect.Step.RejectAccess,
+                        message: $ctx.diagnostic
+                    }}
+                    setter={[$store.object.effect]}
                 />
             </If>
         </Default>
     </Switch>
 
     <Call
-        fn="host.registerFieldType"
-        in={[
-            $in.site.frame,
-            $ctx.plan.value
-        ]}
+        fn="../object_closure/stage"
+        in={{
+            object_step: ObjectEffect.Step.RegisterType,
+            type_id: $ctx.plan.value
+        }}
+        setter={[$store.object.effect]}
     />
+
+    <Call fn="../object_closure/read_id" in={$store.object.effect} />
 
     <Return
         value={{
-            value: $ctx.registerFieldType,
+            value: $ctx.read_id,
             revised: false
         }}
     />

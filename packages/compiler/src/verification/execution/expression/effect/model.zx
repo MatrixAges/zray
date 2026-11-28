@@ -1,0 +1,54 @@
+export enum Step {
+    Evaluate,
+    Bind,
+    Select,
+    Retain,
+    DescribeCall,
+    FindCall,
+    ExecuteCall,
+    PublishCall
+}
+
+export type Value = {
+    text?: string,
+    fields: u8[],
+    safe: string
+}
+
+export type CallKey = {
+    target: u32,
+    start: u64,
+    length: u64,
+    digest: u64
+}
+
+export type CallDescription = {
+    target: u32,
+    calls: u32[],
+    stores: u64,
+    external: bool,
+    depth: u64
+}
+
+export type Effect = {
+    step: Step,
+    row?: u32,
+    text?: string,
+    yes?: Value,
+    no?: Value,
+    value?: Value,
+    key?: CallKey,
+    description?: CallDescription
+}
+
+export type Result = {
+    text: string,
+    value: Value,
+    key?: CallKey,
+    description: CallDescription
+}
+
+export type Exchange = {
+    request?: Effect,
+    result: Result
+}

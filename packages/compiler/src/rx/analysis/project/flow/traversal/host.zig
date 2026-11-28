@@ -6,6 +6,7 @@ const Flow = @import("../../flow.zig");
 const InferCall = @import("../../constraints/call.zig");
 const LowerCall = @import("../../../flow_compile/call.zig");
 const Compiler = @import("../../../flow_compile.zig");
+const execution = @import("../../workflow/execute.zig");
 const entry = @import("generated_rx_traverse_flow");
 const Input = std.meta.Child(entry.Input);
 const Label = Flow.Case.Label.Kind;
@@ -33,10 +34,6 @@ const State = struct {
 
         target.* = @intCast(length);
     }
-
-    fn borrow(handle: *anyopaque) *State {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
 pub fn run(target: anytype, plan: *const Flow.Plan) @TypeOf(target.closeCase()) {
@@ -56,7 +53,6 @@ pub fn run(target: anytype, plan: *const Flow.Plan) @TypeOf(target.closeCase()) 
     const results: ResultRows = .{ .cursor = @ptrCast(&result_slots), .types = if (inference) &.{} else @ptrCast(target.compiler.results.types) };
 
     const input: Input = .{
-        .frame = @ptrCast(&state),
         .cursor = &state.cursor,
         .lengths = @ptrCast(&lengths),
         .labels = @ptrCast(&state.labels),
@@ -67,6 +63,50 @@ pub fn run(target: anytype, plan: *const Flow.Plan) @TypeOf(target.closeCase()) 
         .items = plan.items,
     };
 
+    const Store = std.meta.Child(@FieldType(entry.zx_pending, "store_0"));
+
+    const Host = struct {
+        state: *State,
+        reply: *std.meta.Child(Store),
+        store_0: *Store,
+        pub fn commit(host: *@This(), pending: entry.zx_pending) Error!void {
+            const effect = pending.store_0 orelse return;
+            const work = host.state;
+
+            switch (effect.step) {
+                .Refresh => refreshFlowCursor(work, effect.next),
+                .PrepareCall => host.reply.flag = try prepareFlowCall(work, effect.item.?),
+                .BindGetters => try callEffect(work, "bindGetters"),
+                .EvaluateArgument => try callEffect(work, "argument"),
+                .CreateUnit => try callEffect(work, "unit"),
+                .RegisterCall => host.reply.result_id = try registerFlowCall(work, effect.row.?, effect.visible.?, effect.next, effect.bindings.?),
+                .CheckCall => try work.target.lowering.compiler.checkParallelCall(effect.item.?, effect.id.?),
+                .EvaluateReturn => try evaluateFlowReturn(work, effect.item.?, effect.returned.?),
+                .Publish => writeFlowStep(work, effect.row.?, effect.kind.?, effect.first.?, effect.exhaustive.?, effect.output.?),
+                .OpenTask => try openFlowTask(work, effect.row.?, effect.item.?, effect.parallel.?),
+                .OpenParallel => try openRegion(work, "parallel", effect.row.?, effect.item.?),
+                .OpenSelection => try openRegion(work, "selection", effect.row.?, effect.item.?),
+                .EvaluateLabel => host.reply.truth = try evaluateFlowCaseLabel(work, effect.row.?),
+                .ReadLabel => host.reply.truth = try readFlowConditionLabel(work, effect.row.?),
+                .RefineCase => try refineFlowCase(work, effect.row.?, effect.coverage),
+                .PushCase => try pushFlowCase(work, effect.row.?, effect.bindings.?, effect.facts.?),
+                .PrepareTaskOutput => host.reply.flag = try work.target.lowering.prepareTaskOutput(&work.task),
+                .EvaluateTaskOutput => try evaluateFlowTaskOutput(work, effect.row.?, effect.visible.?, effect.next),
+                .InferTaskOutput => host.reply.result_id = try inferFlowTaskOutput(work, effect.parallel.?),
+                .RequestTaskOutput => try requestParallelTaskOutput(work, effect.value.?, effect.returned.?),
+                .BindTaskOutput => try bindFlowTaskOutput(work, effect.parallel.?, effect.value, effect.bindings.?),
+                .FinishTask => host.reply.truth = try finishLoweredFlowTask(work, effect.bindings.?),
+                .MergeBindings => try mergeFlowParallelBindings(work),
+                .CheckSelection => host.reply.flag = try work.target.lowering.checkSelection(),
+                .FinishCase => try finishFlowCase(work, effect.row, effect.facts.?, effect.bindings.?),
+                .Pop => popFlowFrame(work),
+            }
+        }
+    };
+
+    var reply = execution.snapshot(std.meta.Child(Store), .{ .step = .Refresh, .flag = false });
+    var store: Store = &reply;
+    var host: Host = .{ .state = &state, .reply = &reply, .store_0 = &store };
     var scratch_buf: [2048]u8 = undefined;
     var arena = std.heap.ArenaAllocator.init(target.memory);
 
@@ -74,15 +114,14 @@ pub fn run(target: anytype, plan: *const Flow.Plan) @TypeOf(target.closeCase()) 
 
     var fallback = std.heap.BufferFirstAllocator.init(&scratch_buf, arena.allocator());
 
-    return entry.executeIn(fallback.allocator(), &input) catch |err| switch (@as(anyerror, err)) {
+    return entry.executeIn(fallback.allocator(), &input, &host) catch |err| switch (@as(anyerror, err)) {
+        error.Overflow, error.IntegerOverflow => error.OutOfMemory,
         error.OutOfMemory, error.InvalidSource, error.InvalidFlow => @errorCast(err),
         else => unreachable,
     };
 }
 
-pub fn refreshFlowCursor(handle: *anyopaque, next: ?u64) void {
-    const state = State.borrow(handle);
-
+fn refreshFlowCursor(state: *State, next: ?u64) void {
     switch (state.target) {
         inline else => |target| {
             const current = target.frame();
@@ -133,9 +172,7 @@ pub fn refreshFlowCursor(handle: *anyopaque, next: ?u64) void {
     }
 }
 
-pub fn prepareFlowCall(handle: *anyopaque, item: u32) Error!bool {
-    const state = State.borrow(handle);
-
+fn prepareFlowCall(state: *State, item: u32) Error!bool {
     switch (state.target) {
         .inference => |target| {
             try InferCall.prepare(target.walker, item, &state.call.inference);
@@ -150,26 +187,14 @@ pub fn prepareFlowCall(handle: *anyopaque, item: u32) Error!bool {
     }
 }
 
-fn callEffect(comptime method: []const u8) fn (*anyopaque) Error!void {
-    return struct {
-        fn apply(handle: *anyopaque) Error!void {
-            const state = State.borrow(handle);
-
-            switch (state.target) {
-                .inference => |target| try @field(InferCall, method)(&state.call.inference, target.walker),
-                .lowering => |target| try @field(LowerCall, method)(&state.call.lowering, target.compiler),
-            }
-        }
-    }.apply;
+fn callEffect(state: *State, comptime method: []const u8) Error!void {
+    switch (state.target) {
+        .inference => |target| try @field(InferCall, method)(&state.call.inference, target.walker),
+        .lowering => |target| try @field(LowerCall, method)(&state.call.lowering, target.compiler),
+    }
 }
 
-pub const bindFlowGetters = callEffect("bindGetters");
-pub const evaluateFlowArgument = callEffect("argument");
-pub const createFlowUnitArgument = callEffect("unit");
-
-pub fn registerFlowCall(handle: *anyopaque, row: u64, visible: bool, next: ?u64, bindings: u64) Error!?u32 {
-    const state = State.borrow(handle);
-
+fn registerFlowCall(state: *State, row: u64, visible: bool, next: ?u64, bindings: u64) Error!?u32 {
     state.shrink(0, bindings);
 
     switch (state.target) {
@@ -184,13 +209,7 @@ pub fn registerFlowCall(handle: *anyopaque, row: u64, visible: bool, next: ?u64,
     return null;
 }
 
-pub fn checkFlowParallelCall(handle: *anyopaque, item: u32, id: u32) Error!void {
-    try State.borrow(handle).target.lowering.compiler.checkParallelCall(item, id);
-}
-
-pub fn evaluateFlowReturn(handle: *anyopaque, item: u32, returned: bool) Error!void {
-    const state = State.borrow(handle);
-
+fn evaluateFlowReturn(state: *State, item: u32, returned: bool) Error!void {
     switch (state.target) {
         .inference => |target| {
             try target.walker.inferReturn(target.walker.module.plan.results[item]);
@@ -201,8 +220,7 @@ pub fn evaluateFlowReturn(handle: *anyopaque, item: u32, returned: bool) Error!v
     }
 }
 
-pub inline fn writeFlowStep(handle: *anyopaque, row: u64, kind: anytype, first: u32, exhaustive: bool, output: anytype) void {
-    const state = State.borrow(handle);
+fn writeFlowStep(state: *State, row: u64, kind: anytype, first: u32, exhaustive: bool, output: anytype) void {
     const target = state.target.lowering;
     const task = if (kind == .Task) &state.task else null;
     const frame = target.frame();
@@ -224,28 +242,19 @@ pub inline fn writeFlowStep(handle: *anyopaque, row: u64, kind: anytype, first: 
     });
 }
 
-pub fn openFlowTask(handle: *anyopaque, row: u64, item: u32, parallel: bool) Error!void {
-    switch (State.borrow(handle).target) {
+fn openFlowTask(state: *State, row: u64, item: u32, parallel: bool) Error!void {
+    switch (state.target) {
         inline else => |target| try target.task(target.frame(), @intCast(row), item, parallel),
     }
 }
 
-fn openRegion(comptime method: []const u8) fn (*anyopaque, u64, u32) Error!void {
-    return struct {
-        fn apply(handle: *anyopaque, row: u64, item: u32) Error!void {
-            switch (State.borrow(handle).target) {
-                inline else => |target| try @field(@TypeOf(target.*), method)(target, target.frame(), @intCast(row), item),
-            }
-        }
-    }.apply;
+fn openRegion(state: *State, comptime method: []const u8, row: u64, item: u32) Error!void {
+    switch (state.target) {
+        inline else => |target| try @field(@TypeOf(target.*), method)(target, target.frame(), @intCast(row), item),
+    }
 }
 
-pub const openFlowParallel = openRegion("parallel");
-pub const openFlowSelection = openRegion("selection");
-
-pub fn evaluateFlowCaseLabel(handle: *anyopaque, row: u64) Error!?bool {
-    const state = State.borrow(handle);
-
+fn evaluateFlowCaseLabel(state: *State, row: u64) Error!?bool {
     switch (state.target) {
         .inference => |target| return target.labelCase(target.frame(), @intCast(row)),
         .lowering => |target| state.case_label = try target.labelCase(target.frame(), @intCast(row)),
@@ -254,15 +263,13 @@ pub fn evaluateFlowCaseLabel(handle: *anyopaque, row: u64) Error!?bool {
     return null;
 }
 
-pub fn readFlowConditionLabel(handle: *anyopaque, row: u64) std.mem.Allocator.Error!?bool {
-    const selected = &State.borrow(handle).target.inference.frame().payload.Selection;
+fn readFlowConditionLabel(state: *State, row: u64) std.mem.Allocator.Error!?bool {
+    const selected = &state.target.inference.frame().payload.Selection;
 
     return selected.labels.lookAhead(selected.cases[@intCast(row)].label.attribute().?);
 }
 
-pub inline fn refineFlowCase(handle: *anyopaque, row: u64, coverage: anytype) Error!void {
-    const state = State.borrow(handle);
-
+fn refineFlowCase(state: *State, row: u64, coverage: anytype) Error!void {
     if (coverage) |update| {
         const selection = &state.target.inference.frame().payload.Selection;
 
@@ -279,23 +286,14 @@ pub inline fn refineFlowCase(handle: *anyopaque, row: u64, coverage: anytype) Er
     }
 }
 
-pub fn pushFlowCase(handle: *anyopaque, row: u64, bindings: u64, facts: u64) Error!void {
-    const state = State.borrow(handle);
-
+fn pushFlowCase(state: *State, row: u64, bindings: u64, facts: u64) Error!void {
     switch (state.target) {
         .inference => |target| try target.pushCase(target.frame(), @intCast(row), @intCast(bindings), @intCast(facts)),
         .lowering => |target| try target.pushCase(target.frame(), @intCast(row), @intCast(bindings), @intCast(facts), state.case_label),
     }
 }
 
-pub fn prepareFlowTaskOutput(handle: *anyopaque) Compiler.Error!bool {
-    const state = State.borrow(handle);
-
-    return state.target.lowering.prepareTaskOutput(&state.task);
-}
-
-pub fn evaluateFlowTaskOutput(handle: *anyopaque, row: u64, visible: bool, next: ?u64) Compiler.Error!void {
-    const state = State.borrow(handle);
+fn evaluateFlowTaskOutput(state: *State, row: u64, visible: bool, next: ?u64) Compiler.Error!void {
     const target = state.target.lowering;
 
     target.compiler.next_binding = @intCast(next.?);
@@ -303,8 +301,8 @@ pub fn evaluateFlowTaskOutput(handle: *anyopaque, row: u64, visible: bool, next:
     try target.evaluateTaskOutput(&state.task, target.compiler.selectedResult(row, visible));
 }
 
-pub fn inferFlowTaskOutput(handle: *anyopaque, parallel: bool) Error!?u32 {
-    const target = State.borrow(handle).target.inference;
+fn inferFlowTaskOutput(state: *State, parallel: bool) Error!?u32 {
+    const target = state.target.inference;
     const walker = target.walker;
     const frame = target.frame();
     const task = &walker.module.plan.tasks[if (parallel) frame.payload.ParallelTask.item else frame.payload.Task.item];
@@ -313,8 +311,8 @@ pub fn inferFlowTaskOutput(handle: *anyopaque, parallel: bool) Error!?u32 {
     return if (output) |value| @backingInt(value) else null;
 }
 
-pub fn requestParallelTaskOutput(handle: *anyopaque, output: u32, returned: bool) Error!void {
-    const target = State.borrow(handle).target.inference;
+fn requestParallelTaskOutput(state: *State, output: u32, returned: bool) Error!void {
+    const target = state.target.inference;
     const walker = target.walker;
     const task = &walker.module.plan.tasks[target.frame().payload.ParallelTask.item];
 
@@ -324,9 +322,7 @@ pub fn requestParallelTaskOutput(handle: *anyopaque, output: u32, returned: bool
     walker.returned = returned;
 }
 
-pub fn bindFlowTaskOutput(handle: *anyopaque, parallel: bool, value: ?u32, bindings: u64) Error!void {
-    const state = State.borrow(handle);
-
+fn bindFlowTaskOutput(state: *State, parallel: bool, value: ?u32, bindings: u64) Error!void {
     state.shrink(0, bindings);
 
     const output = value orelse return;
@@ -338,36 +334,28 @@ pub fn bindFlowTaskOutput(handle: *anyopaque, parallel: bool, value: ?u32, bindi
     try walker.bindTaskOutput(&walker.module.plan.tasks[index], @fromBackingInt(output), outputs);
 }
 
-pub fn finishLoweredFlowTask(handle: *anyopaque, bindings: u64) Compiler.Error!?bool {
-    const state = State.borrow(handle);
-
+fn finishLoweredFlowTask(state: *State, bindings: u64) Compiler.Error!?bool {
     state.shrink(0, bindings);
 
     return state.task.publish(state.target.lowering.compiler);
 }
 
-pub fn mergeFlowParallelBindings(handle: *anyopaque) Error!void {
-    switch (State.borrow(handle).target) {
+fn mergeFlowParallelBindings(state: *State) Error!void {
+    switch (state.target) {
         .inference => |target| try target.closeParallel(),
         .lowering => |target| try target.mergeParallelBindings(),
     }
 }
 
-pub fn checkFlowSelection(handle: *anyopaque) Compiler.Error!bool {
-    return State.borrow(handle).target.lowering.checkSelection();
-}
-
-pub fn finishFlowCase(handle: *anyopaque, row: ?u64, facts: u64, bindings: u64) std.mem.Allocator.Error!void {
-    const state = State.borrow(handle);
-
+fn finishFlowCase(state: *State, row: ?u64, facts: u64, bindings: u64) std.mem.Allocator.Error!void {
     if (row) |index| try state.target.lowering.publishCase(@intCast(index));
 
     state.shrink(1, facts);
     state.shrink(0, bindings);
 }
 
-pub fn popFlowFrame(handle: *anyopaque) void {
-    switch (State.borrow(handle).target) {
+fn popFlowFrame(state: *State) void {
+    switch (state.target) {
         inline else => |target| target.pop(),
     }
 }

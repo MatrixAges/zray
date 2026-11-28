@@ -2,8 +2,23 @@
     <Type from="model" as="Walk" />
     <Type from="../unification/model" as="Admission" />
     <Type from="../unification/application/model" as="Application" />
+    <Type from="effect" as="Unification" />
 
-    <Args in={Walk.Merge} out={Walk.Diagnostic?} />
+    <Args in={Walk.MergeInput} out={Walk.Diagnostic?} />
+
+    <Store from="unification" as="unification" />
+
+    <Call
+        fn="stage"
+        in={{
+            step: Unification.Step.Prepare,
+            left: $in.left,
+            right: $in.right,
+            depth: $in.depth,
+            rooted: false
+        }}
+        setter={[$store.unification.effect]}
+    />
 
     <Call fn="diagnose" in={$in.candidate.frame.route} />
 
@@ -16,7 +31,6 @@
             <Call
                 module="commit"
                 in={{
-                    target: $in.target,
                     frame: $in.candidate.frame,
                     members: $in.candidate.frame.members
                 }}
@@ -25,12 +39,14 @@
 
         <If on={$in.candidate.frame.action != Application.Action.Adopt}>
             <Call
-                fn="host.walkUnificationFrames"
-                in={[
-                    $in.target,
-                    $in.depth
-                ]}
+                module="run"
+                in={$in.omit([
+                    "left",
+                    "right"
+                ])}
             />
+
+            <Return value={$ctx.run} />
         </If>
     </If>
 

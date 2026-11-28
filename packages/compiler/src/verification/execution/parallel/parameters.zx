@@ -1,45 +1,18 @@
 import integers from "std:integer"
-import host from "verification_host"
 
-import guard from "../block/guard"
-
-import type { Input, Output } from "./model"
+import type { Input, Parameters as Output } from "./model"
 
 export default function (in: Input): Output {
-    const { block, session, scope, payload } = in
+    const { scope, payload, path, violations } = in
 
-    const control = scope.control
-    const first = integers.widen(control.parallel_first[payload])
-    const end = first + integers.widen(control.parallel_count[payload])
+    const first = integers.widen(scope.control.parallel_first[payload])
+    const count = integers.widen(scope.control.parallel_count[payload])
 
-    return loop({
+    return {
+        scope,
         row: first,
-        path: in.path,
-        violations: in.violations
-    }, {
-        while: state => state.row < end,
-        next: state => {
-            const call = integers.widen(control.parallel_values[state.row])
-            const argument = integers.widen(scope.expression_payloads[call])
-            const safe =
-                host.evaluateSymbolicStatement(
-                    block,
-                    scope.call_arguments[argument]
-                ).safe
-
-            const checked = guard({
-                session,
-                path: state.path,
-                violations: state.violations,
-                safe
-            })
-            state.path = checked.path
-            state.violations = checked.violations
-            state.row += 1
-        },
-        return: state => ({
-            path: state.path,
-            violations: state.violations
-        })
-    })
+        end: first + count,
+        path,
+        violations
+    }
 }

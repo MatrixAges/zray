@@ -1,0 +1,18 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.Diagnostics} out={Cache.Diagnostics} />
+
+    <If on={$in.messages[$in.row] != null}>
+        <Call fn="host.fromText" in={$in.messages[$in.row] ?? ""} />
+
+        <Call fn="host.writeStderr" />
+    </If>
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1
+        }}
+    />
+</Module>

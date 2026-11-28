@@ -1,5 +1,4 @@
 import type { ColumnLengths } from "memory"
-import type { BodyStatements } from "rx_project_host"
 import type { Row as CaseMember } from "../../control/write/case_member"
 import type { Row as ParallelMember } from "../../control/write/parallel_member"
 import type { Control, Statement } from "../../control/write/publication"
@@ -13,7 +12,6 @@ export type Scopes = {
 }
 
 export type Request = Config & {
-    frame: BodyStatements,
     control: Control,
     scopes: Scopes,
     root: u32,
@@ -26,17 +24,17 @@ export type Request = Config & {
 }
 
 export type Scan =
-    Request.Pick("frame", "control", "scopes", "events", "row", "offset") & {
+    Request.Pick("control", "scopes", "events", "row", "offset") & {
         call_ids: u32[]
     }
 
-export type Write = Scan.Pick("frame", "control", "scopes", "call_ids", "offset") & {
+export type Write = Scan.Pick("control", "scopes", "call_ids", "offset") & {
     event: Event
 }
 
-export type Task = Write.Pick("frame", "control", "scopes", "event")
+export type Task = Write.Pick("control", "scopes", "event")
 
-export type CallResult = Write.Pick("frame", "control") & {
+export type CallResult = Write.Pick("control") & {
     value: u32
 }
 

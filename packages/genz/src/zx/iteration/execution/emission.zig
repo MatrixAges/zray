@@ -45,7 +45,7 @@ pub fn enterLoopUpdate(handle: *anyopaque, update: Frame.UpdateScope, delayed: b
     };
 }
 
-pub fn declareLoopState(handle: *anyopaque, form: Layout, projected: bool, mutable: bool, initial_state: u32) Error!void {
+pub fn declareSeedState(handle: *anyopaque, form: Layout, projected: bool, mutable: bool, initial_state: u32) Error!void {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     const type_id = frame.type_id;
@@ -135,20 +135,6 @@ pub fn projectLoopAssignment(handle: *anyopaque, value: u32) Error!u32 {
     return @backingInt(try frame.fields.?.qualify(frame.lowering, &frame.loop, frame.iteration.body, @fromBackingInt(value)));
 }
 
-pub fn commitLoopUpdate(handle: *anyopaque, value: u32, state: bool) Error!u64 {
-    const frame = Frame.borrow(handle);
-
-    const update = try step.publish(frame.lowering, &frame.loop, .{
-        .type_id = frame.type_id,
-        .active = state and frame.lowering.state_active,
-        .target = frame.state,
-        .value = @fromBackingInt(value),
-        .mark = if (frame.tracker) |flag| flag.generated else null,
-    });
-
-    return publication.packSpan(update);
-}
-
 pub fn recoverLoweredLoop(handle: *anyopaque) Error!u32 {
     const frame = Frame.borrow(handle);
 
@@ -168,7 +154,7 @@ pub fn finishLoweredLoop(handle: *anyopaque, state: u32, spans: result.Prefix) E
     const frame = Frame.borrow(handle);
     const initial = @backingInt(frame.initial_value);
 
-    const value = @backingInt(try resultConfig(frame, frame.initial_value).lower(
+    const value = @backingInt(try resultConfig(frame, frame.initial_value, frame.changed_name).lower(
         frame.lowering,
         frame.output(),
         @fromBackingInt(state),
@@ -176,7 +162,7 @@ pub fn finishLoweredLoop(handle: *anyopaque, state: u32, spans: result.Prefix) E
     ));
 
     if (frame.fields != null) {
-        if (frame.next.first) |first| return finishSkippedLoop(handle, initial, value, @backingInt(first));
+        if (frame.next.first) |first| return finishSkippedLoop(handle, initial, value, @backingInt(first), frame.changed_name);
 
         return @backingInt(try aggregate.finish(frame.lowering, &frame.body, @fromBackingInt(value)));
     }
@@ -184,7 +170,7 @@ pub fn finishLoweredLoop(handle: *anyopaque, state: u32, spans: result.Prefix) E
     return if (frame.guard) |*guard| @backingInt(try guard.finish(frame.lowering, @fromBackingInt(value))) else value;
 }
 
-fn resultConfig(frame: *Frame, initial: node.ExpressionId) result.Result {
+fn resultConfig(frame: *Frame, initial: node.ExpressionId, changed_name: []const u8) result.Result {
     return .{
         .consumer = frame.consumer,
         .deep = frame.initial.deep,
@@ -195,29 +181,29 @@ fn resultConfig(frame: *Frame, initial: node.ExpressionId) result.Result {
         .local = frame.initial.local,
         .selected_state = frame.initial.selected_state,
         .initial = initial,
-        .changed_name = frame.changed_name,
+        .changed_name = changed_name,
         .mode = frame.mode,
     };
 }
 
-pub fn completeLoopResult(handle: *anyopaque, initial: u32, state: u32, spans: *const Api.LoopEmissionSpans) Error!u32 {
+pub fn completeLoopResult(handle: *anyopaque, initial: u32, state: u32, spans: *const Api.LoopEmissionSpans, changed_name: ?[]const u8) Error!u32 {
     const frame = Frame.borrow(handle);
 
-    return @backingInt(try resultConfig(frame, @fromBackingInt(initial)).lower(frame.lowering, frame.output(), @fromBackingInt(state), .{
+    return @backingInt(try resultConfig(frame, @fromBackingInt(initial), changed_name orelse &.{}).lower(frame.lowering, frame.output(), @fromBackingInt(state), .{
         .renewals = publication.unpackSpan(spans.renewals),
         .declarations = publication.unpackSpan(spans.declarations),
         .frame = publication.unpackSpan(spans.frame),
     }));
 }
 
-pub fn finishSkippedLoop(handle: *anyopaque, initial: u32, value: u32, first: u32) Error!u32 {
+pub fn finishSkippedLoop(handle: *anyopaque, initial: u32, value: u32, first: u32, changed_name: ?[]const u8) Error!u32 {
     const frame = Frame.borrow(handle);
     const self = frame.lowering;
     var skipped = Frame.statements(self);
 
     defer if (generated) skipped.deinit();
 
-    const fallback = try resultConfig(frame, @fromBackingInt(initial)).lower(self, &skipped, frame.seed, .{});
+    const fallback = try resultConfig(frame, @fromBackingInt(initial), changed_name orelse &.{}).lower(self, &skipped, frame.seed, .{});
 
     return @backingInt(try aggregate.finishGuarded(self, &frame.body, @fromBackingInt(first), @fromBackingInt(value), fallback));
 }

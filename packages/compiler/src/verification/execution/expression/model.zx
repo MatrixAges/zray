@@ -2,8 +2,8 @@ import { ExpressionKind } from "core/expression_table/kinds"
 
 import type { Expressions } from "core/expression_table/model"
 import type { Table } from "core/type_table/model"
-import type { ReadColumn } from "memory"
-import type { SymbolicExpression } from "verification_host"
+import type { Layout } from "../../terms/layout"
+import type { Value } from "./effect/model"
 
 export { ExpressionKind } from "core/expression_table/kinds"
 
@@ -49,22 +49,17 @@ export type Columns = Expressions.Pick(
 )
 
 export type Input = {
-    frame: SymbolicExpression,
     columns: Columns,
     types: Types,
     id: u64,
     depth: u64,
-    environment: Environment
+    environment: Environment,
+    layout: Layout
 }
 
-export type Environment = {
-    bound: ReadColumn,
-    values: ReadColumn,
-    width: u64
-}
+export type Environment = Value?[]
 
 export type Payload = {
-    frame: SymbolicExpression,
     columns: Columns,
     payload: u64
 }
@@ -72,6 +67,12 @@ export type Payload = {
 export type TypedPayload = Payload & {
     types: Types,
     type_id: u32
+}
+
+export type Selection = {
+    condition: string,
+    yes: Value,
+    no: Value
 }
 
 export type Prepared = {
@@ -85,10 +86,9 @@ export type Prepared = {
 export type Outcome = {
     scalar?: string,
     safe?: string,
-    projection?: u32,
+    value?: Value,
     diagnostic?: string,
     contract?: string,
-    reference?: u8[],
     fields?: AggregateField[]
 }
 

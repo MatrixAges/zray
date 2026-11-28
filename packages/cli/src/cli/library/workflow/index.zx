@@ -2,14 +2,12 @@ export {
     analyzeLibraryBuild,
     linkLibraryBuild,
     collectBuildSources,
-    openLibraryBuildCache,
     generateLibraryBundle,
-    reportLibraryBuildCache,
     resolveLibraryToolchain,
     resolveLibraryNativeProject,
     createLibraryStaging,
     stageLibraryBuild,
     publishLibraryBuild
-} from "library_workflow_host"
+} from "compilation_host"
 
-export type { BuildStatus } from "library_workflow_host"
+export type { BuildStatus } from "compilation_host"

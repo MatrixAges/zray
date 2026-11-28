@@ -1,19 +1,159 @@
 <Module>
-    <Type from="model" as="Objects" />
+    <Type from="model" as="Cache" />
 
-    <Args in={Objects.Input} out={bool} />
+    <Args in={Cache.Input} out={bool} />
 
-    <Call fn="external" in={$in} />
-    <Call fn="keys" in={$in} />
-    <Call fn="schedule" in={$in.target} />
+    <Store from="state" as="state" />
+
+    <Call
+        fn="host.startPartitionHash"
+        in={{
+            prefix: $in.prefix,
+            executable: $in.zig,
+            arguments: $in.arguments,
+            types: $in.types,
+            signatures: $in.signatures
+        }}
+    />
+
+    <Loop on={$in.row < $in.paths.length}>
+        <Call
+            module="external_step"
+            in={{
+                paths: $in.external,
+                prefix: $ctx.startPartitionHash,
+                row: 0
+            }}
+        />
+    </Loop>
+
+    <Loop on={$in.row + 1 < $in.files.offsets.length}>
+        <Call
+            module="key_step"
+            in={{
+                files: $in.pick([
+                    "paths",
+                    "hashes",
+                    "members",
+                    "offsets"
+                ]),
+                prefix: $ctx.external_step.prefix,
+                digests: [],
+                row: 0
+            }}
+        />
+    </Loop>
+
+    <Call
+        fn="host.loadPartitionState"
+        in={[
+            $in.objects,
+            "state"
+        ]}
+    />
+
+    <Call
+        fn="../request/object_paths"
+        in={{
+            objects: $in.objects,
+            count: $ctx.key_step.digests.length
+        }}
+    />
+
+    <Loop on={$in.row < $in.paths.length}>
+        <Call
+            module="presence_step"
+            in={{
+                paths: $ctx.object_paths,
+                present: [],
+                row: 0
+            }}
+        />
+    </Loop>
+
+    <Call
+        module="../state/schedule"
+        in={{
+            state: {
+                previous: $ctx.loadPartitionState.previous,
+                digests: $ctx.key_step.digests,
+                present: $ctx.presence_step.present
+            },
+            options: $in.pick([
+                "arguments",
+                "generated",
+                "objects"
+            ])
+        }}
+    />
 
     <If on={$ctx.schedule.pending.length == 0}>
         <Return value={false} />
     </If>
 
-    <Call fn="compile" in={$ctx.schedule} />
+    <Call
+        fn="update_valid"
+        in={{
+            valid: $ctx.schedule.valid ?? $ctx.presence_step.present,
+            completed: []
+        }}
+        setter={[$store.state.objects]}
+    />
 
-    <Call fn="finish" />
+    <If on={$ctx.schedule.invalidate}>
+        <Call
+            module="publish"
+            in={{
+                path: $ctx.loadPartitionState.path,
+                digests: $ctx.key_step.digests
+            }}
+        />
+    </If>
 
-    <Return value={$ctx.finish} />
+    <Call
+        fn="host.compilePartitionObjects"
+        in={{
+            zig: $in.zig,
+            pending: $ctx.schedule.pending,
+            arguments: $ctx.schedule.arguments.values,
+            indexed: $ctx.schedule.arguments.indexed
+        }}
+    />
+
+    <Call
+        fn="../state/complete"
+        in={{
+            pending: $ctx.schedule.pending,
+            failures: $ctx.compilePartitionObjects
+        }}
+    />
+
+    <Call
+        fn="update_valid"
+        in={{
+            valid: $store.state.objects.valid,
+            completed: $ctx.complete.completed
+        }}
+        setter={[$store.state.objects]}
+    />
+
+    <Loop on={$in.row < $in.messages.length}>
+        <Call
+            module="report_step"
+            in={{
+                messages: $ctx.compilePartitionObjects,
+                row: 0
+            }}
+        />
+    </Loop>
+
+    <Call
+        module="publish"
+        in={{
+            path: $ctx.loadPartitionState.path,
+            digests: $ctx.key_step.digests
+        }}
+    />
+
+    <Return value={$ctx.complete.failed} />
 </Module>

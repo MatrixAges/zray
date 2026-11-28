@@ -72,13 +72,6 @@ pub fn read(io: std.Io, allocator: std.mem.Allocator, source: []const u8, base: 
     return .{ .arena = arena, .bytes = result.body.? };
 }
 
-pub fn readLocalArchive(allocator: std.mem.Allocator, io: std.Io, path: []const u8, limit: u64) ![]const u8 {
-    if (std.mem.indexOfScalar(u8, path, 0) != null) return error.InvalidPath;
-    if (!std.unicode.utf8ValidateSlice(path)) return error.InvalidUtf8;
-
-    return std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited64(limit +| 1));
-}
-
 pub fn receiveHead(handle: *const anyopaque, url: []const u8) Error!*const ResponseHead {
     const self = State.get(handle);
     const uri = std.Uri.parse(url) catch |err| return self.fail(err);

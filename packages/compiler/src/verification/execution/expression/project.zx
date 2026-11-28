@@ -1,4 +1,4 @@
-import { SymbolicOperand } from "verification_host"
+import integers from "std:integer"
 
 import type { Payload } from "./model"
 
@@ -6,8 +6,7 @@ export type Input = Payload.Pick("columns", "payload")
 
 export type Output = {
     expression: u32,
-    index: u32,
-    slot: SymbolicOperand
+    index: u64,
 }
 
 export default function (in: Input): Output {
@@ -15,7 +14,6 @@ export default function (in: Input): Output {
 
     return {
         expression: columns.projection_targets[payload],
-        index: columns.projection_indices[payload],
-        slot: SymbolicOperand.First
+        index: integers.widen(columns.projection_indices[payload])
     }
 }

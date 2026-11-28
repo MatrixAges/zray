@@ -1,26 +1,13 @@
-import host from "verification_host"
-
-import exclude from "../../predicate/exclude"
 import { smt_true } from "../../scalar/const"
 
-import type { Input } from "./model"
+import type { Safety as Output } from "./model"
 
-export type Output = string
+export type Input = string[]
 
 export default function (in: Input): Output {
-    return loop({
+    return {
         row: 0,
+        violations: in,
         safe: smt_true
-    }, {
-        while: state => state.row < in.violations.length,
-        next: state => {
-            const checked = exclude({
-                left: state.safe,
-                right: in.violations[state.row]
-            })
-            state.safe = host.bindSymbolicBoolean(in.target, checked)
-            state.row += 1
-        },
-        return: state => state.safe
-    })
+    }
 }

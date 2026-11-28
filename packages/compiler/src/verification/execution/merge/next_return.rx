@@ -1,0 +1,39 @@
+<Module>
+    <Type from="model" as="Merge" />
+
+    <Args in={Merge.Returns} out={Merge.Returns} />
+
+    <Task name="selected" out={$ctx.operate}>
+        <Call
+            module="operate"
+            in={{
+                step: Merge.Step.Select,
+                row: $in.row
+            }}
+        />
+    </Task>
+
+    <Call
+        fn="../../scalar/disjunction"
+        in={{
+            left: $in.reached,
+            right: $ctx.task.selected
+        }}
+    />
+
+    <Call
+        module="operate"
+        in={{
+            step: Merge.Step.Boolean,
+            term: $ctx.disjunction
+        }}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            row: $in.row + 1,
+            reached: $ctx.operate
+        }}
+    />
+</Module>

@@ -1,28 +1,3 @@
 export { readLengthSlot } from "memory"
-export {
-    FlowKind,
-    writeFlowStep,
-    refreshFlowCursor,
-    prepareFlowCall,
-    bindFlowGetters,
-    evaluateFlowArgument,
-    createFlowUnitArgument,
-    registerFlowCall,
-    checkFlowParallelCall,
-    evaluateFlowReturn,
-    openFlowTask,
-    openFlowParallel,
-    openFlowSelection,
-    evaluateFlowCaseLabel,
-    pushFlowCase,
-    prepareFlowTaskOutput,
-    evaluateFlowTaskOutput,
-    inferFlowTaskOutput,
-    requestParallelTaskOutput,
-    bindFlowTaskOutput,
-    finishLoweredFlowTask,
-    mergeFlowParallelBindings,
-    checkFlowSelection,
-    finishFlowCase,
-    popFlowFrame
-} from "rx_project_host"
+
+export { FlowKind } from "./operation"

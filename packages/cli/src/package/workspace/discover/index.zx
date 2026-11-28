@@ -4,5 +4,3 @@ export {
     loadAncestor,
     Probe
 } from "package_workspace_host"
-
-export type { Search } from "package_workspace_host"

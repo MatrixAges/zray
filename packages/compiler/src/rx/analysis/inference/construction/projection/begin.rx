@@ -1,7 +1,10 @@
 <Module>
     <Type from="model" as="Projection" />
+    <Type from="../../object_closure/effect" as="ObjectEffect" />
 
     <Args in={Projection.Request} out={Projection.Cursor} />
+
+    <Store from="../../object_closure/object" as="object" />
 
     <Call
         module="../sources"
@@ -13,7 +16,13 @@
     />
 
     <If on={$ctx.sources.row < $in.scan.names.length}>
-        <Call fn="host.reserveObjectSpreadColumns" in={$in.frame} />
+        <Call
+            fn="../../object_closure/stage"
+            in={{
+                object_step: ObjectEffect.Step.ReserveSpreads
+            }}
+            setter={[$store.object.effect]}
+        />
     </If>
 
     <Return

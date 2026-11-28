@@ -1,0 +1,19 @@
+<Store name="symbolic_return_selection" version={1}>
+    <Type from="model" as="Merge" />
+    <Type from="../expression/effect/model" as="Expression" />
+
+    <Object name="state">
+        <Field name="operation" type={Merge.Operation?} value={null} />
+
+        <Field
+            name="value"
+            type={Expression.Value}
+            value={{
+                fields: [],
+                safe: "true"
+            }}
+        />
+
+        <Field name="term" type={string} value={""} />
+    </Object>
+</Store>

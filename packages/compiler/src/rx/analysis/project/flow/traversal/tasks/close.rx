@@ -1,43 +1,61 @@
 <Module>
     <Type from="../effect" as="Effect" />
     <Type from="../host" as="Host" />
+    <Type from="../operation" as="Operation" />
 
     <Args in={Effect.TaskClose} out={void} />
+
+    <Store from="../operations" as="operations" />
 
     <If on={$in.returns != null}>
         <Call module="infer" in={$in} />
 
         <Else>
-            <Call fn="../host.prepareFlowTaskOutput" in={$in.frame} />
+            <Task name="prepare_flow_task_output" out={$ctx.read_flag}>
+                <Call
+                    fn="../stage"
+                    in={{
+                        step: Operation.Step.PrepareTaskOutput
+                    }}
+                    setter={[$store.operations.effect]}
+                />
 
-            <If on={$ctx.prepareFlowTaskOutput}>
+                <Call fn="../read_flag" in={$store.operations.effect} />
+            </Task>
+
+            <If on={$ctx.task.prepare_flow_task_output}>
                 <Call fn="../select_result" in={$in.results} />
 
                 <Call
-                    fn="../host.evaluateFlowTaskOutput"
-                    in={[
-                        $in.frame,
-                        $ctx.select_result.row,
-                        $ctx.select_result.visible,
-                        $ctx.select_result.next
-                    ]}
+                    fn="../stage"
+                    in={{
+                        step: Operation.Step.EvaluateTaskOutput,
+                        row: $ctx.select_result.row,
+                        visible: $ctx.select_result.visible,
+                        next: $ctx.select_result.next
+                    }}
+                    setter={[$store.operations.effect]}
                 />
             </If>
 
-            <Call
-                fn="../host.finishLoweredFlowTask"
-                in={[
-                    $in.frame,
-                    $in.saved_bindings
-                ]}
-            />
+            <Task name="finish_lowered_flow_task" out={$ctx.read_truth}>
+                <Call
+                    fn="../stage"
+                    in={{
+                        step: Operation.Step.FinishTask,
+                        bindings: $in.saved_bindings
+                    }}
+                    setter={[$store.operations.effect]}
+                />
+
+                <Call fn="../read_truth" in={$store.operations.effect} />
+            </Task>
 
             <Call fn="publish" />
 
             <Call
                 module="../write_step"
                 in={{
-                    frame: $in.frame,
                     index: $in.cursor.destination,
                     kind: Host.FlowKind.Task,
                     output: $ctx.publish

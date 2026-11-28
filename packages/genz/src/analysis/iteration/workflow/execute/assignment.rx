@@ -2,64 +2,53 @@
     <Type from="emission_model" as="Loop" />
     <Type from="../../step/model" as="Step" />
 
-    <Args in={Loop.Assignment} out={u64} />
+    <Args in={Loop.Assignment} out={Loop.Assigned} />
 
-    <If on={$in.schedule.assignment == Step.Assignment.Projected}>
-        <Call
-            fn="index.projectLoopAssignment"
-            in={[
-                $in.loop_frame,
-                $in.update.value
-            ]}
-        />
+    <Call
+        module="assignment_value"
+        in={{
+            ...$in.pick([
+                "loop_frame",
+                "writer",
+                "loop_seq",
+                "body"
+            ]),
+            assignment: $in.schedule.assignment,
+            value: $in.update.value
+        }}
+    />
 
-        <Call
-            fn="index.commitLoopUpdate"
-            in={[
-                $in.loop_frame,
-                $ctx.projectLoopAssignment,
-                false
-            ]}
-        />
+    <Call
+        fn="index.finishAstSequence"
+        in={[
+            $in.writer,
+            $in.loop_seq
+        ]}
+    />
 
-        <Return value={$ctx.commitLoopUpdate} />
+    <Call fn="index.readAstOrigin" in={$in.writer} />
 
-        <Else>
-            <If on={$in.schedule.assignment == Step.Assignment.State}>
-                <Call
-                    fn="index.clipCollectionTarget"
-                    in={[
-                        $in.writer,
-                        $in.loop_seq,
-                        $in.body,
-                        $in.update.value
-                    ]}
-                />
+    <Call
+        module="../../assignment/build"
+        in={{
+            frame: $in.frame,
+            writer: $in.writer,
+            facts: $in.assignment_facts,
+            active: $in.schedule.assignment == Step.Assignment.State &&
+                $in.state_active,
+            type_id: $in.type_id,
+            target: $in.state,
+            value: $ctx.assignment_value,
+            mark: $in.update.mark,
+            base: $ctx.readAstOrigin.expression_base,
+            serial: $ctx.readAstOrigin.serial
+        }}
+    />
 
-                <Call
-                    fn="index.commitLoopUpdate"
-                    in={[
-                        $in.loop_frame,
-                        $ctx.clipCollectionTarget,
-                        true
-                    ]}
-                />
-
-                <Return value={$ctx.commitLoopUpdate} />
-
-                <Else>
-                    <Call
-                        fn="index.commitLoopUpdate"
-                        in={[
-                            $in.loop_frame,
-                            $in.update.value,
-                            false
-                        ]}
-                    />
-
-                    <Return value={$ctx.commitLoopUpdate} />
-                </Else>
-            </If>
-        </Else>
-    </If>
+    <Return
+        value={{
+            prefix: $ctx.finishAstSequence,
+            count: $ctx.build
+        }}
+    />
 </Module>

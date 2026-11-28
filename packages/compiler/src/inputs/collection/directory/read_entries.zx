@@ -1,0 +1,9 @@
+import type { Collected } from "./model"
+
+export type Input = Collected
+
+export type Output = Collected
+
+export default function (in: Input): Output {
+    return in
+}

@@ -27,26 +27,27 @@ pub fn main(init: std.process.Init) !void {
         .count = count,
     });
 
-    var driver: Driver = .{
-        .io = init.io,
-        .allocator = allocator,
-        .workspace = init.gpa,
-        .request = request,
-        .listed = listed,
-        .selected = selected,
+    const input: std.meta.Child(Driver.Input) = .{
+        .arguments = request.arguments,
+        .external = request.inputs,
+        .generated = request.generated,
+        .hashes = listed.hashes,
+        .members = selected.members,
+        .objects = request.objects,
+        .offsets = selected.offsets,
+        .paths = listed.paths,
+        .prefix = @ptrCast(&@import("cache_key.zig").initial_hash),
+        .signatures = selected.signatures,
+        .types = selected.types,
+        .zig = request.zig,
     };
 
-    if (try driver.execute()) return error.PartitionCompileFailed;
+    if (try Driver.execute(allocator, init.io, &input)) return error.PartitionCompileFailed;
 }
 
-pub const startPartitionHash = Driver.startPartitionHash;
-pub const hashExternalInput = Driver.hashExternalInput;
-pub const allocatePartitionKeys = Driver.allocatePartitionKeys;
-pub const hashPartitionMembers = Driver.hashPartitionMembers;
-pub const loadPartitionObjects = Driver.loadPartitionObjects;
-pub const recordPartitionPresence = Driver.recordPartitionPresence;
-pub const schedulePartitionObjects = Driver.schedulePartitionObjects;
-pub const publishPartitionState = Driver.publishPartitionState;
-pub const compilePartitionObjects = Driver.compilePartitionObjects;
-pub const completePartitionObjects = Driver.completePartitionObjects;
-pub const reportPartitionDiagnostic = Driver.reportPartitionDiagnostic;
+pub const startPartitionHash = @import("cache_key.zig").startPartitionHash;
+pub const hashExternalInput = @import("cache_key.zig").hashExternalInput;
+pub const hashPartitionMembers = @import("cache_key.zig").hashPartitionMembers;
+pub const loadPartitionState = @import("state.zig").loadPartitionState;
+pub const partitionObjectPresent = @import("state.zig").partitionObjectPresent;
+pub const compilePartitionObjects = @import("workers.zig").compilePartitionObjects;

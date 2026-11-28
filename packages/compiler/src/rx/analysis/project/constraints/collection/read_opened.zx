@@ -1,0 +1,15 @@
+import type { Effect as Input } from "./effect"
+
+export type Opened = {
+    shortcut: bool,
+    fixed: bool
+}
+
+export type Output = Opened
+
+export default function (in: Input): Output {
+    return {
+        shortcut: in.shortcut,
+        fixed: in.input_fixed
+    }
+}

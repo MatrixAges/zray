@@ -1,0 +1,36 @@
+import type { MatchedCall } from "rx_checking_host"
+import type { CallBucket } from "./model"
+
+export type Input = {
+    owner: string,
+    calls: MatchedCall[],
+    buckets: CallBucket[]
+}
+
+export type Output = CallBucket[]
+
+export default function (in: Input): Output {
+    const { owner, calls } = in
+
+    return loop({
+        index: 0,
+        buckets: in.buckets
+    }, {
+        while: state => state.index < calls.length,
+        next: state => {
+            const { target_source, line, column, member } = calls[state.index]
+            const bucket = state.buckets[target_source]
+
+            state.buckets[target_source] = {
+                calls: bucket.calls.push({
+                    owner,
+                    line,
+                    column,
+                    member
+                })[0]
+            }
+            state.index += 1
+        },
+        return: state => state.buckets
+    })
+}

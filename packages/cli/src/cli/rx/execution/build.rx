@@ -16,15 +16,7 @@
         <Call fn="index.emitRxState" in={$in.application} />
     </If>
 
-    <Call fn="index.reportRxApplicationCache" in={$in.application} />
-    <Call fn="index.resolveRxToolchain" in={$in.application} />
+    <Call module="native_backend" in={$in.application} />
 
-    <If on={!$ctx.resolveRxToolchain}>
-        <Return value={IO.Status.Failed} />
-    </If>
-
-    <Call fn="index.resolveRxNativeProject" in={$in.application} />
-    <Call fn="index.runRxBackend" in={$in.application} />
-
-    <Return value={$ctx.runRxBackend} />
+    <Return value={$ctx.native_backend} />
 </Module>

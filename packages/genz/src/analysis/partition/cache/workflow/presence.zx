@@ -1,0 +1,16 @@
+import type { Presence as Output } from "./model"
+
+export type Input = {
+    state: Output,
+    present: bool
+}
+
+export default function (in: Input): Output {
+    const { state, present } = in
+
+    return {
+        ...state,
+        present: state.present.push(present)[0],
+        row: state.row + 1
+    }
+}

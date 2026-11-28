@@ -1,22 +1,19 @@
 const std = @import("std");
 const compiler = @import("compiler");
 const Compile = @import("../compile.zig");
-const Loaded = @import("../project.zig").Loaded;
-const Inputs = @import("watch_inputs").Inputs;
-const effects = @import("workflow/effects.zig");
-const Error = effects.Error;
+const Compilation = @import("../compilation/state.zig").State;
+const Error = @import("../sources/effects.zig").Error;
 const rule = @import("cli_source").library_public_proof;
 
-const State = struct {
-    context: *const Compile.Context,
+pub const Inputs = struct {
     library: *const compiler.library.Result,
     sources: []const compiler.project.Source,
-    failure: effects.Failure = .{},
 };
 
-pub fn run(context: Compile.Context, loaded: Loaded, inputs: ?*Inputs) !Compile.Status {
+pub fn run(state: *Compilation) !Compile.Status {
+    const context = &state.context;
     const allocator = context.allocator;
-    var analyzed = (try @import("analyze.zig").run(allocator, .{ .io = context.io, .backing = context.backing, .loaded = loaded, .writer = context.stderr, .inputs = inputs })) orelse return .failed;
+    var analyzed = (try @import("analyze.zig").run(allocator, .{ .io = context.io, .backing = context.backing, .loaded = state.loaded, .writer = context.stderr, .inputs = state.inputs() })) orelse return .failed;
 
     defer analyzed.deinit();
 
@@ -28,12 +25,14 @@ pub fn run(context: Compile.Context, loaded: Loaded, inputs: ?*Inputs) !Compile.
 
     defer sources.deinit(allocator);
 
-    var state: State = .{ .context = &context, .library = &library, .sources = sources.items };
-    const reference = &state;
+    const proof: Inputs = .{ .library = &library, .sources = sources.items };
+    const reference = state;
     var scratch = std.heap.ArenaAllocator.init(context.backing);
 
     defer scratch.deinit();
 
+    state.library_proof = &proof;
+    defer state.library_proof = null;
     const Input = std.meta.Child(rule.Input);
     const ExportSlot = std.meta.Child(@FieldType(Input, "exports"));
     const ExportItem = if (@typeInfo(ExportSlot) == .pointer) std.meta.Child(ExportSlot) else ExportSlot;
@@ -54,7 +53,7 @@ pub fn run(context: Compile.Context, loaded: Loaded, inputs: ?*Inputs) !Compile.
     }
 
     const verified = rule.executeIn(scratch_allocator, &.{
-        .proof = @ptrCast(&reference),
+        .compilation = @ptrCast(&reference),
         .exports = exports,
         .output_base = context.options.output,
     }) catch |err| return state.failure.unwrap(err);
@@ -62,20 +61,15 @@ pub fn run(context: Compile.Context, loaded: Loaded, inputs: ?*Inputs) !Compile.
     return if (verified) .success else .failed;
 }
 
-pub fn writeProofMessage(handle: *const anyopaque, message: []const u8) Error!void {
-    const self = effects.state(State, handle);
-
-    self.context.stderr.writeAll(message) catch |err| return self.failure.save(err);
-}
-
 pub fn verifyPublicExport(handle: *const anyopaque, index: u64, output: ?[]const u8) Error!bool {
-    const self = effects.state(State, handle);
-    const context = self.context;
+    const self = Compilation.get(handle);
+    const context = &self.context;
+    const proof = self.library_proof.?;
     const row: usize = @intCast(index);
-    const program = self.library.module(row) catch |err| return self.failure.save(err);
-    const path = self.library.exports[row].path;
+    const program = proof.library.module(row) catch |err| return self.failure.save(err);
+    const path = proof.library.exports[row].path;
 
-    return compiler.verification.check(context.io, @import("../verify.zig").workspace_allocator, program, self.sources, path, .{
+    return compiler.verification.check(context.io, @import("../verify.zig").workspace_allocator, program, proof.sources, path, .{
         .solver = context.options.solver,
         .output = output,
     }, context.stderr) catch |err| return self.failure.save(err);

@@ -1,17 +1,25 @@
 <Module>
     <Type from="model" as="Plan" />
     <Type from="workflow" as="Traversal" />
+    <Type from="publication" as="Publication" />
 
     <Args in={Traversal.Task} out={Traversal.Effect} />
 
-    <Call
-        fn="host.evaluateBodyValue"
-        in={[
-            $in.frame,
-            $in.event.first,
-            false
-        ]}
-    />
+    <Store from="publication" as="publication" />
+
+    <Task name="evaluate_body_value" out={$ctx.read_id}>
+        <Call
+            fn="stage"
+            in={{
+                step: Publication.Step.EvaluateValue,
+                row: $in.event.first,
+                borrowed: false
+            }}
+            setter={[$store.publication.effect]}
+        />
+
+        <Call fn="read_id" in={$store.publication.effect} />
+    </Task>
 
     <Call
         fn="scope_restore"
@@ -22,21 +30,26 @@
     />
 
     <If on={$in.event.action == Plan.Action.BindTask}>
-        <Call
-            fn="host.defineBodyTaskBinding"
-            in={[
-                $in.frame,
-                $in.event.first,
-                $ctx.evaluateBodyValue
-            ]}
-        />
+        <Task name="define_body_task_binding" out={$ctx.read_id}>
+            <Call
+                fn="stage"
+                in={{
+                    step: Publication.Step.DefineTask,
+                    row: $in.event.first,
+                    value: $ctx.task.evaluate_body_value
+                }}
+                setter={[$store.publication.effect]}
+            />
+
+            <Call fn="read_id" in={$store.publication.effect} />
+        </Task>
 
         <Call
             fn="../../control/write/binding"
             in={{
                 writer: $in.control.writer,
-                symbol: $ctx.defineBodyTaskBinding,
-                value: $ctx.evaluateBodyValue
+                symbol: $ctx.task.define_body_task_binding,
+                value: $ctx.task.evaluate_body_value
             }}
         />
 
@@ -44,7 +57,7 @@
             value={{
                 statement: $ctx.binding,
                 restore: $ctx.scope_restore,
-                binding: $ctx.defineBodyTaskBinding
+                binding: $ctx.task.define_body_task_binding
             }}
         />
     </If>
@@ -53,7 +66,7 @@
         fn="../../control/write/binding"
         in={{
             writer: $in.control.writer,
-            value: $ctx.evaluateBodyValue
+            value: $ctx.task.evaluate_body_value
         }}
     />
 

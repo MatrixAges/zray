@@ -1,0 +1,9 @@
+<Store name="rx_project_derivation" version={1}>
+    <Type from="effect" as="Derivation" />
+
+    <Object name="effect">
+        <Field name="step" type={Derivation.Step} value={Derivation.Step.Modules} />
+        <Field name="row" type={u64?} value={null} />
+        <Field name="restored" type={bool} value={false} />
+    </Object>
+</Store>

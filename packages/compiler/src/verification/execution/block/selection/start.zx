@@ -1,0 +1,28 @@
+import integers from "std:integer"
+
+import { smt_false, smt_true } from "../../../scalar/const"
+
+import type { Payload } from "../model"
+import type { Cases as Output } from "./model"
+
+export type Input = Payload & {
+    subject: string
+}
+
+export default function (in: Input): Output {
+    const { scope, payload, subject, path, violations } = in
+
+    const first = integers.widen(scope.control.selection_first[payload])
+    const count = integers.widen(scope.control.selection_count[payload])
+
+    return {
+        scope,
+        row: first,
+        end: first + count,
+        subject,
+        path,
+        unmatched: smt_true,
+        continuation: smt_false,
+        violations
+    }
+}

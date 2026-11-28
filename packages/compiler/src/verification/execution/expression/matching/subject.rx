@@ -1,0 +1,16 @@
+<Module>
+    <Type from="../model" as="Expression" />
+    <Type from="../effect/model" as="Operation" />
+
+    <Args in={Expression.Payload} out={Operation.Value?} />
+
+    <Call fn="subject" in={$in} />
+
+    <If on={$ctx.subject != null}>
+        <Call module="../evaluate" in={$ctx.subject} />
+
+        <Return value={$ctx.evaluate} />
+    </If>
+
+    <Return value={null} />
+</Module>

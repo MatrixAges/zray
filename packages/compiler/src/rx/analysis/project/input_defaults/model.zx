@@ -6,7 +6,7 @@ export type Index = Request.Pick("default_known") & {
     columns: DefaultColumns
 }
 
-export type Cursor = Request.Pick("frame") & {
+export type Cursor = {
     parents: u32[],
     columns: DefaultColumns,
     marked: bool[],

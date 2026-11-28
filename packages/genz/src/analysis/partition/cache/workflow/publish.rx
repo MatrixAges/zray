@@ -1,0 +1,24 @@
+<Module>
+    <Type from="model" as="Cache" />
+
+    <Args in={Cache.Publish} out={void} />
+
+    <Store from="state" as="state" />
+
+    <Call
+        fn="../state/publish"
+        in={{
+            digests: $in.digests,
+            valid: $store.state.objects.valid
+        }}
+    />
+
+    <Call
+        fn="host.writeFileAtomic"
+        in={{
+            path: $in.path,
+            data: $ctx.publish,
+            make_path: false
+        }}
+    />
+</Module>

@@ -1,46 +1,49 @@
 const std = @import("std");
 const rules = @import("partition_rules");
+const native = @import("partition_abi").native.@"zig:partition_host";
 const Io = std.Io;
 const Blake3 = std.crypto.hash.Blake3;
 const Digest = [Blake3.digest_length]u8;
-const Encoded = @TypeOf(std.fmt.bytesToHex(@as(Digest, @splat(0)), .lower));
 const buffer_size = 16 * 1024;
-const Listed = @import("file_manifest").Listed;
-const Members = @FieldType(std.meta.Child(rules.partition_cache_selection.Output), "members");
+pub const initial_hash = Blake3.init(.{});
 
-pub const Shared = struct {
-    buffer: [buffer_size]u8 = undefined,
-    hasher: Blake3 = undefined,
-    pub fn init(self: *Shared) void {
-        self.hasher = Blake3.init(.{});
-    }
+pub fn startPartitionHash(allocator: std.mem.Allocator, io: Io, input: native.startPartitionHash.Input) !native.startPartitionHash.Output {
+    const stat = try Io.Dir.cwd().statFile(io, input.executable, .{});
+    const types = input.types orelse return error.MissingGeneratedFile;
+    const signatures = input.signatures orelse return error.MissingGeneratedFile;
+    var scratch = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
 
-    pub fn prefix(self: *Shared, allocator: std.mem.Allocator, executable: []const u8, stat: Io.File.Stat, arguments: []const []const u8, types: u64, signatures: u64) !void {
-        var scratch = std.heap.ArenaAllocator.init(allocator);
+    defer scratch.deinit();
 
-        defer scratch.deinit();
+    const encoded = try rules.partition_cache_prefix.executeIn(scratch.allocator(), &.{
+        .executable = input.executable,
+        .size = stat.size,
+        .modified = @bitCast(@as(i64, @truncate(stat.mtime.nanoseconds))),
+        .arguments = input.arguments,
+        .types = types,
+        .signatures = signatures,
+    });
 
-        const rule = rules.partition_cache_prefix;
+    const hasher = try allocator.create(Blake3);
+    const initial: *const Blake3 = @ptrCast(@alignCast(input.prefix));
 
-        const encoded = try rule.executeIn(scratch.allocator(), &.{
-            .executable = executable,
-            .size = stat.size,
-            .modified = @bitCast(@as(i64, @truncate(stat.mtime.nanoseconds))),
-            .arguments = arguments,
-            .types = types,
-            .signatures = signatures,
-        });
+    hasher.* = initial.*;
 
-        self.hasher.update(encoded);
-    }
+    hasher.update(encoded);
 
-    pub fn state(self: *const Shared) Blake3 {
-        return self.hasher;
-    }
-    pub fn input(self: *Shared, io: Io, allocator: std.mem.Allocator, path: []const u8) !void {
-        try inputPath(io, allocator, &self.hasher, &self.buffer, path);
-    }
-};
+    return @ptrCast(hasher);
+}
+
+pub fn hashExternalInput(allocator: std.mem.Allocator, io: Io, prefix: native.PartitionHash, path: []const u8) !native.hashExternalInput.Output {
+    const previous: *const Blake3 = @ptrCast(@alignCast(prefix));
+    const next = try allocator.create(Blake3);
+    var buffer: [buffer_size]u8 = undefined;
+    next.* = previous.*;
+
+    try inputPath(io, std.heap.smp_allocator, next, &buffer, path);
+
+    return @ptrCast(next);
+}
 
 fn inputPath(io: Io, workspace: std.mem.Allocator, hasher: *Blake3, buffer: []u8, path: []const u8) !void {
     const cwd = Io.Dir.cwd();
@@ -107,40 +110,27 @@ fn external(allocator: std.mem.Allocator, hasher: *Blake3, path: []const u8, siz
     hasher.update(encoded);
 }
 
-pub const Partitions = struct {
-    source: Blake3,
-    names: []Encoded,
-    hex: [][]const u8,
-    pub fn init(allocator: std.mem.Allocator, source: Blake3, count: usize) !Partitions {
-        return .{
-            .source = source,
-            .names = try allocator.alloc(Encoded, count),
-            .hex = try allocator.alloc([]const u8, count),
-        };
-    }
-    pub fn hash(self: *Partitions, allocator: std.mem.Allocator, row: usize, manifest: Listed, group: Members) void {
-        var digest: Digest = undefined;
-
-        members(allocator, self.source, manifest, group, &digest);
-
-        self.names[row] = std.fmt.bytesToHex(digest, .lower);
-        self.hex[row] = &self.names[row];
-    }
-};
-
-fn members(allocator: std.mem.Allocator, shared: Blake3, manifest: Listed, group: Members, digest: *Digest) void {
-    var scratch = std.heap.ArenaAllocator.init(allocator);
+pub fn hashPartitionMembers(allocator: std.mem.Allocator, input: native.hashPartitionMembers.Input) ![]const u8 {
+    const source: *const Blake3 = @ptrCast(@alignCast(input.prefix));
+    var scratch = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
 
     defer scratch.deinit();
 
-    const encoded = rules.partition_cache_members.executeIn(scratch.allocator(), &.{
-        .paths = manifest.paths,
-        .hashes = manifest.hashes,
-        .members = group,
-    }) catch unreachable;
+    const encoded = try rules.partition_cache_members.executeIn(scratch.allocator(), &.{
+        .paths = input.paths,
+        .hashes = input.hashes,
+        .members = input.members[@intCast(input.first)..@intCast(input.end)],
+    });
 
-    var hasher = shared;
+    var hasher = source.*;
+    var digest: Digest = undefined;
 
     hasher.update(encoded);
-    hasher.final(digest);
+    hasher.final(&digest);
+
+    const hex = try allocator.create(@TypeOf(std.fmt.bytesToHex(digest, .lower)));
+
+    hex.* = std.fmt.bytesToHex(digest, .lower);
+
+    return hex;
 }

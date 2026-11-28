@@ -1,7 +1,10 @@
 <Module>
     <Type from="model" as="Flow" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Flow.MemoCursor} out={Flow.MemoCursor} />
+
+    <Store from="execution" as="flow" />
 
     <Call
         fn="layers"
@@ -14,20 +17,22 @@
 
     <If on={$ctx.layers.keep}>
         <Call
-            fn="index.keepFlowMemo"
-            in={[
-                $in.flow,
-                $ctx.layers.body
-            ]}
+            fn="submit"
+            in={{
+                step: Effect.Step.KeepMemo,
+                row: $ctx.layers.body
+            }}
+            setter={[$store.flow.exchange]}
         />
 
         <Else>
             <Call
-                fn="index.publishFlowMemo"
-                in={[
-                    $in.flow,
-                    $ctx.layers.body
-                ]}
+                fn="submit"
+                in={{
+                    step: Effect.Step.PublishMemo,
+                    row: $ctx.layers.body
+                }}
+                setter={[$store.flow.exchange]}
             />
         </Else>
     </If>

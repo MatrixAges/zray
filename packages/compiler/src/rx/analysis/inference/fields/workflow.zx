@@ -1,5 +1,4 @@
 import type { State as Known } from "core/integer/map/model"
-import type { FieldAccess } from "rx_project_host"
 import type { Object, Output as Field } from "./existing"
 import type { Members, Receiver } from "./model"
 
@@ -11,7 +10,6 @@ export type View = {
 }
 
 export type Site = {
-    frame: FieldAccess,
     receiver: Receiver.Omit("name"),
     members: Members,
     prefix: u64,

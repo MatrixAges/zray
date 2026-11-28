@@ -1,0 +1,18 @@
+import type { Effect, Exchange } from "./model"
+
+export type Input = {
+    request: Effect,
+    previous: Exchange
+}
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.operation.exchange = {
+        bindings: in.previous.bindings,
+        request: in.request,
+        result: in.previous.result
+    }
+}

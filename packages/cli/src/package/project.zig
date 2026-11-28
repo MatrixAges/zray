@@ -23,6 +23,7 @@ pub const State = struct {
     scratch: std.mem.Allocator,
     entry: []const u8,
     inputs: ?*Inputs,
+    search: discover.Search = .{},
     discovered: discover.Result = .{},
     graph: ?graph.Result = null,
     scopes: []compiler.project.PackageScope = &.{},
@@ -66,7 +67,7 @@ pub fn loadWithInputs(io: std.Io, allocator: std.mem.Allocator, scratch: std.mem
 pub fn findProjectConfiguration(handle: *const anyopaque) Error!?[]const u8 {
     const self = State.get(handle);
 
-    self.discovered = discover.findWithInputs(self.io, self.scratch, self.allocator, self.entry, self.inputs) catch |err| return self.failure.save(err);
+    self.discovered = discover.find(self) catch |err| return self.failure.save(err);
 
     if (self.discovered.diagnostic) |message| {
         self.result.diagnostic = self.allocator.dupe(u8, message) catch |err| return self.failure.save(err);

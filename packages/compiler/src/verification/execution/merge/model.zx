@@ -1,7 +1,35 @@
-import type { SymbolicSession } from "verification_host"
+import type { Value } from "../expression/effect/model"
 
 export type Input = {
-    target: SymbolicSession,
     returns: u64,
     violations: string[]
+}
+
+export type Returns = {
+    row: u64,
+    end: u64,
+    reached: string
+}
+
+export type Safety = {
+    row: u64,
+    violations: string[],
+    safe: string
+}
+
+export enum Step {
+    Select,
+    Boolean
+}
+
+export type Operation = {
+    step: Step,
+    row?: u64,
+    term?: string
+}
+
+export type State = {
+    operation?: Operation,
+    value: Value,
+    term: string
 }

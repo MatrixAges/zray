@@ -1,0 +1,31 @@
+<Module>
+    <Type from="model" as="Block" />
+
+    <Args in={Block.Payload} out={Block.Outcome} />
+
+    <Call module="evaluate" in={$in.scope.control.destructure_values[$in.payload]} />
+
+    <Call
+        module="guard"
+        in={{
+            path: $in.path,
+            violations: $in.violations,
+            safe: $ctx.evaluate.safe
+        }}
+    />
+
+    <Call
+        fn="destructure"
+        in={{
+            scope: $in.scope,
+            payload: $in.payload,
+            value: $ctx.evaluate
+        }}
+    />
+
+    <Loop on={$in.field < $in.count}>
+        <Call module="destructure_next" />
+    </Loop>
+
+    <Return value={$ctx.guard} />
+</Module>

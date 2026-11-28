@@ -1,0 +1,38 @@
+export enum Step {
+    Reserve,
+    SelectWriter,
+    EvaluateValue,
+    DefineTask,
+    EvaluateLabel,
+    InitializeCase,
+    RegisterResult,
+    PrepareCall,
+    BindGetters,
+    EvaluateArgument,
+    CreateUnit,
+    ResolveStores,
+    PrepareImport,
+    AppendTail,
+    LinkInitializers,
+    AppendEntry,
+    EmitCall
+}
+
+export type Command = {
+    step: Step,
+    slots?: u64,
+    block?: u32,
+    row?: u32,
+    borrowed?: bool,
+    value?: u32,
+    parallel?: bool,
+    item?: u32
+}
+
+export type Publication = Command & {
+    id: u32,
+    explicit_input: bool,
+    addition: bool,
+    needs_initializers: bool,
+    optional_id?: u32
+}

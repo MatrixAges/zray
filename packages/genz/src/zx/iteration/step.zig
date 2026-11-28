@@ -52,13 +52,6 @@ pub fn store(self: *Lower, body: *@import("../iteration_value/root.zig").Stateme
     return self.builder.statements(body.items);
 }
 
-pub fn publish(self: *Lower, body: *@import("../iteration_value/root.zig").Statements, write: @import("assignment.zig").Write) Lower.Error!node.Block {
-    const prefix = try self.builder.finishStatements(body);
-    const count = try @import("assignment.zig").lower(self, write);
-
-    return .{ .start = prefix.start, .len = prefix.len + count };
-}
-
 pub fn plan(input: Input) Plan {
     return .{
         .step = if (input.projected) input.body else input.forwarded orelse input.body,

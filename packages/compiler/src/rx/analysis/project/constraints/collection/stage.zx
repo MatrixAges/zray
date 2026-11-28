@@ -1,0 +1,18 @@
+import type { Command as Input } from "./effect"
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.collection.effect = {
+        ...in,
+        shortcut: false,
+        input_fixed: false,
+        returned: false,
+        used: false,
+        bindings: 0,
+        tasks: 0,
+        parents: []
+    }
+}

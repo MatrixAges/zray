@@ -13,8 +13,6 @@ export declare function openLoopParameterContext(frame: LoopFrame): void
 
 export declare function renameIterationParameters(frame: LoopFrame, name: u8[]): void
 
-export declare function releaseLoopPlanningScratch(frame: LoopFrame): void
-
 export declare function enterLoopUpdate(
     frame: LoopFrame,
     scope: LoopUpdateScope,
@@ -22,14 +20,6 @@ export declare function enterLoopUpdate(
 ): void
 
 export declare function closeLoopUpdate(frame: LoopFrame, scope: LoopUpdateScope): void
-
-export declare function declareLoopState(
-    frame: LoopFrame,
-    layout: LoopParameterLayout,
-    projected: bool,
-    mutable: bool,
-    initial: u32
-): void throws { OutOfMemory }
 
 export declare function guardLoopInitial(frame: LoopFrame, value: u32): void
     throws { OutOfMemory }
@@ -56,23 +46,22 @@ export declare function declareProjectedLoopState(frame: LoopFrame): void throws
 export declare function projectLoopAssignment(frame: LoopFrame, value: u32): u32
     throws { OutOfMemory }
 
-export declare function commitLoopUpdate(frame: LoopFrame, value: u32, state: bool): u64
-    throws { OutOfMemory }
-
 export declare function restoreLoopFields(frame: LoopFrame): u32 throws { OutOfMemory }
 
 export declare function completeLoopResult(
     frame: LoopFrame,
     initial: u32,
     state: u32,
-    spans: LoopEmissionSpans
+    spans: LoopEmissionSpans,
+    changed_name: u8[]?
 ): u32 throws { OutOfMemory }
 
 export declare function finishSkippedLoop(
     frame: LoopFrame,
     initial: u32,
     value: u32,
-    first: u32
+    first: u32,
+    changed_name: u8[]?
 ): u32 throws { OutOfMemory }
 
 export declare function consumeDeepLoopResult(

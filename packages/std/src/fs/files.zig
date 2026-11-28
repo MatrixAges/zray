@@ -3,10 +3,12 @@ const api = @import("zxc_abi").native.@"std:fs";
 const path = @import("path.zig");
 const Allocator = std.mem.Allocator;
 
-pub fn readFile(allocator: Allocator, io: std.Io, input: api.readFile.Input) ![]const u8 {
+pub fn readFile(allocator: Allocator, io: std.Io, input: anytype) ![]const u8 {
     try path.validate(input.path);
 
-    return std.Io.Dir.cwd().readFileAlloc(io, input.path, allocator, .limited64(input.max_bytes +| 1));
+    const max_bytes: u64 = input.max_bytes;
+
+    return std.Io.Dir.cwd().readFileAlloc(io, input.path, allocator, .limited64(max_bytes +| 1));
 }
 
 pub fn readText(allocator: Allocator, io: std.Io, input: api.readText.Input) ![]const u8 {
@@ -24,7 +26,7 @@ pub fn writeFile(io: std.Io, input: api.writeFile.Input) !void {
     try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = input.path, .data = input.data });
 }
 
-pub fn writeFileAtomic(io: std.Io, input: api.writeFileAtomic.Input) !void {
+pub fn writeFileAtomic(io: std.Io, input: anytype) !void {
     if (std.mem.indexOfScalar(u8, input.path, 0) != null) return error.InvalidPath;
 
     var file = try std.Io.Dir.cwd().createFileAtomic(io, input.path, .{ .make_path = input.make_path, .replace = true });

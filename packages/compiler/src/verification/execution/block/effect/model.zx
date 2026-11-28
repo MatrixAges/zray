@@ -1,0 +1,34 @@
+import type { Value } from "../../expression/effect/model"
+
+export enum Step {
+    Evaluate,
+    Boolean,
+    Bind,
+    Child,
+    Return
+}
+
+export type Path = {
+    path: string,
+    violations: string[]
+}
+
+export type Effect = {
+    step: Step,
+    row?: u32,
+    value?: Value,
+    path?: Path,
+    term?: string
+}
+
+export type Result = {
+    value: Value,
+    path: Path,
+    term: string
+}
+
+export type Exchange = {
+    bindings: Value?[],
+    request?: Effect,
+    result: Result
+}

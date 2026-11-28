@@ -1,42 +1,82 @@
 <Module>
     <Type from="model" as="Solver" />
+    <Type from="effect" as="Flow" />
 
     <Args in={Solver.Request} out={void} />
 
-    <Call fn="host.openFlowPorts" in={$in.frame} />
+    <Store from="flow" as="flow" />
+
+    <Call
+        fn="stage"
+        in={{
+            flow_step: Flow.Step.OpenPorts
+        }}
+        setter={[$store.flow.effect]}
+    />
 
     <Call module="../../constraints/ports/run" in={$in.ports} />
 
     <Call
-        fn="host.commitFlowPorts"
-        in={[
-            $in.frame,
-            $ctx.run
-        ]}
+        fn="stage"
+        in={{
+            flow_step: Flow.Step.PublishPorts,
+            batches: $ctx.run
+        }}
+        setter={[$store.flow.effect]}
     />
 
-    <Call fn="host.openFlowCollection" in={$in.frame} />
+    <Call
+        fn="stage"
+        in={{
+            flow_step: Flow.Step.OpenCollection
+        }}
+        setter={[$store.flow.effect]}
+    />
 
     <Call module="../../constraints/collection/run" in={$in.collection} />
 
-    <Call fn="host.releaseFlowCollection" in={$in.frame} />
-    <Call fn="host.openFlowSolver" in={$in.frame} />
+    <Call
+        fn="stage"
+        in={{
+            flow_step: Flow.Step.ReleaseCollection
+        }}
+        setter={[$store.flow.effect]}
+    />
+
+    <Call
+        fn="stage"
+        in={{
+            flow_step: Flow.Step.OpenSolver
+        }}
+        setter={[$store.flow.effect]}
+    />
 
     <Call module="../../../inference/solve/run" in={$in.solve} />
 
-    <Call fn="host.releaseFlowPending" in={$in.frame} />
-    <Call fn="host.bindFlowSignatures" in={$in.frame} />
+    <Call
+        fn="stage"
+        in={{
+            flow_step: Flow.Step.ReleasePending
+        }}
+        setter={[$store.flow.effect]}
+    />
+
+    <Call
+        fn="stage"
+        in={{
+            flow_step: Flow.Step.BindSignatures
+        }}
+        setter={[$store.flow.effect]}
+    />
 
     <Call module="../../signatures/collect_signatures" in={$in.signatures} />
 
     <Call
-        fn="host.publishFlowSignatures"
-        in={[
-            $in.frame,
-            $ctx.collect_signatures.bindings,
-            $ctx.collect_signatures.tasks,
-            $ctx.collect_signatures.inputs,
-            $ctx.collect_signatures.outputs
-        ]}
+        fn="stage"
+        in={{
+            flow_step: Flow.Step.PublishSignatures,
+            signatures: $ctx.collect_signatures
+        }}
+        setter={[$store.flow.effect]}
     />
 </Module>

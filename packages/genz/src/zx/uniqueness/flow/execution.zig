@@ -7,6 +7,8 @@ const Memo = @import("../memo.zig");
 const entry = @import("generated_uniqueness_flow_solve");
 const Fixpoint = @import("fixpoint.zig");
 const Error = std.mem.Allocator.Error;
+const Store = std.meta.Child(@FieldType(entry.zx_pending, "store_0"));
+const Exchange = std.meta.Child(Store);
 
 const Request = struct {
     allocator: std.mem.Allocator,
@@ -22,22 +24,57 @@ const Request = struct {
 
 const Frame = struct {
     request: Request,
-    scratch: std.mem.Allocator,
     recursive: ?Fixpoint = null,
     result: Flow = undefined,
     remembered: ?Flow.Remembered = null,
     walkers: []Flow.Walker = &.{},
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
-    fn recursiveWalk(frame: *Frame) Error!*Fixpoint {
-        if (frame.recursive == null) {
-            const input = &frame.request;
+};
 
-            frame.recursive = try Fixpoint.open(frame.result, input.temporary, input.workspace, &input.program.functions, input.slots);
+const Host = struct {
+    frame: *Frame,
+    temporary: std.mem.Allocator,
+    store_0: *Store,
+    pub fn commit(host: *Host, pending: anytype) Error!void {
+        const exchange = pending.store_0 orelse return;
+        const effect = exchange.request.?;
+        const frame = host.frame;
+        const input = &frame.request;
+
+        const reply = switch (effect.step) {
+            .Initialize, .OpenWorkers, .Visit => try host.temporary.create(Exchange),
+            else => null,
+        };
+
+        var next = exchange.*;
+
+        switch (effect.step) {
+            .Initialize => {
+                frame.result = try @import("initial.zig").create(input.allocator, input.program.*, input.slots, input.texts);
+                next.held = frame.result.held;
+            },
+            .ReserveMemo => frame.remembered = try Flow.Remembered.init(input.temporary, input.memo.?, input.types, input.contents, input.program.functions.count()),
+            .OpenWorkers => {
+                frame.walkers = try Flow.Walker.open();
+                next.hits = if (frame.remembered) |saved| saved.found else &.{};
+            },
+            .SolveLayer => try solveLayer(frame, effect.order.?, effect.first.?, effect.end.?),
+            .KeepMemo => {
+                const remembered = frame.remembered.?;
+
+                remembered.memo.keepFlowed(remembered.keys[@intCast(effect.row.?)]);
+            },
+            .PublishMemo => try publishMemo(frame, effect.row.?),
+            .OpenRecursive => frame.recursive = try Fixpoint.open(frame.result, input.temporary, input.workspace, &input.program.functions, input.slots),
+            .RetainFacts => try frame.recursive.?.retain(effect.index.?),
+            .Visit => next.changed = try frame.recursive.?.visit(effect.index.?, effect.retained.?),
         }
 
-        return &frame.recursive.?;
+        if (reply) |saved| {
+            saved.* = next;
+            host.store_0.* = saved;
+        } else {
+            host.store_0.* = exchange;
+        }
     }
 };
 
@@ -46,7 +83,10 @@ pub fn solve(request: Request) Error!Flow {
 
     defer scratch.deinit();
 
-    var frame: Frame = .{ .request = request, .scratch = scratch.allocator() };
+    const temporary = scratch.allocator();
+    var frame: Frame = .{ .request = request };
+    var store: Store = &.{ .request = null, .held = &.{}, .hits = &.{}, .changed = false };
+    var host: Host = .{ .frame = &frame, .temporary = temporary, .store_0 = &store };
 
     defer Flow.Walker.close(frame.walkers);
     defer if (frame.recursive) |*recursive| recursive.deinit();
@@ -56,7 +96,6 @@ pub fn solve(request: Request) Error!Flow {
     const functions = &request.program.functions;
 
     const input: Input = .{
-        .flow = @ptrCast(&frame),
         .functions = &.{
             .native_modules = functions.native_modules,
             .expressions = zx.columns.slice(@FieldType(Functions, "expressions"), functions.expressions),
@@ -64,7 +103,7 @@ pub fn solve(request: Request) Error!Flow {
         .remembered = request.memo != null,
     };
 
-    entry.executeIn(frame.scratch, &input) catch |err| switch (@as(anyerror, err)) {
+    entry.executeIn(temporary, &input, &host) catch |err| switch (@as(anyerror, err)) {
         error.OutOfMemory, error.Overflow, error.IntegerOverflow => return error.OutOfMemory,
         else => unreachable,
     };
@@ -72,32 +111,7 @@ pub fn solve(request: Request) Error!Flow {
     return frame.result;
 }
 
-pub fn initializeFlow(handle: *anyopaque) Error![]const []const bool {
-    const frame = Frame.borrow(handle);
-    const input = &frame.request;
-
-    frame.result = try @import("initial.zig").create(input.allocator, input.program.*, input.slots, input.texts);
-
-    return frame.result.held;
-}
-
-pub fn reserveFlowMemo(handle: *anyopaque) Error!void {
-    const frame = Frame.borrow(handle);
-    const input = &frame.request;
-
-    frame.remembered = try Flow.Remembered.init(input.temporary, input.memo.?, input.types, input.contents, input.program.functions.count());
-}
-
-pub fn openFlowWorkers(handle: *anyopaque) Error![]const bool {
-    const frame = Frame.borrow(handle);
-
-    frame.walkers = try Flow.Walker.open();
-
-    return if (frame.remembered) |saved| saved.found else &.{};
-}
-
-pub fn solveFlowLayer(handle: *anyopaque, order: []const u32, first: u64, end: u64) Error!void {
-    const frame = Frame.borrow(handle);
+fn solveLayer(frame: *Frame, order: []const u32, first: u64, end: u64) Error!void {
     const input = &frame.request;
 
     var layer: Flow.Layer = .{
@@ -112,25 +126,10 @@ pub fn solveFlowLayer(handle: *anyopaque, order: []const u32, first: u64, end: u
     try layer.spread();
 }
 
-pub fn keepFlowMemo(handle: *anyopaque, row: u64) void {
-    const remembered = Frame.borrow(handle).remembered.?;
-
-    remembered.memo.keepFlowed(remembered.keys[@intCast(row)]);
-}
-
-pub fn publishFlowMemo(handle: *anyopaque, row: u64) Error!void {
-    const frame = Frame.borrow(handle);
+fn publishMemo(frame: *const Frame, row: u64) Error!void {
     const kept = frame.remembered.?;
     const flow = &frame.result;
     const index: usize = @intCast(row);
 
     try kept.memo.putFlowed(kept.keys[index], flow.held[index], flow.text_held[index], flow.written[index]);
-}
-
-pub fn retainFlowFacts(handle: *anyopaque, index: u32) Error!void {
-    return (try Frame.borrow(handle).recursiveWalk()).retain(index);
-}
-
-pub fn visitRecursiveFlow(handle: *anyopaque, index: u32, retained: bool) Error!bool {
-    return (try Frame.borrow(handle).recursiveWalk()).visit(index, retained);
 }

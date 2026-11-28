@@ -1,23 +1,39 @@
 <Module>
     <Type from="model" as="Cache" />
 
-    <Args in={Cache.WriteInput} out={void} />
+    <Args in={Cache.Input} out={void} />
 
-    <Call
-        module="write_batch"
-        in={{
-            disk: $in.disk,
-            is_native: false,
-            dirty: $in.source_dirty
-        }}
-    />
+    <If on={$in.read_count != null}>
+        <Call
+            fn="read_entries"
+            in={{
+                compilation: $in.compilation,
+                count: $in.read_count
+            }}
+        />
 
-    <Call
-        module="write_batch"
-        in={{
-            disk: $in.disk,
-            is_native: true,
-            dirty: $in.native_dirty
-        }}
-    />
+        <Loop on={$in.index < $in.count}>
+            <Call module="read_entry" />
+        </Loop>
+
+        <Else>
+            <Call
+                module="write_batch"
+                in={{
+                    compilation: $in.compilation,
+                    is_native: false,
+                    dirty: $in.source_dirty
+                }}
+            />
+
+            <Call
+                module="write_batch"
+                in={{
+                    compilation: $in.compilation,
+                    is_native: true,
+                    dirty: $in.native_dirty
+                }}
+            />
+        </Else>
+    </If>
 </Module>

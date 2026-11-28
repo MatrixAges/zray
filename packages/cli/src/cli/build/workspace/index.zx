@@ -1,2 +1,2 @@
 export { fromText } from "std:bytes"
-export { write } from "artifact_io"
+export { writeFileAtomic } from "std:fs"

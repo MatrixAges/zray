@@ -1,14 +1,12 @@
-import type { FlowExecution } from "ownership_host"
 import type { Functions } from "../../layers/model"
 import type { Advance } from "../fixpoint/model"
 
 export type Input = {
-    flow: FlowExecution,
     functions: Functions,
     remembered: bool
 }
 
-export type Layers = Input.Pick("flow", "remembered") & {
+export type Layers = Input.Pick("remembered") & {
     order: u32[],
     ends: u64[],
     hits: bool[]
@@ -20,14 +18,14 @@ export type LayerCursor = Layers & {
     running: bool
 }
 
-export type MemoCursor = Layers.Pick("flow", "order", "hits") & {
+export type MemoCursor = Layers.Pick("order", "hits") & {
     position: u64,
     end: u64,
     running: bool
 }
 
 export type RecursiveCursor = {
-    flow: FlowExecution,
     queue: Advance,
+    started: bool,
     running: bool
 }

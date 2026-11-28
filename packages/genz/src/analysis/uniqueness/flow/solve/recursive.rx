@@ -1,41 +1,58 @@
 <Module>
     <Type from="model" as="Flow" />
+    <Type from="effect" as="Effect" />
 
     <Args in={Flow.RecursiveCursor} out={Flow.RecursiveCursor} />
+
+    <Store from="execution" as="flow" />
 
     <Call fn="../fixpoint/run" in={$in.queue} />
 
     <If on={$ctx.run.index != null}>
+        <If on={!$in.started}>
+            <Call
+                fn="submit"
+                in={{
+                    step: Effect.Step.OpenRecursive
+                }}
+                setter={[$store.flow.exchange]}
+            />
+        </If>
+
         <If on={$ctx.run.retain}>
             <Call
-                fn="index.retainFlowFacts"
-                in={[
-                    $in.flow,
-                    $ctx.run.index
-                ]}
+                fn="submit"
+                in={{
+                    step: Effect.Step.RetainFacts,
+                    index: $ctx.run.index
+                }}
+                setter={[$store.flow.exchange]}
             />
         </If>
 
         <Call
-            fn="index.visitRecursiveFlow"
-            in={[
-                $in.flow,
-                $ctx.run.index,
-                $ctx.run.retain
-            ]}
+            fn="submit"
+            in={{
+                step: Effect.Step.Visit,
+                index: $ctx.run.index,
+                retained: $ctx.run.retain
+            }}
+            setter={[$store.flow.exchange]}
         />
+
+        <Call fn="read" in={$store.flow.exchange} />
 
         <Return
             value={{
-                flow: $in.flow,
                 queue: {
                     first: $in.queue.first,
                     items: $in.queue.items,
                     indices: $ctx.run.indices,
                     queued: $ctx.run.queued,
                     count: $ctx.run.count,
-                    changed: $ctx.visitRecursiveFlow ? $ctx.run.index : null
+                    changed: $ctx.read.changed ? $ctx.run.index : null
                 },
+                started: true,
                 running: true
             }}
         />

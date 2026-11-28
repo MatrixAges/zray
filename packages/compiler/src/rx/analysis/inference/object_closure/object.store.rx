@@ -1,0 +1,33 @@
+<Store name="rx_object_replay" version={1}>
+    <Type from="effect" as="ObjectEffect" />
+
+    <Object name="effect">
+        <Field
+            name="object_step"
+            type={ObjectEffect.Step}
+            value={ObjectEffect.Step.FinishRow}
+        />
+
+        <Field name="row" type={u64?} value={null} />
+        <Field name="root" type={u32?} value={null} />
+        <Field name="final" type={bool?} value={null} />
+        <Field name="rebuild" type={bool?} value={null} />
+        <Field name="position" type={u64?} value={null} />
+        <Field name="spread" type={bool?} value={null} />
+        <Field name="shared" type={bool?} value={null} />
+        <Field name="source" type={u32?} value={null} />
+        <Field name="target" type={u32?} value={null} />
+        <Field name="members" type={u32[]?} value={null} />
+        <Field name="name_error" type={bool?} value={null} />
+        <Field name="message" type={string?} value={null} />
+        <Field name="declared" type={bool?} value={null} />
+        <Field name="inferred" type={bool?} value={null} />
+        <Field name="open" type={bool?} value={null} />
+        <Field name="aliases" type={bool?} value={null} />
+        <Field name="type_id" type={u32?} value={null} />
+        <Field name="name" type={string?} value={null} />
+        <Field name="capacity" type={u64?} value={null} />
+        <Field name="id" type={u32} value={0} />
+        <Field name="ready" type={bool} value={false} />
+    </Object>
+</Store>

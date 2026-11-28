@@ -1,0 +1,5 @@
+<Store name="generation_documents" version={1}>
+    <Object name="loaded">
+        <Field name="batches" type={u8[][]} value={[]} />
+    </Object>
+</Store>

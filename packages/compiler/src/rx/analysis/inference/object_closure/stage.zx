@@ -1,0 +1,13 @@
+import type { Command as Input } from "./effect"
+
+export type Output = void
+
+export default function (in: Input, {
+    $store
+}): Output {
+    $store.object.effect = {
+        ...in,
+        id: 0,
+        ready: false
+    }
+}

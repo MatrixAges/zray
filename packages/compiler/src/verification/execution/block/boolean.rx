@@ -1,0 +1,15 @@
+<Module>
+    <Type from="effect/model" as="Operation" />
+
+    <Args in={string} out={string} />
+
+    <Call
+        module="effect/run"
+        in={{
+            step: Operation.Step.Boolean,
+            term: $in
+        }}
+    />
+
+    <Return value={$ctx.run.term} />
+</Module>

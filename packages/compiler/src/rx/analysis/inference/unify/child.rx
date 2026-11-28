@@ -1,40 +1,48 @@
 <Module>
     <Type from="model" as="Walk" />
     <Type from="../unification/application/model" as="Application" />
+    <Type from="effect" as="Unification" />
 
     <Args in={Walk.Child} out={void} />
 
+    <Store from="unification" as="unification" />
+
     <If on={$in.step == Application.Step.MergeKnown}>
         <Call
-            fn="host.internUnificationType"
-            in={[
-                $in.target,
-                $in.right
-            ]}
+            fn="stage"
+            in={{
+                step: Unification.Step.Intern,
+                type_id: $in.right
+            }}
+            setter={[$store.unification.effect]}
         />
 
+        <Call fn="read_id" in={$store.unification.effect} />
+
         <Call
-            fn="host.prepareUnificationFrame"
-            in={[
-                $in.target,
-                $in.left,
-                $ctx.internUnificationType,
-                $in.depth + $in.count,
-                false
-            ]}
+            fn="stage"
+            in={{
+                step: Unification.Step.Prepare,
+                left: $in.left,
+                right: $ctx.read_id,
+                depth: $in.depth + $in.count,
+                rooted: false
+            }}
+            setter={[$store.unification.effect]}
         />
     </If>
 
     <If on={$in.step == Application.Step.Merge}>
         <Call
-            fn="host.prepareUnificationFrame"
-            in={[
-                $in.target,
-                $in.left,
-                $in.right,
-                $in.depth + $in.count,
-                true
-            ]}
+            fn="stage"
+            in={{
+                step: Unification.Step.Prepare,
+                left: $in.left,
+                right: $in.right,
+                depth: $in.depth + $in.count,
+                rooted: true
+            }}
+            setter={[$store.unification.effect]}
         />
     </If>
 </Module>

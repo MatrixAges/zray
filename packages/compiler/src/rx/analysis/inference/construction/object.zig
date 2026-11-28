@@ -22,13 +22,9 @@ pub const Frame = struct {
     shape: Activation = undefined,
     projection: Projection = undefined,
     scan: Scan = undefined,
-    fn borrow(handle: *anyopaque) *Frame {
-        return @ptrCast(@alignCast(handle));
-    }
 };
 
-pub fn openConstructionRow(handle: *anyopaque, row: u64, root: u32, final: bool) void {
-    const replay = Replay.from(handle);
+pub fn openRow(replay: *Replay, row: u64, root: u32, final: bool) void {
     const graph = replay.graph;
     const object = graph.pending.constructions.get(@intCast(row));
     const result = View.read(graph, @fromBackingInt(root));
@@ -62,7 +58,6 @@ pub fn openConstructionRow(handle: *anyopaque, row: u64, root: u32, final: bool)
     };
 
     frame.projection = .{
-        .frame = @ptrCast(frame),
         .scan = &frame.scan,
         .members = &frame.members,
         .readiness = &replay.context,
@@ -71,16 +66,26 @@ pub fn openConstructionRow(handle: *anyopaque, row: u64, root: u32, final: bool)
     replay.construction = .{
         .mode = zx.columns.view(@FieldType(Input, "mode"), result.mode),
         .parts = &frame.parts,
-        .fields = @ptrCast(&replay.fields),
         .field_view = &replay.fields.view,
         .shape = &frame.shape,
         .projection = &frame.projection,
     };
 }
 
-pub fn reserveObjectSpreadColumns(handle: *anyopaque) std.mem.Allocator.Error!void {
-    const frame = Frame.borrow(handle);
+pub fn apply(frame: *Frame, effect: anytype, reply: anytype) zx.Error!void {
+    switch (effect.object_step) {
+        .ReserveSpreads => try reserveObjectSpreadColumns(frame),
+        .BindSpread => bindObjectSpreadFields(frame, effect.root.?, effect.declared.?, effect.inferred.?),
+        .CommitSpread => commitObjectSpread(frame, effect.row.?, effect.root.?, effect.open.?, effect.aliases.?),
+        .RegisterSource => reply.id = try registerConstructedSource(frame, effect.row.?, effect.type_id.?),
+        .DescribeTarget => describeConstructedTarget(frame, effect.target.?),
+        .InferField => try inferConstructedField(frame, effect.row.?, effect.name.?, effect.target.?),
+        .RejectConstruction => return reportObjectConstruction(frame, effect.row, effect.message.?),
+        else => unreachable,
+    }
+}
 
+fn reserveObjectSpreadColumns(frame: *Frame) std.mem.Allocator.Error!void {
     frame.spread = .empty;
 
     try frame.spread.resize(frame.allocator, @intCast(frame.object.count));
@@ -94,16 +99,14 @@ pub fn reserveObjectSpreadColumns(handle: *anyopaque) std.mem.Allocator.Error!vo
     frame.parts.aliases = columns.items(.aliases);
 }
 
-pub fn bindObjectSpreadFields(handle: *anyopaque, root: u32, declared: bool, inferred: bool) void {
-    const frame = Frame.borrow(handle);
+fn bindObjectSpreadFields(frame: *Frame, root: u32, declared: bool, inferred: bool) void {
     const mode: View.Mode = if (declared) .Declared else if (inferred) .Inferred else .Unknown;
     const source = View.readMode(frame.graph, @fromBackingInt(root), mode);
 
     frame.members = .{ .names = source.names, .values = source.values };
 }
 
-pub fn commitObjectSpread(handle: *anyopaque, row: u64, root: u32, open: bool, aliases: bool) void {
-    const frame = Frame.borrow(handle);
+fn commitObjectSpread(frame: *Frame, row: u64, root: u32, open: bool, aliases: bool) void {
     const index: usize = @intCast(row);
     const columns = frame.spread.slice();
 
@@ -114,15 +117,13 @@ pub fn commitObjectSpread(handle: *anyopaque, row: u64, root: u32, open: bool, a
     columns.items(.values)[index] = if (aliases) &.{} else frame.members.values;
 }
 
-pub fn registerConstructedSource(handle: *anyopaque, index: u64, type_id: ?u32) zx.Error!u32 {
-    const frame = Frame.borrow(handle);
+fn registerConstructedSource(frame: *Frame, index: u64, type_id: u32) zx.Error!u32 {
     const part = frame.object.part(frame.graph, @intCast(index));
 
-    return @backingInt(try frame.graph.known(@fromBackingInt(type_id.?), part.span));
+    return @backingInt(try frame.graph.known(@fromBackingInt(type_id), part.span));
 }
 
-pub fn describeConstructedTarget(handle: *anyopaque, target: u32) void {
-    const frame = Frame.borrow(handle);
+fn describeConstructedTarget(frame: *Frame, target: u32) void {
     const shape = View.describe(frame.graph, frame.graph.root(@fromBackingInt(target)));
 
     frame.shape = .{
@@ -132,16 +133,14 @@ pub fn describeConstructedTarget(handle: *anyopaque, target: u32) void {
     };
 }
 
-pub fn inferConstructedField(handle: *anyopaque, index: u64, name: []const u8, target: u32) zx.Error!void {
-    const frame = Frame.borrow(handle);
+fn inferConstructedField(frame: *Frame, index: u64, name: []const u8, target: u32) zx.Error!void {
     const part = frame.object.part(frame.graph, @intCast(index));
     const value = try frame.graph.field(part.value, name, frame.object.span);
 
     try frame.graph.expect(value, @fromBackingInt(target), frame.object.span);
 }
 
-pub fn reportObjectConstruction(handle: *anyopaque, index: ?u64, message: []const u8) zx.Error!void {
-    const frame = Frame.borrow(handle);
+fn reportObjectConstruction(frame: *Frame, index: ?u64, message: []const u8) zx.Error!void {
     const span = if (index) |row| frame.object.part(frame.graph, @intCast(row)).span else frame.object.span;
 
     return frame.graph.reporter.fail(.type_mismatch, span, message);

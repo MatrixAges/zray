@@ -1,0 +1,25 @@
+export enum Step {
+    Record,
+    Reject,
+    Prepare,
+    RejectType,
+    Publish,
+    Finish
+}
+
+export type Command = {
+    resolve_step: Step,
+    node?: u32,
+    type_id?: u32,
+    code?: string,
+    message?: string,
+    object?: bool,
+    kind?: u8,
+    first?: u32,
+    second?: u32,
+    label?: string,
+    children?: u32[],
+    field_names?: string[],
+    field_types?: u32[],
+    names?: string[]
+}

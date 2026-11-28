@@ -1,19 +1,25 @@
 <Module>
     <Type from="model" as="Construction" />
+    <Type from="../../object_closure/effect" as="ObjectEffect" />
 
     <Args in={Construction.Source} out={u32} />
 
+    <Store from="../../object_closure/object" as="object" />
+
     <If on={$in.register_type != null}>
         <Call
-            fn="host.registerConstructedSource"
-            in={[
-                $in.frame,
-                $in.part,
-                $in.register_type
-            ]}
+            fn="../../object_closure/stage"
+            in={{
+                object_step: ObjectEffect.Step.RegisterSource,
+                row: $in.part,
+                type_id: $in.register_type
+            }}
+            setter={[$store.object.effect]}
         />
 
-        <Return value={$ctx.registerConstructedSource} />
+        <Call fn="../../object_closure/read_id" in={$store.object.effect} />
+
+        <Return value={$ctx.read_id} />
     </If>
 
     <Return value={$in.source ?? $in.target} />

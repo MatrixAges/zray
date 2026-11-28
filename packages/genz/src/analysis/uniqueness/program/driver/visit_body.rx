@@ -1,0 +1,49 @@
+<Module>
+    <Type from="model" as="Driver" />
+    <Type from="effect" as="Effect" />
+
+    <Args in={Driver.Cursor} out={Driver.Cursor} />
+
+    <Store from="execution" as="driver" />
+
+    <Call
+        fn="submit"
+        in={{
+            step: Effect.Step.ClaimBody,
+            kind: $in.kind
+        }}
+        setter={[$store.driver.exchange]}
+    />
+
+    <Call fn="read" in={$store.driver.exchange} />
+
+    <If on={$ctx.read.body != null}>
+        <Call
+            fn="submit"
+            in={{
+                step: Effect.Step.VisitBody,
+                kind: $in.kind,
+                body: $ctx.read.body
+            }}
+            setter={[$store.driver.exchange]}
+        />
+
+        <Return value={$in} />
+    </If>
+
+    <Call
+        fn="outcome"
+        in={$ctx.read.pick([
+            "exhausted",
+            "grew"
+        ])}
+    />
+
+    <Return
+        value={{
+            ...$in,
+            outcome: $ctx.outcome,
+            running: false
+        }}
+    />
+</Module>

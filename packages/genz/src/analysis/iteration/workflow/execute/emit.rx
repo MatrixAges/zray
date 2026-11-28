@@ -4,6 +4,8 @@
 
     <Args in={Loop.Emit} out={u32} />
 
+    <Store from="state" as="loop_state" />
+
     <Call
         module="growth"
         in={$in.pick([
@@ -30,12 +32,17 @@
     <Call
         module="assignment"
         in={$in.pick([
+            "frame",
             "writer",
             "loop_frame",
             "loop_seq",
             "body",
             "schedule",
-            "update"
+            "update",
+            "state",
+            "type_id",
+            "assignment_facts",
+            "state_active"
         ])}
     />
 
@@ -83,6 +90,7 @@
                 "update"
             ]),
             state: $ctx.recover,
+            changed_name: $store.loop_state.state.changed_name,
             spans: {
                 renewals: $in.projected ? $ctx.growth : 0,
                 declarations: $ctx.takeAstSequence,

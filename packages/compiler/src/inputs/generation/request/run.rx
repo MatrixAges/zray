@@ -1,49 +1,78 @@
 <Module>
     <Type from="model" as="Request" />
 
-    <Args in={Request.Input} out={string?} />
+    <Args in={Request.Input} out={Request.Summary} />
+
+    <Call
+        module="observe"
+        in={{
+            host: $in.host,
+            write: $in.write
+        }}
+    />
 
     <If on={$in.write}>
-        <Call fn="host.observeGenerationInputs" in={$in.request} />
-
         <Call
             module="current"
             in={{
                 stamp_path: $in.stamp_path,
-                digest: $ctx.observeGenerationInputs
+                digest: $ctx.observe.digest
             }}
         />
 
         <If on={$ctx.current}>
-            <Return value={""} />
+            <Return
+                value={{
+                    text: "",
+                    failure: null
+                }}
+            />
         </If>
     </If>
 
     <Call
         module="load"
         in={{
-            request: $in.request,
+            host: $in.host,
             roots: $in.roots,
-            observed: $in.write
+            snapshot: $ctx.observe.snapshot
         }}
     />
 
-    <Call module="prepare" in={$in} />
+    <Call
+        module="prepare"
+        in={{
+            host: $in.host,
+            documents: $ctx.load
+        }}
+    />
 
-    <If on={$in.write}>
-        <If on={$ctx.prepare.interfaces_loaded}>
+    <If on={$ctx.observe.snapshot != null}>
+        <If on={$ctx.prepare.registered.failure == null}>
             <Call
                 module="current"
                 in={{
                     stamp_path: $in.stamp_path,
-                    digest: $ctx.prepare.digest
+                    digest: $ctx.prepare.fingerprints.digest
                 }}
             />
 
             <If on={$ctx.current}>
-                <Call fn="host.saveGenerationSnapshot" in={$in.request} />
+                <Call
+                    fn="host.saveGenerationSnapshot"
+                    in={[
+                        $in.host,
+                        $ctx.observe.snapshot,
+                        $ctx.prepare.fingerprints.digest
+                    ]}
+                />
 
-                <Return value={""} />
+                <Return
+                    value={{
+                        text: "",
+                        failure: null
+                    }}
+                />
             </If>
         </If>
 
@@ -53,18 +82,17 @@
     <Call
         module="analyze"
         in={{
-            request: $in.request,
-            interfaces_loaded: $ctx.prepare.interfaces_loaded,
-            analysis_available: $ctx.prepare.analysis_available
+            host: $in.host,
+            ...$ctx.prepare
         }}
     />
 
-    <If on={$ctx.analyze == null}>
-        <Return value={null} />
+    <If on={$ctx.analyze.failure != null}>
+        <Return value={$ctx.analyze} />
     </If>
 
-    <If on={$in.write}>
-        <Call fn="../stamp" in={$ctx.prepare.digest} />
+    <If on={$ctx.observe.snapshot != null}>
+        <Call fn="../stamp" in={$ctx.prepare.fingerprints.digest} />
 
         <Call
             fn="host.writeGenerationStamp"
@@ -74,7 +102,14 @@
             ]}
         />
 
-        <Call fn="host.saveGenerationSnapshot" in={$in.request} />
+        <Call
+            fn="host.saveGenerationSnapshot"
+            in={[
+                $in.host,
+                $ctx.observe.snapshot,
+                $ctx.prepare.fingerprints.digest
+            ]}
+        />
     </If>
 
     <Return value={$ctx.analyze} />

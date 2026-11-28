@@ -1,12 +1,9 @@
-import type { ListColumn, ReadColumn } from "memory"
-
-export type Level = {
-    parents: string[],
-    directories: ReadColumn,
-    files: ListColumn
+export type Files = {
+    records: u8[][],
+    copy_paths: bool
 }
 
-export type Counts = {
-    directories: u64,
-    files: u64
+export type Collected = {
+    batches: Files[],
+    count: u64
 }

@@ -1,0 +1,23 @@
+import memory from "memory"
+import columns from "memory/columns"
+
+import type { Layout } from "../../terms/layout"
+import type { Value as Output } from "./effect/model"
+
+export type Input = {
+    value: Output,
+    layout: Layout,
+    index: u64
+}
+
+export default function (in: Input): Output {
+    const { layout, value, index } = in
+
+    const row = memory.borrowU8Range(value.fields, index * layout.width, layout.width)
+
+    return {
+        text: columns.readBorrowedRowOptionalText(row, layout.text),
+        fields: columns.readBorrowedRowList(row, layout.children, layout.width),
+        safe: value.safe
+    }
+}

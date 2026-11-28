@@ -1,8 +1,11 @@
 <Module>
     <Type from="existing" as="Fields" />
     <Type from="workflow" as="Replay" />
+    <Type from="../object_closure/effect" as="ObjectEffect" />
 
     <Args in={Replay.Target} out={u32} />
+
+    <Store from="../object_closure/object" as="object" />
 
     <Switch on={$in.choice.action}>
         <Case value={Fields.Action.Field}>
@@ -26,14 +29,17 @@
 
         <Case value={Fields.Action.Register}>
             <Call
-                fn="host.registerFieldType"
-                in={[
-                    $in.site.frame,
-                    $in.choice.value
-                ]}
+                fn="../object_closure/stage"
+                in={{
+                    object_step: ObjectEffect.Step.RegisterType,
+                    type_id: $in.choice.value
+                }}
+                setter={[$store.object.effect]}
             />
 
-            <Return value={$ctx.registerFieldType} />
+            <Call fn="../object_closure/read_id" in={$store.object.effect} />
+
+            <Return value={$ctx.read_id} />
         </Case>
 
         <Default>

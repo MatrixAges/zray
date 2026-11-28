@@ -1,7 +1,10 @@
 <Module>
     <Type from="model" as="Collection" />
+    <Type from="effect" as="CollectionEffect" />
 
     <Args in={Collection.Request} out={void} />
+
+    <Store from="collection" as="collection" />
 
     <Loop on={$in.row < $in.request.modules}>
         <Call
@@ -14,7 +17,13 @@
         />
     </Loop>
 
-    <Call fn="host.releaseConstraintScope" in={$in.frame} />
+    <Call
+        fn="stage"
+        in={{
+            collection_step: CollectionEffect.Step.Release
+        }}
+        setter={[$store.collection.effect]}
+    />
 
     <If on={$ctx.row.unused != 0}>
         <Call
